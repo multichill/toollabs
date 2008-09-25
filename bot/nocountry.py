@@ -26,7 +26,7 @@ def getCountryList(cursor):
     return result
 
 def getNoCountry(cursor, country):
-    cursor.execute(u"SELECT c1.child FROM cats AS c1 WHERE c1.child LIKE %s AND NOT EXISTS(SELECT * FROM cats AS c2 JOIN cats AS c3 ON (c2.parent=c3.child) JOIN cats AS c4 ON (c3.parent=c4.child) WHERE c1.child=c2.child AND (c2.parent LIKE %s OR c3.parent LIKE %s OR c4.parent LIKE %s OR c2.parent='Category_redirects')) AND NOT c1.child=%s", ('%' + country, '%' + country + '%', '%' + country + '%', '%' + country + '%', country))
+    cursor.execute(u"SELECT DISTINCT(c1.child) FROM cats AS c1 WHERE c1.child LIKE %s AND NOT EXISTS(SELECT * FROM cats AS c2 JOIN cats AS c3 ON (c2.parent=c3.child) JOIN cats AS c4 ON (c3.parent=c4.child) WHERE c1.child=c2.child AND (c2.parent LIKE %s OR c3.parent LIKE %s OR c4.parent LIKE %s OR c2.parent='Category_redirects')) AND NOT c1.child=%s", ('%_' + country, '%' + country + '%', '%' + country + '%', '%' + country + '%', country))
     result = []
     while True:
 	try:
