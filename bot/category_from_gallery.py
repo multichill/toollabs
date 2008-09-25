@@ -63,7 +63,6 @@ def getImagesInGalleriesAndCategories (galleries = [], categories = []):
     Get the uncategorized images which are in one of these galleries
     '''
     result = None
-    conn = MySQLdb.connect(config.db_hostname, db = 'commonswiki_p', user = config.db_username, passwd = config.db_password)
     categories.append(u'Media needing categories as of%')
     query = u'SELECT DISTINCT imagepage.page_namespace, imagepage.page_title FROM page AS gallery '
     query = query + u'JOIN imagelinks ON gallery.page_id = il_from '
@@ -75,18 +74,18 @@ def getImagesInGalleriesAndCategories (galleries = [], categories = []):
 	firstGallery = True
         for gallery in galleries:
 	    if firstGallery:
-	        query = query + u'gallery.page_title=\'' + conn.escape_string(gallery.replace(u' ', u'_')) + u'\''
+	        query = query + u'gallery.page_title=\'' + gallery.replace(u' ', u'_').replace(u"'", u"\\'") + u'\''
 		firstGallery = False
 	    else:
-                query = query + u' OR gallery.page_title=\'' +  conn.escape_string(gallery.replace(u' ', u'_')) + u'\''
+                query = query + u' OR gallery.page_title=\'' +  gallery.replace(u' ', u'_').replace(u"'", u"\\'") + u'\''
 	query = query + u') AND ('
 	firstCategory = True
 	for category in categories:
 	    if firstCategory:
-	        query = query + u'cl_to LIKE \'' +  conn.escape_string(category.replace(u' ', u'_')) + u'\''
+	        query = query + u'cl_to LIKE \'' +  category.replace(u' ', u'_').replace(u"'", u"\\'") + u'\''
 		firstCategory = False
 	    else:
-	        query = query + u' OR cl_to LIKE \'' +  conn.escape_string(category.replace(u' ', u'_')) + u'\''
+	        query = query + u' OR cl_to LIKE \'' +  category.replace(u' ', u'_').replace(u"'", u"\\'") + u'\''
 	query = query + u') LIMIT 1000'
 
 	result = pagegenerators.MySQLPageGenerator(query)
