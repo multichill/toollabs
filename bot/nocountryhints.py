@@ -44,7 +44,7 @@ def outputResult(missingCatsTotal):
     page = wikipedia.Page(wikipedia.getSite(u'commons', u'commons'), u'User:Multichill/No_country')
     comment = u'A list categories which should be subcategories of some country'
     for (cat, cathint, country) in missingCatsTotal:
-	resultscript = resultscript + u'python2.4 add_text.py -always -lang:commons -family:commons -page:"Category:' + cat + u'" -text:"[[Category:' + cathint.replace(u'_', u' ') + u'|' + country.replace(u'_', u' ') + u']]" -summary:"Adding [[Category:' + cathint.replace(u'_', u' ') + u']]"\n' 
+	resultscript = resultscript + u'python2.4 add_text.py -always -lang:commons -family:commons -page:"Category:' + cat + u'" -text:"[[Category:' + cathint.replace(u'_', u' ') + u']]" -summary:"Adding [[Category:' + cathint.replace(u'_', u' ') + u']]"\n' 
     f = file("/home/multichill/queries/nocountryhints.txt", 'w')
     f.write(resultscript.encode('utf-8'))
     f.close()
