@@ -37,11 +37,11 @@ def addWeek (monday = None):
     qmonday = monday + timedelta(weeks=3)
     (qyear, qweek, Null) = qmonday.isocalendar()
     #Add the current week template
-    pagetext = pagetext.replace(u'<!-- HIERVOOR -->', '{{Wikipedia:Te verwijderen sjablonen/Toegevoegd ' + str(year) + u' week ' + str(week) + u'}}\n<!-- HIERVOOR -->')
+    pagetext = pagetext.replace(u'<!-- HIERVOOR -->', u'{{Wikipedia:Te verwijderen sjablonen/Toegevoegd ' + str(year) + u' week ' + str(week) + u'}}\n<!-- HIERVOOR -->')
     #Remove the current week template from the queue
-    pagetext = pagetext.replace(u'<!-- {{Wikipedia:Te verwijderen sjablonen/Toegevoegd ' + str(year) + u' week ' + str(week) + u'}} -->\n', '')
+    pagetext = pagetext.replace(u'<!-- {{Wikipedia:Te verwijderen sjablonen/Toegevoegd ' + str(year) + u' week ' + str(week) + u'}} -->\n', u'')
     #Add a new week template to the queue
-    pagetext = pagetext.replace(u'<!-- EINDE QUEUE -->', '<!-- {{Wikipedia:Te verwijderen sjablonen/Toegevoegd ' + str(qyear) + u' week ' + str(qweek) + u'}} -->\n<!-- EINDE QUEUE -->')
+    pagetext = pagetext.replace(u'<!-- EINDE QUEUE -->', u'<!-- {{Wikipedia:Te verwijderen sjablonen/Toegevoegd ' + str(qyear) + u' week ' + str(qweek) + u'}} -->\n<!-- EINDE QUEUE -->')
     wikipedia.showDiff(page.get(), pagetext)
     page.put(pagetext, u'{{Wikipedia:Te verwijderen sjablonen/Toegevoegd ' + str(year) + u' week ' + str(week) + u'}} erbij')
 
