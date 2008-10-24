@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8  -*-
 '''
-test
+Find categories which appear to be related to a country, but not a subcategory of this country. For each country try to find a hint.
+Output the result as a script
 '''
 import sys
 sys.path.append("/home/multichill/pywikipedia")

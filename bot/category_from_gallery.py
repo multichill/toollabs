@@ -12,6 +12,9 @@ import re, imagerecat
 import MySQLdb, config
 
 def populateCategory(cat = None):
+    '''
+    Populate a category with uncategorized images and images from parent categories
+    '''
     galleries = []
     categories = []
     uncatStats = 0
@@ -42,6 +45,9 @@ def populateCategory(cat = None):
     removePopulateCategoryTemplate(cat, uncatStats, recatStats)
 
 def findGalleryHint (text = u''):
+    '''
+    Try to find a gallery hint in the Populate category template
+    '''
     result = u''
     gallery = None
     p = re.compile('\{\{[pP]opulate category\|[gG]allery\=(?P<gallery>([^}]+))\}\}')
@@ -60,7 +66,8 @@ def findGalleryHint (text = u''):
 
 def getImagesInGalleriesAndCategories (galleries = [], categories = []):
     '''
-    Get the uncategorized images which are in one of these galleries
+    Get a list of images to work on. The images are in one of galleries AND in one of the categories or uncategorized.
+    Each image : (galleries AND (categories OR uncategorized))
     '''
     result = None
     categories.append(u'Media needing categories as of%')

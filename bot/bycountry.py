@@ -1,18 +1,24 @@
 #!/usr/bin/python
 # -*- coding: utf-8  -*-
 '''
-test
+Create a list at http://commons.wikimedia.org/wiki/User:Multichill/By_country_to_fix of categories which are not in their corresponding <subject>_by_country category.
 '''
 import sys
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config
 
 def connectDatabase():
+    '''
+    Connect to the mysql database, if it fails, go down in flames
+    '''
     conn = MySQLdb.connect(config.db_hostname, db='commonswiki_p', user = config.db_username, passwd = config.db_password)
     cursor = conn.cursor()
     return (conn, cursor)
 
 def getCountryList(cursor):
+    '''
+    Get the list of countries
+    '''
     query = u"SELECT pl_title FROM page JOIN pagelinks ON page_id=pl_from WHERE page_namespace=2 AND page_is_redirect=0 AND page_title = 'Multichill/Countries' AND pl_namespace=14"
     cursor.execute(query)
     result = []
@@ -26,6 +32,9 @@ def getCountryList(cursor):
     return result
 
 def getByCountryList(cursor, startSubject):
+    '''
+    Get a list of ..._by_country categories
+    '''
     query = u"SELECT cat.page_title, bc.page_title FROM page AS bc JOIN categorylinks ON bc.page_id = cl_from JOIN page AS cat ON (cl_to=cat.page_title AND bc.page_title=CONCAT(cat.page_title, '_by_country')) WHERE bc.page_namespace=14 AND bc.page_is_redirect=0 AND bc.page_title LIKE '%by_country' AND cat.page_namespace=14 AND cat.page_is_redirect=0"
     cursor.execute(query)
     result = []
@@ -40,6 +49,10 @@ def getByCountryList(cursor, startSubject):
     return result
 
 def getMissingByCountry(cursor, subject, subjectByCountry, countries):
+    '''
+    For the <subject>_by_country category get the categories which are supposed to be subcategories, but are not.
+    '''
+    
     cursor.execute(u"SELECT page_title FROM page WHERE page_namespace=14 AND page_is_redirect=0 AND page_title LIKE %s AND NOT EXISTS(SELECT * FROM categorylinks WHERE cl_from=page_id AND cl_to = %s) AND NOT EXISTS(SELECT * FROM templatelinks WHERE page_id=tl_from AND tl_title ='Category_redirect')", (subject + '_%' , subjectByCountry))
     result = []
     while True:
@@ -60,6 +73,9 @@ def getMissingByCountry(cursor, subject, subjectByCountry, countries):
     return result
 
 def isCountryCategory(cat, subject, countries):
+    '''
+    If the category is a country category, return the name of the country
+    '''
     for country in countries:
 	if cat.endswith(country):
 	    if (cat == subject + u'_from_' + country) or (cat == subject + u'_from_the_' + country):
@@ -71,6 +87,10 @@ def isCountryCategory(cat, subject, countries):
     return None
 
 def outputResult(missingCatsTotal):
+    '''
+    Output the results to Commons.
+    Can also output a ready to run script.
+    '''
     resultwiki = u''
     resultscript = u'#!/usr/pkg/bin/bash\n'
     page = wikipedia.Page(wikipedia.getSite(u'commons', u'commons'), u'User:Multichill/By_country_to_fix')
@@ -87,6 +107,9 @@ def outputResult(missingCatsTotal):
     #wikipedia.output(resultscript)
 
 def main():
+    '''
+    The main loop
+    '''
     conn = None
     cursor = None
     missingCatsTotal = []
@@ -99,8 +122,6 @@ def main():
 	missingCats = getMissingByCountry(cursor, subject, subjectByCountry, countries)
 	if missingCats:
 	    missingCatsTotal = missingCatsTotal + missingCats
-    #for (a, b) in missingCatsTotal:
-    #	print a + ' should be in ' + b
 
     outputResult(missingCatsTotal)
     

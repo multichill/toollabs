@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8  -*-
 '''
-Create a list of possible categories to create.
+Create a list of possible categories to create based on uncategorized images which are in use in one or more galleries.
 '''
 import sys
 sys.path.append("/home/multichill/pywikipedia")
