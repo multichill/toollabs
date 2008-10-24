@@ -31,7 +31,9 @@ def outputResult(suggestions):
     page = wikipedia.Page(wikipedia.getSite(u'commons', u'commons'), u'User:Multichill/Category_suggestions')
     comment = u'Updated the list of category suggestions'
     for (gallery, count) in suggestions:
-	resultwiki = resultwiki + u'*[[' + gallery.replace(u'_', u' ') + u']] (' + count + u') -> [[:Category:' + gallery.replace(u'_', u' ') + u']]\n'
+	resultwiki = resultwiki + u'|-\n'
+	resultwiki = resultwiki + u'| [[' + gallery.replace(u'_', u' ') + u']] || ' + count + u' || [[:Category:' + gallery.replace(u'_', u' ') + u']]\n'
+    resultwiki = resultwiki + u'|}\n'
     page.put(resultwiki, comment)
 
 def main():
