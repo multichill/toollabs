@@ -13,7 +13,7 @@ def connectDatabase():
     return (conn, cursor)
 
 def getCategorySuggestions(cursor):
-    query = u"SELECT gallery.page_title AS catje, COUNT(gallery.page_title) AS aantal FROM page AS imagepage JOIN imagelinks ON imagepage.page_title=il_to JOIN page AS gallery ON il_from=gallery.page_id JOIN categorylinks AS imcl ON imagepage.page_id=imcl.cl_from WHERE imcl.cl_to LIKE 'Media_needing_categories_as_of_%' AND imagepage.page_namespace=6 AND imagepage.page_is_redirect=0 AND gallery.page_namespace=0 AND gallery.page_is_redirect=0 GROUP BY(gallery.page_title) HAVING COUNT(gallery.page_title) > 3";
+    query = u"SELECT gallery.page_title AS catje, COUNT(gallery.page_title) AS aantal FROM page AS imagepage JOIN imagelinks ON imagepage.page_title=il_to JOIN page AS gallery ON il_from=gallery.page_id JOIN categorylinks AS imcl ON imagepage.page_id=imcl.cl_from WHERE imcl.cl_to LIKE 'Media_needing_categories_as_of_%' AND imagepage.page_namespace=6 AND imagepage.page_is_redirect=0 AND gallery.page_namespace=0 AND gallery.page_is_redirect=0 GROUP BY(gallery.page_title) HAVING COUNT(gallery.page_title) > 2";
 
     cursor.execute(query)
     result = []
