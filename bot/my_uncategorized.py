@@ -13,7 +13,7 @@ def connectDatabase():
     return (conn, cursor)
 
 def getUncategorizedUsers(cursor):
-    query = u"SELECT user_name, COUNT(user_name) AS count FROM image JOIN user ON img_user=user_id JOIN page ON img_name=page_title JOIN categorylinks ON page.page_id=cl_from WHERE page_namespace=6 AND page_is_redirect=0 AND cl_to LIKE 'Media_needing_categories_as_of_%' GROUP BY(user_name) HAVING COUNT(user_name) > 4";
+    query = u"SELECT user_name, COUNT(user_name) AS count FROM image JOIN user ON img_user=user_id JOIN page ON img_name=page_title JOIN categorylinks ON page.page_id=cl_from WHERE page_namespace=6 AND page_is_redirect=0 AND cl_to LIKE 'Media_needing_categories_as_of_%' GROUP BY(user_name) HAVING COUNT(user_name) > 20";
 
     cursor.execute(query)
     result = []
