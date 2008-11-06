@@ -40,18 +40,20 @@ def sort_TOL_subcat(parent, child):
     # With [[Category:<parent>|<suffix>]]
     old = u'\[\[[cC]ategory:' + parent.titleWithoutNamespace() + u'[^\]]*\]\]'
     new = u'[[Category:' + parent.titleWithoutNamespace() + u'|' + suffix + u']]'
-    newgal = u'[[' + child.title() + u'| ]]'
+    #newgal = u'[[' + child.title() + u'| ]]'
     newtext = wikipedia.replaceExcept(child.get(), old, new, [])
     comment = u'Sorting category'
-    commentgal = u'Moving to category with the same name'
+    #commentgal = u'Moving to category with the same name'
     wikipedia.showDiff(child.get(), newtext)
     child.put(newtext, comment)
+    '''
     gallery = wikipedia.Page(site, child.titleWithoutNamespace())
     if gallery.exists():
 	wikipedia.output(u'Found gallery')
 	newgaltext = wikipedia.replaceExcept(gallery.get(), old, newgal, [])
 	wikipedia.showDiff(gallery.get(), newgaltext)
 	gallery.put(newgaltext, commentgal)
+    '''
 	
 
 def main():
