@@ -4,7 +4,7 @@
 '''
 import sys
 sys.path.append("/home/multichill/pywikipedia")
-import wikipedia, MySQLdb, config, imagerecat
+import wikipedia, MySQLdb, config, imagerecat, pagegenerators
 
 def connectDatabase():
     '''
@@ -74,6 +74,17 @@ def categorizeImage(image, gals, cats):
 	wikipedia.showDiff(page.get(), newtext)
 	page.put(newtext, comment)
 
+def categoriesChecked(category):
+    page = wikipedia.Page(wikipedia.getSite(), category)
+    if (page.exists()):
+	old = u'\{\{UncategorizedHeader([^\}]*)\}\}'
+	new = u'{{UncategorizedHeader\\1|galleries=~~~~}}'
+	newtext = wikipedia.replaceExcept(page.get(), old, new, [])
+	comment = u'No more images in galleries'
+	wikipedia.showDiff(page.get(), newtext)
+        page.put(newtext, comment)
+
+
 def main():
     '''
     The main loop
@@ -84,9 +95,15 @@ def main():
     (conn, cursor) = connectDatabase()
 
     imagerecat.initLists()
-    generator = None
+    generator = None;
+    genFactory = pagegenerators.GeneratorFactory()
+
+    mark = True
+
     for arg in wikipedia.handleArgs():
-        if arg.startswith('-page'):
+	if arg.startswith('-dontmark'):
+	    mark = False
+        elif arg.startswith('-page'):
             if len(arg) == 5:
                 generator = [wikipedia.Page(wikipedia.getSite(), wikipedia.input(u'What page do you want to use?'))]
             else:
@@ -96,8 +113,11 @@ def main():
     if generator:
         for page in generator:
 	    if((page.namespace() == 14) and (page.title().startswith(u'Category:Media needing categories as of'))):
+		wikipedia.output(u'Working on ' + page.title())
 		for (image, gals, cats) in getImagesToCategorize(cursor, page.titleWithoutNamespace()):
 		    categorizeImage(image, gals, imagerecat.applyAllFilters(cats))
+		if (mark):
+		    categoriesChecked(page.title())
 	
 
     
