@@ -1,1 +1,4 @@
 AddDefaultCharset UTF-8
+
+# disable directory browsing
+Options All -Indexes
