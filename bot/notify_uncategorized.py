@@ -28,7 +28,7 @@ def getUsersToNotify(cursor, uncat):
     '''
     Get a list of images + uploader which are in the uncat category
     '''
-    query=u"SELECT img_user_text, img_name  FROM page JOIN categorylinks ON page_id=cl_from JOIN image ON img_name=page_title WHERE page_namespace=6 AND page_is_redirect=0 AND cl_to=%s ORDER BY img_user_text"
+    query=u"SELECT img_user_text, img_name  FROM page JOIN categorylinks ON page_id=cl_from JOIN image ON img_name=page_title WHERE page_namespace=6 AND page_is_redirect=0 AND cl_to=%s AND NOT EXISTS(SELECT * FROM page AS tp JOIN pagelinks ON tp.page_id=pl_from WHERE tp.page_title=REPLACE(img_user_text, ' ', '_') AND tp.page_namespace=3 AND tp.page_is_redirect=0 AND pl_namespace=6 AND pl_title=img_name) ORDER BY img_user_text"
     
     result = []
     lastuser = ''
@@ -68,7 +68,11 @@ def notifyUser(user, images, uncat):
 	wikipedia.output(u'Welcoming ' + user)
 	newtext= u'{{subst:Welcome}} ~~~~\n'
     else:
-	newtext = page.get()
+	try:
+	    newtext = page.get()
+	except wikipedia.IsRedirectPage:
+	    wikipedia.output(u'Talk page is a redirect')
+	    return
 
     for image in images:
 	print image
@@ -79,7 +83,7 @@ def notifyUser(user, images, uncat):
 	message = u'*[[:Image:' + image.replace(u'_', u' ') + u']] is uncategorized since ' + uncat.replace(u'Media_needing_categories_as_of_', '').replace(u'_', u' ') + u'. ~~~~\n'
 	newtext = newtext.replace(message_marker, message + message_marker)
 
-    comment = u'Notifying user of ' + str(len(images)) + u' [[Category:' + uncat + u'|uncategorized]] images'
+    comment = u'Notifying user of ' + str(len(images)) + u' [[Category:' + uncat + u'|uncategorized]] image(s)'
     #Gaat nog fout bij niet bestaande pagina
     #wikipedia.showDiff(page.get(), newtext)
     page.put(newtext, comment)
