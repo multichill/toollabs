@@ -5,6 +5,15 @@
 import sys
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config, imagerecat, pagegenerators
+from datetime import datetime
+from datetime import timedelta
+
+def getYesterday():
+    yesterday = datetime.utcnow() + timedelta(days=-1)
+    day = str(int(yesterday.strftime('%d')))
+    month = yesterday.strftime('%B')
+    year = yesterday.strftime('%Y')
+    return day + u'_' + month + u'_' + year
 
 def connectDatabase():
     '''
@@ -108,6 +117,8 @@ def main():
                 generator = [wikipedia.Page(wikipedia.getSite(), wikipedia.input(u'What page do you want to use?'))]
             else:
                 generator = [wikipedia.Page(wikipedia.getSite(), arg[6:])]
+	elif arg.startswith('-yesterday'):
+	    generator = [wikipedia.Page(wikipedia.getSite(), u'Category:Media_needing_categories_as_of_' + getYesterday())]
         else:
             generator = genFactory.handleArg(arg)
     if generator:
