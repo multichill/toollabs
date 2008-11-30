@@ -6,6 +6,8 @@ Notify users of uncategorized files they uploaded.
 import sys
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config, imagerecat, pagegenerators
+from datetime import datetime
+from datetime import timedelta
 
 message_marker = u'<!-- Uncategorized notification -->'
 
@@ -17,12 +19,12 @@ def connectDatabase():
     cursor = conn.cursor()
     return (conn, cursor)
 
-'''
-def getYesterday()
-    dateformat ="%Y-%m-%dT00:00:00Z"
+def getYesterday():
     yesterday = datetime.utcnow() + timedelta(days=-1)
-    return yesterday.strftime(dateformat)
-'''
+    day = str(int(yesterday.strftime('%d')))
+    month = yesterday.strftime('%B')
+    year = yesterday.strftime('%Y')
+    return day + u'_' + month + u'_' + year
 
 def getUsersToNotify(cursor, uncat):
     '''
@@ -105,12 +107,14 @@ def main():
             else:
                 uncat = u'Media_needing_categories_as_of_' + arg[6:]
 	if arg.startswith('-yesterday'):
-	    uncat = u'Media_needing_categories_as_of_' + u'yesterday' 
+	    uncat = u'Media_needing_categories_as_of_' + getYesterday()
     if uncat:
 	uncat = uncat.replace(' ', '_')
 	for (user, images) in getUsersToNotify(cursor, uncat):
 	    print user
 	    notifyUser(user, images, uncat)
+    else:
+	wikipedia.output(u'Please specify date to work with "-date:' + getYesterday() + u'" or "-yesterday"')
     
 if __name__ == "__main__":
     try:
