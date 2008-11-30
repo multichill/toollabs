@@ -106,7 +106,7 @@ def main():
                 uncat = u'Media_needing_categories_as_of_' + wikipedia.input(u'What page do you want to use?')
             else:
                 uncat = u'Media_needing_categories_as_of_' + arg[6:]
-	if arg.startswith('-yesterday'):
+	elif arg.startswith('-yesterday'):
 	    uncat = u'Media_needing_categories_as_of_' + getYesterday()
     if uncat:
 	uncat = uncat.replace(' ', '_')
