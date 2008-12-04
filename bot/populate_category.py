@@ -160,6 +160,7 @@ def removePopulateCategoryTemplate(page = None, uncatStats=0, recatStats=0):
 	page.put (newtext, comment)
 
 def main():
+    wikipedia.setSite(wikipedia.getSite(u'commons', u'commons'))
     generator = None
     for arg in wikipedia.handleArgs():
         if arg.startswith('-page'):
