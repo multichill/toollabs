@@ -77,10 +77,9 @@ def notifyUser(user, images, uncat):
 	    return
 
     for image in images:
-	print image
 	if newtext.find(message_marker)==-1:
 	    wikipedia.output(u'No marker found. Adding template and marker')
-	    newtext = newtext + u'\n{{subst:Please link images}} ~~~~\n'
+	    newtext = newtext + u'\n{{Please link images}} ~~~~\n'
 	    newtext = newtext + message_marker
 	message = u'*[[:Image:' + image.replace(u'_', u' ') + u']] is uncategorized since ' + uncat.replace(u'Media_needing_categories_as_of_', '').replace(u'_', u' ') + u'. ~~~~\n'
 	newtext = newtext.replace(message_marker, message + message_marker)
@@ -88,7 +87,8 @@ def notifyUser(user, images, uncat):
     comment = u'Notifying user of ' + str(len(images)) + u' [[Category:' + uncat + u'|uncategorized]] image(s)'
     #Gaat nog fout bij niet bestaande pagina
     #wikipedia.showDiff(page.get(), newtext)
-    page.put(newtext, comment)
+    wikipedia.output(comment)
+    page.put(newtext = newtext, comment = comment, minorEdit=False)
 
 def main():
     '''
@@ -111,7 +111,6 @@ def main():
     if uncat:
 	uncat = uncat.replace(' ', '_')
 	for (user, images) in getUsersToNotify(cursor, uncat):
-	    print user
 	    notifyUser(user, images, uncat)
     else:
 	wikipedia.output(u'Please specify date to work with "-date:' + getYesterday() + u'" or "-yesterday"')
