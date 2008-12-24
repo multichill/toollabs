@@ -88,7 +88,10 @@ def notifyUser(user, images, uncat):
     #Gaat nog fout bij niet bestaande pagina
     #wikipedia.showDiff(page.get(), newtext)
     wikipedia.output(comment)
-    page.put(newtext = newtext, comment = comment, minorEdit=False)
+    try:
+	page.put(newtext = newtext, comment = comment, minorEdit=False)
+    except wikipedia.LockedPage:
+	wikipedia.output(u'Page is locked. Not saved')
 
 def main():
     '''
