@@ -20,7 +20,7 @@ $tocat = preg_replace('/ /', '_', mysql_real_escape_string($tocat));
 list($category, $tocat)=split(":", $tocat, 2);
 
 @mysql_select_db('toolserver') or print mysql_error();
-$query_langs = "SELECT lang FROM wiki WHERE family='wikipedia'";
+$query_langs = "SELECT lang FROM wiki WHERE family='wikipedia' AND is_closed=0";
 
 $result_langs = mysql_query($query_langs);
 
