@@ -72,7 +72,7 @@ for($i= 0; $i < $n_current_cats; $i++){
  }
 }
 
-@mysql_select_db('u_multichill') or print mysql_error();
+@mysql_select_db('u_multichill_commons_categories_p') or print mysql_error();
 
 $result = mysql_query($query);
 
