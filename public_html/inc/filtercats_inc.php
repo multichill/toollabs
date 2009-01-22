@@ -1,4 +1,7 @@
 <?php 
+/*
+Released under the GNU General Public License by Multichill
+*/
 
 function filter_categories($current_cats){
 /*
