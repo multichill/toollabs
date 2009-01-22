@@ -83,7 +83,7 @@ WHERE ";
     mysql_close();
 
     for($i= 0; $i < $n_current_cats; $i++){
-	if(array_search($current_cats[$i], $parent_cats)===FALSE){
+	if((array_search($current_cats[$i], $parent_cats)===FALSE) && (array_search($current_cats[$i], $new_cats)===FALSE)){
 	    $new_cats[]=$current_cats[$i];
 	} else {
 	    $filtered_cats[]=$current_cats[$i];
