@@ -39,7 +39,9 @@ JOIN cats AS c8 ON c7.parent=c8.child
 WHERE ";
 
     for($i= 0; $i < $n_current_cats; $i++){
-	$query = $query . "c1.child='" . preg_replace('/ /', '_', mysql_real_escape_string($current_cats[$i])) . "'";
+	// First replace spaces with underscores
+	$current_cats[$i] = preg_replace('/ /', '_', $current_cats[$i]);
+	$query = $query . "c1.child='" . mysql_real_escape_string($current_cats[$i]) . "'";
 	if($i+1 < $n_current_cats){
 	    $query =  $query . " OR ";
 	}
@@ -52,29 +54,29 @@ WHERE ";
     $parent_cats = array();
 
     while($row = mysql_fetch_assoc($result)) {
-	if (!in_array(preg_replace('/_/', ' ', $row['c1p']), $parent_cats)){
-	    $parent_cats[]=preg_replace('/_/', ' ', $row['c1p']);
+	if (!in_array($row['c1p'], $parent_cats)){
+	    $parent_cats[]=$row['c1p'];
 	}
-	if (!in_array(preg_replace('/_/', ' ', $row['c2p']), $parent_cats)){
-	    $parent_cats[]=preg_replace('/_/', ' ', $row['c2p']);
+	if (!in_array($row['c2p'], $parent_cats)){
+	    $parent_cats[]=$row['c2p'];
 	}
-	if (!in_array(preg_replace('/_/', ' ', $row['c3p']), $parent_cats)){
-	    $parent_cats[]=preg_replace('/_/', ' ', $row['c3p']);
+	if (!in_array($row['c3p'], $parent_cats)){
+	    $parent_cats[]=$row['c3p'];
 	}
-	if (!in_array(preg_replace('/_/', ' ', $row['c4p']), $parent_cats)){
-	    $parent_cats[]=preg_replace('/_/', ' ', $row['c4p']);
+	if (!in_array($row['c4p'], $parent_cats)){
+	    $parent_cats[]=$row['c4p'];
 	}
-	if (!in_array(preg_replace('/_/', ' ', $row['c5p']), $parent_cats)){
-	    $parent_cats[]=preg_replace('/_/', ' ', $row['c5p']);
+	if (!in_array($row['c5p'], $parent_cats)){
+	    $parent_cats[]=$row['c5p'];
 	}
-	if (!in_array(preg_replace('/_/', ' ', $row['c6p']), $parent_cats)){
-	    $parent_cats[]=preg_replace('/_/', ' ', $row['c6p']);
+	if (!in_array($row['c6p'], $parent_cats)){
+	    $parent_cats[]=$row['c6p'];
 	}
-	if (!in_array(preg_replace('/_/', ' ', $row['c7p']), $parent_cats)){
-	    $parent_cats[]=preg_replace('/_/', ' ', $row['c7p']);
+	if (!in_array($row['c7p'], $parent_cats)){
+	    $parent_cats[]=$row['c7p'];
 	}
-	if (!in_array(preg_replace('/_/', ' ', $row['c8p']), $parent_cats)){
-	    $parent_cats[]=preg_replace('/_/', ' ', $row['c8p']);
+	if (!in_array($row['c8p'], $parent_cats)){
+	    $parent_cats[]=$row['c8p'];
 	}
     }
 

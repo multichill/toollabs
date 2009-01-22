@@ -51,7 +51,7 @@ $filtered_cats=$filter_result['filtered'];
 $source_filtered = $source_cats_removed;
 
 foreach($new_cats as $cat){
- $source_filtered = $source_filtered . "\n[[Category:" . $cat . "]]";
+ $source_filtered = $source_filtered . "\n[[Category:" . preg_replace('/_/', ' ', $cat) . "]]";
 }
 
 if(!$bot){ 
