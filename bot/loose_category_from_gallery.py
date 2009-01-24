@@ -76,7 +76,7 @@ def categorizeImage(image, gals, cats):
     #category = category.replace('_', ' ')
     if (page.exists() and gals and cats):
 	newtext = imagerecat.removeTemplates(page.get())
-	newtext = newtext + imagerecat.getCheckCategoriesTemplate([], gals)
+	newtext = newtext + imagerecat.getCheckCategoriesTemplate([], gals, len(cats))
 	for category in cats:
 	    newtext = newtext + u'[[Category:' + category.replace('_', ' ') + u']]\n'
 	comment = u'Adding one or more categories (based on gallery information) to this uncategorized image'
