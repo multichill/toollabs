@@ -79,7 +79,7 @@ def notifyUser(user, images, uncat):
     for image in images:
 	if newtext.find(message_marker)==-1:
 	    wikipedia.output(u'No marker found. Adding template and marker')
-	    newtext = newtext + u'\n{{Please link images}} ~~~~\n'
+	    newtext = newtext + u'\n{{subst:Please link images}} ~~~~\n'
 	    newtext = newtext + message_marker
 	message = u'*[[:Image:' + image.replace(u'_', u' ') + u']] is uncategorized since ' + uncat.replace(u'Media_needing_categories_as_of_', '').replace(u'_', u' ') + u'.\n'
 	newtext = newtext.replace(message_marker, message + message_marker)
