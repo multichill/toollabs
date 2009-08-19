@@ -74,16 +74,13 @@ def getPhotosInGroup(flickr=None, group_id=''):
     #Raise this to not start at the first page again
     for i in range(1, int(pages)):
         for photo in flickr.groups_pools_getPhotos(group_id=group_id, per_page='100', page=i).find('photos').getchildren():
-            print photo.attrib['id']
+            #print photo.attrib['id']
             yield photo.attrib['id']
 
-def getPhotos(flickr=None, photoIds=[]):
-    result = []
-    for photo_id in photoIds:
-        result.append(getPhoto(flickr=flickr, photo_id=photo_id))
-    return
-
 def getPhoto(flickr=None, photo_id=''):
+    '''
+    Get the photo info and the photo sizes so we can use these later on
+    '''
     photoInfo = flickr.photos_getInfo(photo_id=photo_id)
     #xml.etree.ElementTree.dump(photoInfo)
     photoSizes = flickr.photos_getSizes(photo_id=photo_id)
@@ -91,6 +88,9 @@ def getPhoto(flickr=None, photo_id=''):
     return (photoInfo, photoSizes)
 
 def isAllowedLicense(photoInfo=None):
+    '''
+    Check if the image contains the right license
+    '''
     license = photoInfo.find('photo').attrib['license']
     if (license=='4' or license=='5'):
 	#Is cc-by or cc-by-sa
@@ -100,12 +100,18 @@ def isAllowedLicense(photoInfo=None):
 	return False
 
 def getTags(photoInfo=None):
+    '''
+    Get all the tags on a photo
+    '''
     result = []
     for tag in photoInfo.find('photo').find('tags').findall('tag'):
 	result.append(tag.text.lower())
     return result
 
 def photoCanUpload(tags=[]):
+    '''
+    See if the photo contains an allowed tag and not a tag on the disallowed list
+    '''
     foundAllowed = False
     #xml.etree.ElementTree.dump(photoInfo)
     for tag in tags:
@@ -113,9 +119,9 @@ def photoCanUpload(tags=[]):
 	    return False
 	elif tag in allowed_tags:
 	    foundAllowed = True
-	print tag
+	#print tag
     if foundAllowed:
-	print 'Foundallowed'
+	#print 'Foundallowed'
 	return True
     else:
 	#Didn't find an allowed tag
@@ -123,16 +129,20 @@ def photoCanUpload(tags=[]):
 
 def getFlinfoDescription(photoId=0):
     '''
-    Get the description from http://wikipedia.ramselehof.de/flinfo.php?id=3691355871&raw=on&user_lang=
+    Get the description from http://wikipedia.ramselehof.de/flinfo.php
     '''
     parameters = urllib.urlencode({'id' : photoId, 'raw' : 'on'})
     
-    print 'Flinfo gaat nu aan de slag'
+    #print 'Flinfo gaat nu aan de slag'
     rawDescription = urllib.urlopen("http://wikipedia.ramselehof.de/flinfo.php?%s" % parameters).read()
     #print rawDescription.decode('utf-8')
     return rawDescription.decode('utf-8')
 
 def getTagDescription(tags=[]):
+    '''
+    Get a descriptions based on tags.
+    This uses http://commons.wikimedia.org/wiki/User:Multichill/WLANL/descriptions for the descriptions
+    '''
     description = u''
     template = u'User:Multichill/WLANL/descriptions'
     for tag in tags:
@@ -142,6 +152,10 @@ def getTagDescription(tags=[]):
     return description.strip()
 
 def getTagCategories(tags=[]):
+    '''
+    Get one or more categories based on tags
+    This uses http://commons.wikimedia.org/wiki/User:Multichill/WLANL/museums
+    ''' 
     categories = u''
     template = u'User:Multichill/WLANL/museums'
     for tag in tags:
@@ -152,7 +166,7 @@ def getTagCategories(tags=[]):
 
 def getFilename(photoInfo=None):
     '''
-    Build a good filename for the upload
+    Build a good filename for the upload based on the username and the title
     '''
     username = photoInfo.find('photo').find('owner').attrib['username']
     title = photoInfo.find('photo').find('title').text
@@ -160,6 +174,9 @@ def getFilename(photoInfo=None):
     return u'WLANL - %s - %s.jpg' % (username, title)
 
 def getPhotoUrl(photoSizes=None):
+    '''
+    Get the url of the jpg file with the highest resolution
+    '''
     url = ''
     # The assumption is that the largest image is last
     for size in photoSizes.find('sizes').findall('size'):
@@ -168,13 +185,16 @@ def getPhotoUrl(photoSizes=None):
 
 def buildDescription(flinfoDescription=u'', tagDescription=u'', tagCategories=u''):
     '''
-    Build the final description for the image
+    Build the final description for the image. The description is based on the info from flickrinfo and improved.
     '''
     description = u''
+    # Add the tag based description if it's not empty
     if not(tagDescription==u''):
 	description = flinfoDescription.replace(u'|Description=', u'|Description=' + tagDescription + u' ')
     else:
 	description = flinfoDescription
+
+    # Add the tag based categories
     description = description + tagCategories
     # Add WLANL template
     description = description.replace(u'{{flickrreview}}', u'{{WLANL}}\n{{flickrreview}}')
@@ -182,30 +202,38 @@ def buildDescription(flinfoDescription=u'', tagDescription=u'', tagCategories=u'
     description = description.replace(u'{{flickrreview}}', u'{{flickrreview|Multichill|{{subst:CURRENTYEAR}}-{{subst:CURRENTMONTH}}-{{subst:CURRENTDAY2}}}}')
     # Filter the categories
     description = cleanUpCategories(description=description)
-    print description
+    #print description
     return description
     
 def cleanUpCategories(description =''):
+    '''
+    Filter the categories in the description using the functions in imagerecat
+    '''
     #Get the list of current categories
     categoryPages = wikipedia.getCategoryLinks(description, wikipedia.getSite())
+
+    #Make it a list of strings (not page objects)
     categories = []
     for cat in categoryPages:
 	categories.append(cat.titleWithoutNamespace())
+
     #Strip the categories of the current description
     description = wikipedia.removeCategoryLinks(description, wikipedia.getSite())    
 
     #Filter the list of categories
     categories = imagerecat.applyAllFilters(categories)
+
     #Add the categories to the description again
     description = description + u'\n'
     for category in categories:
-	print u'Category : ' + category
+	#print u'Category : ' + category
 	description = description + u'[[Category:' + category + u']]\n'
     return description
 
-def expandTemplates(template='', parameter=''): # should be dict
+def expandTemplates(template='', parameter=''):
     '''
-    Take a template 
+    Take a template and a parameter and return the resulting wikitext.
+    TODO : Should take a dict with multiple parameters.
     '''
     text = u'{{' + template + u'|' + parameter + u'}}'
 
@@ -217,8 +245,6 @@ def expandTemplates(template='', parameter=''): # should be dict
     data = query.GetData(params, wikipedia.getSite(), useAPI = True, encodeTitle = False)
     # Beware, might be some encoding issues!
     return data['expandtemplates']['*']
-    return 0
-
 
 def main():
     site = wikipedia.getSite(u'commons', u'commons')
@@ -237,9 +263,9 @@ def main():
 		tagDescription = getTagDescription(tags=tags)
 		tagCategories = getTagCategories(tags)
 		filename = getFilename(photoInfo=photoInfo)
-		print filename
+		#print filename
 		photoUrl = getPhotoUrl(photoSizes=photoSizes)
-		print photoUrl
+		#print photoUrl
 		photoDescription = buildDescription(flinfoDescription, tagDescription, tagCategories)
 		if (wikipedia.Page(title=u'File:'+ filename, site=wikipedia.getSite()).exists()):
 		    # I should probably check if the hash is the same and if not upload it under a different name
@@ -250,18 +276,11 @@ def main():
 		    #Not that important for this program, but maybe for derived programs
 		    bot = upload.UploadRobot(url=photoUrl, description=photoDescription, useFilename=filename, keepFilename=True, verifyDescription=False)
 		    bot.run()
-        
 
-    
-    for item in photos.getchildren():
-        print item.attrib
-        for photo in item.getchildren():
-            print photo.attrib
-    #print photos
+    wikipedia.output('All done')
     
 if __name__ == "__main__":
     try:
         main()
     finally:
-        print 'done'
-        #wikipedia.stopme()
+        wikipedia.stopme()
