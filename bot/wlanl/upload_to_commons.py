@@ -1,8 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8  -*-
 '''
-http://wikipedia.ramselehof.de/flinfo.php
-https://fisheye.toolserver.org/browse/Magnus/flickr2commons.php?r=HEAD
+Tool to transfer all suitable files in the WLANL flickr pool to Commons.
 '''
 import sys, urllib
 sys.path.append("/home/multichill/pywikipedia")
@@ -71,7 +70,8 @@ def getPhotosInGroup(flickr=None, group_id=''):
     #First get the total number of photo's in the group
     photos = flickr.groups_pools_getPhotos(group_id=group_id, per_page='100', page='1')
     pages = photos.find('photos').attrib['pages']
-    
+
+    #Raise this to not start at the first page again
     for i in range(1, int(pages)):
         for photo in flickr.groups_pools_getPhotos(group_id=group_id, per_page='100', page=i).find('photos').getchildren():
             print photo.attrib['id']
@@ -204,6 +204,8 @@ def cleanUpCategories(description =''):
     return description
 
 def expandTemplates(template='', parameter=''): # should be dict
+    '''
+    Take a template 
     text = u'{{' + template + u'|' + parameter + u'}}'
 
     params = {
@@ -238,15 +240,17 @@ def main():
 		photoUrl = getPhotoUrl(photoSizes=photoSizes)
 		print photoUrl
 		photoDescription = buildDescription(flinfoDescription, tagDescription, tagCategories)
-		#Do the actual upload
-		bot = upload.UploadRobot(url=photoUrl, description=photoDescription, useFilename=filename, verifyDescription=False)
-		bot.run()
+		if (wikipedia.Page(title=u'File:'+ filename, site=wikipedia.getSite()).exists()):
+		    # I should probably check if the hash is the same and if not upload it under a different name
+		    wikipedia.output(u'File:' + filename + u' already exists!')
+		else:
+		    #Do the actual upload
+		    #Would be nice to check before I upload if the file is already at Commons
+		    #Not that important for this program, but maybe for derived programs
+		    bot = upload.UploadRobot(url=photoUrl, description=photoDescription, useFilename=filename, keepFilename=True, verifyDescription=False)
+		    bot.run()
         
-    #photos = getPhotos(flickr=flickr, photoIds=photoIds)
-    #photos = flickr.groups_pools_getPhotos(group_id=group_id, per_page='10', page='1')
-    #xml.etree.ElementTree.dump(photos)
 
-    print 
     
     for item in photos.getchildren():
         print item.attrib
