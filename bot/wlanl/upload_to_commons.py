@@ -6,7 +6,7 @@ https://fisheye.toolserver.org/browse/Magnus/flickr2commons.php?r=HEAD
 '''
 import sys, urllib
 sys.path.append("/home/multichill/pywikipedia")
-import wikipedia, config, query
+import wikipedia, config, query, imagerecat, upload
 
 import flickrapi
 import xml.etree.ElementTree
@@ -159,6 +159,13 @@ def getFilename(photoInfo=None):
 
     return u'WLANL - %s - %s.jpg' % (username, title)
 
+def getPhotoUrl(photoSizes=None):
+    url = ''
+    # The assumption is that the largest image is last
+    for size in photoSizes.find('sizes').findall('size'):
+	url = size.attrib['source']
+    return url
+
 def buildDescription(flinfoDescription=u'', tagDescription=u'', tagCategories=u''):
     '''
     Build the final description for the image
@@ -174,16 +181,27 @@ def buildDescription(flinfoDescription=u'', tagDescription=u'', tagCategories=u'
     # Mark as flickr reviewed
     description = description.replace(u'{{flickrreview}}', u'{{flickrreview|Multichill|{{subst:CURRENTYEAR}}-{{subst:CURRENTMONTH}}-{{subst:CURRENTDAY2}}}}')
     # Filter the categories
+    description = cleanUpCategories(description=description)
     print description
     return description
     
-def prepareUpload(photoInfo=None, photoSizes=None):
-
-    return 0
-
 def cleanUpCategories(description =''):
+    #Get the list of current categories
+    categoryPages = wikipedia.getCategoryLinks(description, wikipedia.getSite())
+    categories = []
+    for cat in categoryPages:
+	categories.append(cat.titleWithoutNamespace())
+    #Strip the categories of the current description
+    description = wikipedia.removeCategoryLinks(description, wikipedia.getSite())    
 
-    return ''
+    #Filter the list of categories
+    categories = imagerecat.applyAllFilters(categories)
+    #Add the categories to the description again
+    description = description + u'\n'
+    for category in categories:
+	print u'Category : ' + category
+	description = description + u'[[Category:' + category + u']]\n'
+    return description
 
 def expandTemplates(template='', parameter=''): # should be dict
     text = u'{{' + template + u'|' + parameter + u'}}'
@@ -202,6 +220,7 @@ def expandTemplates(template='', parameter=''): # should be dict
 def main():
     site = wikipedia.getSite(u'commons', u'commons')
     wikipedia.setSite(site)
+    imagerecat.initLists()
 
     flickr = flickrapi.FlickrAPI(api_key)
     groupId = '1044478@N20'
@@ -216,10 +235,12 @@ def main():
 		tagCategories = getTagCategories(tags)
 		filename = getFilename(photoInfo=photoInfo)
 		print filename
+		photoUrl = getPhotoUrl(photoSizes=photoSizes)
+		print photoUrl
 		photoDescription = buildDescription(flinfoDescription, tagDescription, tagCategories)
-		#(photoUrl, filename, photoDescription) = prepareUpload(photoInfo=photoInfo, photoSizes=photoSizes)
 		#Do the actual upload
-		print 'bla'
+		bot = upload.UploadRobot(url=photoUrl, description=photoDescription, useFilename=filename, verifyDescription=False)
+		bot.run()
         
     #photos = getPhotos(flickr=flickr, photoIds=photoIds)
     #photos = flickr.groups_pools_getPhotos(group_id=group_id, per_page='10', page='1')
