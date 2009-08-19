@@ -206,6 +206,7 @@ def cleanUpCategories(description =''):
 def expandTemplates(template='', parameter=''): # should be dict
     '''
     Take a template 
+    '''
     text = u'{{' + template + u'|' + parameter + u'}}'
 
     params = {
