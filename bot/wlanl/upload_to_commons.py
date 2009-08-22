@@ -3,7 +3,7 @@
 '''
 Tool to transfer all suitable files in the WLANL flickr pool to Commons.
 '''
-import sys, urllib
+import sys, urllib, re
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query, imagerecat, upload
 
