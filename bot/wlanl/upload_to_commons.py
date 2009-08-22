@@ -170,8 +170,31 @@ def getFilename(photoInfo=None):
     '''
     username = photoInfo.find('photo').find('owner').attrib['username']
     title = photoInfo.find('photo').find('title').text
+    title =  cleanUpTitle(title)
 
     return u'WLANL - %s - %s.jpg' % (username, title)
+
+def cleanUpTitle(title):
+    title = title.strip()   
+        
+    title = re.sub("[<{\\[]", "(", title)
+    title = re.sub("[>}\\]]", ")", title)
+    title = re.sub("[ _]?\\(!\\)", "", title)
+    title = re.sub(",:[ _]", ", ", title)
+    title = re.sub("[;:][ _]", ", ", title)
+    title = re.sub("[\t\n ]+", " ", title)
+    title = re.sub("[\r\n ]+", " ", title)
+    title = re.sub("[\n]+", "", title)
+    title = re.sub("[?!]([.\"]|$)", "\\1", title)
+    title = re.sub("[&#%?!]", "^", title)
+    title = re.sub("[;]", ",", title)
+    title = re.sub("[/+\\\\:]", "-", title)
+    title = re.sub("--+", "-", title)
+    title = re.sub(",,+", ",", title)
+    title = re.sub("[-,^]([.]|$)", "\\1", title)
+    title = title.replace(" ", "_")   
+
+    return title
 
 def getPhotoUrl(photoSizes=None):
     '''
@@ -190,9 +213,12 @@ def buildDescription(flinfoDescription=u'', tagDescription=u'', tagCategories=u'
     description = u''
     # Add the tag based description if it's not empty
     if not(tagDescription==u''):
-	description = flinfoDescription.replace(u'|Description=', u'|Description=' + tagDescription + u' ')
+	description = flinfoDescription.replace(u'|Description=', u'|Description=' + tagDescription + u'\n')
     else:
 	description = flinfoDescription
+    # Add {{nl|1= }} around the description
+    description = description.replace(u'|Description=', u'|Description={{nl|1=')
+    description = description.replace(u'\r\n|Source=', u'}}\n|Source=')
 
     # Add the tag based categories
     description = description + tagCategories
