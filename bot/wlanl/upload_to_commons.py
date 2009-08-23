@@ -8,7 +8,7 @@ Tool to transfer all suitable files in the WLANL flickr pool to Commons.
 #
 # Distributed under the terms of the MIT license.
 #
-__version__ = '$Id: $'
+__version__ = '$Id$'
 
 import sys, urllib, re
 sys.path.append("/home/multichill/pywikipedia")
