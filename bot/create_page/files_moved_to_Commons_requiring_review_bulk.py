@@ -16,17 +16,17 @@ def createCategory (date = None):
     day = date.strftime('%d')
     month = date.strftime('%B')
     year = date.strftime('%Y')
-    page = wikipedia.Page(wikipedia.getSite(u'commons', u'commons'), u'Category:Files moved to Commons requiring review as of ' + str(int(day)) + u' ' + month + u' ' + year)
+    page = wikipedia.Page(wikipedia.getSite(u'commons', u'commons'), u'Category:Files moved from nl.wikipedia to Commons requiring review as of ' + str(int(day)) + u' ' + month + u' ' + year)
     wikipedia.output(u'Working on ' + page.title())
     if not page.exists():
-	toPut = u'{{BotMoveToCommonsHeader|day=' + day + u'|month=' + month + u'|year=' + year + u'}}' 
+	toPut = u'{{BotMoveToCommonsHeader|lang=nl|project=wikipedia|day=' + day + u'|month=' + month + u'|year=' + year + u'}}' 
 	wikipedia.output(u'Creating category with content: ' + toPut)
 	page.put(toPut, toPut)
     else:
 	wikipedia.output(u'Category already exists')
 
 def main():
-    startDate = datetime(year=2007, month=3, day=15)
+    startDate = datetime(year=2008, month=1, day=1)
     workDate = startDate
     today = datetime.utcnow()
     while(workDate < today):

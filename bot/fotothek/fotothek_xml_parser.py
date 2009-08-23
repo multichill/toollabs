@@ -7,7 +7,7 @@ sys.path.append("/home/multichill/pywikipedia")
 #import wikipedia
 import MySQLdb, config
 
-xmlFile = "wiki-kur.xml"
+xmlFile = "wiki-nosko-rapp-tg.xml"
 conn = None
 cursor = None
 
@@ -116,7 +116,10 @@ def parseDataset(dataset):
     if(elements.get(u'5000')):
         #print "Het id is " + str(elements['5000'])
         if not findSet(u'dataset', elements):
-            instertElement(u'dataset', elements)    
+            #print "Insert"
+            instertElement(u'dataset', elements)
+        #else:
+            #print "Al gevonden"
         #for datasetSubElement in datasetElement.getchildren():
         #    print datasetSubElement.items()
     #for (t, v) in elements.items():
@@ -259,7 +262,7 @@ def findSet(table, items):
     cursor.execute(query, tuple(resultlist))
 
     try:
-        cursor.fetchone()
+        elementId, = cursor.fetchone()
         #print "ElementId is " + str(elementId)
         return True
     except TypeError:

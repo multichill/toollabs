@@ -99,11 +99,11 @@ def outputResult(missingCatsTotal):
 	resultwiki = resultwiki +  u'*[[:Category:' + cat + u']] should be in [[:Category:' + subjectByCountry + u']]\n'
 	resultscript = resultscript + u'python2.4 add_text.py -always -lang:commons -family:commons -page:"Category:' + cat + u'" -text:"[[Category:' + subjectByCountry.replace(u'_', u' ') + u'|' + country.replace(u'_', u' ') + u']]" -summary:"Adding [[Category:' + subjectByCountry.replace(u'_', u' ') + u']]"\n' 
     resultwiki = resultwiki.replace(u'_', u' ')
-    #resultscript = resultscript.replace(u'_', u' ')
+    resultscript = resultscript.replace(u'_', u' ')
     page.put(resultwiki, comment)
-    #f = file("/home/multichill/queries/bycountry.txt", 'w')
-    #f.write(resultscript.encode('utf-8'))
-    #f.close()
+    f = file("/home/multichill/queries/bycountry.txt", 'w')
+    f.write(resultscript.encode('utf-8'))
+    f.close()
     #wikipedia.output(resultscript)
 
 def main():
