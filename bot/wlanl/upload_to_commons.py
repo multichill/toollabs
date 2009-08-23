@@ -3,6 +3,13 @@
 '''
 Tool to transfer all suitable files in the WLANL flickr pool to Commons.
 '''
+#
+# (C) Multichill, 2009
+#
+# Distributed under the terms of the MIT license.
+#
+__version__ = '$Id: $'
+
 import sys, urllib, re
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query, imagerecat, upload
@@ -19,6 +26,7 @@ allowed_tags =	[   u'gama',
                     u'thermenmuseum',
                     u'gemeentemuseum',
                     u'vincent van gogh',
+		    u'vincentvangogh',
                     u'nbm',
                     u'textielmuseum',
                     u'naturalis',
