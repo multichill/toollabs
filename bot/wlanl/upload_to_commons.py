@@ -170,7 +170,10 @@ def getFilename(photoInfo=None):
     '''
     username = photoInfo.find('photo').find('owner').attrib['username']
     title = photoInfo.find('photo').find('title').text
-    title =  cleanUpTitle(title)
+    if title:
+	title =  cleanUpTitle(title)
+    else:
+	title = u''
 
     return u'WLANL - %s - %s.jpg' % (username, title)
 
@@ -248,6 +251,10 @@ def cleanUpCategories(description =''):
 
     #Filter the list of categories
     categories = imagerecat.applyAllFilters(categories)
+    
+    #If we have a category, remove the uncat template
+    if not (categories==''):
+	description = description.replace(u'{{subst:unc}}', u'')
 
     #Add the categories to the description again
     description = description + u'\n'
