@@ -13,6 +13,7 @@ __version__ = '$Id$'
 import sys, urllib, re
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query, imagerecat, upload
+import StringIO, hashlib, base64
 
 import flickrapi
 import xml.etree.ElementTree
@@ -80,7 +81,7 @@ def getPhotosInGroup(flickr=None, group_id=''):
     pages = photos.find('photos').attrib['pages']
 
     #Raise this to not start at the first page again
-    for i in range(1, int(pages)):
+    for i in range(0, int(pages)):
         for photo in flickr.groups_pools_getPhotos(group_id=group_id, per_page='100', page=i).find('photos').getchildren():
             #print photo.attrib['id']
             yield photo.attrib['id']
@@ -172,18 +173,28 @@ def getTagCategories(tags=[]):
     #print categories.strip()
     return categories.strip()
 
-def getFilename(photoInfo=None):
+def getFilename(photoInfo=None, site=wikipedia.getSite()):
     '''
-    Build a good filename for the upload based on the username and the title
+    Build a good filename for the upload based on the username and the title.
+    Prevents naming collisions.
+
     '''
     username = photoInfo.find('photo').find('owner').attrib['username']
     title = photoInfo.find('photo').find('title').text
     if title:
-	title =  cleanUpTitle(title)
+        title =  cleanUpTitle(title)
     else:
-	title = u''
+        title = u''
 
-    return u'WLANL - %s - %s.jpg' % (username, title)
+    if (wikipedia.Page(title=u'File:WLANL - %s - %s.jpg' % (username, title), site=wikipedia.getSite()).exists()):
+        i = 1
+        while True:
+            if (wikipedia.Page(title=u'File:WLANL - %s - %s (%s).jpg' % (username, title, str(i)), site=wikipedia.getSite()).exists()):
+                i = i + 1
+            else:
+                return u'WLANL - %s - %s (%s).jpg' % (username, title, str(i))            
+    else:
+        return u'WLANL - %s - %s.jpg' % (username, title)
 
 def cleanUpTitle(title):
     title = title.strip()   
@@ -216,6 +227,37 @@ def getPhotoUrl(photoSizes=None):
     for size in photoSizes.find('sizes').findall('size'):
 	url = size.attrib['source']
     return url
+
+def downloadPhoto(photoUrl=''):
+    '''
+    Download the photo and store it in a StrinIO.StringIO object.
+
+    TODO: Add exception handling
+    '''
+    imageFile=urllib.urlopen(photoUrl).read()
+    return StringIO.StringIO(imageFile)
+
+def findDuplicateImages(photo=None, site=wikipedia.getSite()):
+    '''
+    Takes the photo, calculates the SHA1 hash and asks the mediawiki api for a list of duplicates.
+
+    TODO: Add exception handling, fix site thing
+    '''
+    result = []
+    hashObject = hashlib.sha1()
+    hashObject.update(photo.getvalue())
+    sha1Hash = base64.b16encode(hashObject.digest())
+
+    params = {
+    'action'    : 'query',
+        'list'      : 'allimages',
+        'aisha1'    : sha1Hash,
+        'aiprop'    : '',
+    }
+    data = query.GetData(params, site=wikipedia.getSite(), useAPI = True, encodeTitle = False)
+    for image in data['query']['allimages']:
+        result.append(image['name'])
+    return result
 
 def buildDescription(flinfoDescription=u'', tagDescription=u'', tagCategories=u''):
     '''
@@ -300,23 +342,30 @@ def main():
 	if isAllowedLicense(photoInfo=photoInfo):
 	    tags=getTags(photoInfo=photoInfo)
 	    if photoCanUpload(tags=tags):
-		flinfoDescription = getFlinfoDescription(photoId=photoId)
-		tagDescription = getTagDescription(tags=tags)
-		tagCategories = getTagCategories(tags)
-		filename = getFilename(photoInfo=photoInfo)
-		#print filename
+		# Get the url of the largest photo
 		photoUrl = getPhotoUrl(photoSizes=photoSizes)
-		#print photoUrl
-		photoDescription = buildDescription(flinfoDescription, tagDescription, tagCategories)
-		if (wikipedia.Page(title=u'File:'+ filename, site=wikipedia.getSite()).exists()):
-		    # I should probably check if the hash is the same and if not upload it under a different name
-		    wikipedia.output(u'File:' + filename + u' already exists!')
+		# Download this photo
+		photo = downloadPhoto(photoUrl=photoUrl)
+		# Check if it exists at Commons
+		duplicates = findDuplicateImages(photo=photo)
+		if duplicates:
+		    wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
 		else:
-		    #Do the actual upload
-		    #Would be nice to check before I upload if the file is already at Commons
-		    #Not that important for this program, but maybe for derived programs
-		    bot = upload.UploadRobot(url=photoUrl, description=photoDescription, useFilename=filename, keepFilename=True, verifyDescription=False)
-		    bot.run()
+		    flinfoDescription = getFlinfoDescription(photoId=photoId)
+		    tagDescription = getTagDescription(tags=tags)
+		    tagCategories = getTagCategories(tags)
+		    filename = getFilename(photoInfo=photoInfo)
+		    #print filename
+		    photoDescription = buildDescription(flinfoDescription, tagDescription, tagCategories)
+		    if (wikipedia.Page(title=u'File:'+ filename, site=wikipedia.getSite()).exists()):
+			# I should probably check if the hash is the same and if not upload it under a different name
+			wikipedia.output(u'File:' + filename + u' already exists!')
+		    else:
+			#Do the actual upload
+			#Would be nice to check before I upload if the file is already at Commons
+			#Not that important for this program, but maybe for derived programs
+			bot = upload.UploadRobot(url=photoUrl, description=photoDescription, useFilename=filename, keepFilename=True, verifyDescription=False)
+			bot.run()
 
     wikipedia.output('All done')
     
