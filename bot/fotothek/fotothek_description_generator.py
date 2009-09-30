@@ -35,8 +35,16 @@ def connectDatabase():
 def makeDescription(subject, cursor):
 
     output = u''
+    fileInfoOutput = u''
+    setInfoOutput = u''
     
     fileId = getFileId(subject)
+
+    #Get file info (t_8450)
+    (setId, fileInfoOutput) = getFileInfo(fileId, cursor)
+    #Get set info (t_dataset)
+    if setId:
+	setInfoOutput = getSetInfo(setId, cursor)
 
     #Start template
     output = output + u'{{Fotothek-Description\n'
@@ -44,22 +52,25 @@ def makeDescription(subject, cursor):
     output = output + u'| comment = <!-- To add a comment -->\n'
     output = output + u'| date = <!-- To override the date field -->\n'
     output = output + u'| author = <!-- To override the author field -->\n'
-    #Get file info (t_8450)
-    (setId, output) = getFileInfo(fileId, output, cursor)
-    #Get set info (t_dataset)
-    if setId:
-        output = getSetInfo(setId, output, cursor)
+
+    output = output + fileInfoOutput
+    output = output + setInfoOutput
         
-        #End description template
-        output = output + u'}}\n'    
+    #End description template
+    output = output + u'}}\n'    
     
     #Add licence header + template
     output = output + u'\n'
     output = output + u'== {{int:License}} ==\n'
     output = output + u'{{Fotothek-License}}\n'
-    #Add uncategorized
+    #Add category or uncategorized
     output = output + u'\n'
-    output = output + u'{{Uncategorized-Fotothek|year={{subst:CURRENTYEAR}}|month={{subst:CURRENTMONTHNAME}}|day={{subst:CURRENTDAY}}}}\n'
+    output = output + u'{{subst:Fotothek-Category|subst=subst:\n'
+    output = output + fileInfoOutput
+    output = output + setInfoOutput
+    output = output + u'}}\n'
+    
+    #output = output + u'{{Uncategorized-Fotothek|year={{subst:CURRENTYEAR}}|month={{subst:CURRENTMONTHNAME}}|day={{subst:CURRENTDAY}}}}\n'
 
     return output
     
@@ -69,7 +80,7 @@ def getFileId(subject):
     fileId, extension = os.path.splitext(filename)
     return fileId
 
-def getFileInfo(fileId, output, cursor):
+def getFileInfo(fileId, cursor):
     result = u''
     query = u"SELECT e_5000 FROM t_8450 JOIN 8450_links ON t_8450.id=8450_links.id WHERE e_8470=%s LIMIT 1"
 
@@ -88,61 +99,33 @@ def getFileInfo(fileId, output, cursor):
     
     return (e_5000, result)
 
-def getSetInfo(setId, output, cursor):
-    result = output
-    query = u"SELECT e_5000, e_5064, e_5130, e_5198, e_5200, e_5202, e_5204, e_520b, e_5220, e_5230, e_5240, e_5260, e_52df, e_52in, e_52ku, e_52se, e_5300, e_5358, e_5360, e_55df, e_8350, e_9920, e_99d3 FROM t_dataset WHERE e_5000=%s LIMIT 1"
-    #print query % setId
-    cursor.execute(query, (setId,))
+def getSetInfo(setId, cursor):
+    result = u''
 
-    #Some error checking would be nice
-    e_5000, e_5064, e_5130, e_5198, e_5200, e_5202, e_5204, e_520b, e_5220, _e_5230, e_5240, e_5260, e_52df, e_52in, e_52ku, e_52se, e_5300, e_5358, e_5360, e_55df, e_8350, e_9920, e_99d3 = cursor.fetchone()
+    query = u""
+    isFirst = True
 
-    if(e_5000):
-        result = result + u'| 5000 = ' + e_5000 + u'\n'
-    if(e_5064):
-	result = result + u'| 5064 = ' + e_5064 + u'\n'
-    if(e_5130):
-        result = result + u'| 5130 = ' + e_5130 + u'\n'
-    if(e_5198):
-        result = result + u'| 5198 = ' + e_5198 + u'\n'
-    if(e_5200):
-        result = result + u'| 5200 = ' + e_5200 + u'\n'
-    '''
-    if(e_5260):
-        result = result + u'| 5260 = ' + e_5260 + u'\n'
-    if(e_5300):
-        result = result + u'| 5300 = ' + e_5300 + u'\n'
-    if(e_5360):
-        result = result + u'| 5360 = ' + e_5360 + u'\n'
-    if(e_55df):
-        result = result + u'| 55df = ' + e_55df + u'\n'
-    if(e_5730):
-        result = result + u'| 5730 = ' + e_5730 + u'\n'
-    if(e_5064):
-        result = result + u'| 5064 = ' + e_5064 + u'\n'
-    if(e_5202):
-        result = result + u'| 5202 = ' + e_5202 + u'\n'
-    if(e_520a):
-        result = result + u'| 520a = ' + e_520a + u'\n'
-    if(e_5230):
-        result = result + u'| 5230 = ' + e_5230 + u'\n'
-    if(e_52df):
-        result = result + u'| 52df = ' + e_52df + u'\n'
-    if(e_52in):
-        result = result + u'| 52in = ' + e_52in + u'\n'
-    if(e_52se):
-        result = result + u'| 52se = ' + e_52se + u'\n'
-    '''
-    if(e_8350):
-        result = result + u'| 8350 = ' + e_8350 + u'\n'
-    if(e_9920):
-        result = result + u'| 9920 = ' + e_9920 + u'\n'
-    if(e_99d3):
-	result = result + u'| 99d3 = ' + e_99d3 + u'\n'
+    for element in tabels[u'dataset']:
+	if isFirst:
+	    query = u"SELECT e_" + element
+	    isFirst = False
+	else:
+	    query = query + ", e_" + element
+    
+    query = query + u" FROM t_dataset WHERE e_5000='" + setId + "' LIMIT 1"
+    cursor.execute(query)
+    
+    row = cursor.fetchone()
+    e = 0
+
+    for item in row:
+	if item:
+	    result = result + u'| ' + tabels[u'dataset'][e] + ' = ' + item + u'\n'
+	e = e +1
     
     #Now get everything linked to this set
     for (base, elements) in tabels.items():
-	if not base=='dataset':
+	if not (base=='dataset' or base=='8450'):
 	    result = result + getLinkedInfo(setId, base, elements, cursor)
 
     return result
@@ -153,8 +136,8 @@ def getLinkedInfo(setId, base, elements, cursor):
     for element in elements:
 	query = query + ", e_" + element
     query = query + " FROM t_" + base + " JOIN " + base + "_links ON t_" + base + ".id=" + base + "_links.id WHERE  e_5000='" + setId + "'"
-    print query
-    print len(elements)
+    #print query
+    #print len(elements)
 
     cursor.execute(query)
 
