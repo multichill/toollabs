@@ -7,23 +7,28 @@ sys.path.append("/home/multichill/pywikipedia")
 #import wikipedia
 import MySQLdb, config
 
-xmlFile = "wiki-nosko-rapp-tg.xml"
+xmlFile = "wiki-2.xml"
 conn = None
 cursor = None
 
 tabels = dict()
 
-tabels[u'dataset'] = [u'5000', u'2965', u'5130', u'5200', u'5260', u'5300', u'5360', u'55df', u'5730', u'5064', u'5202', u'520a', u'5230', u'52df', u'52in', u'52se', u'8350', u'9902']
-tabels[u'ob28'] = [u'2864', u'2900', u'2950']
-tabels[u'ob30'] = [u'3100', u'3475', u'3498']
-tabels[u'ob35'] = [u'3600', u'3975', u'3998']
+tabels[u'dataset'] = [u'5000', u'2965', u'5130', u'5198', u'5200', u'5260', u'5300', u'5360', u'55df', u'5730', u'5064', u'5202', u'5204', u'520a', u'520b', u'5220', u'5230', u'5240', u'52df', u'52in', u'52ku', u'52se', u'5358', u'8350', u'9902', u'9920', u'99d3']
+tabels[u'ob26'] = [u'2660', u'2661', u'2664', u'2690', u'2700', u'2730']
+tabels[u'ob28'] = [u'2864', u'2890', u'2900', u'2930', u'2950']
+tabels[u'ob30'] = [u'3100', u'310d', u'3470', u'3475', u'3496', u'3498']
+tabels[u'ob35'] = [u'3600', u'3970', u'3975', u'3996', u'3998']
 tabels[u'ob40'] = [u'4100', u'410d', u'4475', u'4485', u'4498']
 tabels[u'ob45'] = [u'4600', u'4998']
 tabels[u'5007'] = [u'5009', u'5010', u'5013', u'501a', u'501k', u'501m']
 tabels[u'5364'] = [u'5365']
 tabels[u'5060'] = [u'5062']
 tabels[u'5108'] = [u'5110', u'5116', u'5117']
-tabels[u'8450'] = [u'8460', u'8470', u'8482', u'8490', u'8494', u'8510', u'8491']
+tabels[u'5109'] = [u'5116a', u'5117a']
+tabels[u'5140'] = [u'5145']
+tabels[u'5930'] = [u'5944']
+tabels[u'599a'] = [u'599e', u'599n']
+tabels[u'8450'] = [u'8460', u'8470', u'8479', u'8480', u'8481', u'8482', u'8490', u'8494', u'8510', u'8540', u'8555', u'8491']
 
 
 def connectDatabase():
