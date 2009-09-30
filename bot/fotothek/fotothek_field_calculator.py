@@ -8,14 +8,14 @@ import sys, os
 import os.path
 import xml.etree.ElementTree
 
-xmlFiles = ["wiki-kur.xml",
-            "wiki-nosko-rapp-tg.xml"]
+xmlFiles = ["wiki-2.xml"]
 
 def main(args):
     '''
     Main loop.
     '''
     elements = dict()
+    elementsList = []
     
     for file in xmlFiles:
         tree = xml.etree.ElementTree.parse(file)
@@ -23,14 +23,21 @@ def main(args):
     
         for element in root.getiterator():
             if (element.get(u'Type') and element.get(u'Value')):
-                if((not elements.get(element.get(u'Type'))) or (elements.get(element.get(u'Type')) < len(element.get(u'Value')))):
-                    elements[element.get(u'Type')] = len(element.get(u'Value'))
-
-
+		if not elements.get(element.get(u'Type')):
+		    elements[element.get(u'Type')] = dict()
+		    elements[str(element.get(u'Type'))]['count'] = 1
+		    elements[str(element.get(u'Type'))]['length'] = len(element.get(u'Value'))
+		else:
+		    elements[str(element.get(u'Type'))]['count'] = elements[element.get(u'Type')]['count'] + 1
+		    if elements.get(element.get(u'Type')).get('length') < len(element.get(u'Value')):
+			elements[element.get(u'Type')]['length'] = len(element.get(u'Value'))
 
     print "Ok, all done, here are the restults:"            
     for (t, v) in elements.items():
-        print (str(t) + " - " +  str(v)).encode("UTF-8")     
+	elementsList.append((t,v))
+    elementsList.sort()
+    for t, v in elementsList:
+        print (str(t) + " - count: " +  str(v.get('count')) + " - length: " + str(v.get('length'))).encode("UTF-8")     
          
 if __name__ == "__main__":
     try:
