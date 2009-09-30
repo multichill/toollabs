@@ -13,22 +13,21 @@ cursor = None
 
 tabels = dict()
 
-tabels[u'dataset'] = [u'5000', u'2965', u'5130', u'5198', u'5200', u'5260', u'5300', u'5360', u'55df', u'5730', u'5064', u'5202', u'5204', u'520a', u'520b', u'5220', u'5230', u'5240', u'52df', u'52in', u'52ku', u'52se', u'5358', u'8350', u'9902', u'9920', u'99d3']
-tabels[u'ob26'] = [u'2660', u'2661', u'2664', u'2690', u'2700', u'2730']
-tabels[u'ob28'] = [u'2864', u'2890', u'2900', u'2930', u'2950']
+tabels[u'dataset'] = [u'5000', u'5064', u'5130', u'5198', u'5200', u'5202', u'5204', u'520b', u'5220', u'5230', u'5240', u'5260', u'52df', u'52in', u'52ku', u'52se', u'5300', u'5358', u'5360', u'55df', u'8350', u'9920', u'99d3']
+tabels[u'ob26'] = [u'2660', u'2661', u'2662', u'2664', u'2690', u'2700', u'2730']
+tabels[u'ob28'] = [u'2864', u'2890', u'2900', u'2930']
 tabels[u'ob30'] = [u'3100', u'310d', u'3470', u'3475', u'3496', u'3498']
-tabels[u'ob35'] = [u'3600', u'3970', u'3975', u'3996', u'3998']
-tabels[u'ob40'] = [u'4100', u'410d', u'4475', u'4485', u'4498']
-tabels[u'ob45'] = [u'4600', u'4998']
-tabels[u'5007'] = [u'5009', u'5010', u'5013', u'501a', u'501k', u'501m']
-tabels[u'5364'] = [u'5365']
+tabels[u'ob35'] = [u'3600', u'3970', u'3975', u'3996']
+tabels[u'ob40'] = [u'4100', u'410d', u'4475', u'4498']
+tabels[u'ob45'] = [u'4600']
 tabels[u'5060'] = [u'5062']
 tabels[u'5108'] = [u'5110', u'5116', u'5117']
 tabels[u'5109'] = [u'5116a', u'5117a']
 tabels[u'5140'] = [u'5145']
+tabels[u'5364'] = [u'5365']
 tabels[u'5930'] = [u'5944']
 tabels[u'599a'] = [u'599e', u'599n']
-tabels[u'8450'] = [u'8460', u'8470', u'8479', u'8480', u'8481', u'8482', u'8490', u'8494', u'8510', u'8540', u'8555', u'8491']
+tabels[u'8450'] = [u'8460', u'8470', u'8479', u'8480', u'8481', u'8482', u'8490', u'8494', u'8510', u'8540', u'8555']
 
 
 def connectDatabase():
@@ -37,7 +36,7 @@ def connectDatabase():
     '''
     global conn
     global cursor
-    conn = MySQLdb.connect(config.db_hostname, db = 'u_multichill_fotothek_p', user = config.db_username, passwd = config.db_password)
+    conn = MySQLdb.connect('daphne', db = 'u_multichill_fotothek2_p', user = config.db_username, passwd = config.db_password)
     cursor = conn.cursor()
     return (conn, cursor)
 
@@ -56,73 +55,20 @@ def parseDataset(dataset):
     for datasetElement in dataset.getchildren():
         elementType = datasetElement.get(u'Type')
         elementValue = datasetElement.get(u'Value')
-
-        #print elementType
-        #print elementValue.encode("UTF-8")
                                           
         if datasetElement.get(u'Type') == '5000':
             elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Datensatz-ID 
-        elif datasetElement.get(u'Type') == 'ob28':
-            parseElement(elements['5000'], datasetElement, tabels[u'ob28']) # Beziehung zum Verwalter des abbg. Objekts / wiederholbare Feldgruppe
-        elif datasetElement.get(u'Type') == '2965':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Folio-Nr. / Seite / Stelle 
-        elif datasetElement.get(u'Type') == 'ob30':
-            parseElement(elements['5000'], datasetElement, tabels[u'ob30']) # Beziehung zum Künstler / wiederholbare Feldgruppe 
-        elif datasetElement.get(u'Type') == 'ob35':
-            parseElement(elements['5000'], datasetElement, tabels[u'ob35']) # Beziehung zur künstl. Werkstatt / wiederholbare Feldgruppe 
-        elif datasetElement.get(u'Type') == 'ob40':
-            parseElement(elements['5000'], datasetElement, tabels[u'ob40']) # Beziehung zur Person / wiederholbare Feldgruppe 
-        elif datasetElement.get(u'Type') == 'ob45':
-            parseElement(elements['5000'], datasetElement, tabels[u'ob45']) # Beziehung zur Körperschaft / wiederholbare Feldgruppe 
-        elif datasetElement.get(u'Type') == '5007':
-            parseElement(elements['5000'], datasetElement, tabels[u'5007']) # Beziehung zu einem (anderen) Objekt / wiederholbare Feldgruppe 
-        elif datasetElement.get(u'Type') == '5130':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Entstehungsort  
-        elif datasetElement.get(u'Type') == '5200':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Titel 
-        elif datasetElement.get(u'Type') == '5260':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Material   
-        elif datasetElement.get(u'Type') == '5300':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Technik  
-        elif datasetElement.get(u'Type') == '5360':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Maße (Höhe x Breite) 
-        elif datasetElement.get(u'Type') == '5364':
-            parseElement(elements['5000'], datasetElement, tabels[u'5364']) # Art der Maßangabe/ wiederholbare Feldgruppe 
-        elif datasetElement.get(u'Type') == '55df':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Subject/Schlagwort 
-        elif datasetElement.get(u'Type') == '5730':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Link zum digitalen Buch: http://digital.slub-dresden.de/[Feldinhalt] 
-        elif datasetElement.get(u'Type') == '5064':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Datierung 
-        elif datasetElement.get(u'Type') == '5060':
-            parseElement(elements['5000'], datasetElement, tabels[u'5060']) # Art der Datierung / wiederholbare Feldgruppe 
-        elif datasetElement.get(u'Type') == '5108':
-            parseElement(elements['5000'], datasetElement, tabels[u'5108']) # abgeb. Ort / wiederholbare Feldgruppe 
-        elif datasetElement.get(u'Type') == '5202':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Bauwerkname 
-        elif datasetElement.get(u'Type') == '520a':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Kategorie/Schlagwort 
-        elif datasetElement.get(u'Type') == '5230':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Sachbegriff/Kategorie 
-        elif datasetElement.get(u'Type') == '52df':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Bildbeschreibung 
-        elif datasetElement.get(u'Type') == '52in':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Originaltitel 
-        elif datasetElement.get(u'Type') == '52se':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Serientitel 
-        elif datasetElement.get(u'Type') == '8350':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Literatur 
-        elif datasetElement.get(u'Type') == '8450':
-            parseElement(elements['5000'], datasetElement, tabels[u'8450']) # Leit-Tag für wiederholbare Feldgruppe „Foto“ 
-        elif datasetElement.get(u'Type') == '9902':
-            elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value') # Datensatzurheber 
+	elif datasetElement.get(u'Type') in tabels[u'dataset']:
+	    elements[datasetElement.get(u'Type')] = datasetElement.get(u'Value')
+	elif tabels.get(datasetElement.get(u'Type')):
+	     parseElement(elements['5000'], datasetElement, tabels[datasetElement.get(u'Type')])
         else:
             print datasetElement.get(u'Type') + "WHAT THE FUCK!!!!!!!!!!!!!!!!!"
     if(elements.get(u'5000')):
         #print "Het id is " + str(elements['5000'])
         if not findSet(u'dataset', elements):
             #print "Insert"
-            instertElement(u'dataset', elements)
+            insertElement(u'dataset', elements)
         #else:
             #print "Al gevonden"
         #for datasetSubElement in datasetElement.getchildren():
@@ -156,7 +102,7 @@ def parseElement(datasetId, element, allowedTypes):
     if not (elementId):
             #print "Didn't find it, inserting it"
             #If not insert it
-        instertElement(elementType, elements)
+        insertElement(elementType, elements)
             #And do the query again to get the id
             #print "Getting it again"
         elementId = findElement(elementType, elements)
@@ -198,7 +144,7 @@ def findElement(table, items):
         #print "Noneeeeeeeeeeeeeeeeeeeeeee"
         return None 
 
-def instertElement(table, items):
+def insertElement(table, items):
     global cursor
 
     # First do a query to see if element exists
