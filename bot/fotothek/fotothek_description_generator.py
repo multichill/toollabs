@@ -3,7 +3,7 @@
 '''
 
 '''
-import sys, os.path, glob
+import sys, os.path, glob, re
 import MySQLdb
 sys.path.append("/home/multichill/pywikipedia")
 import config
@@ -26,19 +26,19 @@ tabels[u'5930'] = [u'5944']
 tabels[u'599a'] = [u'599e', u'599n']
 tabels[u'8450'] = [u'8460', u'8470', u'8479', u'8480', u'8481', u'8482', u'8490', u'8494', u'8510', u'8540', u'8555']
 
+maxTitleLength = 80
 
 def connectDatabase():
     conn = MySQLdb.connect('daphne', db='u_multichill_fotothek2_p', user = config.db_username, passwd = config.db_password, charset='utf8')
     cursor = conn.cursor()
     return (conn, cursor)
 
-def makeDescription(subject, cursor):
+def makeDescription(fileId, cursor):
 
     output = u''
     fileInfoOutput = u''
     setInfoOutput = u''
-    
-    fileId = getFileId(subject)
+    #fileId = getFileId(subject)
 
     #Get file info (t_8450)
     (setId, fileInfoOutput) = getFileInfo(fileId, cursor)
@@ -158,10 +158,73 @@ def getLinkedInfo(setId, base, elements, cursor):
 		e = e +1
 	n = n + 1
 
-def outputDescription(subject, description):
-    basename, extension = os.path.splitext(subject)
-    txtfilename = basename + '.txt'
-    f = open(txtfilename, "w")
+def outputFiles(f, fileId, description, cursor):
+    dirname = os.path.dirname(f)
+    filename = os.path.basename(f)
+    
+    baseNewName = getBaseNewName(fileId, cursor)
+    baseNewName = cleanUpFilename(baseNewName)
+
+    oldnameJpg = filename
+    
+    newnameJpg = baseNewName + u'.jpg'
+    newnameTxt = baseNewName + u'.txt'
+    
+    #print newnameJpg.encode("UTF-8")
+    #print newnameTxt.encode("UTF-8")
+
+    os.rename(os.path.join(dirname, oldnameJpg), os.path.join(dirname, newnameJpg)
+    outputDescription(newnameTxt, description)
+    
+
+def getBaseNewName(fileId, cursor):
+    result = u'Fotothek_' + fileId
+    query = u"SELECT e_52df, e_55df, e_52in FROM t_8450 LEFT JOIN 8450_links ON t_8450.id=8450_links.id LEFT JOIN t_dataset ON 8450_links.e_5000=t_dataset.e_5000 WHERE e_8470=%s LIMIT 1"
+   
+    cursor.execute(query, (fileId,))
+    
+    
+    #Some error checking would be nice
+    try:
+        e_52df, e_55df, e_52in = cursor.fetchone()
+    except TypeError:
+        return u''
+
+    if(e_52df):
+        result = result + u'_' + e_52df
+    elif(e_55df):
+        result = result + u'_' + e_55df
+    elif(e_52in):
+        result = result + u'_' + e_52in
+    
+    return result
+
+def cleanUpFilename(filename):
+   
+    filename = filename.strip()
+
+    filename = re.sub("[<{\\[]", "(", filename)
+    filename = re.sub("[>}\\]]", ")", filename)
+    filename = re.sub("[ _]?\\(!\\)", "", filename)
+    filename = re.sub(",:[ _]", ", ", filename)
+    filename = re.sub("[;:][ _]", ", ", filename)
+    filename = re.sub("[\t\n ]+", " ", filename)
+    filename = re.sub("[\r\n ]+", " ", filename)
+    filename = re.sub("[\n]+", "", filename)
+    filename = re.sub("[?!]([.\"]|$)", "\\1", filename)
+    filename = re.sub("[&#%?!]", "^", filename)
+    filename = re.sub("[;]", ",", filename)
+    filename = re.sub("[/+\\\\:]", "-", filename)
+    filename = re.sub("--+", "-", filename)
+    filename = re.sub(",,+", ",", filename)
+    filename = re.sub("[-,^]([.]|$)", "\\1", filename)
+    filename = filename.replace(" ", "_")    
+    
+    if len(filename)>maxTitleLength: filename = filename[0 : maxTitleLength]
+    return filename
+
+def outputDescription(filename, description):
+    f = open(filename, "w")
     f.write(description.encode("UTF-8"))
     f.close()
     return
@@ -174,8 +237,10 @@ def main(args):
     subject = args[0]
     if os.path.isdir(subject):
         for f in glob.glob(subject + "/*.jpg"):
-            description = makeDescription(f, cursor)
-	    print description
+	    fileId = getFileId(f)
+            description = makeDescription(fileId, cursor)
+	    outputFiles(f, fileId, description, cursor)
+	    #print description
             #outputDescription(f, description)
     else:
         description = makeDescription(subject, cursor)
