@@ -36,8 +36,11 @@ def getDate(datestring):
     #MM/DD/YYYY
     usformat = u'%m/%d/%Y'
     isoformat = '%Y-%m-%d'
-    date = datetime.strptime(datestring, usformat)
-    return date.strftime(isoformat)
+    if datestring:
+	date = datetime.strptime(datestring, usformat)
+	return date.strftime(isoformat)
+    else:
+	return u''
 
 def getMetadata(photo_id):
     #caption = u''
