@@ -7,8 +7,8 @@ Start and end can be controlled with -start_id and -end_id
 
 Screen scraping is done with BeautifulSoup so this needs to be installed.
 
-BUG: The bot will crash if the caption contains a <BR/>.
-This only seems to happen with copyrighted images so I didn't bother to fix it.
+The bot skips images with a caption containing a line break.
+See for example http://www.photolibrary.fema.gov/photolibrary/photo_details.do?id=9515
 
 '''
 import sys, os, StringIO, hashlib, base64
@@ -65,7 +65,7 @@ def getMetadata(photo_id):
     femaPage = urllib.urlopen("http://www.photolibrary.fema.gov/photolibrary/photo_details.do", tosend)
     data = femaPage.read()
     soup = BeautifulSoup(data)
-    if soup.find('div', {'class' : 'caption'}):
+    if soup.find('div', {'class' : 'caption'}) and soup.find('div', {'class' : 'caption'}).string:
         #print soup.find('div', {'class' : 'caption'}).string.strip()
         photoinfo['caption'] = soup.find('div', {'class' : 'caption'}).string.strip()
         photoinfo['title'] = soup.find('h2').string.strip()
