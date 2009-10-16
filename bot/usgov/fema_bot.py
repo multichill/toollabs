@@ -1,5 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8  -*-
+'''
+Bot to upload all images from the site of FEMA located at http://www.photolibrary.fema.gov/photolibrary/photo_search.do
+The images have ids from 0 to about 43000 in October 2009.
+Start and end can be controlled with -start_id and -end_id
+
+Screen scraping is done with BeautifulSoup so this needs to be installed.
+
+BUG: The bot will crash if the caption contains a <BR/>.
+This only seems to happen with copyrighted images so I didn't bother to fix it.
+
+'''
 import sys, os, StringIO, hashlib, base64
 import os.path
 import urllib, re
@@ -43,20 +54,12 @@ def getDate(datestring):
 	return u''
 
 def getMetadata(photo_id):
-    #caption = u''
+    '''
+    Get all the metadata for a single image and store it in the photoinfo dict
+    '''
     photoinfo = {}
     photoinfo['Categories:'] = []
      
-    location = u''
-    photographer = u''
-    date = u''
-    #id is already known
-    #size is not needed
-    #dimensions is not needed
-    disasters = [] # One or more?
-    #categories = []
-    original=u'' # http://www.fema.gov/photodata/original/<photo_id>.jpg ?
-    
     params = {'id' : photo_id }
     tosend = urllib.urlencode(params)
     femaPage = urllib.urlopen("http://www.photolibrary.fema.gov/photolibrary/photo_details.do", tosend)
@@ -96,9 +99,13 @@ def getMetadata(photo_id):
 
         return photoinfo
     else:
+	#No caption found
         return False
 
 def buildDescription(photo_id, metadata):
+    '''
+    Create the description of the image based on the metadata
+    '''
     description = u''
 
     description = description + u'== {{int:filedesc}} ==\n'
@@ -126,6 +133,9 @@ def buildDescription(photo_id, metadata):
     return description
 
 def buildTitle(photo_id, metadata):
+    '''
+    Build a valid title for the image to be uploaded to.
+    '''
     title = u'FEMA - ' + str(photo_id) + u' - ' + metadata['title'] + '.jpg'
 
     title = re.sub(u"[<{\\[]", u"(", title)
@@ -148,6 +158,11 @@ def buildTitle(photo_id, metadata):
     return title
 
 def processPhoto(photo_id):
+    '''
+    Work on a single photo at 
+    http://www.photolibrary.fema.gov/photolibrary/photo_details.do?id=<photo_id>    
+    get the metadata, check for dupes, build description, upload the image
+    '''
 
     # Get all the metadata
     metadata = getMetadata(photo_id)
@@ -171,6 +186,9 @@ def processPhoto(photo_id):
     bot.upload_image(debug=False)
 
 def processPhotos(start_id=0, end_id=45000):
+    '''
+    Loop over a bunch of images
+    '''
     for i in range(start_id, end_id):
         processPhoto(photo_id=i)
         
@@ -194,8 +212,6 @@ def main(args):
                 end_id = arg[8:]
                 
     processPhotos(int(start_id), int(end_id))
-  
-            
          
 if __name__ == "__main__":
     try:
