@@ -62,10 +62,12 @@ def getMetadata(photo_id):
 
     if photoinfo.get('url') and photoinfo.get('fulldescription') and photoinfo.get('shortdescription'):
 	photoinfo['navyid'] = getNavyIdentifier(photoinfo['url'])
+	photoinfo['description'] = re.sub(u'\w*-\w*-\w*-\w*[\r\n\s]+', u'', photoinfo['fulldescription'])
 	#photoinfo['description'] = cleanDescription(photoinfo['fulldescription'])
-	photoinfo['date'] = getDate(photoinfo['fulldescription'])
+	#photoinfo['date'] = getDate(photoinfo['fulldescription'])
 	photoinfo['author'] = getAuthor(photoinfo['fulldescription'])
-	photoinfo['location'] = getLocation(photoinfo['fulldescription'])
+	#photoinfo['location'] = getLocation(photoinfo['fulldescription'])
+	(photoinfo['date'], photoinfo['location']) = getDateAndLocation(photoinfo['fulldescription'])
 	
 	return photoinfo
     else:
@@ -117,6 +119,31 @@ def getLocation(description):
 	# Unknown location
         return u'unknown'
 
+def getDateAndLocation(description):
+    '''
+    Get date and location.
+    Is one regex so I might as well build one function for it
+    '''
+    date = u''
+    location = u'unknown'
+    #dateregex = u'\(([^\)]+\d\d\d\d)\)'
+    #locationregex = u'^([^\(^\r^\n]+)\(([^\)]+\d\d\d\d)\)'
+    regexlist = []
+    regexlist.append(u'^([^\(^\r^\n]+)\(([^\)]+\d\d\d\d)\)')
+    regexlist.append(u'^([^\r^\n]+)\s([^\s]* \d{1,2}, \d\d\d\d) (-|--|&ndash)')
+    #matches = re.search(regex, description, re.MULTILINE)
+    for regex in regexlist:
+        matches = re.search(regex, description, re.MULTILINE)
+        if  matches:
+	    date = matches.group(2)
+	    location = matches.group(1)
+	    location = location.strip()
+	    location = location.rstrip(',')
+	    location = re.sub(u'\w*-\w*-\w*-\w*\s', u'', location)
+            return (date, location)
+    return (date, location)
+
+
 def buildDescription(photo_id, metadata):
     '''
     Create the description of the image based on the metadata
@@ -125,9 +152,10 @@ def buildDescription(photo_id, metadata):
 
     description = description + u'== {{int:filedesc}} ==\n'
     description = description + u'{{Information\n'
-    description = description + u'|description={{en|1=' + metadata.get('fulldescription') + u'}}\n'
+    description = description + u'|description={{en|1=' + metadata.get('description') + u'}}\n'
     description = description + u'|date=' + metadata.get('date') + u'\n' # MM/DD/YYYY
-    description = description + u'|source={{Navy News Service|' + str(photo_id) + u'}}\n'
+    #description = description + u'|source={{Navy News Service|' + str(photo_id) + u'}}\n'
+    description = description + u'|source={{ID-USMil|' + metadata.get('navyid') + u'|Navy|url=http://www.navy.mil/view_single.asp?id=' + str(photo_id) + u'}}\n'
     description = description + u'|author=' + metadata.get('author') + u'\n'
     description = description + u'|permission=\n'
     description = description + u'|other_versions=\n'
@@ -149,9 +177,13 @@ def buildTitle(photo_id, metadata):
     Build a valid title for the image to be uploaded to.
     '''
     description = metadata['shortdescription']
-    if len(description)>200: description = description[0 : 200]
+    if len(description)>200:
+	description = description[0 : 200]
+    #elif len(description) < 10:
+    #	#Stupid title blacklist
+    #	description = u'navy_' + description
 
-    title = metadata['navyid'] + u'_' + description + '.jpg'
+    title = u'US_Navy_' + metadata['navyid'] + u'_' + description + '.jpg'
 
     title = re.sub(u"[<{\\[]", u"(", title)
     title = re.sub(u"[>}\\]]", u")", title)
@@ -192,6 +224,7 @@ def processPhoto(photo_id):
     photo = downloadPhoto(metadata['url'])
 
     duplicates = findDuplicateImages(photo)
+    #duplicates = False
     # We don't want to upload tupes
     if duplicates:
         wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
@@ -199,7 +232,9 @@ def processPhoto(photo_id):
     
     title = buildTitle(photo_id, metadata)
     description = buildDescription(photo_id, metadata)
-    #print description
+
+    #wikipedia.output(title)
+    #wikipedia.output(description)
 
     bot = upload.UploadRobot(metadata['url'], description=description, useFilename=title, keepFilename=True, verifyDescription=False, targetSite = wikipedia.getSite('commons', 'commons'))
     bot.upload_image(debug=False)
