@@ -55,6 +55,9 @@ def getMetadata(photo_id):
     
     if soup.find("meta", {'name' : 'HI_RES_IMAGE'}):
 	photoinfo['url'] = soup.find("meta", {'name' : 'HI_RES_IMAGE'}).get('content')
+    if soup.find("meta", {'name' : 'MED_RES_IMAGE'}):
+	photoinfo['url_medium'] = soup.find("meta", {'name' : 'MED_RES_IMAGE'}).get('content')
+	
     if soup.find("meta", {'name' : 'DESCRIPTION'}):
 	photoinfo['fulldescription'] = soup.find("meta", {'name' : 'DESCRIPTION'}).get('content')
     if soup.find("meta", {'name' : 'ALT_TAG'}):
@@ -130,7 +133,7 @@ def getDateAndLocation(description):
     #locationregex = u'^([^\(^\r^\n]+)\(([^\)]+\d\d\d\d)\)'
     regexlist = []
     regexlist.append(u'^([^\(^\r^\n]+)\(([^\)]+\d\d\d\d)\)')
-    regexlist.append(u'^([^\r^\n]+)\s([^\s]* \d{1,2}, \d\d\d\d) (-|--|&ndash)')
+    regexlist.append(u'^([^\r^\n]+)\s([^\s]* \d{1,2}, \d\d\d\d)\s+(-|--|&ndash)')
     #matches = re.search(regex, description, re.MULTILINE)
     for regex in regexlist:
         matches = re.search(regex, description, re.MULTILINE)
@@ -236,8 +239,12 @@ def processPhoto(photo_id):
     #wikipedia.output(title)
     #wikipedia.output(description)
 
-    bot = upload.UploadRobot(metadata['url'], description=description, useFilename=title, keepFilename=True, verifyDescription=False, targetSite = wikipedia.getSite('commons', 'commons'))
-    bot.upload_image(debug=False)
+    try:
+	bot = upload.UploadRobot(metadata['url'], description=description, useFilename=title, keepFilename=True, verifyDescription=False, targetSite = wikipedia.getSite('commons', 'commons'))
+	bot.upload_image(debug=False)
+    except wikipedia.PageNotFound:
+	#High res is missing, just skip it
+	pass
 
 def processPhotos(start_id=0, end_id=80000):
     '''
