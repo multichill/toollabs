@@ -53,7 +53,10 @@ def getMetadata(photo):
     soup = BeautifulSoup(data)
 
     if soup.find("title"):
-	photoinfo['title'] = soup.find("title").contents[0]
+	if soup.find("title").contents:
+	    photoinfo['title'] = soup.find("title").contents[0]
+	else:
+	    photoinfo['title'] = u''
     if soup.find("meta", {'name' : 'description'}):
 	photoinfo['description'] = soup.find("meta", {'name' : 'description'}).get('content')
     if soup.find("meta", {'name' : 'author'}):
@@ -63,7 +66,7 @@ def getMetadata(photo):
     if soup.find("meta", {'name' : 'date'}):
         photoinfo['date'] = soup.find("meta", {'name' : 'date'}).get('content')
     
-    if photoinfo.get('title') and photoinfo.get('description') and photoinfo.get('author') and photoinfo.get('imageURL'):
+    if photoinfo.get('description') and photoinfo.get('author') and photoinfo.get('imageURL'):
 	photoinfo['orgimage'] = photoinfo.get('imageURL'). replace(u'size4-', '') 
 	#print photoinfo
 	return photoinfo
@@ -82,7 +85,10 @@ def buildDescription(metadata):
     description = description + u'|description={{en|1=' + metadata.get('description') + u'}}\n'
     description = description + u'|date=' + metadata.get('date') + u'\n' # Isoformat
     description = description + u'|source=[' + metadata.get('url') + ' United States Army]\n'
-    description = description + u'|author=' + metadata.get('author') + u'\n'
+    if not (metadata.get('author')==u''):
+	description = description + u'|author=' + metadata.get('author') + u'\n'
+    else:
+	description = description + u'|author=Photo Courtesy of U.S. Army\n'
     description = description + u'|permission=\n'
     description = description + u'|other_versions=\n'
     description = description + u'|other_fields=\n'
@@ -99,7 +105,10 @@ def buildTitle(metadata):
     '''
     Build a valid title for the image to be uploaded to.
     '''
-    description = metadata['title']
+    if not (metadata['title'] == u''):
+	description = metadata['title']
+    else:
+	description = metadata['description']
     if len(description)>200:
 	description = description[0 : 200]
 
@@ -213,7 +222,7 @@ def main(args):
 	    else:
 		per = arg[5:]
 
-    processGalleries(start_page, end_page, per)
+    processGalleries(int(start_page), int(end_page), int(per))
          
 if __name__ == "__main__":
     try:
