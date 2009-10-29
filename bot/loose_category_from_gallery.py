@@ -3,7 +3,7 @@
 '''
 '''
 import sys
-sys.path.append("~/pywikipedia")
+sys.path.append("../pywikipedia")
 import wikipedia, MySQLdb, config, imagerecat, pagegenerators
 from datetime import datetime
 from datetime import timedelta
