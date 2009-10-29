@@ -3,7 +3,7 @@
 '''
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
+sys.path.append("~/pywikipedia")
 import wikipedia, MySQLdb, config, imagerecat, pagegenerators
 from datetime import datetime
 from datetime import timedelta
@@ -19,7 +19,7 @@ def connectDatabase():
     '''
     Connect to the mysql database, if it fails, go down in flames
     '''
-    conn = MySQLdb.connect(config.db_hostname, db='commonswiki_p', user = config.db_username, passwd = config.db_password)
+    conn = MySQLdb.connect('commonswiki-p.db.toolserver.org', db='commonswiki_p', user = config.db_username, passwd = config.db_password)
     cursor = conn.cursor()
     return (conn, cursor)
 
@@ -29,7 +29,7 @@ def getImagesToCategorize(cursor, uncat):
     Get all images with are in a subcategory of Media needing categories and which are in use in a gallery which has a category with the same name. The gallery should be in the category or the gallery and the category should share the same parent category'
 
     '''
-    query=u"SELECT ipage.page_title AS img, gpage.page_title AS gal, galcl.cl_to AS cat FROM page AS ipage JOIN categorylinks AS uncl ON ipage.page_id=uncl.cl_from JOIN imagelinks ON ipage.page_title=il_to JOIN page AS gpage ON il_from=gpage.page_id JOIN categorylinks AS galcl ON gpage.page_id=galcl.cl_from WHERE ipage.page_namespace=6 AND ipage.page_is_redirect=0 AND gpage.page_namespace=0 AND gpage.page_is_redirect=0 AND uncl.cl_to = %s"
+    query=u"SELECT ipage.page_title AS img, gpage.page_title AS gal, galcl.cl_to AS cat FROM page AS ipage JOIN categorylinks AS uncl ON ipage.page_id=uncl.cl_from JOIN imagelinks ON ipage.page_title=il_to JOIN page AS gpage ON il_from=gpage.page_id JOIN categorylinks AS galcl ON gpage.page_id=galcl.cl_from WHERE ipage.page_namespace=6 AND ipage.page_is_redirect=0 AND gpage.page_namespace=0 AND gpage.page_is_redirect=0 AND uncl.cl_to = %s ORDER BY (img)"
     
     result = []
     lastimage = ''
@@ -81,7 +81,11 @@ def categorizeImage(image, gals, cats):
 	    newtext = newtext + u'[[Category:' + category.replace('_', ' ') + u']]\n'
 	comment = u'Adding one or more categories (based on gallery information) to this uncategorized image'
 	wikipedia.showDiff(page.get(), newtext)
-	page.put(newtext, comment)
+	try:
+	    page.put(newtext, comment)
+	except wikipedia.LockedPage:
+	    wikipedia.output('Page is locked, skipping')
+	    
 
 def categoriesChecked(category):
     page = wikipedia.Page(wikipedia.getSite(), category)
