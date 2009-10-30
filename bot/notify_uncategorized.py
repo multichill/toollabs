@@ -15,7 +15,7 @@ def connectDatabase():
     '''
     Connect to the mysql database, if it fails, go down in flames
     '''
-    conn = MySQLdb.connect(config.db_hostname, db='commonswiki_p', user = config.db_username, passwd = config.db_password)
+    conn = MySQLdb.connect('commonswiki-p.db.toolserver.org', db='commonswiki_p', user = config.db_username, passwd = config.db_password)
     cursor = conn.cursor()
     return (conn, cursor)
 
@@ -81,7 +81,7 @@ def notifyUser(user, images, uncat):
 	    wikipedia.output(u'No marker found. Adding template and marker')
 	    newtext = newtext + u'\n{{subst:Please link images}} ~~~~\n'
 	    newtext = newtext + message_marker
-	message = u'*[[:Image:' + image.replace(u'_', u' ') + u']] was uncategorized on ' + uncat.replace(u'Media_needing_categories_as_of_', '').replace(u'_', u' ') + u'.\n'
+	message = u'*[[:Image:' + image.replace(u'_', u' ') + u']] was uncategorized on ' + uncat.replace(u'Media_needing_categories_as_of_', '').replace(u'_', u' ') + u' ~~~~\n'
 	newtext = newtext.replace(message_marker, message + message_marker)
 
     comment = u'Notifying user of ' + str(len(images)) + u' [[Category:' + uncat + u'|uncategorized]] image(s)'
