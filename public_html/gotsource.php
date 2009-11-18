@@ -13,6 +13,7 @@ $sources = array (
 "es" => "es",
 "fi" => "fi",
 "fr" => "fr",
+"hu" => "hu",
 "it" => "it",
 "ja" => "ja",
 "nl" => "nl",
@@ -26,6 +27,7 @@ $sources = array (
 "vo" => "vo",
 "uk" => "uk",
 "zh" => "zh",
+"commons" => "commons"
 );
 
 $imagetype = array (
@@ -78,10 +80,10 @@ $img_minor_mime = $row['img_minor_mime'];
 <H3>Image information</H3>
 <P>
 <ul>
-<li>image name : <a href="http://<? echo key($sources) ?>.wikipedia.org/wiki/Image:<? echo $row['img_name'] . "\">" . $row['img_name'] ?></a></li>
+<li>image name : <a href="http://<? echo $lang ?>.wikipedia.org/wiki/Image:<? echo $row['img_name'] . "\">" . $row['img_name'] ?></a></li>
 <li>image description :  <? echo $row['img_description'] ?></li>
-<li>image uploader :  <a href="http://<? echo key($sources) ?>.wikipedia.org/wiki/User:<? echo $row['img_user_text'] . "\">" . $row['img_user_text'] ?></a></li>
-<li>image upload time :  <a href="http://<? echo key($sources) ?>.wikipedia.org/w/index.php?title=Special:Log&page=Image:<? echo $row['img_name'] . "\">" . date("H:i, j F Y (e)",strtotime($row['img_timestamp'])) ?></a></li>
+<li>image uploader :  <a href="http://<? echo $lang ?>.wikipedia.org/wiki/User:<? echo $row['img_user_text'] . "\">" . $row['img_user_text'] ?></a></li>
+<li>image upload time :  <a href="http://<? echo $lang ?>.wikipedia.org/w/index.php?title=Special:Log&page=Image:<? echo $row['img_name'] . "\">" . date("H:i, j F Y (e)",strtotime($row['img_timestamp'])) ?></a></li>
 <li>image type : <? echo $row['img_minor_mime'] ?></li>
 <li>image hash : <? echo $row['img_sha1'] ?></li>
 </ul>
