@@ -13,7 +13,8 @@ def connectDatabase():
     '''
     Connect to the ODBC database
     '''
-    conn = pyodbc.connect('DSN=KIT suriname')
+    #conn = pyodbc.connect('DSN=KIT suriname')
+    conn = pyodbc.connect('DSN=KIT_Indo')
     cursor = conn.cursor()
     return (conn, cursor)
 
@@ -25,7 +26,9 @@ def generateDescriptionFromFile(f, cursor):
     filename = os.path.basename(f)
     baseFilename, extension = os.path.splitext(filename)
 
-    objectNumber = re.sub("Tropenmuseum_Royal Tropical Institute_Objectnum[bm]er ([^_]*)_.*\.jpg", "\\1", filename)
+    #objectNumber = re.sub("Tropenmuseum_Royal Tropical Institute_Objectnum[bm]er ([^_]*)_.*\.jpg", "\\1", filename)
+    #objectNumber = re.sub("COLLECTIE_TROPENMUSEUM.*\_TMnr_(d+)\.jpg", "\\1", filename)
+    objectNumber = re.sub(u"COLLECTIE_TROPENMUSEUM.*\_TMnr_(\d+)\.jpg", u"\\1", filename)
     #print filename
     #print objectNumber
 
@@ -63,6 +66,8 @@ def generateDescriptionFromFile(f, cursor):
     
     if description['en']:
         informationDescription = informationDescription + u'{{en|1=' + description['en'].strip() + u'}}\n'
+    #For adding the Indonesian translations later
+    informationDescription = informationDescription + u'<!--{{id|1=To be translated}}-->\n'
     if description['nl']:
         informationDescription = informationDescription + u'{{nl|1=' + description['nl'].strip() + u'}}\n'
     if description['inheems']:
@@ -124,9 +129,12 @@ def generateDescriptionFromFile(f, cursor):
         if role in validCategoryRoles:
             #finalDescription = finalDescription + u'{{Subst:User:Multichill/KIT/constituent|' + role + u'|' + displayName + u'}}\n'
             finalDescription = finalDescription + u'[[Category:Images from KIT, ' + role + u' - ' + displayName + u']]\n'
-            
+    #objectSkips = [u'dia',
+    #               u'',
+    #               ]
     #finalDescription = finalDescription + u'{{Subst:User:Multichill/KIT/object|' + objectName + u'}}\n'
-    finalDescription = finalDescription + u'[[Category:Images from KIT, object ' + objectName + u']]\n'
+    #if not objectName.lower() in objectSkips:
+    #    finalDescription = finalDescription + u'[[Category:Images from KIT, object ' + objectName + u']]\n'
     
     for (expr1, term) in thesauri:
         #finalDescription = finalDescription + u'{{Subst:User:Multichill/KIT/thesauri|' + expr1 + u'|' + term + u'}}\n'
@@ -139,7 +147,8 @@ def getOjectdata(objectNumber, cursor):
     '''
     Get the object data from Objectdatatabel for a single object
     '''
-    query = "select ObjectId, ObjectName, Dated, Dimensions, CreditLine, Description from Objectdatatabel WHERE ObjectNumber ='" + objectNumber + "'"   
+    query = "select ObjectId, ObjectName, Dated, Dimensions, CreditLine, Description from \"2 Objectdatatabel\" WHERE ObjectNumber ='" + objectNumber + "'"
+    wikipedia.output(query)
     cursor.execute(query)
 
     (objectId, objectName, dated, dimensions, creditLine, description)= cursor.fetchone()
@@ -152,7 +161,7 @@ def getConstituents(objectNumber, cursor):
     Get the related conctituents records FROM Constituentstabel based on objectNumber
     '''
    
-    query = "select Role, DisplayName from Constituentstabel WHERE ObjectNumber ='" + objectNumber + "'"
+    query = "select Role, DisplayName from \"1 Constituentstabel\" WHERE ObjectNumber ='" + objectNumber + "'"
     cursor.execute(query) 
     result= cursor.fetchall()
    
@@ -162,8 +171,17 @@ def getThesauri(objectNumber, cursor):
     '''
     Get the related thesauri records FROM Thesauritabel based on objectNumber
     '''
+    skips = [u'Materiaal - hoofd',
+             u'Materiaal - overig',
+             u'Objecttrefwoord',
+             u'Techniek',
+             u'Voorstelling Cultuur',
+             u'Voorstelling Materiaal',
+            ]
    
-    query = "select Expr1, Term from Thesauritabel WHERE ObjectNumber ='" + objectNumber + "'"
+    query = u"select Expr1, Term from \"3 Thesauritabel\" WHERE ObjectNumber ='" + objectNumber + u"'"
+    for skip in skips:
+        query = query + u" AND not Expr1='" + skip + "'"
     cursor.execute(query) 
     result= cursor.fetchall()
    
@@ -171,10 +189,10 @@ def getThesauri(objectNumber, cursor):
 
 def getTitels(objectNumber, cursor):
     '''
-    Get the different titels from Titeltabel based on objectNumber
+    Get the different titels from \"4 Titeltabel\" based on objectNumber
     '''
    
-    query = "select TitleType, Title FROM Titeltabel WHERE ObjectNumber ='" + objectNumber + "'"
+    query = "select TitleType, Title FROM  \"4 Titeltabel\" WHERE ObjectNumber ='" + objectNumber + "'"
     cursor.execute(query) 
     result= cursor.fetchall()
    
@@ -212,7 +230,7 @@ def main(args):
     conn = None
     cursor = None
     (conn, cursor) = connectDatabase()
-
+    
     if(args[0]):
         subject = args[0]
         if os.path.isdir(subject):
@@ -223,7 +241,9 @@ def main(args):
 		else:
                 #print f
                     description = generateDescriptionFromFile(filename, cursor)
-                    bot = upload.UploadRobot(url=filename, description=description, keepFilename=True, verifyDescription=False)
+                    #wikipedia.output(description)
+                    #wikipedia.output(u'Reading file %s' % filename.decode(sys.getfilesystemencoding()))
+                    bot = upload.UploadRobot(url=filename.decode(sys.getfilesystemencoding()), description=description, keepFilename=True, verifyDescription=False)
                     bot.run()
         #else:
         #    generateDescriptionFromFile(f, cursor)
