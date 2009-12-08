@@ -7,16 +7,30 @@ Bot to upload geograph images from the Toolserver to Commons
 import sys, os.path, hashlib, base64, MySQLdb, glob, re, urllib
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query
-import xml.etree.ElementTree
+import xml.etree.ElementTree, shutil
 import imagerecat
+import MySQLdb.converters
 
 def connectDatabase(server='sql.toolserver.org', db='u_multichill_geograph_p'):
     '''
     Connect to the mysql database, if it fails, go down in flames
     '''
-    conn = MySQLdb.connect(server, db=db, user = config.db_username, passwd = config.db_password)
+    my_conv = MySQLdb.converters.conversions
+    del my_conv[MySQLdb.converters.FIELD_TYPE.DATE]
+    #print my_conv
+    conn = MySQLdb.connect(server, db=db, user = config.db_username, passwd = config.db_password, conv =my_conv , use_unicode=True)
     cursor = conn.cursor()
     return (conn, cursor)
+
+def connectDatabase2(server='sql.toolserver.org', db='u_multichill_geograph_p'):
+    '''
+    Connect to the mysql database, if it fails, go down in flames
+    '''
+    conn = MySQLdb.connect(server, db=db, user = config.db_username, passwd = config.db_password, use_unicode=True)
+    cursor = conn.cursor()
+    return (conn, cursor)
+
+
 
 def findDuplicateImages(filename, site = wikipedia.getSite(u'commons', u'commons')):
     '''
@@ -43,10 +57,8 @@ def getDescription(metadata):
 	description = description + u' ' + metadata['comment']
     description = description + u'}}\n'
     description = description + u'|date='
-    if metadata['imagetake']:
-	description = description + u'{{Date|' + str(metadata.get('imagetake').year)
-	description = description + u'|' + str(metadata.get('imagetake').month)
-	description = description + u'|' + str(metadata.get('imagetake').day) + u'}}\n'
+    if metadata.get('imagetaken') and not metadata.get('imagetaken')==u'0000-00-00':
+	description = description + metadata.get('imagetaken').replace(u'-00', u'') + u'\n'
     else:
 	description = description + u'{{Unknown}}\n'
     description = description + u'|source=From [http://www.geograph.org.uk/photo/' + str(metadata.get('id')) + u' geograph.org.uk]\n'
@@ -228,13 +240,17 @@ def filterCategories(categories, cursor2):
     Filter the categories
     '''
     #First filter the parents to quickly reduce the number of categories
-    result = filterParents(categories, cursor2)
+    if len(categories) > 1:
+	result = filterParents(categories, cursor2)
+    else:
+	result = categories
     #Remove disambiguation categories
     result = imagerecat.filterDisambiguation(result)
     #And follow the redirects
     result = imagerecat.followRedirects(result)
     #And filter again for parents now we followed the redirects
-    result = filterParents(result, cursor2)
+    if len(result) > 1:
+	result = filterParents(result, cursor2)
     return result
 
 def filterParents(categories, cursor2):
@@ -278,7 +294,7 @@ def getTitle(metadata):
     '''
     Build a valid title for the image to be uploaded to.
     '''
-    title = metadata.get('title') + u' - geograph.org.uk - ' + str(metadata.get('id')) + '.jpg'
+    title = metadata.get('title') + u' - geograph.org.uk - ' + str(metadata.get('id'))
 
     title = re.sub(u"[<{\\[]", u"(", title)
     title = re.sub(u"[>}\\]]", u")", title)
@@ -310,7 +326,7 @@ def getMetadata(fileId, cursor):
 	(result['user_id'],
 	 result['realname'],
 	 result['title'],
-	 result['imagetake'],
+	 result['imagetaken'],
 	 result['grid_reference'],
 	 result['x'],
 	 result['y'],
@@ -319,6 +335,7 @@ def getMetadata(fileId, cursor):
 	 result['imageclass'],
 	 result['comment'],
 	 result['view_direction']) = row
+	#print result
 
     return result
 
@@ -328,21 +345,33 @@ def getFileId(file):
     baseFilename, extension = os.path.splitext(filename)
     return int(baseFilename)
 
+def outputDescriptionFile(filename, description):
+    f = open(filename, "w")
+    f.write(description.encode("UTF-8"))
+    f.close()
+    return
+
 def main(args):
     '''
     Main loop.
     '''
     site = wikipedia.getSite(u'commons', u'commons')
     wikipedia.setSite(site)
+
+    start_id=0    
+    found_start_id = False
+
     conn = None
     cursor = None
     (conn, cursor) = connectDatabase()
 
     conn2 = None
     cursor2 = None
-    (conn2, cursor2) = connectDatabase('commonswiki-p.db.toolserver.org', u'u_multichill_commons_categories_p')
+    (conn2, cursor2) = connectDatabase2('commonswiki-p.db.toolserver.org', u'u_multichill_commons_categories_p')
 
-    if(args[0] and args[1]):
+    if(len(args) >1):
+	if len(args) > 2:
+	    start_id=args[2]
 	sourcedir = args[0]
 	destinationdir = args[1]
 	if os.path.isdir(sourcedir) and os.path.isdir(destinationdir):
@@ -378,8 +407,11 @@ def main(args):
 
 				#Get destinationfilename
 				destinationFilename = getTitle(metadata)
-
-				print destinationFilename
+				
+				#Copy file to destination dir
+				shutil.copy(sourcefilename, destinationdir + destinationFilename + '.jpg')
+				#And save the description as well
+				outputDescriptionFile(destinationdir + destinationFilename + '.txt', description)
 				#Save it
          
 if __name__ == "__main__":
