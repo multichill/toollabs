@@ -4,7 +4,7 @@
 Bot to upload geograph images from the Toolserver to Commons
 
 '''
-import sys, os.path, hashlib, base64, MySQLdb, glob, re, urllib
+import sys, os.path, hashlib, base64, MySQLdb, glob, re, urllib, time
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query
 import xml.etree.ElementTree, shutil
@@ -134,9 +134,20 @@ def getExtendedFindNearby(lat, lng):
     and put it in a list of dictionaries to play around with
     '''
     result = [] 
+    gotInfo = False
     parameters = urllib.urlencode({'lat' : lat, 'lng' : lng})
-    page = urllib.urlopen("http://ws.geonames.org/extendedFindNearby?%s" % parameters)
-    et = xml.etree.ElementTree.parse(page)
+    while(not gotInfo):
+	try:
+	    page = urllib.urlopen("http://ws.geonames.org/extendedFindNearby?%s" % parameters)
+	    et = xml.etree.ElementTree.parse(page)
+	    gotInfo=True
+        except IOError:
+            wikipedia.output(u'Got an IOError, let\'s try again')
+	    time.sleep(30)
+        except socket.timeout:
+            wikipedia.output(u'Got a timeout, let\'s try again')
+	    time.sleep(30)
+	    
     for geoname in et.getroot().getchildren():
 	geonamedict = {}
 	if geoname.tag=='geoname':
@@ -262,7 +273,7 @@ def filterParents(categories, cursor2):
     query = u"SELECT c1.parent AS c1p, c2.parent AS c2p, c3.parent AS c3p, c4.parent AS c4p, c5.parent AS c5p, c6.parent AS c6p FROM cats AS c1 JOIN cats AS c2 ON c1.parent=c2.child JOIN cats AS c3 ON c2.parent=c3.child JOIN cats AS c4 ON c3.parent=c4.child JOIN cats AS c5 ON c4.parent=c5.child JOIN cats AS c6 ON c5.parent=c6.child WHERE "
     for i in range(0, len(categories)):
 	categories[i] = categories[i].replace(u' ', u'_')
-	query = query + u"c1.child='" + categories[i] + u"'" 
+	query = query + u"c1.child='" + categories[i].replace(u"\'", "\\'") + u"'" 
 	if(i+1 < len(categories)):
 	     query = query + u" OR "
 
@@ -359,7 +370,6 @@ def main(args):
     wikipedia.setSite(site)
 
     start_id=0    
-    found_start_id = False
 
     conn = None
     cursor = None
@@ -371,7 +381,7 @@ def main(args):
 
     if(len(args) >1):
 	if len(args) > 2:
-	    start_id=args[2]
+	    start_id=int(args[2])
 	sourcedir = args[0]
 	destinationdir = args[1]
 	if os.path.isdir(sourcedir) and os.path.isdir(destinationdir):
@@ -380,40 +390,40 @@ def main(args):
 		#print subdir
 		if os.path.isdir(sourcedir + subdir):
 		    #print subdir
-		    for sourcefilename in glob.glob(sourcedir + subdir + "/*.jpg"):
-			duplicates = findDuplicateImages(sourcefilename)
-			if duplicates:
-			     wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
-			else:
-			    #Get the file id
-			    fileId = getFileId(sourcefilename)
-			    print str(fileId)
+		    for sourcefilename in glob.glob(sourcedir + subdir + u"/*.jpg"):
+			# First get the file id
+			fileId = getFileId(sourcefilename)
+			if fileId>=start_id:
+			    wikipedia.output(str(fileId))
 
-			    #Get metadata
-			    metadata = getMetadata(fileId, cursor)
+			    duplicates = findDuplicateImages(sourcefilename)
+			    if duplicates:
+				wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
+			    else:
+				#Get metadata
+				metadata = getMetadata(fileId, cursor)
 
-			    #Check if we got metadata
-			    if metadata:
+				#Check if we got metadata
+				if metadata:
 
-				#Get description
-				description = getDescription(metadata)
+				    #Get description
+				    description = getDescription(metadata)
 
-				# The hard part, find suitable categories
-				categories =  getCategories(metadata, cursor, cursor2)
-				#print categories
-				description = description + categories
+				    # The hard part, find suitable categories
+				    categories =  getCategories(metadata, cursor, cursor2)
+				    #print categories
+				    description = description + categories
 
-				print description
+				    wikipedia.output(description)
 
-				#Get destinationfilename
-				destinationFilename = getTitle(metadata)
+				    #Get destinationfilename
+				    destinationFilename = getTitle(metadata)
 				
-				#Copy file to destination dir
-				shutil.copy(sourcefilename, destinationdir + destinationFilename + '.jpg')
-				#And save the description as well
-				outputDescriptionFile(destinationdir + destinationFilename + '.txt', description)
-				#Save it
-         
+				    #Copy file to destination dir
+				    shutil.copy(unicode(sourcefilename), unicode(destinationdir + destinationFilename + u'.jpg'))
+				    #And save the description as well
+				    outputDescriptionFile(destinationdir + destinationFilename + u'.txt', description)
+ 
 if __name__ == "__main__":
     try:
         main(sys.argv[1:])
