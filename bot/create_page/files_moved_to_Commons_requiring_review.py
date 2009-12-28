@@ -11,7 +11,10 @@ import wikipedia
 from datetime import datetime
 from datetime import timedelta
 
-projects = [(u'en', u'wikipedia'), (u'nl', 'wikipedia')]
+projects = [(u'de', u'wikipedia'),
+	    (u'en', u'wikipedia'),
+	    (u'it', u'wikipedia'),
+	    (u'nl', 'wikipedia')]
 
 def createCategory (date = datetime.utcnow()):
     day = date.strftime('%d')
