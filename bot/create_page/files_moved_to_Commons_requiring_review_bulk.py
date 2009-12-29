@@ -8,7 +8,7 @@ The start date is hardcoded.
 '''
 import sys
 sys.path.append("/home/multichill/pywikipedia/")
-import wikipedia
+import wikipedia, catlib
 from datetime import datetime
 from datetime import timedelta
 
@@ -16,17 +16,19 @@ def createCategory (date = None):
     day = date.strftime('%d')
     month = date.strftime('%B')
     year = date.strftime('%Y')
-    page = wikipedia.Page(wikipedia.getSite(u'commons', u'commons'), u'Category:Files moved from nl.wikipedia to Commons requiring review as of ' + str(int(day)) + u' ' + month + u' ' + year)
+    page = catlib.Category(wikipedia.getSite(u'commons', u'commons'), u'Category:Files moved from en.wikipedia to Commons requiring review as of ' + str(int(day)) + u' ' + month + u' ' + year)
     wikipedia.output(u'Working on ' + page.title())
     if not page.exists():
-	toPut = u'{{BotMoveToCommonsHeader|lang=nl|project=wikipedia|day=' + day + u'|month=' + month + u'|year=' + year + u'}}' 
-	wikipedia.output(u'Creating category with content: ' + toPut)
-	page.put(toPut, toPut)
+	for article in  page.articles():
+	    toPut = u'{{BotMoveToCommonsHeader|lang=en|project=wikipedia|day=' + day + u'|month=' + month + u'|year=' + year + u'}}' 
+	    wikipedia.output(u'Creating category with content: ' + toPut)
+	    page.put(toPut, toPut)
+	    break
     else:
 	wikipedia.output(u'Category already exists')
 
 def main():
-    startDate = datetime(year=2008, month=1, day=1)
+    startDate = datetime(year=2007, month=10, day=1)
     workDate = startDate
     today = datetime.utcnow()
     while(workDate < today):
