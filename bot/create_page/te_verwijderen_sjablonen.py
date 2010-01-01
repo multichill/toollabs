@@ -17,7 +17,8 @@ def createPage (monday = None):
     day = monday.strftime('%d') # 01-31
     month = monday.strftime('%m') # 01-12 
     year = monday.strftime('%Y') # 2008
-    (Null, week,Null) = monday.isocalendar()
+    week = monday.strftime('%W')
+    #(Null, week,Null) = monday.isocalendar()
     page = wikipedia.Page(wikipedia.getSite(u'nl', u'wikipedia'), u'Wikipedia:Te verwijderen sjablonen/Toegevoegd ' + str(year) + u' week ' + str(week))
     wikipedia.output(u'Working on ' + page.title())
     if not page.exists():
@@ -33,9 +34,14 @@ def addWeek (monday = None):
     '''
     page = wikipedia.Page(wikipedia.getSite(u'nl', u'wikipedia'), u'Wikipedia:Te verwijderen sjablonen')
     pagetext = page.get()
-    (year, week, Null) = monday.isocalendar()
+    #(year, week, Null) = monday.isocalendar()
+    year = monday.strftime('%Y')
+    week = monday.strftime('%W')
     qmonday = monday + timedelta(weeks=3)
-    (qyear, qweek, Null) = qmonday.isocalendar()
+    #(qyear, qweek, Null) = qmonday.isocalendar()
+    qyear = qmonday.strftime('%Y')
+    qweek = qmonday.strftime('%W')
+
     #Add the current week template
     pagetext = pagetext.replace(u'<!-- HIERVOOR -->', u'{{Wikipedia:Te verwijderen sjablonen/Toegevoegd ' + str(year) + u' week ' + str(week) + u'}}\n<!-- HIERVOOR -->')
     #Remove the current week template from the queue
