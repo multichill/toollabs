@@ -8,8 +8,6 @@ import sys, time
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config, re, pagegenerators
 
-new_marker = u'<!-- Add new categorization stats here -->'
-
 def connectDatabase():
     '''
     Connect to the mysql database, if it fails, go down in flames
@@ -17,57 +15,6 @@ def connectDatabase():
     conn = MySQLdb.connect('sql.toolserver.org', db='u_multichill', user = config.db_username, passwd = config.db_password, use_unicode=True)
     cursor = conn.cursor()
     return (conn, cursor)
-
-def getNumberOfItems(cursor):
-    '''
-    Get the number of items on each Lijst_van rijksmonumenten_in_.... page
-    '''
-    query = u"""SELECT page_title, COUNT(el_to) AS count FROM page
-		LEFT JOIN externallinks ON page_id=el_from
-		WHERE page_title LIKE 'Lijst\_van\_rijksmonumenten\_in\_%' 
-		AND page_namespace=0 AND page_is_redirect=0 
-		AND el_to LIKE 'http://nl.rijksmonumenten.wikia.com/wiki/Rijksmonumentnummer%'
-		GROUP BY(page_title)
-		ORDER BY page_title ASC"""
-    cursor.execute(query)
-    result = {}
-
-    while True:
-	try:
-	    row = cursor.fetchone()
-	    (pageTitle, count) = row
-	    result[pageTitle] = count
-	except TypeError:
-	    break
-    return result
-    
-
-def getNumberOfImages(cursor):
-    '''
-    Get the number of images on each Lijst_van rijksmonumenten_in_.... page
-    '''
-    query = u"""SELECT page_title, COUNT(foto.il_to) AS count FROM page
-		LEFT JOIN imagelinks AS foto ON page_id=foto.il_from 
-		WHERE page_title LIKE 'Lijst\_van\_rijksmonumenten\_in\_%' 
-		AND page_namespace=0 AND page_is_redirect=0 
-		AND NOT EXISTS(SELECT * FROM page 
-		JOIN imagelinks AS plaatje ON page_id=plaatje.il_from 
-		WHERE page_namespace=10 
-		AND page_is_redirect=0 
-		AND page_title='Tabelrij_rijksmonument' 
-		AND foto.il_to=plaatje.il_to) 
-		GROUP BY(page_title)"""    
-    cursor.execute(query)
-    result = {}
-
-    while True:
-        try:
-            row = cursor.fetchone()
-            (pageTitle, count) = row
-            result[pageTitle] = count
-        except TypeError:
-            break
-    return result
 
 def updateMonument(contents, conn, cursor):
     query = u"""REPLACE INTO monumenten(objrijksnr, woonplaats, adres, objectnaam, type_obj, oorspr_functie, bouwjaar, architect, cbs_tekst, RD_x, RD_y, lat, lon, source)
@@ -126,7 +73,7 @@ def processMonument(text, source, conn, cursor):
 	    contents[field] = match.group(1).strip().replace("'", "\\'") 
 	else:
 	    contents[field] = u'' 
-    print contents
+    #print contents
     #time.sleep(5)
 
     # Insert it into the database
