@@ -6,8 +6,7 @@ Update the stats at
 '''
 import sys
 sys.path.append("/home/multichill/pywikipedia")
-import wikipedia, MySQLdb, config
-from datetime import datetime
+import wikipedia, MySQLdb, config, re
 
 new_marker = u'<!-- Add new categorization stats here -->'
 
@@ -70,7 +69,23 @@ def getNumberOfImages(cursor):
             break
     return result
 
-def updateStats(items, images):
+def getNumberOfAddresses(text):
+    '''
+    Get the number of addresses in the text
+    '''
+    regex = u'\{\{Tabelrij rijksmonument[^}]*\|adres=[^|]+\|[^}]*\}\}' 
+    matches = re.findall(regex, text)
+    return len(matches)
+
+def getNumberOfNames(text):
+    '''
+    Get the number of object names in the text
+    '''
+    regex = u'\{\{Tabelrij rijksmonument[^}]*\|objectnaam=[^|]+\|[^}]*\}\}'
+    matches = re.findall(regex, text)
+    return len(matches)
+
+def updateStats(pages, items, addresses, names, images):
     '''
     Update the stats
     '''
@@ -79,28 +94,41 @@ def updateStats(items, images):
     newtext = u'{{Wikipedia:Wikiproject/Erfgoed/Afbeeldingen_rijksmonumenten/Header}}\n'
 
     totalItems = 0
+    totalAddresses = 0
+    totalNames =0
     totalImages = 0
 
-    pages = items.keys()
-    pages.sort()
+    #pages = items.keys()
+    #pages.sort()
 
     for key in pages:
 	newtext = newtext + u'{{Wikipedia:Wikiproject/Erfgoed/Afbeeldingen_rijksmonumenten/Row'
 	newtext = newtext + u'|plaats=' + key.replace(u'Lijst_van_rijksmonumenten_in_', '') 
-	newtext = newtext + u'|items=' + str(items.get(key))
-	totalItems = totalItems + items.get(key)
+	
+	if items.get(key):
+	    newtext = newtext + u'|aantal=' + str(items.get(key))
+	    totalItems = totalItems + items.get(key)
+
+	newtext = newtext + u'|adres=' + str(addresses.get(key))
+	totalAddresses = totalAddresses + addresses.get(key)
+
+	newtext = newtext + u'|naam=' + str(names.get(key))
+	totalNames = totalNames + names.get(key)
+
 	if images.get(key):
-	    newtext = newtext + u'|images=' + str(images.get(key)) + u'}}\n'
+	    newtext = newtext + u'|afbeelding=' + str(images.get(key)) + u'}}\n'
 	    totalImages = totalImages + images.get(key)
 	else:
-	    newtext = newtext + u'|images=0}}\n'
+	    newtext = newtext + u'|afbeelding=0}}\n'
 
     newtext = newtext + u'{{Wikipedia:Wikiproject/Erfgoed/Afbeeldingen_rijksmonumenten/Footer'
-    newtext = newtext + u'|items=' + str(totalItems)
-    newtext = newtext + u'|images=' + str(totalImages)
+    newtext = newtext + u'|aantal=' + str(totalItems)
+    newtext = newtext + u'|adres=' + str(totalAddresses)
+    newtext = newtext + u'|naam=' + str(totalNames)
+    newtext = newtext + u'|afbeelding=' + str(totalImages)
     newtext = newtext + u'}}\n'
     
-    comment = u'Bijwerken statistieken: ' + str(totalItems) + u' monumenten met ' + str(totalImages) + u' afbeeldingen'
+    comment = u'Bijwerken statistieken: ' + str(totalItems) + u' monumenten, ' + str(totalAddresses) + u' adressen, ' + str(totalNames) + u' namen en ' + str(totalImages) + u' afbeeldingen'
     wikipedia.output(comment)
     wikipedia.showDiff(page.get(), newtext)
     page.put(newtext = newtext, comment = comment)
@@ -116,8 +144,20 @@ def main():
 
     items = getNumberOfItems(cursor)
     images = getNumberOfImages(cursor)
+    addresses = {}
+    names = {} 
+    pages = list(set(items.keys() + images.keys()))
+    pages.sort()
 
-    updateStats(items, images)
+    for key in pages:
+	print key
+	page = wikipedia.Page(wikipedia.getSite(), key)
+	text = page.get()
+	addresses[key] = getNumberOfAddresses(text)
+	names[key] = getNumberOfNames(text)
+	#print key + u' - ' + str(addresses[key]) + u' - ' + str(names[key]) 
+	
+    updateStats(pages, items, addresses, names, images)
     
 if __name__ == "__main__":
     try:
