@@ -23,7 +23,7 @@ $latitude_bottom=40;
 
 
 
-$query = "SELECT objrijksnr FROM monumenten WHERE lat BETWEEN " . $coordinaten[1]  . " AND " . $coordinaten[3] . " AND lon  BETWEEN " . $coordinaten[0]  . " AND " . $coordinaten[2] . " LIMIT 150";
+$query = "SELECT objrijksnr FROM monumenten WHERE lat BETWEEN " . $coordinaten[1]  . " AND " . $coordinaten[3] . " AND lon  BETWEEN " . $coordinaten[0]  . " AND " . $coordinaten[2] . "  ORDER BY RAND() LIMIT 100";
 
 $result = mysql_query($query);
 
