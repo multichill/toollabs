@@ -12,13 +12,13 @@ def connectDatabase():
     '''
     Connect to the mysql database, if it fails, go down in flames
     '''
-    conn = MySQLdb.connect('sql.toolserver.org', db='u_multichill', user = config.db_username, passwd = config.db_password, use_unicode=True)
+    conn = MySQLdb.connect('sql.toolserver.org', db='u_multichill', user = config.db_username, passwd = config.db_password, use_unicode=True, charset='utf8')
     cursor = conn.cursor()
     return (conn, cursor)
 
 def updateMonument(contents, conn, cursor):
-    query = u"""REPLACE INTO monumenten(objrijksnr, woonplaats, adres, objectnaam, type_obj, oorspr_functie, bouwjaar, architect, cbs_tekst, RD_x, RD_y, lat, lon, source)
-		VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')""";
+    query = u"""REPLACE INTO monumenten(objrijksnr, woonplaats, adres, objectnaam, type_obj, oorspr_functie, bouwjaar, architect, cbs_tekst, RD_x, RD_y, lat, lon, image, source)
+		VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')""";
 
     cursor.execute(query % (contents.get(u'objrijksnr'),
 			    contents.get(u'woonplaats'),
@@ -33,7 +33,9 @@ def updateMonument(contents, conn, cursor):
                             contents.get(u'RD_y'),
                             contents.get(u'lat'),
                             contents.get(u'lon'),
+			    contents.get(u'image'),
                             contents.get(u'source')))
+    #print contents
     #print u'updating!'
     #time.sleep(5)
 
@@ -59,11 +61,12 @@ def processMonument(text, source, conn, cursor):
              u'RD_y',
              u'lat',
              u'lon',
+	     u'image',
 	    ]
     
     # Get all the fields
     contents = {}
-    contents['source'] = source
+    contents['source'] = source.replace("'", "\\'")
     for field in fields:
 	regex = field + u'=([^|^}]+)'
 	#print regex
@@ -85,9 +88,8 @@ def processText(text, source, conn, cursor):
     Process a text containing one or multiple instances of the Tabelrij rijksmonument template
     '''
     regex = u'\{\{Tabelrij rijksmonument[^}]+\}\}'
-    matches = re.findall(regex, text)
-    for match in matches:
-	monument = match.group(0)
+    monuments = re.findall(regex, text)
+    for monument in monuments:
 	processMonument(monument, source, conn, cursor)
 
 def processTextfile(textfile, conn, cursor):
@@ -125,8 +127,9 @@ def main():
 	    wikipedia.output(u'You have to specify what to work on. This can either be -textfile:<filename> to work on a local file or you can use one of the standard pagegenerators (in pagegenerators.py)')
 	else:
 	    for page in generator:
-		# Do some checking
-		processText(page.get(), page.permalink(), conn, cursor)
+		if page.exists() and not page.isRedirectPage():
+		    # Do some checking
+		    processText(page.get(), page.permalink(), conn, cursor)
     
 if __name__ == "__main__":
     try:
