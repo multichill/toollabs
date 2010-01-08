@@ -1,5 +1,5 @@
 <?php 
-#header('Content-type: application/vnd.google-earth.kml+xml');
+header('Content-type: application/vnd.google-earth.kml+xml');
 
 echo '<?xml version="1.0" encoding="UTF-8"?>';
 
