@@ -94,7 +94,7 @@ function getName($row) {
     if ($row['objectnaam']!="") {
 	$result = processWikitext($row['objectnaam'], 0);
     } else {
-	$result = "Rijksmonument " .  $row['objrijksnr'];
+	$result = $row['objrijksnr'];
     }    
     if ($row['woonplaats']!="") {
 	$result = $result . ", " . $row['woonplaats'];
