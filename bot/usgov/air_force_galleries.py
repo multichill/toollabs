@@ -33,16 +33,12 @@ def getMetadata(gallery_id):
     data = galleryPage.read()
 
     soup = BeautifulSoup(data)
-    #print soup.prettify()
-    #print soup
-    #blaat = soup.findall(True)
 
     if not data.decode('UTF-8').find(u'There are no images in this gallery.')==-1:
 	return
     
     ptag = []
     ptag.append(soup.find("a", {'class' : 'gallery_search_results' }))
-    #print soup.find("a", {'class' : 'gallery_search_results' }).string
     if ptag[0] and ptag[0].findNext("a", {'class' : 'gallery_search_results' }):
 	ptag.append(ptag[0].findNext("a", {'class' : 'gallery_search_results' }))
 	if ptag[1] and ptag[1].findNext("a", {'class' : 'gallery_search_results' }):
@@ -71,76 +67,7 @@ def getMetadata(gallery_id):
 	    metadata['parent'] = ptag[2].string
 	    metadata['title'] = ptag[3].string
 	if metadata.get('title'):
-	    #print metadata
 	    return metadata
-	'''
-	print str(gallery_id) + u'' + str(ptag[len(ptag)-1]) + metadata['id']
-	for i in range (1, len(ptag)+1):
-	    print int(i)
-	    
-	for tag in ptag:
-    
-	    print tag.string
-	    #print ta
-	    print tag.get('href')
-	'''
-    #print soup.findall()
-    #for i in soup.findall(attrs={'class' : 'gallery_search_results'}):
-    #print i
-    '''
-    
-    if soup.find("meta", {'name' : 'HI_RES_IMAGE'}):
-	photoinfo['url'] = soup.find("meta", {'name' : 'HI_RES_IMAGE'}).get('content')
-    if soup.find("meta", {'name' : 'MED_RES_IMAGE'}):
-	photoinfo['url_medium'] = soup.find("meta", {'name' : 'MED_RES_IMAGE'}).get('content')
-	
-    if soup.find("meta", {'name' : 'DESCRIPTION'}):
-	photoinfo['fulldescription'] = soup.find("meta", {'name' : 'DESCRIPTION'}).get('content')
-    if soup.find("meta", {'name' : 'ALT_TAG'}):
-	photoinfo['shortdescription'] = soup.find("meta", {'name' : 'ALT_TAG'}).get('content')
-
-    if photoinfo.get('url') and photoinfo.get('fulldescription') and photoinfo.get('shortdescription'):
-	photoinfo['navyid'] = getNavyIdentifier(photoinfo['url'])
-	photoinfo['description'] = re.sub(u'\w*-\w*-\w*-\w*[\r\n\s]+', u'', photoinfo['fulldescription'])
-	#photoinfo['description'] = cleanDescription(photoinfo['fulldescription'])
-	#photoinfo['date'] = getDate(photoinfo['fulldescription'])
-	photoinfo['author'] = getAuthor(photoinfo['fulldescription'])
-	#photoinfo['location'] = getLocation(photoinfo['fulldescription'])
-	(photoinfo['date'], photoinfo['location']) = getDateAndLocation(photoinfo['fulldescription'])
-	
-	return photoinfo
-    else:
-	# Incorrect photo_id
-	return False
-    '''
-
-def buildDescription(photo_id, metadata):
-    '''
-    Create the description of the image based on the metadata
-    '''
-    description = u''
-
-    description = description + u'== {{int:filedesc}} ==\n'
-    description = description + u'{{Information\n'
-    description = description + u'|description={{en|1=' + metadata.get('description') + u'}}\n'
-    description = description + u'|date=' + metadata.get('date') + u'\n' # MM/DD/YYYY
-    #description = description + u'|source={{Navy News Service|' + str(photo_id) + u'}}\n'
-    description = description + u'|source={{ID-USMil|' + metadata.get('navyid') + u'|Navy|url=http://www.navy.mil/view_single.asp?id=' + str(photo_id) + u'}}\n'
-    description = description + u'|author=' + metadata.get('author') + u'\n'
-    description = description + u'|permission=\n'
-    description = description + u'|other_versions=\n'
-    description = description + u'|other_fields=\n'
-    description = description + u'}}\n'
-    description = description + u'\n'
-    description = description + u'== {{int:license}} ==\n'
-    description = description + u'{{PD-USGov-Military-Navy}}\n'
-    description = description + u'\n'
-    description = description + u'[[Category:Images from US Navy, location ' + metadata.get('location') + u']]\n'
-    #else:
-    #	description = description + u'{{Uncategorized-navy}}\n'
-    #description = description + u''
-
-    return description
 
 def processGallery(gallery_id):
     '''
