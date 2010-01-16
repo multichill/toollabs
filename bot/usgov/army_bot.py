@@ -176,9 +176,19 @@ def getLinksInGallery(per=100, page=1):
     result = []
     url = 'http://search.ahp.us.army.mil/search/images/?per=' + str(per) + '&page=' + str(page)
 
-    galleryPage = urllib.urlopen(url)
+    gotData = False
 
-    data = galleryPage.read()
+    while not gotData:
+	try:
+	    galleryPage = urllib.urlopen(url)
+
+	    data = galleryPage.read()
+	    gotData = True
+	except socket.error:
+	    #Sleep 10 seconds
+	    wikipedia.output(u'Socket error while loading gallery. Zzzzzz')
+	    time.sleep(10)
+	
     linkregex = u'<a href="(?P<url>http://www.army.mil/-images/(?P<year>\d\d\d\d)/(?P<month>\d\d)/(?P<day>\d\d)/(?P<id>\d+)/)">'
     matches = re.finditer(linkregex, data)
     if matches:
