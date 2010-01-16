@@ -222,7 +222,7 @@ def processPhoto(photo_id):
     
     if not metadata:
         #Incorrect photo_id
-        return
+        return False
 
     photo = downloadPhoto(metadata['url'])
 
@@ -231,7 +231,8 @@ def processPhoto(photo_id):
     # We don't want to upload tupes
     if duplicates:
         wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
-        return
+	# The file is at Commons so return True
+        return True
     
     title = buildTitle(photo_id, metadata)
     description = buildDescription(photo_id, metadata)
@@ -242,17 +243,22 @@ def processPhoto(photo_id):
     try:
 	bot = upload.UploadRobot(metadata['url'], description=description, useFilename=title, keepFilename=True, verifyDescription=False, targetSite = wikipedia.getSite('commons', 'commons'))
 	bot.upload_image(debug=False)
+	return True
     except wikipedia.PageNotFound:
 	#High res is missing, just skip it
 	pass
+    return False
 
 def processPhotos(start_id=0, end_id=80000):
     '''
     Loop over a bunch of images
     '''
+    last_id = start_id
     for i in range(start_id, end_id):
-        processPhoto(photo_id=i)
-        
+        success = processPhoto(photo_id=i)
+	if success:
+	    last_id=i
+    return last_id
 
 def main(args):
     '''
@@ -260,6 +266,11 @@ def main(args):
     '''
     start_id = 0
     end_id   = 80000
+    updaterun = False
+    site = wikipedia.getSite('commons', 'commons')
+    updatePage = wikipedia.Page(site, u'User:BotMultichillT/Navy_latest') 
+    interval=100
+
     for arg in wikipedia.handleArgs():
         if arg.startswith('-start_id'):
             if len(arg) == 9:
@@ -271,8 +282,23 @@ def main(args):
                 end_id = wikipedia.input(u'What is the id of the photo you want to end at?')
             else:
                 end_id = arg[8:]
+	elif arg==u'-updaterun':
+	    updaterun = True
+	elif arg.startswith('-interval'):
+	    if len(arg) == 9:
+		interval = wikipedia.input(u'What interval do you want to use?')
+	    else:
+		interval = arg[10:]
+
+    if updaterun:
+	start_id = int(updatePage.get())
+	end_id = start_id + int(interval)
                 
-    processPhotos(int(start_id), int(end_id))
+    last_id = processPhotos(int(start_id), int(end_id))
+
+    if updaterun:
+	comment = u'Worked from ' + str(start_id) + u' to ' + str(last_id)
+	updatePage.put(str(last_id), comment)
          
 if __name__ == "__main__":
     try:
