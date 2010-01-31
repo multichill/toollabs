@@ -352,6 +352,7 @@ def getMetadata(fileId, cursor):
 
 def getImagesToCorrect(cursor):
     result = []
+    '''
     query = u"""SELECT CONCAT('File:', page_title) AS page_title, REPLACE(el_to, 'http://www.geograph.org.uk/photo/', '') AS fileId FROM page
 JOIN externallinks ON page_id=el_from
 WHERE page_namespace=6 AND page_is_redirect=0
@@ -360,14 +361,12 @@ AND NOT EXISTS(
 SELECT * FROM templatelinks 
 WHERE page_id=tl_from AND tl_namespace=10 AND tl_title='Geograph')"""
     '''
-    query = u"""SELECT page_title AS page_title, el_to AS fileId FROM page
+    query = u"""SELECT CONCAT('File:', page_title) AS page_title, REPLACE(el_to, 'http://www.geograph.org.uk/photo/', '') AS fileId FROM page
 JOIN externallinks ON page_id=el_from
+JOIN categorylinks ON page_id=cl_from
 WHERE page_namespace=6 AND page_is_redirect=0
 AND el_to LIKE 'http://www.geograph.org.uk/photo/%'
-AND NOT EXISTS(
-SELECT * FROM templatelinks
-WHERE page_id=tl_from AND tl_namespace=10 AND tl_title='Geograph')"""
-    '''
+AND cl_to='Images_from_the_Geograph_British_Isles_project_with_broken_templates'"""
 
     cursor.execute(query)
     #row = cursor.fetchone()
@@ -421,7 +420,7 @@ def main(args):
 		    description = getDescription(metadata)
 
 		    description = wikipedia.replaceCategoryLinks(description, categories, site)
-		    comment= u'Fixing description of Geograph image'
+		    comment= u'Fixing description of Geograph image with broken template'
 		    wikipedia.output(description)
 		    page.put(description, comment)
  
