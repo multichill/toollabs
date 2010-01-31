@@ -52,10 +52,12 @@ def getDescription(metadata):
 
     description = description + u'== {{int:filedesc}} ==\n'
     description = description + u'{{Information\n'
-    description = description + u'|description={{en|1=' + metadata.get('title')
+    informationDescription = metadata.get('title').strip()
+    if informationDescription[-1:].isalnum():
+	informationDescription = informationDescription + u'.'
     if not metadata['comment']==u'':
-	description = description + u' ' + metadata['comment']
-    description = description + u'}}\n'
+	informationDescription = informationDescription + u' ' + metadata['comment']
+    description = description + u'|description={{en|1=' +informationDescription + u'}}\n'
     description = description + u'|date='
     if metadata.get('imagetaken') and not metadata.get('imagetaken')==u'0000-00-00':
 	description = description + metadata.get('imagetaken').replace(u'-00', u'') + u'\n'
