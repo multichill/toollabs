@@ -409,7 +409,7 @@ def main(args):
 
     conn2 = None
     cursor2 = None
-    (conn2, cursor2) = connectDatabase2('daphne.toolserver.org', u'u_multichill_commons_categories_p')
+    (conn2, cursor2) = connectDatabase2('sql-s2.toolserver.org', u'u_multichill_commons_categories_p')
 
     conn3 = None
     cursor3 = None

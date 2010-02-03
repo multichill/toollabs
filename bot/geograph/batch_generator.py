@@ -379,7 +379,7 @@ def main(args):
 
     conn2 = None
     cursor2 = None
-    (conn2, cursor2) = connectDatabase2('commonswiki-p.db.toolserver.org', u'u_multichill_commons_categories_p')
+    (conn2, cursor2) = connectDatabase2('sql-s2.toolserver.org', u'u_multichill_commons_categories_p')
 
     if(len(args) >1):
 	if len(args) > 2:
