@@ -41,7 +41,7 @@ if(!$source == '') {
  $source_cats_removed = trim($source_cats_removed);  
 
  // Filter the current categories
-mysql_connect('daphne.toolserver.org',$toolserver_username,$toolserver_password);
+mysql_connect('sql-s2.toolserver.org',$toolserver_username,$toolserver_password);
 $filter_result = filter_categories($old_cats);
 
 $new_cats=$filter_result['new'];
