@@ -103,10 +103,10 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
 
     for topic in topicCategories:
 	if not topic==u'':
-	    topic = topic.replace(u'_', u' ').strip()
+	    topic = topic.strip().replace(u' ', u'_')
 	    categories.append(topic)
     #categories.extend(topicCategories)
-    
+    categories = filterCategories(categories, cursor2)
     if set(currentCategories)==set(categories):
 	return False
 
@@ -353,7 +353,7 @@ def categorizeImage(page, id, cursor, cursor2):
     # get current categories
     currentCategories =[]
     for cat in page.categories():
-	currentCategories.append(cat.titleWithoutNamespace().replace(u' ', u'_'))
+	currentCategories.append(cat.titleWithoutNamespace().strip().replace(u' ', u'_'))
     # remove templates
     cleanDescription = wikipedia.removeCategoryLinks(imagerecat.removeTemplates(page.get()), wikipedia.getSite())
     # get new categories
