@@ -373,7 +373,9 @@ def getImagesWithTopic(cursor, topic):
     JOIN categorylinks AS topiccat ON page_id=topiccat.cl_from
     JOIN externallinks ON page_id=el_from
     WHERE page_namespace=6 AND page_is_redirect=0 AND
-    geocat.cl_to='Images_from_the_Geograph_British_Isles_project' AND
+    (geocat.cl_to='Images_from_Geograph_needing_category_review_as_of_30_January_2010' OR 
+    geocat.cl_to='Images_from_Geograph_needing_category_review_as_of_31_January_2010' OR
+    geocat.cl_to='Images_from_Geograph_needing_category_review_as_of_1_February_2010' ) AND
     topiccat.cl_to=%s AND
     el_to LIKE 'http://www.geograph.org.uk/photo/%%' LIMIT 1000"""
     cursor.execute(query, (topic, ))
@@ -434,10 +436,14 @@ def main(args):
 	for (topic,) in topics:
 	    images = getImagesWithTopic(cursor3, topic)
 	    for (imageName, id) in images:
-		page = wikipedia.ImagePage(wikipedia.getSite(), u'File:' + imageName)
-		if page.exists() and page.namespace()==6 and not page.isRedirectPage():
-		    wikipedia.output(page.title())
-		    categorizeImage(page, id, cursor, cursor2)
+		try:
+		    page = wikipedia.ImagePage(wikipedia.getSite(), u'File:' + imageName)
+		    if page.exists() and page.namespace()==6 and not page.isRedirectPage():
+			wikipedia.output(page.title())
+			categorizeImage(page, id, cursor, cursor2)
+		except UnicodeDecodeError:
+		    print "UnicodeDecodeError, can't find the source. yah! :-("
+		    pass
     '''
     imageSet = getImagesToCorrect(cursor2)
     #print imageSet
