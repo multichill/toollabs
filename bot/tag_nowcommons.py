@@ -52,6 +52,7 @@ def tagNowCommons(wImage, cImage):
 	     u'KeepLocal',
 	     u'Keeplocal',
              u'NoCommons',
+	     u'Nocommons',
              u'NotMovedToCommons',
              u'Nmtc',
              u'Not moved to Commons',
