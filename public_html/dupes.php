@@ -107,8 +107,8 @@ if(!$result) Die("ERROR: No result returned.");
 
 <table width="80%">
 <tr>
-<th style="width:20%;" align="left"><? echo $lang; ?> image </th>
-<th style="width:20%;" align="left">commons image </th>
+<th style="width:20%;" align="left"><? echo $lang; ?> image A</th>
+<th style="width:20%;" align="left"><? echo $lang; ?> image B</th>
 <th style="width:20%;" align="left">  </th>
 <th style="width:20%;" align="left">  </th>
 </tr>
