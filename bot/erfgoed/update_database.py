@@ -12,7 +12,7 @@ def connectDatabase():
     '''
     Connect to the mysql database, if it fails, go down in flames
     '''
-    conn = MySQLdb.connect('sql.toolserver.org', db='u_multichill', user = config.db_username, passwd = config.db_password, use_unicode=True, charset='utf8')
+    conn = MySQLdb.connect('sql.toolserver.org', db='p_erfgoed_p', user = config.db_username, passwd = config.db_password, use_unicode=True, charset='utf8')
     cursor = conn.cursor()
     return (conn, cursor)
 
@@ -39,7 +39,7 @@ def updateMonument(contents, conn, cursor):
     #print u'updating!'
     #time.sleep(5)
 
-def processMonument(text, source, conn, cursor):
+def processMonument(params, source, conn, cursor):
     '''
     Process a single instance of the Tabelrij rijksmonument template
     '''
@@ -63,10 +63,23 @@ def processMonument(text, source, conn, cursor):
              u'lon',
 	     u'image',
 	    ]
-    
+     
     # Get all the fields
     contents = {}
     contents['source'] = source.replace("'", "\\'")
+    for field in fields:
+	contents[field]=u''
+
+    for param in params:
+	#Split at =
+	(field, sep, value) = param.partition(u'=')	
+	#See if first part is in fields list
+	if field in fields:
+	    #Load it with Big fucking escape hack. Stupid mysql lib
+	    contents[field] = value.replace("'", "\\'")
+	else:
+	    print "Big freaking error message"
+    '''
     for field in fields:
 	regex = field + u'=([^|^}]+)'
 	#print regex
@@ -80,17 +93,26 @@ def processMonument(text, source, conn, cursor):
     #time.sleep(5)
 
     # Insert it into the database
+    '''
     if contents.get('objrijksnr'):
 	updateMonument(contents, conn, cursor)
+	#print contents
+	#time.sleep(5)
 
-def processText(text, source, conn, cursor):
+def processText(text, source, conn, cursor, page=None):
     '''
     Process a text containing one or multiple instances of the Tabelrij rijksmonument template
     '''
-    regex = u'\{\{Tabelrij rijksmonument[^}]+\}\}'
-    monuments = re.findall(regex, text)
-    for monument in monuments:
-	processMonument(monument, source, conn, cursor)
+    if not page:
+	site = wikipedia.getSite('nl', 'wikipedia')
+	page = wikipedia.Page(site, u'User:Multichill/Zandbak')
+    templates = page.templatesWithParams(thistxt=text)
+    for (template, params) in templates:
+	if template==u'Tabelrij rijksmonument':
+	    #print template
+	    #print params
+	    processMonument(params, source, conn, cursor)
+	    #time.sleep(5)
 
 def processTextfile(textfile, conn, cursor):
     '''
@@ -98,7 +120,7 @@ def processTextfile(textfile, conn, cursor):
     '''
     file = open(textfile, 'r')
     for line in file:
-	processMonument(line.decode('UTF-8').strip(), textfile, conn, cursor)
+	processText(line.decode('UTF-8').strip(), textfile, conn, cursor)
 
 def main():
     '''
@@ -129,7 +151,7 @@ def main():
 	    for page in generator:
 		if page.exists() and not page.isRedirectPage():
 		    # Do some checking
-		    processText(page.get(), page.permalink(), conn, cursor)
+		    processText(page.get(), page.permalink(), conn, cursor, page=page)
     
 if __name__ == "__main__":
     try:

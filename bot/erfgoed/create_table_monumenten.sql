@@ -1,5 +1,5 @@
 /* Create table statement for the monumenten database */
-connect u_multichill sql.toolserver.org;
+connect p_erfgoed_p sql.toolserver.org;
 CREATE TABLE `monumenten` (
   `objrijksnr` int(11) NOT NULL DEFAULT '0',
   `woonplaats` varchar(255) NOT NULL DEFAULT '',

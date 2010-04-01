@@ -65,7 +65,10 @@ def cleanupPage(page):
 	text = text.replace(match, newMatch)
     #wikipedia.showDiff(oldtext, text)
     comment=u'[[Wikipedia:Verzoekpagina_voor_bots#Rijksmonumentenlijsten|Op verzoek]] : Velden in een andere volgorde en toevoegen lege velden'
-    page.put_async(text, comment)
+    try:
+	page.put(text, comment, maxTries=1)
+    except wikipedia.MaxTriesExceededError:
+	wikipedia.output(page.title() + u' is te groot')
 
 def main():
     '''
