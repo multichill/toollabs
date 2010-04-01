@@ -6,7 +6,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
 require_once('../../database.inc');
 
 mysql_connect('sql.toolserver.org',$toolserver_username,$toolserver_password);
-@mysql_select_db('u_multichill') or print mysql_error();
+@mysql_select_db('p_erfgoed_p') or print mysql_error();
 
 $bbox = $_GET[BBOX];
 $coordinaten = preg_split('/,/', $bbox);

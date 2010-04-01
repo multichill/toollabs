@@ -184,7 +184,7 @@ $coordinaten = preg_split('/,/', $bbox);
 require_once('../../database.inc');
 
 mysql_connect('sql.toolserver.org',$toolserver_username,$toolserver_password);
-@mysql_select_db('u_multichill') or print mysql_error();
+@mysql_select_db('p_erfgoed_p') or print mysql_error();
 
 $objrijksnr = mysql_real_escape_string(urldecode($_GET['objrijksnr']));
 
