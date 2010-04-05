@@ -75,29 +75,10 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
     Produce one or more suitable Commons categories based on the metadata
     '''
     result = u''
-    locationList =getExtendedFindNearby(metadata.get('wgs84_lat'), metadata.get('wgs84_long')) 
-
-    for i in range(0, len(locationList)):
-	#First try to get the location category based on the id
-	category = getCategoryByGeonameId(locationList[i].get('geonameId'), cursor)
-	if category:
-	    #print locationList[i].get('geonameId') + u' - ' + category
-	    locationList[i]['category'] = category
-	#Second try to get the location category based on the name
-	else:
-	    if i > 1:
-		category = getCategoryByName(name=locationList[i]['name'], parent=locationList[i-1]['name'], grandparent=locationList[i-2]['name'], cursor2=cursor2)
-	    elif i > 0:
-		category = getCategoryByName(name=locationList[i]['name'], parent=locationList[i-1]['name'], cursor2=cursor2)
-	    else:
-		category = getCategoryByName(name=locationList[i]['name'], cursor2=cursor2)
-	    locationList[i]['category'] = category
-	    #print locationList[i].get('geonameId')
-	#print locationList[i].get('geonameId') + u' - ' + locationList[i].get('category')
-    categories = []
-    for location in locationList:
-	if location.get('category') and not location.get('category')==u'':
-	    categories.append(location.get('category')) 
+    locationEFNCategories = getExtendedFindNearbyCategories(metadata, cursor, cursor2)
+    locationOSMcategories = getOpenStreetMapCategories(metadata, cursor, cursor2)
+    categories = locationEFNCategories + locationOSMcategories
+    
     #Third try to get a topic category
     topicCategories = getTopicCategories(metadata.get('imageclass'), categories, cursor, cursor2)
 
@@ -121,6 +102,36 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
 		result = result + u'[[Category:' + category.replace(u'_', u' ') + u']]\n'
     else:
 	result = u'{{Subst:Unc}}'
+    return result
+
+def getExtendedFindNearbyCategories(metadata, cursor, cursor2):
+    '''
+    Get a list of location categories based on the extended find nearby tool
+    '''
+    result = []
+    locationList =getExtendedFindNearby(metadata.get('wgs84_lat'), metadata.get('wgs84_long')) 
+
+    for i in range(0, len(locationList)):
+	#First try to get the location category based on the id
+	category = getCategoryByGeonameId(locationList[i].get('geonameId'), cursor)
+	if category:
+	    #print locationList[i].get('geonameId') + u' - ' + category
+	    locationList[i]['category'] = category
+	#Second try to get the location category based on the name
+	else:
+	    if i > 1:
+		category = getCategoryByName(name=locationList[i]['name'], parent=locationList[i-1]['name'], grandparent=locationList[i-2]['name'], cursor2=cursor2)
+	    elif i > 0:
+		category = getCategoryByName(name=locationList[i]['name'], parent=locationList[i-1]['name'], cursor2=cursor2)
+	    else:
+		category = getCategoryByName(name=locationList[i]['name'], cursor2=cursor2)
+	    locationList[i]['category'] = category
+	    #print locationList[i].get('geonameId')
+	#print locationList[i].get('geonameId') + u' - ' + locationList[i].get('category')
+
+    for location in locationList:
+	if location.get('category') and not location.get('category')==u'':
+	    result.append(location.get('category')) 
     return result
 
 def getExtendedFindNearby(lat, lng):
@@ -151,6 +162,37 @@ def getExtendedFindNearby(lat, lng):
 	    result.append(geonamedict)
     #print result
     return result
+
+def getOpenStreetMapCategories(metadata, cursor, cursor2):
+    '''
+    Get a list of location categories based on the extended find nearby tool
+    '''
+    result = []
+    return result
+
+
+def getOpenStreetMap(lat, lng):
+    '''
+    Get the result from http://nominatim.openstreetmap.org/reverse
+    and put it in a list of tuples to play around with
+    '''
+    result = []
+    gotInfo = False
+    parameters = urllib.urlencode({'lat' : lat, 'lng' : lng})
+    while(not gotInfo):
+	try:
+	    page = urllib.urlopen("http://nominatim.openstreetmap.org/reverse?format=xml&%s" % parameters)
+	    et = xml.etree.ElementTree.parse(page)
+	    gotInfo=True
+	except IOError:
+	    wikipedia.output(u'Got an IOError, let\'s try again')
+	    time.sleep(30)
+	except socket.timeout:
+	    wikipedia.output(u'Got a timeout, let\'s try again')
+	    time.sleep(30)
+    print et.getroot().getchildren()
+    return result
+
 
 def getCategoryByGeonameId(geonameId, cursor):
     '''
