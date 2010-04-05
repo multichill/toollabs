@@ -75,9 +75,10 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
     Produce one or more suitable Commons categories based on the metadata
     '''
     result = u''
-    locationEFNCategories = getExtendedFindNearbyCategories(metadata, cursor, cursor2)
+    #locationEFNCategories = getExtendedFindNearbyCategories(metadata, cursor, cursor2)
     locationOSMcategories = getOpenStreetMapCategories(metadata, cursor, cursor2)
-    categories = locationEFNCategories + locationOSMcategories
+    #categories = locationEFNCategories + locationOSMcategories
+    categories = locationOSMcategories
     
     #Third try to get a topic category
     topicCategories = getTopicCategories(metadata.get('imageclass'), categories, cursor, cursor2)
@@ -168,17 +169,30 @@ def getOpenStreetMapCategories(metadata, cursor, cursor2):
     Get a list of location categories based on the extended find nearby tool
     '''
     result = []
+    locationList = getOpenStreetMap(metadata.get('wgs84_lat'), metadata.get('wgs84_long'))
+    print len(locationList)
+    for i in range(0, len(locationList)):
+	print 'Working on ' + locationList[i]
+	if i <= len(locationList)-3:
+	    category = getCategoryByName(name=locationList[i], parent=locationList[i+1], grandparent=locationList[i+2], cursor2=cursor2)
+	elif i == len(locationList)-2:
+            category = getCategoryByName(name=locationList[i], parent=locationList[i+1], cursor2=cursor2)
+	else:
+            category = getCategoryByName(name=locationList[i], cursor2=cursor2)
+	if category and not category==u'':
+	    result.append(category)
+    #print result
     return result
 
 
-def getOpenStreetMap(lat, lng):
+def getOpenStreetMap(lat, lon):
     '''
     Get the result from http://nominatim.openstreetmap.org/reverse
     and put it in a list of tuples to play around with
     '''
     result = []
     gotInfo = False
-    parameters = urllib.urlencode({'lat' : lat, 'lng' : lng})
+    parameters = urllib.urlencode({'lat' : lat, 'lon' : lon})
     while(not gotInfo):
 	try:
 	    page = urllib.urlopen("http://nominatim.openstreetmap.org/reverse?format=xml&%s" % parameters)
@@ -190,7 +204,19 @@ def getOpenStreetMap(lat, lng):
 	except socket.timeout:
 	    wikipedia.output(u'Got a timeout, let\'s try again')
 	    time.sleep(30)
-    print et.getroot().getchildren()
+    validParts = [u'hamlet', u'village', u'city', u'county', u'country']
+    invalidParts = [u'path', u'road', u'suburb', u'state', u'country_code']
+    addressparts = et.find('addressparts')
+    #xml.etree.ElementTree.dump(et)
+
+    for addresspart in addressparts.getchildren():
+	if addresspart.tag in validParts:
+	    result.append(addresspart.text)
+	elif addresspart.tag in invalidParts:
+	    wikipedia.output(u'Dropping %s, %s' % (addresspart.tag, addresspart.text))
+	else:
+	    wikipedia.output(u'WARNING %s, %s is not in addressparts lists' % (addresspart.tag, addresspart.text))
+    #print result
     return result
 
 
