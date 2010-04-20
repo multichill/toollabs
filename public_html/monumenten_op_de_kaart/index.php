@@ -12,7 +12,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
 	<NetworkLink id="MAIN">
 		<name>Monumenten</name>
 		<Link>
-			<href>http://toolserver.org/~multichill/monumenten_op_de_kaart/getMonuments.php</href>
+			<href>http://toolserver.org/~erfgoed/monumenten_op_de_kaart/getMonuments.php</href>
 			<viewRefreshMode>onStop</viewRefreshMode>
 			<viewRefreshTime>0.5</viewRefreshTime>
 			<viewBoundScale>0.9</viewBoundScale>

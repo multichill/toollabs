@@ -48,7 +48,7 @@ while($row = mysql_fetch_assoc($result))
 		<visibility>1</visibility>
 		<open>1</open>
 		<Link>
-			<href>http://toolserver.org/~multichill/monumenten_op_de_kaart/getMonument.php?objrijksnr=<? echo urlencode($row['objrijksnr'])?></href>
+			<href>http://toolserver.org/~erfgoed/monumenten_op_de_kaart/getMonument.php?objrijksnr=<? echo urlencode($row['objrijksnr'])?></href>
 			<viewRefreshMode>onStop</viewRefreshMode>
 			<viewRefreshTime>0.5</viewRefreshTime>
 			<viewBoundScale>0.9</viewBoundScale>

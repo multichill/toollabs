@@ -167,7 +167,7 @@ function makeUploadLink($row) {
     $wpUploadDescription = $wpUploadDescription . '|other_versions=\n';
     $wpUploadDescription = $wpUploadDescription . '}}\n';
     $wpUploadDescription = $wpUploadDescription . '{{Object location dec|' . $row['lat'] . '|' . $row['lon'] . '}}\n';
-    $wpUploadDescription = $wpUploadDescription . '<!-- Information produced by http://toolserver.org/~multichill/monumenten_op_de_kaart/ from ' . $row['source'] . '-->\n';  
+    $wpUploadDescription = $wpUploadDescription . '<!-- Information produced by http://toolserver.org/~erfgoed/monumenten_op_de_kaart/ from ' . $row['source'] . '-->\n';  
     $wpUploadDescription = urlencode($wpUploadDescription);
     $wpUploadDescription = str_replace('%5Cn', '%0A', $wpUploadDescription); 
     $result = $result . '&wpDestFile=' . urlencode($wpDestFile);
