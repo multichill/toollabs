@@ -67,10 +67,9 @@ def getMetadata(photo_id):
 	photoinfo['navyid'] = getNavyIdentifier(photoinfo['url'])
 	photoinfo['description'] = re.sub(u'\w*-\w*-\w*-\w*[\r\n\s]+', u'', photoinfo['fulldescription'])
 	#photoinfo['description'] = cleanDescription(photoinfo['fulldescription'])
-	#photoinfo['date'] = getDate(photoinfo['fulldescription'])
 	photoinfo['author'] = getAuthor(photoinfo['fulldescription'])
-	#photoinfo['location'] = getLocation(photoinfo['fulldescription'])
 	(photoinfo['date'], photoinfo['location']) = getDateAndLocation(photoinfo['fulldescription'])
+	photoinfo['ship'] = getShip(photoinfo['fulldescription'])
 	
 	return photoinfo
     else:
@@ -82,21 +81,6 @@ def getNavyIdentifier(url):
     result = result.replace(u'http://www.news.navy.mil/management/photodb/photos/', u'')
     result = result.replace(u'.jpg', u'')
     return result
-
-def getDate(description):
-    dateregex = u'\(([^\)]+\d\d\d\d)\)'
-    matches = re.search(dateregex, description)
-    if matches:
-	#Should probably parse it, but that didn't work out	
-	#descriptionformat = u'%b. %d, %Y'
-    	#isoformat = '%Y-%m-%d'
-        #date = datetime.strptime(matches.group(1), descriptionformat)
-	#print date.strftime(isoformat)
-        #return date.strftime(isoformat)
-	return matches.group(1)
-
-    else:
-	return u''
 
 def getAuthor(description):
     authorregex = []
@@ -111,16 +95,17 @@ def getAuthor(description):
     #Nothing matched
     return u'U.S. Navy photo<!-- Please update this from the description field-->'
 
-def getLocation(description):
-    # Assume that the location is before date.
-    # Based on dateregex
-    locationregex = u'^([^\(^\r^\n]+)\(([^\)]+\d\d\d\d)\)'
-    matches = re.search(locationregex, description, re.MULTILINE)
+def getShip(description):
+    # Try to find a USS ...(...) ship
+    shipRegex = u'USS [^\(]{1,25}\([^\)]+\)'
+
+    matches = re.search(shipRegex, description, re.I)
     if matches:
-        return matches.group(1)
+	#print matches.group(0)
+        return matches.group(0)
     else:
-	# Unknown location
-        return u'unknown'
+	# No ship found
+        return u''
 
 def getDateAndLocation(description):
     '''
@@ -168,12 +153,26 @@ def buildDescription(photo_id, metadata):
     description = description + u'== {{int:license}} ==\n'
     description = description + u'{{PD-USGov-Military-Navy}}\n'
     description = description + u'\n'
-    description = description + u'[[Category:Images from US Navy, location ' + metadata.get('location') + u']]\n'
+    if not metadata.get('ship')==u'':
+	description = description + getShipCategory(metadata.get('ship')) + u'\n'
+    else:
+	description = description + u'[[Category:Images from US Navy, location ' + metadata.get('location') + u']]\n'
     #else:
     #	description = description + u'{{Uncategorized-navy}}\n'
     #description = description + u''
 
     return description
+
+def getShipCategory(ship):
+    '''
+    Try to find a ship category based on the ship's name
+    '''
+    cleanedUpShip = re.sub(u'(USS.*)\((\w+)\s(\w+)\)', u'\\1(\\2-\\3)', ship)
+    shipPage = wikipedia.Page(wikipedia.getSite('commons', 'commons'), u'Category:' + cleanedUpShip)
+    if shipPage.exists():
+	return u'[[Category:' + cleanedUpShip + u']]'	
+    # No category found, add temp one
+    return u'[[Category:Images from US Navy, ship ' + ship + u']]'
 
 def buildTitle(photo_id, metadata):
     '''
@@ -204,6 +203,7 @@ def buildTitle(photo_id, metadata):
     title = re.sub(u",,+", u",", title)
     title = re.sub(u"[-,^]([.]|$)", u"\\1", title)
     title = title.replace(u" ", u"_")
+    title = title.replace(u"__", u"_")
     title = title.replace(u"..", u".")
     title = title.replace(u"._.", u".")
     
@@ -237,7 +237,7 @@ def processPhoto(photo_id):
     title = buildTitle(photo_id, metadata)
     description = buildDescription(photo_id, metadata)
 
-    #wikipedia.output(title)
+    wikipedia.output(title)
     #wikipedia.output(description)
 
     try:
