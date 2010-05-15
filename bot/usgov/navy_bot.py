@@ -260,12 +260,27 @@ def processPhotos(start_id=0, end_id=80000):
 	    last_id=i
     return last_id
 
+def processLatestPhotos():
+    '''
+    Upload the photos at http://www.navy.mil/view_photos_top.asp?sort_type=0&sort_row=8
+    '''
+    url = 'http://www.navy.mil/view_photos_top.asp?sort_type=0&sort_row=8'
+    latestPage = urllib.urlopen(url)
+    data = latestPage.read()
+
+    regex = u'<td valign="bottom"><a href="view_single.asp\?id=(\d+)"><img border=0'
+
+    for match in re.finditer (regex, data):
+	processPhoto(int(match.group(1)))
+
 def main(args):
     '''
     Main loop.
     '''
     start_id = 0
     end_id   = 80000
+    single_id = 0
+    latest = False
     updaterun = False
     site = wikipedia.getSite('commons', 'commons')
     updatePage = wikipedia.Page(site, u'User:BotMultichillT/Navy_latest') 
@@ -282,6 +297,13 @@ def main(args):
                 end_id = wikipedia.input(u'What is the id of the photo you want to end at?')
             else:
                 end_id = arg[8:]
+	elif arg.startswith('-id'):
+	    if len(arg) == 3:
+		single_id = wikipedia.input(u'What is the id of the photo you want to transfer?')
+	    else:
+		single_id = arg[4:]
+	elif arg==u'-latest':
+	    latest = True
 	elif arg==u'-updaterun':
 	    updaterun = True
 	elif arg.startswith('-interval'):
@@ -290,15 +312,20 @@ def main(args):
 	    else:
 		interval = arg[10:]
 
-    if updaterun:
-	start_id = int(updatePage.get())
-	end_id = start_id + int(interval)
+    if single_id > 0:
+	processPhoto(photo_id=int(single_id))
+    elif latest:
+	processLatestPhotos()
+    else:
+	if updaterun:
+	    start_id = int(updatePage.get())
+	    end_id = start_id + int(interval)
                 
-    last_id = processPhotos(int(start_id), int(end_id))
+	last_id = processPhotos(int(start_id), int(end_id))
 
-    if updaterun:
-	comment = u'Worked from ' + str(start_id) + u' to ' + str(last_id)
-	updatePage.put(str(last_id), comment)
+	if updaterun:
+	    comment = u'Worked from ' + str(start_id) + u' to ' + str(last_id)
+	    updatePage.put(str(last_id), comment)
          
 if __name__ == "__main__":
     try:
