@@ -97,7 +97,7 @@ def getAuthor(description):
 
 def getShip(description):
     # Try to find a USS ...(...) ship
-    shipRegex = u'USS [^\(]{1,25}\([^\)]+\)'
+    shipRegex = u'(USNS|USS) [^\(]{1,25}\([^\)]+\)'
 
     matches = re.search(shipRegex, description, re.I)
     if matches:
