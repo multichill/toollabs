@@ -89,6 +89,7 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
 	    categories.append(topic)
     #categories.extend(topicCategories)
     categories = filterCategories(categories, cursor2)
+
     if set(currentCategories)==set(categories):
 	return False
 
@@ -98,6 +99,8 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
     if categories:
 	result = u'{{Check categories-Geograph|year={{subst:CURRENTYEAR}}|month={{subst:CURRENTMONTHNAME}}|day={{subst:CURRENTDAY}}|lat=' + str(metadata.get('wgs84_lat'))  + u'|lon=' + str(metadata.get('wgs84_long'))  + u'|Geographcategory=' + metadata.get('imageclass')  + '}}\n'
 	categories = filterCategories(categories, cursor2)
+	if set(currentCategories)==set(categories):
+	    return False
 	for category in categories:
 	    if category:
 		result = result + u'[[Category:' + category.replace(u'_', u' ') + u']]\n'
@@ -426,7 +429,8 @@ def categorizeImage(page, id, cursor, cursor2):
     cleanDescription = wikipedia.removeCategoryLinks(imagerecat.removeTemplates(page.get()), wikipedia.getSite())
     # get new categories
     categories = getCategories(metadata, cursor, cursor2, currentCategories)
-    if categories:
+
+    if categories and not set(currentCategories)==set(categories):
 	description = cleanDescription + u'\n\n' +  categories
 	comment = u'Trying to find better categories for this [[Commons:Batch uploading/Geograph|Geograph]] image'
 	wikipedia.output(description)
@@ -441,9 +445,7 @@ def getImagesWithTopic(cursor, topic):
     JOIN categorylinks AS topiccat ON page_id=topiccat.cl_from
     JOIN externallinks ON page_id=el_from
     WHERE page_namespace=6 AND page_is_redirect=0 AND
-    (geocat.cl_to='Images_from_Geograph_needing_category_review_as_of_30_January_2010' OR 
-    geocat.cl_to='Images_from_Geograph_needing_category_review_as_of_31_January_2010' OR
-    geocat.cl_to='Images_from_Geograph_needing_category_review_as_of_1_February_2010' ) AND
+    geocat.cl_to LIKE 'Images\_from\_Geograph\_needing\_category\_review\_as\_of\_%%' AND
     topiccat.cl_to=%s AND
     el_to LIKE 'http://www.geograph.org.uk/photo/%%' LIMIT 1000"""
     cursor.execute(query, (topic, ))
