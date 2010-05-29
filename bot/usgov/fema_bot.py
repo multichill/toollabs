@@ -68,7 +68,7 @@ def getMetadata(photo_id):
     if soup.find('div', {'class' : 'caption'}) and soup.find('div', {'class' : 'caption'}).string:
         #print soup.find('div', {'class' : 'caption'}).string.strip()
         photoinfo['caption'] = soup.find('div', {'class' : 'caption'}).string.strip()
-        photoinfo['title'] = soup.find('h2').string.strip()
+        photoinfo['title'] = soup.find('h1').string.strip()
 
         photoinfo2 = soup.find('div', {'class' : 'photoinfo2'}).find('table', {'summary' : 'table used for layout purposes only'})
         for row in photoinfo2.findAll("tr"):
@@ -80,7 +80,7 @@ def getMetadata(photo_id):
                 if ths[0].string and tds[0].string:
                     photoinfo[ths[0].string] = tds[0].string
                     #print ths[0].string + ' - ' +  tds[0].string
-       
+		if len(ths) > 1 and len(tds) > 1:
                     if ths[1].string and tds[1].string:
                         photoinfo[ths[1].string] = tds[1].string
                         #print ths[1].string + ' - ' +  tds[1].string
@@ -163,10 +163,11 @@ def processPhoto(photo_id):
     http://www.photolibrary.fema.gov/photolibrary/photo_details.do?id=<photo_id>    
     get the metadata, check for dupes, build description, upload the image
     '''
-
+    print "Working on: " + str(photo_id)
     # Get all the metadata
     metadata = getMetadata(photo_id)
     if not metadata:
+	print "Didn't find metadata at http://www.photolibrary.fema.gov/photolibrary/photo_details.do?id=" + str(photo_id)
         #Incorrect photo_id
         return
 
@@ -191,7 +192,20 @@ def processPhotos(start_id=0, end_id=45000):
     '''
     for i in range(start_id, end_id):
         processPhoto(photo_id=i)
-        
+
+def processLatestPhotos():
+    '''
+    Upload the photos at http://www.photolibrary.fema.gov/photolibrary/rss.do
+    '''
+    url = 'http://www.photolibrary.fema.gov/photolibrary/rss.do'
+    latestPage = urllib.urlopen(url)
+    data = latestPage.read()
+
+    regex = u'<guid>http://www.photolibrary.fema.gov/photolibrary/photo_details.do\?id=(\d+)</guid>'
+    
+    for match in re.finditer (regex, data):
+        processPhoto(int(match.group(1)))
+
 
 def main(args):
     '''
@@ -199,6 +213,7 @@ def main(args):
     '''
     start_id = 0
     end_id   = 45000
+    latest = False
     for arg in wikipedia.handleArgs():
         if arg.startswith('-start_id'):
             if len(arg) == 9:
@@ -210,8 +225,13 @@ def main(args):
                 end_id = wikipedia.input(u'What is the id of the photo you want to end at?')
             else:
                 end_id = arg[8:]
-                
-    processPhotos(int(start_id), int(end_id))
+	elif arg==u'-latest':
+            latest = True
+    
+    if latest:
+	processLatestPhotos()
+    else:
+	processPhotos(int(start_id), int(end_id))
          
 if __name__ == "__main__":
     try:
