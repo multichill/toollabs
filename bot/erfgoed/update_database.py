@@ -62,6 +62,8 @@ def processMonument(params, source, conn, cursor):
              u'lat',
              u'lon',
 	     u'image',
+             u'postcode', # Not used
+             u'buurt', # Not used
 	    ]
      
     # Get all the fields
