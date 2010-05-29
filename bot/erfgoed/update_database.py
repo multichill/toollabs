@@ -78,7 +78,8 @@ def processMonument(params, source, conn, cursor):
 	    #Load it with Big fucking escape hack. Stupid mysql lib
 	    contents[field] = value.replace("'", "\\'")
 	else:
-	    print "Big freaking error message"
+	    wikipedia.output(u'Onbekend veld gevonden: %s' % field)
+	    #print "Big freaking error message"
     '''
     for field in fields:
 	regex = field + u'=([^|^}]+)'
