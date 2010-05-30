@@ -52,13 +52,30 @@ def getImages(categoryA, categoryB):
     Get images both in categoryA and in categoryB
     '''
     result = None
-    query = u"""SELECT DISTINCT page_namespace, page_title FROM page
-		JOIN categorylinks AS catA ON page_id=catA.cl_from
-		JOIN categorylinks AS catB ON page_id=catB.cl_from
-		WHERE page_namespace=6 AND page_is_redirect=0
-		AND catA.cl_to='%s' AND catB.cl_to='%s'"""
 
-    result = pagegenerators.MySQLPageGenerator(query % (categoryA.replace(u' ', u'_'), categoryB.replace(u' ', u'_')))
+    query = u"""SELECT DISTINCT file.page_namespace, file.page_title FROM page AS file
+		JOIN categorylinks AS cat0A ON file.page_id=cat0A.cl_from
+		JOIN categorylinks AS cat0B ON file.page_id=cat0B.cl_from
+		JOIN page AS pcat0B ON cat0B.cl_to=pcat0B.page_title
+		JOIN categorylinks AS cat1B ON pcat0B.page_id=cat1B.cl_from
+		JOIN page AS pcat1B ON cat1B.cl_to=pcat1B.page_title
+		JOIN categorylinks AS cat2B ON pcat1B.page_id=cat2B.cl_from
+		JOIN page AS pcat2B ON cat2B.cl_to=pcat2B.page_title
+		JOIN categorylinks AS cat3B ON pcat2B.page_id=cat3B.cl_from
+		WHERE file.page_namespace=6 AND file.page_is_redirect=0 AND
+		pcat0B.page_namespace=14 AND pcat0B.page_is_redirect=0 AND
+		pcat1B.page_namespace=14 AND pcat1B.page_is_redirect=0 AND
+		pcat2B.page_namespace=14 AND pcat2B.page_is_redirect=0 AND
+		cat0A.cl_to='%s' AND (
+		cat0B.cl_to='%s' OR
+		cat1B.cl_to='%s' OR
+		cat2B.cl_to='%s' OR
+		cat3B.cl_to='%s')"""
+		
+    catA = categoryA.replace(u' ', u'_')
+    catB = categoryB.replace(u' ', u'_')
+
+    result = pagegenerators.MySQLPageGenerator(query % (catA, catB, catB, catB, catB))
     return result
 
 def replaceCategories(page, oldcats, newcat):
@@ -71,7 +88,7 @@ def replaceCategories(page, oldcats, newcat):
 	    newcats.append(cat)
 
     newtext = wikipedia.replaceCategoryLinks (oldtext, newcats)
-    comment = u'[[' + oldcats[0].title() + u']] \u2229 [[' + oldcats[1].title() + u']] -> [[' + newcat.title() + u']]' 
+    comment = u'[[' + oldcats[0].title() + u']] \u2229 [[' + oldcats[1].title() + u']] (and 3 levels of subcategories) -> [[' + newcat.title() + u']]' 
 
     wikipedia.showDiff(oldtext, newtext)
     page.put(newtext, comment)
