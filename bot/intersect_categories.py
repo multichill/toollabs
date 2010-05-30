@@ -1,12 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8  -*-
-'''
+''':
+
 Bot to populate a category based on a intersection of two other categories
 
 '''
 import sys
 sys.path.append("../pywikipedia")
-import wikipedia, config, pagegenerators
+import wikipedia, config, pagegenerators, catlib
 import re, imagerecat
 import MySQLdb, config
 
@@ -105,8 +106,27 @@ def removeTemplate(page = None, counter=0):
 	wikipedia.output(comment)
 	page.put (newtext, comment)
 
+def splitOutCategory(bigcategory):
+    bigcat = catlib.Category(wikipedia.getSite(), bigcategory)
+    
+    for subcat in bigcat.subcategories():
+	topic = subcat.titleWithoutNamespace()
+	print topic
+	location = subcat.sortKey
+	locationcat = catlib.Category(wikipedia.getSite(), u'Category:' + location)
+	subcatWithoutSortkey = catlib.Category(wikipedia.getSite(), subcat.title())
+	if locationcat.exists():
+	    # Do a query to find the images
+	    images = getImages(bigcategory, location)
+	    for image in images: 
+		replaceCategories(image, [bigcat, locationcat], subcatWithoutSortkey)
+
+
 def main():
     wikipedia.setSite(wikipedia.getSite(u'commons', u'commons'))
+
+    bigcategory = u''
+
     generator = None
     for arg in wikipedia.handleArgs():
         if arg.startswith('-page'):
@@ -114,10 +134,18 @@ def main():
 	        generator = [wikipedia.Page(wikipedia.getSite(), wikipedia.input(u'What page do you want to use?'))]
 	    else:
                 generator = [wikipedia.Page(wikipedia.getSite(), arg[6:])]
-    if not generator:
-        generator = pagegenerators.NamespaceFilterPageGenerator(pagegenerators.ReferringPageGenerator(wikipedia.Page(wikipedia.getSite(), u'Template:Intersect categories'), onlyTemplateInclusion=True), [14])
-    for cat in generator:
-        intersectCategories(cat)
+	elif arg.startswith('-bigcat'):
+	    if len(arg) == 7:
+		bigcategory = wikipedia.input(u'What category do you want to split out?')
+	    else:
+		bigcategory = arg[8:]
+    if not bigcategory==u'':
+	splitOutCategory(bigcategory)
+    else:
+	if not generator:
+	    generator = pagegenerators.NamespaceFilterPageGenerator(pagegenerators.ReferringPageGenerator(wikipedia.Page(wikipedia.getSite(), u'Template:Intersect categories'), onlyTemplateInclusion=True), [14])
+	for cat in generator:
+	    intersectCategories(cat)
 
 if __name__ == "__main__":
     try:
