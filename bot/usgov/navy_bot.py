@@ -78,7 +78,7 @@ def getMetadata(photo_id):
 
 def getNavyIdentifier(url):
     result = url
-    result = result.replace(u'http://www.news.navy.mil/management/photodb/photos/', u'')
+    result = result.replace(u'http://www.navy.mil/management/photodb/photos/', u'')
     result = result.replace(u'.jpg', u'')
     return result
 
