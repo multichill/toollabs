@@ -10,41 +10,80 @@ import xml.etree.ElementTree, shutil
 import imagerecat
 import MySQLdb.converters
 
-def processSquare(square, squares, scale, sourcedir, basefilename, destinationdir):
+
+def processSquare(square, squares, scale, sourcedir, sourcename, basefilename, extension, destinationdir):
     '''
-    Generate a description (same for jpg and tif) and copy all the files
+    Generate a description and copy all the files
     '''
-    description = getDescription(square, squares, scale, basefilename)
+    description = getDescription(square, squares, scale, sourcename, basefilename, extension)
     print description
 
-    time.sleep(10)
-    #outputDescriptionFile(destinationdir + basefilename + square + u'.txt', description)
+    #print destinationdir + basefilename + square + u'.txt'
+    outputDescriptionFile(destinationdir + basefilename + square + u'.txt', description)
 
     # Copy the tif file
-    #shutil.copy(unicode(sourcedir + square + u'.tif'), unicode(destinationdir + basefilename + square + u'.tif'))
+    #print sourcedir + square + u'.' + extension
+    #print destinationdir + basefilename + square + u'.' + extension
+    shutil.copy(unicode(sourcedir + square + u'.' + extension), unicode(destinationdir + basefilename + square + u'.' + extension))
+    #time.sleep(3)
 
-    # Copy the jpg file
-    #shutil.copy(unicode(sourcedir + square + u'.jpg'), unicode(destinationdir + basefilename + square + u'.jpg'))
-
-def getDescription(square, squares, scale, basefilename):
+def getDescription(square, squares, scale, sourcename, basefilename, extension):
     '''
     Create the description of the image based on the metadata
     '''
+    
+    #First prepare squares
+    nw_square = getNextSquare(getNextSquare(square, 'n'), u'w')
+    n_square = getNextSquare(currentSquare=square, direction='n')
+    ne_square = getNextSquare(getNextSquare(square, 'n'), u'e')
+    w_square = getNextSquare(square, 'w')
+    e_square = getNextSquare(square, 'e')
+    sw_square = getNextSquare(getNextSquare(square, 's'), u'w')
+    s_square = getNextSquare(square, 's')
+    se_square= getNextSquare(getNextSquare(square, 's'), u'e')
+
     description = u''
 
     description = description + u'{{subst:Commons:Batch uploading/Ordnance Survey/Template\n'
     description = description + u'|subst=subst:\n'
     description = description + u'|square=' + square + '\n'
     description = description + u'|scale=' + scale + '\n'
-    description = description + u'|scale=' + basefilename.replace(u'_', u' ') + '\n'
-    description = description + u'|nw_square=' + getNextSquare(getNextSquare(square, 'n'), u'w')  + '\n'
-    description = description + u'|n_square=' + getNextSquare(currentSquare=square, direction='n')  + '\n'
-    description = description + u'|ne_square=' + getNextSquare(getNextSquare(square, 'n'), u'e')  + '\n'
-    description = description + u'|w_square=' + getNextSquare(square, 'w')  + '\n'
-    description = description + u'|e_square=' + getNextSquare(square, 'e')  + '\n'
-    description = description + u'|sw_square=' + getNextSquare(getNextSquare(square, 's'), u'w')  + '\n'
-    description = description + u'|s_square=' + getNextSquare(square, 's')  + '\n'
-    description = description + u'|se_square=' + getNextSquare(getNextSquare(square, 's'), u'e')  + '\n'
+    description = description + u'|sourcename=' + sourcename + '\n'
+    description = description + u'|basefilename=' + basefilename.replace(u'_', u' ') + '\n'
+    description = description + u'|extension=' + extension + '\n'
+    if nw_square in squares:
+	description = description + u'|nw_square=' + nw_square  + '\n'
+    else:
+	description = description + u'|nw_square=\n'
+    if n_square in squares:
+        description = description + u'|n_square=' + n_square  + '\n'
+    else:
+        description = description + u'|n_square=\n'
+    if ne_square in squares:
+        description = description + u'|ne_square=' + ne_square  + '\n'
+    else:
+        description = description + u'|ne_square=\n'
+    if w_square in squares:
+        description = description + u'|w_square=' + w_square  + '\n'
+    else:
+        description = description + u'|w_square=\n'
+    if e_square in squares:
+        description = description + u'|e_square=' + e_square  + '\n'
+    else:
+        description = description + u'|e_square=\n'
+    if sw_square in squares:
+        description = description + u'|sw_square=' + sw_square  + '\n'
+    else:
+        description = description + u'|sw_square=\n'
+    if s_square in squares:
+        description = description + u'|s_square=' + s_square  + '\n'
+    else:
+        description = description + u'|s_square=\n'
+    if se_square in squares:
+        description = description + u'|se_square=' + se_square  + '\n'
+    else:
+        description = description + u'|se_square=\n'
+
     description = description + u'}}\n'
 
     return description
@@ -54,9 +93,11 @@ def getNextSquare(currentSquare=u'', direction='s'):
     '''
     Get the next grid square on the same scale
     '''
-    mat500 = [[u'H', u'J'],
-	      [u'N', u'O'],
-	      [u'S', u'T']]
+    mat500 = [[u'Z', u'Z', u'Z', u'Z'],
+	      [u'Z', u'H', u'J', u'Z'],
+	      [u'Z', u'N', u'O', u'Z'],
+	      [u'Z', u'S', u'T', u'Z'],
+	      [u'Z', u'Z', u'Z', u'Z']]
 
     mat100 = [[u'A', u'B', u'C', u'D', u'E'],
 	      [u'F', u'G', u'H', u'J', u'K'],
