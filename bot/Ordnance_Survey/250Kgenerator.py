@@ -20,8 +20,10 @@ def main(args):
     wikipedia.setSite(site)
 
     sourcedir=u'/mnt/user-store/OS_OpenData/1_250_000_Scale_Raster/data/'
-    destinationdir=u'/mnt/user-store/OS_OpenData/1_250_000_Scale_Raster/output/'
+    destinationdirjpg=u'/mnt/user-store/OS_OpenData/1_250_000_Scale_Raster/outputjpg/'
+    destinationdirtif=u'/mnt/user-store/OS_OpenData/1_250_000_Scale_Raster/outputtif/'
     basefilename=u'Ordnance_Survey_1-250000_-_'
+    sourcename=u'1:250 000 Scale Colour Raster'
     scale=u'250.000'
     squares = []
 
@@ -31,7 +33,8 @@ def main(args):
 
     for square in squares:
 	print square
-	OSlib.processSquare(square, squares, scale, sourcedir, basefilename, destinationdir)
+	OSlib.processSquare(square, squares, scale, sourcedir, sourcename, basefilename, u'jpg', destinationdirjpg)
+	OSlib.processSquare(square, squares, scale, sourcedir, sourcename, basefilename, u'tif', destinationdirtif)
 	
 
     '''
