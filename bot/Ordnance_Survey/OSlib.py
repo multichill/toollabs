@@ -10,6 +10,46 @@ import xml.etree.ElementTree, shutil
 import imagerecat
 import MySQLdb.converters
 
+def processSquare(square, squares, scale, sourcedir, basefilename, destinationdir):
+    '''
+    Generate a description (same for jpg and tif) and copy all the files
+    '''
+    description = getDescription(square, squares, scale, basefilename)
+    print description
+
+    time.sleep(10)
+    #outputDescriptionFile(destinationdir + basefilename + square + u'.txt', description)
+
+    # Copy the tif file
+    #shutil.copy(unicode(sourcedir + square + u'.tif'), unicode(destinationdir + basefilename + square + u'.tif'))
+
+    # Copy the jpg file
+    #shutil.copy(unicode(sourcedir + square + u'.jpg'), unicode(destinationdir + basefilename + square + u'.jpg'))
+
+def getDescription(square, squares, scale, basefilename):
+    '''
+    Create the description of the image based on the metadata
+    '''
+    description = u''
+
+    description = description + u'{{subst:Commons:Batch uploading/Ordnance Survey/Template\n'
+    description = description + u'|subst=subst:\n'
+    description = description + u'|square=' + square + '\n'
+    description = description + u'|scale=' + scale + '\n'
+    description = description + u'|scale=' + basefilename.replace(u'_', u' ') + '\n'
+    description = description + u'|nw_square=' + getNextSquare(getNextSquare(square, 'n'), u'w')  + '\n'
+    description = description + u'|n_square=' + getNextSquare(currentSquare=square, direction='n')  + '\n'
+    description = description + u'|ne_square=' + getNextSquare(getNextSquare(square, 'n'), u'e')  + '\n'
+    description = description + u'|w_square=' + getNextSquare(square, 'w')  + '\n'
+    description = description + u'|e_square=' + getNextSquare(square, 'e')  + '\n'
+    description = description + u'|sw_square=' + getNextSquare(getNextSquare(square, 's'), u'w')  + '\n'
+    description = description + u'|s_square=' + getNextSquare(square, 's')  + '\n'
+    description = description + u'|se_square=' + getNextSquare(getNextSquare(square, 's'), u'e')  + '\n'
+    description = description + u'}}\n'
+
+    return description
+
+
 def getNextSquare(currentSquare=u'', direction='s'):
     '''
     Get the next grid square on the same scale
