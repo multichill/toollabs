@@ -173,8 +173,8 @@ def outputFiles(f, fileId, description, cursor):
     #print newnameJpg.encode("UTF-8")
     #print newnameTxt.encode("UTF-8")
 
-    os.rename(os.path.join(dirname, oldnameJpg), os.path.join(dirname, newnameJpg)
-    outputDescription(newnameTxt, description)
+    os.rename(os.path.join(dirname, oldnameJpg), os.path.join(dirname, newnameJpg))
+    outputDescription(os.path.join(dirname, newnameTxt), description)
     
 
 def getBaseNewName(fileId, cursor):
@@ -212,7 +212,7 @@ def cleanUpFilename(filename):
     filename = re.sub("[\r\n ]+", " ", filename)
     filename = re.sub("[\n]+", "", filename)
     filename = re.sub("[?!]([.\"]|$)", "\\1", filename)
-    filename = re.sub("[&#%?!]", "^", filename)
+    filename = re.sub("[&#%?!]", "-", filename)
     filename = re.sub("[;]", ",", filename)
     filename = re.sub("[/+\\\\:]", "-", filename)
     filename = re.sub("--+", "-", filename)
