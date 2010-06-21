@@ -13,8 +13,7 @@ from datetime import timedelta
 
 projects = [(u'de', u'wikipedia'),
 	    (u'en', u'wikipedia'),
-	    (u'it', u'wikipedia'),
-	    (u'nl', 'wikipedia')]
+	    (u'it', u'wikipedia')]
 
 def createCategory (date = datetime.utcnow()):
     day = date.strftime('%d')
