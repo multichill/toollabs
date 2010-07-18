@@ -17,6 +17,9 @@ def connectDatabase():
     return (conn, cursor)
 
 def updateMonument(contents, conn, cursor):
+    '''
+    FIXME :  cursor.execute(query, (tuple)) om het escape probleem te fixen
+    '''
     query = u"""REPLACE INTO monumenten(objrijksnr, woonplaats, adres, objectnaam, type_obj, oorspr_functie, bouwjaar, architect, cbs_tekst, RD_x, RD_y, lat, lon, image, source)
 		VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')""";
 
@@ -151,7 +154,8 @@ def main():
 	if not generator:
 	    wikipedia.output(u'You have to specify what to work on. This can either be -textfile:<filename> to work on a local file or you can use one of the standard pagegenerators (in pagegenerators.py)')
 	else:
-	    for page in generator:
+	    pregenerator = pagegenerators.PreloadingGenerator(generator)
+	    for page in pregenerator:
 		if page.exists() and not page.isRedirectPage():
 		    # Do some checking
 		    processText(page.get(), page.permalink(), conn, cursor, page=page)
