@@ -26,8 +26,11 @@ def findDuplicateImages(filename, site = wikipedia.getSite(u'commons', u'commons
 def filterSourceFilenames(sourcefilenames):
     '''
     Filter out thumbnail if a original file exists. 
-    FIXME: Implement this function
     '''
+    for sourcefilename in sourcefilenames:
+	if sourcefilename.endswith(u'_original.jpg'):
+	    toremove = sourcefilename.replace(u'_original.jpg', u'.jpg')
+	    sourcefilenames.remove(toremove)
     return sourcefilenames
 
 def getFileId(file):
@@ -72,7 +75,7 @@ def main(args):
 		if os.path.isdir(sourcedir + subdir):
 		    #print subdir
 		    sourcefilenames = glob.glob(sourcedir + subdir + u"/*.jpg")
-		    #sourcefilenames = filterSourceFilenames(sourcefilenames)
+		    sourcefilenames = filterSourceFilenames(sourcefilenames)
 		    for sourcefilename in sourcefilenames:
 			# First get the file id
 			fileId = getFileId(sourcefilename)
