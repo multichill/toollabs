@@ -7,9 +7,7 @@ Bot to upload geograph images from the Toolserver to Commons
 import sys, os.path, hashlib, base64, MySQLdb, glob, re, urllib, time
 sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query
-import xml.etree.ElementTree, shutil
-import imagerecat
-import MySQLdb.converters
+import shutil
 import geograph_lib
 
 
