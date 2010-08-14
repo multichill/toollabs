@@ -352,11 +352,19 @@ def getMetadata(fileId, cursor):
 
     return result
 
+def filterSourceFilenames(sourcefilenames):
+    '''
+    Filter out thumbnail if a original file exists. 
+    FIXME: Implement this function
+    '''
+    return sourcefilenames
+
 def getFileId(file):
     dirname = os.path.dirname(file)
     filename = os.path.basename(file)
     baseFilename, extension = os.path.splitext(filename)
-    return int(baseFilename)
+    (id, sep, remaining) = baseFilename.partition(u'_')
+    return int(id)
 
 def outputDescriptionFile(filename, description):
     f = open(filename, "w")
@@ -392,7 +400,9 @@ def main(args):
 		#print subdir
 		if os.path.isdir(sourcedir + subdir):
 		    #print subdir
-		    for sourcefilename in glob.glob(sourcedir + subdir + u"/*.jpg"):
+		    sourcefilenames = glob.glob(sourcedir + subdir + u"/*.jpg")
+		    #sourcefilenames = filterSourceFilenames(sourcefilenames)
+		    for sourcefilename in sourcefilenames:
 			# First get the file id
 			fileId = getFileId(sourcefilename)
 			if fileId>=start_id:
