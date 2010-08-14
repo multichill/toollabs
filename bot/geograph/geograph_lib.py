@@ -73,7 +73,13 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
     '''
     result = u''
     locationEFNCategories = getExtendedFindNearbyCategories(metadata, cursor, cursor2)
+    print u'locationEFNCategories'
+    print locationEFNCategories
+
     locationOSMcategories = getOpenStreetMapCategories(metadata, cursor, cursor2)
+    print u'locationOSMcategories'
+    print locationOSMcategories
+
     categories = locationEFNCategories + locationOSMcategories
     
     #Third try to get a topic category
@@ -168,7 +174,6 @@ def getOpenStreetMapCategories(metadata, cursor, cursor2):
     '''
     result = []
     locationList = getOpenStreetMap(metadata.get('wgs84_lat'), metadata.get('wgs84_long'))
-    print len(locationList)
     for i in range(0, len(locationList)):
 	print 'Working on ' + locationList[i]
 	if i <= len(locationList)-3:
