@@ -32,7 +32,10 @@ def categorizeImage(page, conn, cursor):
     for (template, params) in page.templatesWithParams():
 	if template==u'Rijksmonument':
 	    if len(params)==1:
-		rijksmonumentid = int(params[0])
+		try:
+		    rijksmonumentid = int(params[0])
+		except ValueError:
+		    wikipedia.output(u'Unable to extract a valid id')
 		break
 
     if (rijksmonumentid < 0 or 600000 < rijksmonumentid ):
