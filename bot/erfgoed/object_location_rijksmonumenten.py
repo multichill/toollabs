@@ -37,7 +37,10 @@ def locateImage(page, conn, cursor):
     for (template, params) in page.templatesWithParams():
 	if template==u'Rijksmonument':
 	    if len(params)==1:
-		rijksmonumentid = int(params[0])
+		try:
+		    rijksmonumentid = int(params[0])
+		except ValueError:
+		    wikipedia.output(u'Unable to extract a valid id')
 		break
 
     if (rijksmonumentid < 0 or 600000 < rijksmonumentid ):
@@ -52,18 +55,17 @@ def locateImage(page, conn, cursor):
 
     locationTemplate = u'{{Object location dec|%s|%s|region:NL_type:landmark_scale:1500}}<!-- Location from %s -->' % (lat, lon, source)
 
-    wikipedia.output(locationTemplate)
     return locationTemplate
 
 def addLocation (page, locationTemplate):
     oldtext = page.get()
 
     comment = u'Adding object location based on Rijksmonument identifier'
-    newtext = oldtext + u'\n' + locationTemplate
+
+    newtext = putAfterTemplate (page, u'Information', locationTemplate, loose=True)
     
     wikipedia.showDiff(oldtext, newtext)
     page.put(newtext, comment)
-    time.sleep(10)
 
 
 def getCoordinates(rijksmonumentid, conn, cursor):
@@ -81,6 +83,64 @@ def getCoordinates(rijksmonumentid, conn, cursor):
 	return row
     except TypeError:
 	return False
+
+def putAfterTemplate (page, template, toadd, loose=True):
+    '''
+    Try to put text after template.
+    If the template is not found return False if loose is set to False
+    If loose is set to True: Remove interwiki's, categories, add template, restore categories, restore interwiki's.
+
+    Based on cc-by-sa-3.0 code by Dschwen
+    '''
+    oldtext = page.get()
+    newtext = u''
+
+    templatePosition = oldtext.find(u'{{%s' % (template,))
+
+    if templatePosition >= 0:
+	previousChar = u''
+	currentChar = u''
+	templatePosition += 2
+	curly = 1
+	square = 0
+	
+	while templatePosition < len(oldtext):
+	    currentChar = oldtext[templatePosition]
+
+	    if currentChar == u'[' and previousChar == u'[' :
+		square += 1
+                previousChar = u''
+            if currentChar == u']' and previousChar == u']' :
+                square -= 1
+                previousChar = u''
+            if currentChar == u'{' and previousChar == u'{' :
+                curly += 1
+                previousChar = u''
+            if currentChar == u'}' and previousChar == u'}' :
+                curly -= 1
+                previousChar = u''
+
+	    previousChar = currentChar
+	    templatePosition +=1
+
+	    if curly == 0 and square <= 0 :
+		# Found end of template
+		break
+	newtext = oldtext[:templatePosition] + u'\n' + toadd + oldtext[templatePosition:]
+    
+    else:
+	if loose:
+	    newtext = oldtext
+	    cats = wikipedia.getCategoryLinks(newtext)
+	    ll = wikipedia.getLanguageLinks(newtext)
+	    nextext = wikipedia.removeLanguageLinks (newtext)
+	    newtext = wikipedia.removeCategoryLinks(newtext)
+	    newtext = newtext + u'\n' + toadd
+	    newtext = wikipedia.replaceCategoryLinks(newtext, cats)
+	    newtext = wikipedia.replaceLanguageLinks(newtext, ll)
+    
+    return newtext
+
 
 def main():
     wikipedia.setSite(wikipedia.getSite(u'commons', u'commons'))
