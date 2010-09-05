@@ -6,7 +6,7 @@ Bot to populate a category based on a intersection of two other categories
 
 '''
 import sys
-sys.path.append("../pywikipedia")
+sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, pagegenerators, catlib
 import re, imagerecat
 import MySQLdb, config
@@ -73,8 +73,8 @@ def getImages(categoryA, categoryB):
 		cat2B.cl_to='%s' OR
 		cat3B.cl_to='%s')"""
 		
-    catA = categoryA.replace(u' ', u'_')
-    catB = categoryB.replace(u' ', u'_')
+    catA = categoryA.replace(u' ', u'_').replace(u'\'', u'\\\'')
+    catB = categoryB.replace(u' ', u'_').replace(u'\'', u'\\\'')
 
     result = pagegenerators.MySQLPageGenerator(query % (catA, catB, catB, catB, catB))
     return result
