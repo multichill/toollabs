@@ -41,12 +41,13 @@ def processPhoto(flickr=None, photo_id=u'', flickrreview=False, reviewer=u'', ad
                 newPhotoDescription=photoDescription
                 newFilename=filename
                 skip=False
-        wikipedia.output(newPhotoDescription)
-        if not skip:
-            bot = upload.UploadRobot(photoUrl, description=newPhotoDescription, useFilename=newFilename, keepFilename=True, verifyDescription=False)
-            bot.upload_image(debug=False)
-            return 1
-    return 0 
+
+	    wikipedia.output(newPhotoDescription)
+	    if not skip:
+		bot = upload.UploadRobot(photoUrl, description=newPhotoDescription, useFilename=newFilename, keepFilename=True, verifyDescription=False)
+		bot.upload_image(debug=False)
+		return 1
+    return 0
 
 def buildDescription(flinfoDescription=u'', flickrreview=False, reviewer=u'', addCategory=u'', removeCategories=False, rijksmonumentid=1):
     '''
@@ -67,6 +68,7 @@ def buildDescription(flinfoDescription=u'', flickrreview=False, reviewer=u'', ad
             description = description.replace(u'{{flickrreview}}', u'{{flickrreview|' + reviewer + '|{{subst:CURRENTYEAR}}-{{subst:CURRENTMONTH}}-{{subst:CURRENTDAY2}}}}')
     
     if addCategory:
+	description = description.replace(u'{{subst:unc}}\n', u'')
         description = description + u'\n[[Category:' + addCategory + ']]\n'
     description = description.replace(u'\r\n', u'\n')
     return description
