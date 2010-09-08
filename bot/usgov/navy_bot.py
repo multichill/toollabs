@@ -179,8 +179,8 @@ def buildTitle(photo_id, metadata):
     Build a valid title for the image to be uploaded to.
     '''
     description = metadata['shortdescription']
-    if len(description)>200:
-	description = description[0 : 200]
+    if len(description)>120:
+	description = description[0 : 120]
     #elif len(description) < 10:
     #	#Stupid title blacklist
     #	description = u'navy_' + description
