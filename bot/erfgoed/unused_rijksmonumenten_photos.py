@@ -74,7 +74,7 @@ def main():
     photos = getRijksmonumentenPhotos(conn2, cursor2)
 
     text = u'<gallery>\n'
-    for objrijksnr in photos.keys():
+    for objrijksnr in sorted(photos.keys()):
 	try:
 	    if int(objrijksnr) in withoutPhoto:
 		wikipedia.output(u'Key %s returned a result' % (objrijksnr,))
