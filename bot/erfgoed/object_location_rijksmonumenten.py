@@ -141,6 +141,19 @@ def putAfterTemplate (page, template, toadd, loose=True):
     
     return newtext
 
+def getRijksmonumentWithoutLocation():
+    query = """SELECT page_namespace, page_title FROM page
+JOIN templatelinks ON page_id=tl_from
+WHERE page_namespace=6 AND page_is_redirect=0
+AND tl_namespace=10 AND tl_title='Rijksmonument'
+AND NOT EXISTS(
+SELECT * FROM categorylinks
+WHERE page_id=cl_from
+AND cl_to='Media_with_locations')""";
+
+    result = pagegenerators.MySQLPageGenerator(query)
+    return result
+
 
 def main():
     wikipedia.setSite(wikipedia.getSite(u'commons', u'commons'))
@@ -158,13 +171,15 @@ def main():
 
     generator = genFactory.getCombinedGenerator()
 
-    if generator:
-	# Get a preloading generator with only images
-	pgenerator = pagegenerators.PreloadingGenerator(pagegenerators.NamespaceFilterPageGenerator(generator, [6]))
-	for page in pgenerator:
-	    locationTemplate = locateImage(page, conn, cursor)
-	    if locationTemplate:
-		addLocation(page, locationTemplate)
+    if not generator:
+	generator = getRijksmonumentWithoutLocation()
+    
+    # Get a preloading generator with only images
+    pgenerator = pagegenerators.PreloadingGenerator(pagegenerators.NamespaceFilterPageGenerator(generator, [6]))
+    for page in pgenerator:
+	locationTemplate = locateImage(page, conn, cursor)
+	if locationTemplate:
+	    addLocation(page, locationTemplate)
 
 if __name__ == "__main__":
     try:
