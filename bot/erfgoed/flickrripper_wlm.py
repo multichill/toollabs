@@ -88,6 +88,14 @@ def getRijksmonumentid(photoInfo):
 		break
 	    except ValueError:
 		wikipedia.output(u'That did not work')
+	if tag.startswith(u'rijksmonument'):
+	    wikipedia.output(u'Try to extract id from: %s' % (tag,))
+	    try:
+		rijksmonumentid = int(tag[len(u'rijksmonument'):])
+		break
+	    except ValueError:
+		wikipedia.output(u'That did not work')
+
     return rijksmonumentid
 
 def main():
