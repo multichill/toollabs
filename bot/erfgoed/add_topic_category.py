@@ -44,6 +44,7 @@ def addTopicCategory(page, conn, cursor):
 		
     oorspr_functie = getOorspronkelijkeFunctie(rijksmonumentid, conn, cursor)
     if not oorspr_functie:
+	wikipedia.output(u'No oorspr_functie found')
 	return False
 
     oldtext = page.get()
