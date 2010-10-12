@@ -31,6 +31,7 @@ def filterSourceFilenames(sourcefilenames):
 	if sourcefilename.endswith(u'_original.jpg'):
 	    toremove = sourcefilename.replace(u'_original.jpg', u'.jpg')
 	    sourcefilenames.remove(toremove)
+    sourcefilenames.sort()
     return sourcefilenames
 
 def getFileId(file):
