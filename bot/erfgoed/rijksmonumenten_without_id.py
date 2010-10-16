@@ -41,7 +41,7 @@ def getRijksmonumentenWithPhoto(conn, cursor):
 	try:
 	    row = cursor.fetchone()
 	    (image, objrijksnr) = row
-	    result[image] = objrijksnr
+	    result[image.replace(u' ', u'_')] = objrijksnr
 	except TypeError:
 	    break
 
