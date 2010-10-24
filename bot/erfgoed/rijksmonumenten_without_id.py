@@ -50,7 +50,7 @@ def getRijksmonumentenWithPhoto(conn, cursor):
 def getRijksmonumentenWithoutTemplate(conn, cursor):
     result = []
 
-    query = u"""SELECT DISTINCT(page_title) FROM page JOIN categorylinks ON page_id=cl_from WHERE page_namespace=6 AND page_is_redirect=0 AND cl_to LIKE 'Rijksmonumenten\_in\_%' AND NOT EXISTS(SELECT * FROM templatelinks WHERE page_id=tl_from AND tl_namespace=10 AND tl_title='Rijksmonument') ORDER BY page_title ASC"""
+    query = u"""SELECT DISTINCT(page_title) FROM page JOIN categorylinks ON page_id=cl_from WHERE page_namespace=6 AND page_is_redirect=0 AND (cl_to='Rijksmonumenten' OR cl_to LIKE 'Rijksmonumenten\_in\_%') AND NOT EXISTS(SELECT * FROM templatelinks WHERE page_id=tl_from AND tl_namespace=10 AND tl_title='Rijksmonument') ORDER BY page_title ASC"""
 
     cursor.execute(query)
 
@@ -65,6 +65,22 @@ def getRijksmonumentenWithoutTemplate(conn, cursor):
     return result
 
 
+def getRijksmonumentenWitIncorrectTemplate(conn, cursor):
+    result = []
+    query = u"""SELECT DISTINCT(page_title) FROM categorylinks JOIN page ON cl_from=page_id WHERE cl_to='Rijksmonumenten_with_known_IDs' AND (cl_sortkey=' 000000-1' OR cl_sortkey=' 00000000' OR cl_sortkey=' 0000000?' OR cl_sortkey=' onbekend') AND page_namespace=6 AND page_is_redirect=0 ORDER BY page_title ASC"""
+
+    cursor.execute(query)
+
+    while True:
+        try:
+            row = cursor.fetchone()
+            (image,) = row
+            result.append(image.decode('utf-8'))
+        except TypeError:
+            break
+
+    return result
+
 def main():
     # Connect database, we need that
     conn = None
@@ -74,9 +90,10 @@ def main():
 
     withPhoto = getRijksmonumentenWithPhoto(conn, cursor)
     withoutTemplate = getRijksmonumentenWithoutTemplate(conn2, cursor2)
+    incorrectTemplate = getRijksmonumentenWitIncorrectTemplate(conn2, cursor2)
 
     text = u'<gallery>\n'
-    for image in withoutTemplate:
+    for image in withoutTemplate + incorrectTemplate:
 	if withPhoto.get(image):
 	    text = text + u'File:%s|{{tl|Rijksmonument|%s}}\n' % (image, withPhoto.get(image))
 	else:
