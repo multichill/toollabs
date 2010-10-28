@@ -91,13 +91,15 @@ def main():
     withPhoto = getRijksmonumentenWithPhoto(conn, cursor)
     withoutTemplate = getRijksmonumentenWithoutTemplate(conn2, cursor2)
     incorrectTemplate = getRijksmonumentenWitIncorrectTemplate(conn2, cursor2)
+    ignoreList = [u'Monumentenschildje.jpg', u'Rijksmonument-Schildje-NL.jpg']
 
     text = u'<gallery>\n'
     for image in withoutTemplate + incorrectTemplate:
-	if withPhoto.get(image):
-	    text = text + u'File:%s|{{tl|Rijksmonument|%s}}\n' % (image, withPhoto.get(image))
-	else:
-	     text = text + u'File:%s\n' % (image,)
+	if not image in ignoreList:
+	    if withPhoto.get(image):
+		text = text + u'File:%s|{{tl|Rijksmonument|%s}}\n' % (image, withPhoto.get(image))
+	    else:
+		text = text + u'File:%s\n' % (image,)
 	    
     text = text + u'</gallery>' 
     comment = u'Plaatjes om id bij te zoeken'
