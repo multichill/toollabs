@@ -60,8 +60,6 @@ def buildDescription(flinfoDescription=u'', flickrreview=False, reviewer=u'', ad
     if removeCategories:
         description = wikipedia.removeCategoryLinks(description, wikipedia.getSite('commons', 'commons'))
     
-    # Add template
-
     if flickrreview:
         if reviewer:
             description = description.replace(u'{{flickrreview}}', u'{{flickrreview|' + reviewer + '|{{subst:CURRENTYEAR}}-{{subst:CURRENTMONTH}}-{{subst:CURRENTDAY2}}}}')
