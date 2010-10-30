@@ -28,7 +28,7 @@ def processPhoto(flickr=None, photo_id=u'', flickrreview=False, reviewer=u'', ad
         if duplicates:
             wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
         else:
-            filename = flickrripper.getFilename(photoInfo, project=u'WLM')
+            filename = flickrripper.getFilename(photoInfo, project=u'Rijksmonument')
             flinfoDescription = flickrripper.getFlinfoDescription(photo_id)
 
 	    rijksmonumentid = getRijksmonumentid(photoInfo)
