@@ -61,7 +61,6 @@ def buildDescription(flinfoDescription=u'', flickrreview=False, reviewer=u'', ad
         description = wikipedia.removeCategoryLinks(description, wikipedia.getSite('commons', 'commons'))
     
     # Add template
-    description = description.replace(u'{{cc-by', u'{{Wiki Loves Monuments}}\n{{cc-by')
 
     if flickrreview:
         if reviewer:
