@@ -207,6 +207,10 @@ def getOpenStreetMap(lat, lon):
 	except socket.timeout:
 	    wikipedia.output(u'Got a timeout, let\'s try again')
 	    time.sleep(30)
+	except xml.parsers.expat.ExpatError:
+	    wikipedia.output(u'Got xml junk, let\'s try again')
+	    time.sleep(30)
+
     validParts = [u'hamlet', u'village', u'city', u'county', u'country']
     invalidParts = [u'path', u'road', u'suburb', u'state', u'country_code']
     addressparts = et.find('addressparts')
