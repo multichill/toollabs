@@ -72,7 +72,8 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
     Produce one or more suitable Commons categories based on the metadata
     '''
     result = u''
-    locationEFNCategories = getExtendedFindNearbyCategories(metadata, cursor, cursor2)
+    locationEFNCategories = []
+    #locationEFNCategories = getExtendedFindNearbyCategories(metadata, cursor, cursor2)
     #print u'locationEFNCategories'
     #print locationEFNCategories
 
@@ -154,7 +155,7 @@ def getExtendedFindNearby(lat, lng):
 	    et = xml.etree.ElementTree.parse(page)
 	    gotInfo=True
         except IOError:
-            wikipedia.output(u'Got an IOError, let\'s try again')
+            wikipedia.output(u'Got an IOError while trying to reach http://ws.geonames.org\nLet\'s try again')
 	    time.sleep(30)
         except socket.timeout:
             wikipedia.output(u'Got a timeout, let\'s try again')
@@ -198,11 +199,12 @@ def getOpenStreetMap(lat, lon):
     parameters = urllib.urlencode({'lat' : lat, 'lon' : lon})
     while(not gotInfo):
 	try:
-	    page = urllib.urlopen("http://nominatim.openstreetmap.org/reverse?format=xml&%s" % parameters)
+	    #page = urllib.urlopen("http://nominatim.openstreetmap.org/reverse?format=xml&%s" % parameters)
+	    page = urllib.urlopen("http://open.mapquestapi.com/nominatim/v1/reverse?format=xml&%s" % parameters)
 	    et = xml.etree.ElementTree.parse(page)
 	    gotInfo=True
 	except IOError:
-	    wikipedia.output(u'Got an IOError, let\'s try again')
+	    wikipedia.output(u'Got an IOError while trying to reach http://nominatim.openstreetmap.org\nLet\'s try again')
 	    time.sleep(30)
 	except socket.timeout:
 	    wikipedia.output(u'Got a timeout, let\'s try again')
@@ -211,8 +213,8 @@ def getOpenStreetMap(lat, lon):
 	    wikipedia.output(u'Got xml junk, let\'s try again')
 	    time.sleep(30)
 
-    validParts = [u'hamlet', u'village', u'city', u'county', u'country']
-    invalidParts = [u'path', u'road', u'suburb', u'state', u'country_code']
+    validParts = [u'hamlet', u'village', u'city', u'town', u'region', u'county', u'country', u'state_district', u'state']
+    invalidParts = [u'path', u'road', u'suburb', u'country_code']
     addressparts = et.find('addressparts')
     #xml.etree.ElementTree.dump(et)
 
