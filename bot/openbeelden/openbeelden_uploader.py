@@ -41,9 +41,9 @@ def getRightMovie(metadata):
             movieFile=urllib.urlopen(medium)
             #print movieFile.info()
             #print movieFile.info().get('Content-Length')
-            if movieFile.info().get('Content-Length') > ogv_size:
+            if int(movieFile.info().get('Content-Length')) > ogv_size:
                 ogv_url = medium.replace(u' ', u'%20')
-                ogv_size = movieFile.info().get('Content-Length')
+                ogv_size = int(movieFile.info().get('Content-Length'))
             
             #print movieFile.info()
 
@@ -222,7 +222,7 @@ def processItem(record):
     wikipedia.output(title)
     #wikipedia.output(description)
     
-    bot = upload.UploadRobot(movieurl, description=description, useFilename=title, keepFilename=True, verifyDescription=False, targetSite = wikipedia.getSite('commons', 'commons'))
+    bot = upload.UploadRobot(movieurl, description=description, useFilename=title, keepFilename=True, verifyDescription=False, ignoreWarning=True, targetSite = wikipedia.getSite('commons', 'commons'))
     bot.upload_image(debug=False)
 
     return True
