@@ -9,7 +9,7 @@ sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config
 
 def connectDatabase():
-    conn = MySQLdb.connect(config.db_hostname, db='u_multichill', user = config.db_username, passwd = config.db_password)
+    conn = MySQLdb.connect(u'sql-s2.toolserver.org', db='u_multichill_commons_categories_p', user = config.db_username, passwd = config.db_password)
     cursor = conn.cursor()
     return (conn, cursor)
 
