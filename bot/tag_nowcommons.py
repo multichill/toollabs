@@ -57,21 +57,26 @@ def connectDatabase():
     cursor = conn.cursor()
     return (conn, cursor)
 
-def getImagesToNowcommons(cursor):
+def getImagesToNowcommons(cursor, limit=100, start=0):
     '''
     Get all images which exist at Commons with the same hash
     '''
-    query =u"""SELECT wi.img_name, ci.img_name FROM image AS wi
+    query =u"""SELECT wi.img_name, ci.img_name, ci.img_timestamp FROM image AS wi
                JOIN commonswiki_p.image AS ci
-               ON (wi.img_size=ci.img_size AND wi.img_width=ci.img_width AND wi.img_height=ci.img_height AND wi.img_sha1=ci.img_sha1) """
-
-    
-    cursor.execute(query)
-    result = cursor.fetchall()
-    return result
+               ON (wi.img_size=ci.img_size AND wi.img_width=ci.img_width AND wi.img_height=ci.img_height AND wi.img_sha1=ci.img_sha1) LIMIT %s, %s"""
+    while True:
+	cursor.execute(query % (start, limit))
+	result = cursor.fetchall()
+	if result:
+	    start = start + limit
+	    for item in result:
+		yield item
+	else:
+	    break
+    return
 	    
 
-def tagNowCommons(wImage, cImage):
+def tagNowCommons(wImage, cImage, timestamp):
     site = wikipedia.getSite()
     language = site.language()
     family = site.family.name
@@ -92,11 +97,12 @@ def tagNowCommons(wImage, cImage):
     text = imagepage.get()
     oldtext = text
 
-    text = u'{{NowCommons|File:' + cImage.replace(u'_', u' ') + u'|bot=~~~}}\n' + text
+    text = u'{{NowCommons|File:%s|date=%s|bot=~~~}}\n' % (cImage.replace(u'_', u' '), timestamp) + text
     comment = u'File is available on Wikimedia Commons.'
     wikipedia.showDiff(oldtext, text)
     try:
 	imagepage.put(text, comment)
+	#print u'put'
     except wikipedia.LockedPage:
 	return
 
@@ -109,8 +115,8 @@ def main():
     cursor = None
     (conn, cursor) = connectDatabase()
     imageList = getImagesToNowcommons(cursor)
-    for (wImage, cImage) in imageList:
-	tagNowCommons(unicode(wImage, 'utf-8'), unicode(cImage, 'utf-8'))
+    for (wImage, cImage, timestamp) in imageList:
+	tagNowCommons(unicode(wImage, 'utf-8'), unicode(cImage, 'utf-8'), timestamp)
 
     
 if __name__ == "__main__":
