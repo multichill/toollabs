@@ -45,7 +45,7 @@ def connectDatabase():
     site = wikipedia.getSite()
     language = site.language()
     family = site.family.name
-    conn_start = MySQLdb.connect('sql.toolserver.org', db='toolserver', user = config.db_username, passwd = config.db_password, charset='latin1', use_unicode=True)
+    conn_start = MySQLdb.connect('sql.toolserver.org', db='toolserver', user = config.db_username, passwd = config.db_password, use_unicode=True)
     cursor_start = conn_start.cursor()
     
     query_start = u"""SELECT dbname, server FROM wiki WHERE lang='%s' AND family='%s' LIMIT 1"""
@@ -53,7 +53,7 @@ def connectDatabase():
     (dbname, server) = cursor_start.fetchone() 
     conn_start.close()
 
-    conn = MySQLdb.connect('sql-s' + str(server) + '.toolserver.org', db=dbname, user = config.db_username, passwd = config.db_password, charset='latin1', use_unicode=True)
+    conn = MySQLdb.connect('sql-s' + str(server) + '.toolserver.org', db=dbname, user = config.db_username, passwd = config.db_password, use_unicode=True)
     cursor = conn.cursor()
     return (conn, cursor)
 
