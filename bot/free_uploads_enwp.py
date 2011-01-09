@@ -76,7 +76,10 @@ def dailyFreeUploadsQuery(cursor, day):
     OR cl_to='All_Wikipedia_files_with_unknown_source'
     OR cl_to='All_Wikipedia_files_with_no_copyright_tag'
     OR cl_to='All_possibly_unfree_Wikipedia_files'
-    OR cl_to='Non-free_Wikipedia_files_with_valid_backlink'))
+    OR cl_to='Non-free_Wikipedia_files_with_valid_backlink'
+    OR cl_to='Uploaded_from_Commons_main_page_images'
+    OR cl_to LIKE 'Wikipedia\_files\_with\_the\_same\_name\_on\_Wikimedia\_Commons%%'
+    OR cl_to LIKE 'Wikipedia\_files\_with\_a\_different\_name\_on\_Wikimedia\_Commons%%'))
     ORDER BY page_title ASC"""
 
     images = []
