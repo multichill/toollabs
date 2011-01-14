@@ -210,6 +210,9 @@ def processItem(record):
     photo = downloadPhoto(movieurl)
 
     duplicates = findDuplicateImages(photo)
+    # Clean the buffer
+    photo.close()
+
     # We don't want to upload dupes
     if duplicates:
         wikipedia.output(u'Found duplicate file at %s' % duplicates.pop())
