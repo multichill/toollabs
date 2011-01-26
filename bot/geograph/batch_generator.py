@@ -97,7 +97,8 @@ def main(args):
 				    description = geograph_lib.getDescription(metadata)
 
 				    # The hard part, find suitable categories
-				    categories =  geograph_lib.getCategories(metadata, cursor, cursor2)
+				    # categories =  geograph_lib.getCategories(metadata, cursor, cursor2)
+				    categories = '{{Uncategorized-Geograph|gridref=%s|year={{subst:CURRENTYEAR}}|month={{subst:CURRENTMONTHNAME}}|day={{subst:CURRENTDAY}}}}\n' % (metadata.get('grid_reference'),)
 				    #print categories
 				    description = description + categories
 
