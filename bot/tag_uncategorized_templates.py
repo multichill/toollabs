@@ -39,8 +39,8 @@ def connectDatabase():
     conn_start = MySQLdb.connect('sql.toolserver.org', db='toolserver', user = config.db_username, passwd = config.db_password, use_unicode=True)
     cursor_start = conn_start.cursor()
     
-    query_start = u"""SELECT dbname, server FROM wiki WHERE lang='%s' AND family='%s' LIMIT 1"""
-    cursor_start.execute(query_start % (language, family))
+    query_start = u"""SELECT dbname, server FROM wiki WHERE family='%s' AND (lang='%s' OR (lang='en' AND is_multilang=1)) LIMIT 1"""
+    cursor_start.execute(query_start % (family, language))
     (dbname, server) = cursor_start.fetchone() 
     conn_start.close()
 
