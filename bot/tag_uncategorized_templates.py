@@ -84,8 +84,12 @@ def tagUncategorized(templateTitle):
     wikipedia.showDiff(oldtext, text)
     try:
         wikipedia.output(page.title())
-	page.put(text, editComment.get(family).get(language))
+	page.put(text, editComment.get(family).get(language), maxTries=1)
     except wikipedia.LockedPage:
+	return
+    except wikipedia.MaxTriesExceededError:
+	return
+    except wikipedia.EditConflict:
 	return
 
 def main():
