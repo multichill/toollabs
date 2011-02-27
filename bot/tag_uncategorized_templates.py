@@ -57,7 +57,8 @@ def getUncategorizedTemplates(cursor):
                LEFT JOIN categorylinks ON page_id=cl_from
                WHERE page_namespace=10 AND page_is_redirect=0
                AND cl_from IS NULL
-               AND NOT page_title LIKE '%preload%'"""
+               AND NOT page_title LIKE '%preload%'
+               AND NOT page_title LIKE '%Preload%'"""
     
     cursor.execute(query)
     result = cursor.fetchall()
