@@ -3,7 +3,7 @@
 '''
 Tag potd templates at Wikimedia Commons.
 '''
-import sys
+import sys, re
 sys.path.append("../pywikipedia")
 import wikipedia, MySQLdb, config
 
@@ -42,7 +42,7 @@ def getUncategorizedTemplates(cursor):
                page_title LIKE 'Potd/2___-__-__' OR
                page_title LIKE 'Potd/2___-__-__\_(%)')
                AND cl_from IS NULL
-               AND NOT page_title LIKE '%preload%' LIMIT 30"""
+               AND NOT page_title LIKE '%preload%'"""
     
     cursor.execute(query)
     result = cursor.fetchall()
@@ -59,45 +59,32 @@ def tagUncategorized(templateTitle):
 
     wikipedia.output(u'Working on %s' % (page.title(),))
     oldtext = page.get()
+    text = oldtext
 
-    filenameRegex = u'^(<?P<type>[MP]otd)/(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)$'
-    descriptionRegex = u'^(<?P<type>[MP]otd)/(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)_\(?P<language>.+\)$'
-    thumbtimeRegex = u'^(<?P<type>[MP]otd)/(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)_\(?P<language>.+\)$'
+    filenameRegex = u'^(?P<type>[MP]otd)/(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)$'
+    descriptionRegex = u'^(?P<type>[MP]otd)/(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d) \((?P<language>.+)\)$'
+    thumbtimeRegex = u'^(?P<type>[MP]otd)/(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)_\(?P<language>.+\)$'
 
-    filenameMatch= re.match(filenameRegex, templateTitle)
-    descriptionMatch= re.match(filenameRegex, templateTitle)
-    thumbtimeMatch= re.match(filenameRegex, templateTitle)
+    filenameMatch= re.match(filenameRegex, page.titleWithoutNamespace())
+    descriptionMatch= re.match(descriptionRegex, page.titleWithoutNamespace())
+    thumbtimeMatch= re.match(thumbtimeRegex, page.titleWithoutNamespace())
 
     if filenameMatch:
-        text = tagFilename(page, filenameMatch)
+	print u'Found filename match'
+        (text, comment) = tagFilename(page, filenameMatch)
     elif descriptionMatch:
-        text = tagDescription(page, descriptionMatch)
+	print u'Found description match'
+        (text, comment) = tagDescription(page, descriptionMatch)
     elif thumbtimeMatch:
-        text = tagThumbtime(page, thumbtimeMatch)
+        (text,comment) = tagThumbtime(page, thumbtimeMatch)
         
-    '''
-    if templateTitle.startsWith(u'Motd'):
-        if re.match(u'^Motd/\d\d\d\d-\d\d-\d\d$', templateTitle):        
-            text = tagMOTDFilename(page)
-        elif re.match(u'^Motd/\d\d\d\d-\d\d-\d\d_\(.+\)$', templateTitle):   
-            text = tagMOTDdescription(page)
-        elif re.match(u'^Motd/\d\d\d\d-\d\d-\d\d_thumbtime$', templateTitle):
-            text = tagMOTDthumbtime(page)
-    elif templateTitle.startsWith(u'Potd'):
-        if re.match(u'^Potd/\d\d\d\d-\d\d-\d\d$', templateTitle):        
-            text = tagPOTDFilename(page)
-        elif re.match(u'^Potd/\d\d\d\d-\d\d-\d\d_\(.+\)$', templateTitle):
-            text = tagPOTDdescription(page)
-    '''
     if oldtext == text:
         return
     
     wikipedia.showDiff(oldtext, text)
-    comment = u'bla'
     
     try:
-        print u'Put'
-	#page.put(text, comment, maxTries=1)
+	page.put(text, comment, maxTries=1)
     except wikipedia.LockedPage:
 	return
     except wikipedia.MaxTriesExceededError:
@@ -109,36 +96,40 @@ def tagFilename(page, match):
     if re.search(u'%s filename' % (match.group('type'),), page.get()):
         #Already contains the template. We have to fix it
         text = page.get()
+	comment = u'Correcting {{%(type)s filename}}' % {u'type' : match.group('type')}
     else:
-        text = u'{{%s(type)s filename|1=%s(oldtext)s|2=%s(year)s|3=%s(month)s|4=%s(day)s}}' % {
+        text = u'{{%(type)s filename|1=%(oldtext)s|2=%(year)s|3=%(month)s|4=%(day)s}}' % {
             u'type' : match.group('type'),
-            u'oldtext' : page.get(),
+            u'oldtext' : page.get().strip(),
             u'year' : match.group('year'),
             u'month' : match.group('month'),
             u'day' : match.group('day'),
             }
+	comment = u'Adding {{%(type)s filename}}' % {u'type' : match.group('type')}
         
-    return text
+    return (text, comment)
 
 def tagDescription(page, match):
     if re.search(u'%s description' % (match.group('type'),), page.get()):
         #Already contains the template. We have to fix it
         text = page.get()
+	comment = u'Correcting {{%(type)s description}}' % {u'type' : match.group('type')}
     else:
-        text = u'{{%s(type)s description|1=%s(oldtext)s|2=%s(year)s|3=%s(month)s|4=%s(day)s|5=%s(languageoldtext)s}}' % {
+        text = u'{{%(type)s description|1=%(oldtext)s|2=%(language)s|3=%(year)s|4=%(month)s|5=%(day)s}}' % {
             u'type' : match.group('type'),
-            u'oldtext' : page.get(),
+            u'oldtext' : page.get().strip(),
+	    u'language' : match.group('language'),
             u'year' : match.group('year'),
             u'month' : match.group('month'),
             u'day' : match.group('day'),
-            u'language' : match.group('language'),
-            }    
+            }
+	comment = u'Adding {{%(type)s description}}' % {u'type' : match.group('type')}
         
-    return text
+    return (text, comment)
 
 def tagThumbtime(page):
     print 'Fix MOTD thumbtime'
-    return page.get()
+    return (page.get(), u'bla')
 
 def main():
     '''
