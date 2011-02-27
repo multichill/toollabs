@@ -14,7 +14,17 @@ uncategorizedTemplate ={
         },
     'wikipedia' : {
         'en' : u'{{subst:dated|uncategorized}}',
-        'nl' : u'{{Nocat}}',
+        'nl' : u'{{Nocat||{{subst:CURRENTYEAR}}|{{subst:CURRENTMONTH}}|{{subst:CURRENTDAY2}}}}',
+        },
+    }
+
+editComment ={
+    'commons' : {
+        'commons' : u'Tagging this template as uncategorized.',
+        },
+    'wikipedia' : {
+        'en' : u'Tagging this template as uncategorized.',
+        'nl' : u'Dit sjabloon bevat geen categorie.',
         },
     }
 
@@ -71,11 +81,10 @@ def tagUncategorized(templateTitle):
 
     text = text + u'<noinclude>\n\n%s\n</noinclude>' % (uncategorizedTemplate.get(family).get(language), )
 
-    comment = u'Tagging this template as uncategorized'
     wikipedia.showDiff(oldtext, text)
     try:
         wikipedia.output(page.title())
-	#page.put(text, comment)
+	page.put(text, editComment.get(family).get(language))
     except wikipedia.LockedPage:
 	return
 
