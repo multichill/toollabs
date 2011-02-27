@@ -10,7 +10,7 @@ import wikipedia, MySQLdb, config
 
 uncategorizedTemplate ={
     'commons' : {
-        'commons' : u'Subst:Unc',
+        'commons' : u'{{Subst:Unc}}',
         },
     'wikipedia' : {
         'en' : u'{{subst:dated|uncategorized}}',
