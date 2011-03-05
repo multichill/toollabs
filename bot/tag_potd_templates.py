@@ -4,7 +4,7 @@
 Tag potd templates at Wikimedia Commons.
 '''
 import sys, re
-sys.path.append("../pywikipedia")
+sys.path.append("/home/multichill/pywikipedia/")
 import wikipedia, MySQLdb, config
 
 def connectDatabase():
