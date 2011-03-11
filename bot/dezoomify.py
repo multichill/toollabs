@@ -66,7 +66,7 @@ def main():
         if ((cont == 'n') or (cont == 'N') ):
             exit(-1)
 
-    Dezoomify(opts)
+    Dezoomify(url=opts.url, out=opts.out, urlBase=opts.base, urlList=opts.list, debug=opts.debug, ext=opts.ext, qual=opts.qual, zoomLevel=opts.zoomLevel, store=opts.store)
 
 def urlConcat(url1, url2):
     #simple concatenation routine for parts of urls
@@ -281,20 +281,19 @@ class Dezoomify():
                 self.image.paste(tile, (self.tileSize*col, self.tileSize*row)) #paste into position
 
 
-    def getUrls(self, opts): #returns a list of base URLs for the given Dezoomify object(s)
-
-        if not opts.list: #if we are dealing with a single object
-            if not opts.base:
-                self.imageDirs = [ self.getImageDirectory(opts.url) ]  # locate the base directory of the zoomify tile images
+    def getUrls(self, url, urlBase, urlList): #returns a list of base URLs for the given Dezoomify object(s)
+        if not urlList: #if we are dealing with a single object
+            if not urlBase:
+                self.imageDirs = [ self.getImageDirectory(url) ]  # locate the base directory of the zoomify tile images
             else:
-                self.imageDirs = [ opts.url ]         # it was given directly
+                self.imageDirs = [ url ]         # it was given directly
 
         else: #if we are dealing with a file with a list of objects
-            listFile = open( opts.url, 'r')
+            listFile = open( url, 'r')
             imageDirs = [] #empty list of directories
 
             for line in listFile:
-                if not opts.base:
+                if not urlBase:
                     self.imageDirs = [ self.getImageDirectory(line) ]  # locate the base directory of the zoomify tile images
                 else:
                     self.imageDirs = [ line ]         # it was given directly
@@ -315,31 +314,34 @@ class Dezoomify():
 
 
 
-    def __init__(self, opts):
-        self.debug = opts.debug
-        self.ext = opts.ext
-        self.store = opts.store
-        self.qual = opts.qual
-        self.store = opts.store
-        self.out = opts.out
+    def __init__(self, url, out, urlBase=False, urlList=False, debug=False, ext=u'jpg', qual='75', zoomLevel=False, store=False):
+        self.url = url
+        self.out = out
+        self.urlBase = urlBase
+        self.urlList = urlList
+        self.debug = debug
+        self.ext = ext
+        self.qual = qual
+        self.zoomLevel = zoomLevel
+        self.store = store
 
         self.setupDirectory()
-        self.getUrls(opts)
+        self.getUrls(self.url, self.urlBase, self.urlList)
 
         i = 0
         for imageDir in self.imageDirs:
 
-            self.getProperties(imageDir, opts.zoomLevel)       # inspect the ImageProperties.xml file to get properties, and derive the rest
+            self.getProperties(imageDir, self.zoomLevel)       # inspect the ImageProperties.xml file to get properties, and derive the rest
 
             self.constructBlankImage() # create the blank image to fill with tiles
             self.addTiles(imageDir)            # find, download and paste tiles into place
 
-            if opts.list: #add a suffix to the output file names if needed
+            if self.urlList: #add a suffix to the output file names if needed
                 root, ext = os.path.splitext(self.out)
                 destination = root + '%03d' % i + ext
             else:
                 destination = self.out
-
+            
             self.image.save(destination, quality=int(self.qual) ) #save the dezoomified file
 
             if self.debug:
