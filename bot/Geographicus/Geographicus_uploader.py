@@ -7,8 +7,10 @@ A program do generate descriptions for KIT (Tropenmuseum) images and to upload t
 import sys, os.path, glob, re, hashlib, base64
 #sys.path.append("/home/multichill/pywikipedia")
 sys.path.append("D:/Wikipedia/pywikipedia/")
+sys.path.append("../")
 import wikipedia, config, query, upload
 import csv
+import dezoomify
 #import flickrripper
 
 
@@ -76,6 +78,21 @@ def getTitle(metadata):
 
 def getMetadata(row):
     metadata = {
+        u'link' : unicode(row.get('link'), 'Windows-1252'),
+        u'product_name' : unicode(row.get(u'product_name'), 'Windows-1252').replace(u'Antique Map: ', u''),
+        u'map_title' : unicode(row.get(u'map_title'), 'Windows-1252'),
+        u'description' : unicode(row.get(u'description'), 'Windows-1252'),
+        u'date' : unicode(row.get(u'date'), 'Windows-1252'),
+        u'cartographer' : unicode(row.get(u'cartographer'), 'Windows-1252').replace(u'http://www.geographicus.com/mm5/cartographers/', u''),
+        u'source' : unicode(row.get(u'source'), 'Windows-1252'),
+        u'image_link' : unicode(row.get(u'image_link'), 'Windows-1252'),
+        u'id' : unicode(row.get(u'id'), 'Windows-1252'),
+        u'width' : unicode(row.get(u'width'), 'Windows-1252'),
+        u'height' : unicode(row.get(u'height'), 'Windows-1252'),
+        }
+
+    '''
+    metadata = {
         u'link' : unicode(row[0], 'Windows-1252'),
         u'product_name' : unicode(row[1], 'Windows-1252').replace(u'Antique Map: ', u''),
         u'map_title' : unicode(row[2], 'Windows-1252'),
@@ -88,9 +105,10 @@ def getMetadata(row):
         u'width' : unicode(row[9], 'Windows-1252'),
         u'height' : unicode(row[10], 'Windows-1252'),
         }
+    '''
     return metadata
 
-def processFile(row):
+def processFile(row, imageDir):
     metadata = getMetadata(row)
     title = getTitle(metadata)
     description = getDescription(metadata)
@@ -99,19 +117,24 @@ def processFile(row):
     # Check of the title already exists
 
     # Download and dezoomify the image
-
+    tempfile = imageDir + metadata.get('id') + u'.jpg'
+    dezoomify.Dezoomify(url=metadata.get('link'), debug=True, out=tempfile)
+    bot = upload.UploadRobot(url=tempfile, description=description, useFilename=title, keepFilename=True, verifyDescription=False)
+    bot.run()
 
 def main(args):
 
 
-    directory = u'D:/Wikipedia/nationaal archief/WeTransfer-VjTrJQOD/'
+    #directory = u'D:/Wikipedia/nationaal archief/WeTransfer-VjTrJQOD/'
     csvFile = u'D:/Wikipedia/Geographicus/geographicus-wikimedia.csv'
+    imageDir = u'D:/Wikipedia/Geographicus/images/'
 
     database = {}
 
-    reader = csv.reader(open(csvFile, "rb"))
+    reader = csv.DictReader(open(csvFile, "rb"), dialect='excel')
     for row in reader:
-        processFile(row)
+        print row
+        processFile(row, imageDir)
         #database[row[0]] = row
         #print row
         #        wikipedia.output(row)
