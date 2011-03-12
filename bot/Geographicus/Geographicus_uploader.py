@@ -11,7 +11,7 @@ sys.path.append("../")
 import wikipedia, config, query, upload
 import csv
 import dezoomify
-#import flickrripper
+import flickrripper
 
 
 def getDescription(metadata):
@@ -74,7 +74,7 @@ def getTitle(metadata):
     title = u'%s - %s.jpg' % (description, baseFilename)
     '''
     
-    return title
+    return flickrripper.cleanUpTitle(title)
 
 def getMetadata(row):
     metadata = {
@@ -83,7 +83,7 @@ def getMetadata(row):
         u'map_title' : unicode(row.get(u'map_title'), 'Windows-1252'),
         u'description' : unicode(row.get(u'description'), 'Windows-1252'),
         u'date' : unicode(row.get(u'date'), 'Windows-1252'),
-        u'cartographer' : unicode(row.get(u'cartographer'), 'Windows-1252').replace(u'http://www.geographicus.com/mm5/cartographers/', u''),
+        u'cartographer' : unicode(row.get(u'cartographer'), 'Windows-1252').lower().replace(u'http://www.geographicus.com/mm5/cartographers/', u''),
         u'source' : unicode(row.get(u'source'), 'Windows-1252'),
         u'image_link' : unicode(row.get(u'image_link'), 'Windows-1252'),
         u'id' : unicode(row.get(u'id'), 'Windows-1252'),
@@ -112,13 +112,28 @@ def processFile(row, imageDir):
     metadata = getMetadata(row)
     title = getTitle(metadata)
     description = getDescription(metadata)
-    wikipedia.output(title)
-    wikipedia.output(description)
-    # Check of the title already exists
 
+    # Check of the title already exists
+    site = wikipedia.getSite('commons', 'commons')
+    page = wikipedia.ImagePage(site, title)
+
+    if page.exists():
+        wikipedia.output(u'The file %s already exists. Probably already uploaded by me. Skipping' % title)
+        return False
+
+    wikipedia.output(u'Preparing upload for %s.' % title)    
+    wikipedia.output(description)    
+                        
     # Download and dezoomify the image
     tempfile = imageDir + metadata.get('id') + u'.jpg'
     dezoomify.Dezoomify(url=metadata.get('link'), debug=True, out=tempfile)
+
+    # Check for dupe. This probably doesn't work, but it doesn't hurt either.
+    duplicates = findDuplicateImages(tempfile)
+    if duplicates:
+        wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
+        return False
+    
     bot = upload.UploadRobot(url=tempfile, description=description, useFilename=title, keepFilename=True, verifyDescription=False)
     bot.run()
 
@@ -133,7 +148,7 @@ def main(args):
 
     reader = csv.DictReader(open(csvFile, "rb"), dialect='excel')
     for row in reader:
-        print row
+        #print row
         processFile(row, imageDir)
         #database[row[0]] = row
         #print row
