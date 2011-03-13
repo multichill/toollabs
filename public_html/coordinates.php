@@ -47,7 +47,7 @@ $config_type = $_GET['type'];
 $config_region = $_GET['region'];
 $config_template = $_GET['template'];
 $config_wiki = $_GET['wiki'];
-$config_page = $_GET['page'];
+$config_page = htmlentities($_GET['page']);
 
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
