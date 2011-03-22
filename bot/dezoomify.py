@@ -92,13 +92,13 @@ class Dezoomify():
             content = urllib.urlopen(url).read()
         except:
             print("ERR: Specified directory not found. Check the URL.")
-            sys.exit()
+            raise IOError()
 
         m = re.search('zoomifyImagePath=([^\'"&]*)[\'"&]', content)
 
         if not m:
             print("ERR: Source directory not found. Ensure the given URL contains a Zoomify object.")
-            sys.exit()
+            raise IOError()
         else:
             imagePath = m.group(1)
             print('INF: Found zoomifyImagePath: %s' % imagePath)
@@ -164,21 +164,21 @@ class Dezoomify():
             self.maxWidth = int(m.group(1))
         else:
             print('ERR: Width not found in ImageProperties.xml')
-            sys.exit()
+            raise IOError()
 
         m = re.search('HEIGHT="(\d+)"', content)
         if m:
             self.maxHeight = int(m.group(1))
         else:
             print('ERR: Height not found in ImageProperties.xml')
-            sys.exit()
+            raise IOError()
 
         m = re.search('TILESIZE="(\d+)"', content)
         if m:
             self.tileSize = int(m.group(1))
         else:
             print('ERR: Tile size not found in ImageProperties.xml')
-            sys.exit()
+            raise IOError()
 
         #PROCESS PROPERTIES TO GET ADDITIONAL DERIVABLE PROPERTIES
 
@@ -237,7 +237,7 @@ class Dezoomify():
             self.image = Image.new('RGB', (self.width, self.height), "#000000")
         except MemoryError:
             print "ERR: Image too large to fit into memory. Exiting"
-            sys.exit(2)
+            raise IOError()
         return
 
     def blankTile(self):
