@@ -147,7 +147,7 @@ def main(args):
 
 
     #directory = u'D:/Wikipedia/nationaal archief/WeTransfer-VjTrJQOD/'
-    csvFile = u'D:/Wikipedia/Geographicus/geographicus-wikimedia.csv'
+    csvFile = u'geographicus-wikimedia.csv'
     imageDir = u'D:/Wikipedia/Geographicus/images/'
 
     database = {}
