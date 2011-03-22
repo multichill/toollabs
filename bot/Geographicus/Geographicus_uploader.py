@@ -126,7 +126,13 @@ def processFile(row, imageDir):
                         
     # Download and dezoomify the image
     tempfile = imageDir + metadata.get('id') + u'.jpg'
-    dezoomify.Dezoomify(url=metadata.get('link'), debug=True, out=tempfile)
+    try:
+        dezoomify.Dezoomify(url=metadata.get('link'), debug=True, out=tempfile)
+    except IOError as e:
+        #wikipedia.output(e)
+        wikipedia.output(u'Dezoomify failed')
+        return False
+        
 
     # Check for dupe. This probably doesn't work, but it doesn't hurt either.
     duplicates = findDuplicateImages(tempfile)
