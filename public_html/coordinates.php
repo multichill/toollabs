@@ -32,9 +32,7 @@ $typeArray = array (
 $templateArray = array (
     "coordinaten"   => "Coördinaten",
     "location"      => "Location",
-    "location_d"    => "Location d",
-    "location_dm"   => "Location dm",
-    "location_dms"  => "Location dms"
+    "object_location"    => "Object location",
 );
 
 $wikiArray = array (
@@ -103,21 +101,17 @@ $config_page = htmlentities($_GET['page']);
 	}
     }
     function getTemplateText(template, lat, lng, zoom){
+	//SCALE = POWER(2, 12 - ZOOM) * 100000
+	var scale = Math.round(Math.pow(2, 12 - zoom) * 100000)
 	switch(template){
 	    case "coordinaten":
-		return printCoordinaten(lat, lng, zoom);
+		return printCoordinaten(lat, lng, scale);
 		break;
 	    case "location":
-		return printLocation(lat, lng, zoom);
+		return printLocation(lat, lng, scale, "c");
 		break;
-	    case "location_d":
-		return printLocation_d(lat, lng, zoom);
-		break;
-	    case "location_dm":
-		return printLocation_dm(lat, lng, zoom);
-		break;
-	    case "location_dms":
-		return printLocation_dms(lat, lng, zoom);
+	    case "object_location":
+		return printLocation(lat, lng, scale, "o");
 		break;
 	    default:
 		return "Unknown template"
@@ -151,17 +145,21 @@ $config_page = htmlentities($_GET['page']);
 	}
     }
 
-    function printLocation(lat, lng, zoom){
+    function printLocation(lat, lng, scale, type){
 	lat_deg = getDegrees(lat);
 	lat_min = getMinutes(lat);
 	lat_sec = getSeconds(lat); 
 	lng_deg = getDegrees(lng);
 	lng_min = getMinutes(lng);
 	lng_sec = getSeconds(lng); 
-	result = "{{Location|" ;
+	if(type == "c") {
+	    result = "{{Location|" ;
+	} else {
+	    result = "{{Object location|" ;
+	}
 	result = result + lat_deg + "|" + lat_min + "|" + lat_sec + "|" + getNS(lat) + "|";
 	result = result + lng_deg + "|" + lng_min + "|" + lng_sec + "|" + getEW(lng) + "|";
-	result = result + "zoom:" + zoom;
+	result = result + "scale:" + scale;
 	if(document.configCoords.type.value!="empty") {
 	    result = result + "_type:" + document.configCoords.type.value;
 	}
@@ -172,39 +170,11 @@ $config_page = htmlentities($_GET['page']);
 	return result;
     }
 
-    function printLocation_d(lat, lng, zoom){
-	return "{{location dec|" + Math.abs(lat) + "|" + getNS(lat) + "|" + Math.abs(lng) + "|" + getEW(lng) + "}}";
-    }
-    
-    function printLocation_dm(lat, lng, zoom){
-	lat_deg = getDegrees(lat);
-	lat_min = (Math.abs(lat) - lat_deg) * 60;
-	lng_deg = getDegrees(lng);
-	lng_min = (Math.abs(lng) - lng_deg) * 60;
-	result = "{{Location dm|" ;
-	result = result + lat_deg + "|" + lat_min + "|" + getNS(lat) + "|";
-	result = result + lng_deg + "|" + lng_min + "|" + getEW(lng) + "}}";
-	return result;
-    }
-
-    function printLocation_dms(lat, lng, coom){
-	lat_deg = getDegrees(lat);
-	lat_min = getMinutes(lat);
-	lat_sec = getSeconds(lat); 
-	lng_deg = getDegrees(lng);
-	lng_min = getMinutes(lng);
-	lng_sec = getSeconds(lng);
-	result = "{{Location dms|" ;
-	result = result + lat_deg + "|" + lat_min + "|" + lat_sec + "|" + getNS(lat) + "|";
-	result = result + lng_deg + "|" + lng_min + "|" + lng_sec + "|" + getEW(lng) + "}}";
-	return result;
-    }
-
-    function printCoordinaten(lat,lng, zoom){	
+    function printCoordinaten(lat,lng, scale){	
 	result = "{{Coördinaten|"
 	result = result + getDegrees(lat) + "_" + getMinutes(lat) + "_" + getSeconds(lat) + "_" + getNS(lat) + "_";
 	result = result + getDegrees(lng) + "_" + getMinutes(lng) + "_" + getSeconds(lng) + "_" + getEW(lng) + "_";
-	result = result + "zoom:" + zoom;
+	result = result + "scale:" + scale;
 	if(document.configCoords.type.value!="empty") {
 	    result = result + "_type:" + document.configCoords.type.value;
 	}
