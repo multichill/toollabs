@@ -30,9 +30,10 @@ $typeArray = array (
 );
 
 $templateArray = array (
-    "coordinaten"   => "Coördinaten",
-    "location"      => "Location",
-    "object_location"    => "Object location",
+    "coordinaten"     => "Coördinaten (NL)",
+    "location"        => "Location (Commons)",
+    "object_location" => "Object location (Commons)",
+    "coord"           => "Coord (EN)",
 );
 
 $wikiArray = array (
@@ -68,36 +69,83 @@ $config_page = htmlentities($_GET['page']);
 
     function load() {
 	if (GBrowserIsCompatible()) {
-	    var map = new GMap2(document.getElementById("map"), { size: new GSize(800,600) });
+	    map = new GMap2(document.getElementById("map"), { size: new GSize(800,600) });
 	    map.setCenter(new GLatLng(52, 5), 7);
 	    map.enableScrollWheelZoom();
 	    map.addControl(new GLargeMapControl());
 	    map.addControl(new GMapTypeControl());
 	    map.addControl(new google.maps.LocalSearch(), new GControlPosition(G_ANCHOR_BOTTOM_RIGHT, new GSize(10,20)));
 
+	    GEvent.addListener(map, 'zoomend', function(oldLevel, newLevel) {
+		zoom = newLevel;
+		displaycoordinates(map,cur_location,zoom);
+	    });
+
 	    GEvent.addListener(map, 'click', function(overlay, latlng, overlaylatlng) {
 		if (overlay) {
 		    // bla
 		} else if (latlng) {
-		    map.clearOverlays();
-		    marker = new GMarker(latlng)
-		    map.addOverlay(marker);
-		    templateText = getTemplateText(document.configCoords.template.value, latlng.lat(), latlng.lng(), map.getZoom());
-		    document.templateCode.output.value = templateText;
-
-		    // If wiki and page are set open a popup with a direct edit link
-		    wiki = document.configCoords.wiki.value
-		    page = document.configCoords.page.value
-
-		    if((wiki!="") && (page!="")){
-			link = "http://" + wiki + "/w/index.php?title=" + encodeURIComponent(page) + "&action=edit&withJS=MediaWiki:AddCoordinates.js&coordinates=" + encodeURIComponent(templateText);
-			popupText = '<A href="' + link + '" target="_blank">Add template</a>';
+		    isclicked = true;
+		    cur_location = latlng;
+		    zoom = map.getZoom();
+		    if(document.configCoords.region.value=="auto") {
+			getregion(latlng.lat(),latlng.lng(),foundregion);
 		    } else {
-			popupText ="Set wiki and page to get a direct edit link here! Or just copy the template code from below";
+			displaycoordinates(map,cur_location,zoom);
 		    }
-		    marker.openInfoWindowHtml(popupText, {maxWidth:600});
 		}
 	    });
+	}
+    }
+
+    try {
+	xhr = XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+    }
+    catch(e) {
+	alert('Unable to create XMLHttpRequest');
+    }
+    function getregion(lat, long, callback) {
+	var path = "http://toolserver.org/~para/region.php?tsv&lat="+lat+"&long="+long;
+	xhr.open('GET', path, true); //IE6: needs to be first
+	xhr.onreadystatechange = function() {
+	    if(xhr.readyState == 4) {
+		callback(xhr.responseText.split('\n')[0].split('\t'));
+	    }
+	}
+    xhr.send(null);
+    }
+    function foundregion(region) {
+	if ( region == null || region == "" ) {
+	    autoregion = "";
+	} else {
+	    autoregion = region[2];
+	}
+	//alert("region found: " + autoregion);
+	displaycoordinates(map,cur_location,zoom);
+    }
+    function menuchanged(){
+	displaycoordinates(map,cur_location,zoom);
+    }
+    function displaycoordinates(map,latlng,zoom){
+	if (latlng && isclicked == true) {
+	    templateText = getTemplateText(document.configCoords.template.value, latlng.lat(), latlng.lng(), zoom);
+	    document.templateCode.output.value = templateText;
+	    map.clearOverlays();
+	    marker = new GMarker(latlng);
+	    markerset = marker;
+	    map.addOverlay(marker);
+
+	    // If wiki and page are set open a popup with a direct edit link
+	    wiki = document.configCoords.wiki.value
+	    page = document.configCoords.page.value
+
+	    if((wiki!="") && (page!="")){
+		link = "http://" + wiki + "/w/index.php?title=" + encodeURIComponent(page) + "&action=edit&withJS=MediaWiki:AddCoordinates.js&coordinates=" + encodeURIComponent(templateText);
+		popupText = '<A href="' + link + '" target="_blank">Add template</a>';
+	    } else {
+		popupText ="Set wiki and page to get a direct edit link here! Or just copy the template code from below";
+	    }
+	    marker.openInfoWindowHtml(popupText, {maxWidth:600});
 	}
     }
     function getTemplateText(template, lat, lng, zoom){
@@ -112,6 +160,9 @@ $config_page = htmlentities($_GET['page']);
 		break;
 	    case "object_location":
 		return printLocation(lat, lng, scale, "o");
+		break;
+	    case "coord":
+		return printLocation(lat, lng, scale, "e");
 		break;
 	    default:
 		return "Unknown template"
@@ -154,8 +205,10 @@ $config_page = htmlentities($_GET['page']);
 	lng_sec = getSeconds(lng); 
 	if(type == "c") {
 	    result = "{{Location|" ;
-	} else {
+	} else if (type == "o") {
 	    result = "{{Object location|" ;
+	} else if (type == "e") {
+	    result = "{{Coord|" ;
 	}
 	result = result + lat_deg + "|" + lat_min + "|" + lat_sec + "|" + getNS(lat) + "|";
 	result = result + lng_deg + "|" + lng_min + "|" + lng_sec + "|" + getEW(lng) + "|";
@@ -163,8 +216,15 @@ $config_page = htmlentities($_GET['page']);
 	if(document.configCoords.type.value!="empty") {
 	    result = result + "_type:" + document.configCoords.type.value;
 	}
-	if(document.configCoords.region.value!="empty") {
+	if(document.configCoords.region.value=="auto") {
+	    if (autoregion != "") {
+		result = result + "_region:" + autoregion;
+	    }
+	} else {
 	    result = result + "_region:" + document.configCoords.region.value;
+	}
+	if (type == "e") {
+	    result = result + "|display=title";
 	}
 	result = result + "}}";
 	return result;
@@ -178,7 +238,11 @@ $config_page = htmlentities($_GET['page']);
 	if(document.configCoords.type.value!="empty") {
 	    result = result + "_type:" + document.configCoords.type.value;
 	}
-	if(document.configCoords.region.value!="empty") {
+	if(document.configCoords.region.value=="auto") {
+	    if (autoregion != "") {
+		result = result + "_region:" + autoregion;
+	    }
+	} else {
 	    result = result + "_region:" + document.configCoords.region.value;
 	}
 	result = result + "|";
@@ -188,8 +252,16 @@ $config_page = htmlentities($_GET['page']);
     }
 
     GSearch.setOnLoadCallback(load);
+    // global variables to keep state
+    mymap=null;
+    isclicked = new Boolean(false);
+    cur_location = new GLatLng();
+    autoregion = "";
+    zoom = 0;
     //]]>
     </script>
+
+
     <link href="Common.css" rel="stylesheet" type="text/css">
   </head>
   <body onload="load()" onunload="GUnload()">
@@ -211,15 +283,15 @@ $config_page = htmlentities($_GET['page']);
 	<form name="configCoords">
 	    <tr><td>Type:</td></tr>
 	    <tr><td>
-		<select id="type" name="type" style="width:120px">
+		<select id="type" name="type" style="width:120px" onchange="menuchanged()">
 		    <?php printSelect($typeArray, $config_type); ?>
 		</select>
 	    </td></tr>
 	    <!-- This list appears to cause some problems, removed for the moment -->
 	    <tr><td>Region:</td></tr>
 	    <tr><td>
-		<select id="region" name="region" style="width:120px">
-		    <option SELECTED value="empty">(empty)</option>
+		<select id="region" name="region" style="width:120px" onchange="menuchanged()">
+		    <option SELECTED value="auto">(auto)</option>
 		    <option value="AD">Andorra</option>
 		    <option value="AF">Afghanistan</option>
 		    <option value="AX">Åand Islands</option>
@@ -470,13 +542,13 @@ $config_page = htmlentities($_GET['page']);
 	    </td></tr>
 	    <tr><td>Template:</td></tr>
 	    <tr><td>
-		<select id="template" name="template" style="width:120px">
+		<select id="template" name="template" style="width:120px" onchange="menuchanged()">
 		    <?php printSelect($templateArray, $config_template); ?>
 		</select>
 	    </td></tr>
 	    <tr><td>Wiki:</td></tr>
 	    <tr><td>
-		<select id="wiki" name="wiki" style="width:120px">
+		<select id="wiki" name="wiki" style="width:120px" onchange="menuchanged()">
 		    <?php printSelect($wikiArray, $config_wiki); ?>
 		</select>
 	    </td></tr>
