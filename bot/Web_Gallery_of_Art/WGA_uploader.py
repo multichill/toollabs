@@ -90,6 +90,12 @@ def getMetadata(row):
         metadata['LOCATION']==u''
     # Get image url
     metadata['IMAGEURL'] = re.sub(u'http://www.wga.hu/html/(.+)\.html', u'http://www.wga.hu/art/\\1.jpg', metadata['URL'])
+
+    # Get the creator
+    (surname, sep, firstname) = metadata['AUTHOR'].partition(',')
+    surname = surname.strip().capitalize()
+    firstname = firstname.strip().capitalize()
+    metadata['creator'] = u'%s %s ' % (firstname, surname)
         
     '''
     metadata = {
@@ -111,6 +117,10 @@ def getMetadata(row):
 def processFile(row):
     metadata = getMetadata(row)
 
+    if not metadata['FORM']==u'painting':
+        wikipedia.output(u'Not a painting, skipping')
+        return False
+    
     photo = downloadPhoto(metadata['IMAGEURL'])
     duplicates = findDuplicateImages(photo)
 
