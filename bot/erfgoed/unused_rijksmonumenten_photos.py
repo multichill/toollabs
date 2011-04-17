@@ -55,7 +55,8 @@ def getRijksmonumentenPhotos(conn, cursor):
     while True:
         try:
             row = cursor.fetchone()
-            (image, objrijksnr) = row
+            (image, sortkey) = row
+	    (objrijksnr, sep, name) = sortkey.partition('\n')
             result[objrijksnr] = image
         except TypeError:
             break
