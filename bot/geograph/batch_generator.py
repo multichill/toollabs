@@ -29,8 +29,12 @@ def filterSourceFilenames(sourcefilenames):
     '''
     for sourcefilename in sourcefilenames:
 	if sourcefilename.endswith(u'_original.jpg'):
+	    # We have a high res original, remove the down scaled version
 	    toremove = sourcefilename.replace(u'_original.jpg', u'.jpg')
 	    sourcefilenames.remove(toremove)
+	elif sourcefilename.endswith(u'_60XX60.jpg'):
+	    # This is a crappy thumb. Just remove it
+	    sourcefilenames.remove(sourcefilename)
     sourcefilenames.sort()
     return sourcefilenames
 
