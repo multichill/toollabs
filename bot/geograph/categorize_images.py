@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8  -*-
 '''
-Bot to upload geograph images from the Toolserver to Commons
+Bot to categorize images already uploaded to Commons
 
 '''
 import sys, os.path, hashlib, base64, MySQLdb, glob, re, urllib, time
@@ -13,6 +13,9 @@ import MySQLdb.converters
 import geograph_lib
 
 def getImagesWithTopic(cursor, topic):
+    '''
+    Get a list of image with geograph id for a certain topic
+    '''
     result = []
     query = u"""SELECT DISTINCT page_title,
     REPLACE(el_to, 'http://www.geograph.org.uk/photo/', '') FROM page
@@ -28,6 +31,9 @@ def getImagesWithTopic(cursor, topic):
     return result
 
 def getTopics(cursor):
+    '''
+    Get the list of topics we put in the database
+    '''
     result = []
     query = u"""SELECT DISTINCT commons FROM categories WHERE NOT commons='' ORDER BY commons"""
     cursor.execute(query)
@@ -35,6 +41,9 @@ def getTopics(cursor):
     return result
     
 def getGeographId(page):
+    '''
+    Extract the Geograph image id from a Commons imagepage
+    '''
     idMatch = re.search(u'\{\{Geograph\|(\d+)\|[^|}]+\}\}', page.get())
     if idMatch:
 	return idMatch.group(1)
