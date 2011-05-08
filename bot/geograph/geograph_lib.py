@@ -73,7 +73,7 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
     '''
     result = u''
     locationEFNCategories = []
-    #locationEFNCategories = getExtendedFindNearbyCategories(metadata, cursor, cursor2)
+    locationEFNCategories = getExtendedFindNearbyCategories(metadata, cursor, cursor2)
     #print u'locationEFNCategories'
     #print locationEFNCategories
 
@@ -100,7 +100,7 @@ def getCategories(metadata, cursor, cursor2, currentCategories=[]):
 	categories.append(currentCat)
     
     if categories:
-	result = u'{{Check categories-Geograph|year={{subst:CURRENTYEAR}}|month={{subst:CURRENTMONTHNAME}}|day={{subst:CURRENTDAY}}|lat=' + str(metadata.get('wgs84_lat'))  + u'|lon=' + str(metadata.get('wgs84_long'))  + u'|Geographcategory=' + metadata.get('imageclass')  + '}}\n'
+	result = u'{{Check categories-Geograph|gridref=' + metadata.get('grid_reference') + '|year={{subst:CURRENTYEAR}}|month={{subst:CURRENTMONTHNAME}}|day={{subst:CURRENTDAY}}|lat=' + str(metadata.get('wgs84_lat'))  + u'|lon=' + str(metadata.get('wgs84_long'))  + u'|Geographcategory=' + metadata.get('imageclass')  + '}}\n'
 	categories = filterCategories(categories, cursor2)
 	if set(currentCategories)==set(categories):
 	    return u''
