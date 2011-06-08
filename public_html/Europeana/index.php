@@ -107,6 +107,9 @@ function getGalleryItem($xml) {
 function getSingleRecordPage($record) {
 	$result = array();
 	$metadata = getRecordMetadata($record);
+	$result[] = "<H2>" . $metadata['dc:title'][0] . "</H2>";
+	$result[] = '<a href=' . $metadata['europeana:isShownAt'][0] . ' class="image"><img alt="Download the original image" src="' . $metadata['europeana:object'][0] . '" height="120" /><small>(click thumbnail to download the original)</small></a>';
+	$result[] = '<p>' . $metadata['dc:description'][0] . '</p>';
 	$result[] = getTemplateCode("Europeana bla", $metadata);
 	return implode("\n", $result);
 }
