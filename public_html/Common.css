@@ -1,2 +1,2 @@
-@import "http://nl.wikipedia.org/skins-1.5/monobook/main.css";
-@import "http://nl.wikipedia.org/w/index.php?title=MediaWiki:Common.css&action=raw&ctype=text/css&smaxage=2678400";
+@import url("http://bits.wikimedia.org/skins-1.17/common/shared.css");
+@import url("http://bits.wikimedia.org/skins-1.17/monobook/main.css");
