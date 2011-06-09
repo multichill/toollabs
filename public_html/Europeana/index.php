@@ -93,7 +93,7 @@ function getGalleryItem($xml) {
 	$result[] = '<li class="gallerybox" style="width: 155px">';
 	$result[] = '<div style="width: 155px">';
 	$result[] = '<div class="thumb" style="width: 150px; height: 150px;">';
-	$result[] = '<div style="margin:15px auto;"><a href=?record=' . $record . ' class="image"><img alt="" src="' . $image . '" width="83" height="120" /></a></div>';
+	$result[] = '<div style="margin:15px auto;"><a href=?record=' . $record . ' class="image"><img alt="" src="' . $image . '" height="120" /></a></div>';
 	$result[] = '</div>';
 	$result[] = '<div class="gallerytext">';
 	$result[] = '<p>' . $title . '</p>';
@@ -108,7 +108,7 @@ function getSingleRecordPage($record) {
 	$result = array();
 	$metadata = getRecordMetadata($record);
 	$result[] = "<H2>" . $metadata['dc:title'][0] . "</H2>";
-	$result[] = '<a href=' . $metadata['europeana:isShownAt'][0] . ' class="image"><img alt="Download the original image" src="' . $metadata['europeana:object'][0] . '" height="120" /><p><small>(click thumbnail to download the original)</small></p></a>';
+	$result[] = '<a href=' . $metadata['europeana:isShownAt'][0] . ' class="image"><img alt="Download the original image" target="_blank" src="' . $metadata['europeana:object'][0] . '" height="120" /><p><small>(click thumbnail to download the original)</small></p></a>';
 	$result[] = '<p>' . $metadata['dc:description'][0] . '</p>';
 	$result[] = '<a href="' . makeUploadLink($metadata) .'" title="Upload this file to Wikimedia Commons" target="_blank">Upload this file to Wikimedia Commons</a>';
 	//$result[] = getTemplateCode("Europeana bla", $metadata);
