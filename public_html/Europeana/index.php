@@ -108,10 +108,24 @@ function getSingleRecordPage($record) {
 	$result = array();
 	$metadata = getRecordMetadata($record);
 	$result[] = "<H2>" . $metadata['dc:title'][0] . "</H2>";
-	$result[] = '<a href=' . $metadata['europeana:isShownAt'][0] . ' class="image"><img alt="Download the original image" src="' . $metadata['europeana:object'][0] . '" height="120" /><small>(click thumbnail to download the original)</small></a>';
+	$result[] = '<a href=' . $metadata['europeana:isShownAt'][0] . ' class="image"><img alt="Download the original image" src="' . $metadata['europeana:object'][0] . '" height="120" /><p><small>(click thumbnail to download the original)</small></p></a>';
 	$result[] = '<p>' . $metadata['dc:description'][0] . '</p>';
-	$result[] = getTemplateCode("Europeana bla", $metadata);
+	$result[] = '<a href="' . makeUploadLink($metadata) .'" title="Upload this file to Wikimedia Commons" target="_blank">Upload this file to Wikimedia Commons</a>';
+	//$result[] = getTemplateCode("Europeana bla", $metadata);
 	return implode("\n", $result);
+}
+
+function makeUploadLink($metadata) {
+	$result = array();
+	$result[] = "https://secure.wikimedia.org/wikipedia/commons/w/index.php?title=Special:Upload&uploadformstyle=basic";
+	//FIXME: Figure out the extension
+	$wpDestFile = $metadata['dc:title'][0] . '.jpg';
+	$wpUploadDescription = getTemplateCode ("Europeana upload", $metadata);
+	$wpUploadDescription = urlencode($wpUploadDescription);
+	$wpUploadDescription = str_replace('%5Cn', '%0A', $wpUploadDescription); 
+	$result[] = '&wpDestFile=' . urlencode($wpDestFile);
+	$result[] =  '&wpUploadDescription=' . $wpUploadDescription;
+	return implode($result);
 }
 
 function getRecordMetadata($record) {
@@ -145,15 +159,19 @@ function getRecordMetadata($record) {
 
 function getTemplateCode ($templateName, $metadata) {
 	$result = array();
-	$result[] = "{{subst:" . $templateName . "|subst=subst:\n";
+	//$result[] = "{{subst:" . $templateName . "|subst=subst:";
+	$result[] = "{{" . $templateName;
 
 	foreach ( $metadata as $key=>$value ){
-		$result[]= "|" . $key . "=" . implode(", ", $metadata[$key]) . "\n";
-		for ($i = 0; $i <  sizeof($metadata[$key]); $i++) {
-			$result[]= "|" . $key . "_" . $i . "=" . $metadata[$key][$i] . "\n";
+		if (strpos($key, "enrichment") !== 0) {
+			$result[]= "|" . $key . "=" . implode(", ", $metadata[$key]) . "\n";
+			for ($i = 0; $i <  sizeof($metadata[$key]); $i++) {
+				$result[]= "|" . $key . "_" . $i . "=" . $metadata[$key][$i];
+			}
 		}
 	}
-	return implode($result);
+	$result[] = "}}";
+	return implode("\n", $result);
 }
 
 function main($config) {
