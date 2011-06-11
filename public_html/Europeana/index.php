@@ -25,7 +25,8 @@ function buildStartScreen($query) {
 	$result = array();
 	$result[] = "<H2>Europeana search tool query</H2>";
 	$result[] = '<img alt="File:Europeana logo 3 eu black.png" src="http://upload.wikimedia.org/wikipedia/commons/b/be/Europeana_logo_3_eu_black.png" width="128" height="70" />';
-	$result[] = '<p>With this tool you can find images in Europeana to be uploaded to Wikimedia Commons</p>';
+	$result[] = '<p>With this tool you can find images in Europeana to be uploaded to Wikimedia Commons.</p>';
+	$result[] = '<p><b>Be careful to check if the file is <a href="https://secure.wikimedia.org/wikipedia/commons/wiki/Commons:Licensing">free</a> before you upload it!</b></p>';
 	$result[] = '<form method="get" accept-charset="UTF-8" name="europeana-search" id="europeana-search">';
 	$result[] = '<input class="search-input" name="query" id="query" type="text" title="Search term(s)" value="' . urldecode($query) . '" maxlength="75"/>';
 	$result[] = '<input id="submit_search" type="submit" class="button" value="Search" />';
