@@ -111,6 +111,7 @@ function getSingleRecordPage($record) {
 	$result[] = "<H2>" . $metadata['dc:title'][0] . "</H2>";
 	$result[] = '<a href=' . $metadata['europeana:isShownAt'][0] . ' class="image"><img alt="Download the original image" target="_blank" src="' . $metadata['europeana:object'][0] . '" height="120" /><p><small>(click thumbnail to download the original)</small></p></a>';
 	$result[] = '<p>' . $metadata['dc:description'][0] . '</p>';
+	$result[] = '<p><b>Be careful to check if the file is <a href="https://secure.wikimedia.org/wikipedia/commons/wiki/Commons:Licensing">free</a> before you upload it!</b></p>';
 	$result[] = '<a href="' . makeUploadLink($metadata) .'" title="Upload this file to Wikimedia Commons" target="_blank">Upload this file to Wikimedia Commons</a>';
 	//$result[] = getTemplateCode("Europeana bla", $metadata);
 	return implode("\n", $result);
