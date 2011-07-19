@@ -73,7 +73,32 @@ def getTitle(fileId, description):
         titleText = titleText[0 : 120]
 
     title = u'%s - NARA - %s.jpg' % (titleText, fileId)
-    return flickrripper.cleanUpTitle(title)
+    return cleanUpTitle(title)
+
+def cleanUpTitle(title):
+    '''
+    Clean up the title of a potential mediawiki page. Otherwise the title of
+    the page might not be allowed by the software.
+
+    '''
+    title = title.strip()
+    title = re.sub(u"[<{\\[]", u"(", title)
+    title = re.sub(u"[>}\\]]", u")", title)
+    title = re.sub(u"[ _]?\\(!\\)", u"", title)
+    title = re.sub(u",:[ _]", u", ", title)
+    title = re.sub(u"[;:][ _]", u", ", title)
+    title = re.sub(u"[\t\n ]+", u" ", title)
+    title = re.sub(u"[\r\n ]+", u" ", title)
+    title = re.sub(u"[\n]+", u"", title)
+    title = re.sub(u"[?!]([.\"]|$)", u"\\1", title)
+    title = re.sub(u"[&#%?!]", u"^", title)
+    title = re.sub(u"[;]", u",", title)
+    title = re.sub(u"[/+\\\\:]", u"-", title)
+    title = re.sub(u"--+", u"-", title)
+    title = re.sub(u",,+", u",", title)
+    title = re.sub(u"[-,^]([.]|$)", u"\\1", title)
+    title = title.replace(u" ", u"_")
+    return title
 
 def main(args):
     '''
