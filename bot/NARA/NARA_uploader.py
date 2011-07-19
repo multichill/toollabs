@@ -11,7 +11,7 @@ The bot uses http://toolserver.org/~slakr/archives.php to get the description
 '''
 import sys, os.path, hashlib, base64, glob, re, urllib, time
 sys.path.append("..\..\pywikipedia")
-import wikipedia, config, query
+import wikipedia, config, query, upload
 import shutil, socket
 
 def getRecords(textfile):
