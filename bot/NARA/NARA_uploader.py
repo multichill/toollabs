@@ -72,7 +72,7 @@ def getTitle(fileId, description):
     if len(titleText)>120:
         titleText = titleText[0 : 120]
 
-    title = u'%s - NARA - %s.jpg' % (titleText, fileId)
+    title = u'%s - NARA - %s.TIF' % (titleText, fileId)
     return cleanUpTitle(title)
 
 def cleanUpTitle(title):
