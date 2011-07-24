@@ -72,7 +72,7 @@ def getTitle(fileId, description):
     if len(titleText)>120:
         titleText = titleText[0 : 120]
 
-    title = u'%s - NARA - %s.TIF' % (titleText, fileId)
+    title = u'%s - NARA - %s.tif' % (titleText, fileId)
     return cleanUpTitle(title)
 
 def cleanUpTitle(title):
@@ -125,7 +125,7 @@ def main(args):
     records = getRecords(textfile)
     #print records
 
-    sourcefilenames = glob.glob(workdir + u"/*.tif")
+    sourcefilenames = glob.glob(workdir + u"/*.TIF")
 
     for sourcefilename in sourcefilenames:
         filename = os.path.basename(sourcefilename)
