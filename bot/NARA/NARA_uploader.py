@@ -125,29 +125,33 @@ def main(args):
     records = getRecords(textfile)
     #print records
 
-    sourcefilenames = glob.glob(workdir + u"/*.TIF")
+    sourcefilenames = glob.glob(workdir + u"/*.tif")
 
     for sourcefilename in sourcefilenames:
         filename = os.path.basename(sourcefilename)
         # This will give an ugly error if the id is unknown
-        fileId = records[filename]
-    
-        duplicates = findDuplicateImages(sourcefilename)
-        if duplicates:
-            wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
-        else:
-            # No metadata handling. We use a webtool
-            description = getDescription(fileId)
-            categories = u'{{Subst:Unc}}\n'
-            description = description + categories
+        if not records.get(filename):
+             wikipedia.output(u'Can\'t find %s in %s. Skipping this file.' % (filename, textfile))
 
-            title = getTitle(fileId, description)
-            
-            wikipedia.output(title)
-            wikipedia.output(description)
+        else:
+            fileId = records.get(filename)
+        
+            duplicates = findDuplicateImages(sourcefilename)
+            if duplicates:
+                wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
+            else:
+                # No metadata handling. We use a webtool
+                description = getDescription(fileId)
+                categories = u'{{Uncategorized-NARA|year={{subst:CURRENTYEAR}}|month={{subst:CURRENTMONTHNAME}}|day={{subst:CURRENTDAY}}}}\n'
+                description = description + categories
+
+                title = getTitle(fileId, description)
                 
-            bot = upload.UploadRobot(url=sourcefilename.decode(sys.getfilesystemencoding()), description=description, useFilename=title, keepFilename=True, verifyDescription=False)
-            bot.run()
+                wikipedia.output(title)
+                wikipedia.output(description)
+                    
+                bot = upload.UploadRobot(url=sourcefilename.decode(sys.getfilesystemencoding()), description=description, useFilename=title, keepFilename=True, verifyDescription=False)
+                bot.run()
  
 if __name__ == "__main__":
     try:
