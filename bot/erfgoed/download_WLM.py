@@ -2,7 +2,8 @@
 # -*- coding: utf-8  -*-
 '''
 
-Bot to add {{Object location dec}} to rijksmonumenten. Location is based on information from the nl Wikipedia.
+A robot to download all Wiki Loves Monuments images. Usage:
+download_WLM.py -lang:commons -family:commons -target:"c:\temp\WLM" -cat:Images_from_Wiki_Loves_Monuments_2011
 
 '''
 import sys
@@ -35,7 +36,7 @@ def main():
 
     generator = None
     genFactory = pagegenerators.GeneratorFactory()
-    target = u'/mnt/user-store/Wiki_Loves_Monuments/'
+    target = u'/mnt/user-store/Wiki_Loves_Monuments_Netherlands_2011/'
 
     for arg in wikipedia.handleArgs():
         if arg.startswith('-target:'):
