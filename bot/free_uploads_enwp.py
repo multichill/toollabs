@@ -100,10 +100,21 @@ def writeMainFreeUploads(subpages):
     text = text + u'{{Special:PrefixIndex/User:Multichill/Free uploads/20}}\n'
     text = text + u'== Days ==\n'
 
+    i = 0
+    limit = 10
+
     for subpage in subpages:
 	date = subpage.replace(u'User:Multichill/Free uploads/', u'')
-	text = text + u'===[[%s|%s]]===\n' % (subpage, date)
-	text = text + u'{{%s}}\n' % (subpage,)
+	if i < limit:
+            text = text + u'===[[%s|%s]]===\n' % (subpage, date)
+            text = text + u'{{%s}}\n' % (subpage,)
+        elif i == limit:
+            text = text + u'=== Older ===\n'
+            text = text + u'* [[%s|%s]]\n' % (subpage, date)
+        else:
+            text = text + u'* [[%s|%s]]\n' % (subpage, date)
+
+        i = i + 1
 
     comment = u'Updating list, %d subpages contain images' % (len(subpages),)
     wikipedia.showDiff(oldtext, text)
