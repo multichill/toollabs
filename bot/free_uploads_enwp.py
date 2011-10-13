@@ -96,12 +96,15 @@ def writeMainFreeUploads(subpages):
     page = wikipedia.Page(site, u'User:Multichill/Free_uploads')
     oldtext = page.get()
     text = u'__TOC__\n'
-    text = text + u'== Links to day pages ==\n'
-    text = text + u'{{Special:PrefixIndex/User:Multichill/Free uploads/20}}\n'
+    #text = text + u'== Links to day pages ==\n'
+    #text = text + u'{{Special:PrefixIndex/User:Multichill/Free uploads/20}}\n'
     text = text + u'== Days ==\n'
 
     i = 0
     limit = 10
+
+    # From new to old
+    subspages.reverse()
 
     for subpage in subpages:
 	date = subpage.replace(u'User:Multichill/Free uploads/', u'')
