@@ -104,7 +104,7 @@ def writeMainFreeUploads(subpages):
     limit = 10
 
     # From new to old
-    subspages.reverse()
+    subpages.reverse()
 
     for subpage in subpages:
 	date = subpage.replace(u'User:Multichill/Free uploads/', u'')
