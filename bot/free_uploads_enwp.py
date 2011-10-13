@@ -98,10 +98,10 @@ def writeMainFreeUploads(subpages):
     text = u'__TOC__\n'
     #text = text + u'== Links to day pages ==\n'
     #text = text + u'{{Special:PrefixIndex/User:Multichill/Free uploads/20}}\n'
-    text = text + u'== Days ==\n'
+    text = text + u'== This week ==\n'
 
     i = 0
-    limit = 10
+    limit = 7
 
     # From new to old
     subpages.reverse()
@@ -112,7 +112,7 @@ def writeMainFreeUploads(subpages):
             text = text + u'===[[%s|%s]]===\n' % (subpage, date)
             text = text + u'{{%s}}\n' % (subpage,)
         elif i == limit:
-            text = text + u'=== Older ===\n'
+            text = text + u'== Older ==\n'
             text = text + u'* [[%s|%s]]\n' % (subpage, date)
         else:
             text = text + u'* [[%s|%s]]\n' % (subpage, date)
