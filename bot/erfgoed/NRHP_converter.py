@@ -4,7 +4,7 @@
 Tool to update lists like https://en.wikipedia.org/wiki/National_Register_of_Historic_Places_listings_in_Washington_County,_Nebraska to the new template based format
 
 '''
-import sys, time, warnings
+import sys, time, warnings, traceback
 import wikipedia, config, re, pagegenerators
 
 
@@ -15,16 +15,30 @@ def convertList(page):
     wikipedia.output(u'Working on %s' % page.title())
     
     text = page.get()
-    newtext = convertHeaders(page, text)
-    newtext = convertItems(page, newtext)
+    try:
+        newtext = convertHeaders(page, text)
+        newtext = convertItems(page, newtext)
+    except TypeError or AttributeError:
+        wikipedia.output(u'One of the regexes failed at %s, skipping this page' % (page.title,))
+        traceback.print_exc(file=sys.stdout)
+        return u'Failed'
 
-    wikipedia.showDiff(text, newtext)
-    comment = u'Converting list to use [[Template:NRHP header]] and [[Template:NRHP row]]'
+    if not text==newtext:
+        wikipedia.showDiff(text, newtext)
+        
+        comment = u'Converting list to use [[Template:NRHP header]] and [[Template:NRHP row]]'
 
-    #DEBUG
-    page.put(newtext, comment)
-    #wikipedia.output(newtext)
-    
+        #choice = wikipedia.inputChoice(u'Do you want to accept these changes?', ['Yes', 'No'], ['y', 'n'], 'n')
+        choice = 'y'
+
+        if choice == 'y':
+            #DEBUG
+            page.put(newtext, comment)
+            return u'Success'
+            #wikipedia.output(newtext)
+
+    return u'Unchanged'
+        
 
 def convertHeaders(page, text):
     '''
@@ -44,7 +58,7 @@ def convertHeader(match):
     '''
 
     # Find the reference:
-    patternreffirst = u'<ref>\{\{NRISref\|(.+)\}\}</ref>'
+    patternreffirst = u'<ref name=["]?nris["]?>\{\{NRISref\|(.+)\}\}</ref>'
     matchreffirst = re.search(patternreffirst, match.group(u'name'))
     patternrefmore = u'<ref name=(.+) />' # Not sure everywhere the backreference is the same
     matchrefmore = re.search(patternrefmore, match.group(u'name'))
@@ -56,7 +70,6 @@ def convertHeader(match):
     else:
         NRISref = False
 
-    #FIXME : Doesn't catch anything right now
     patterncity = u'\!.*\|\s*\'\'\'City or Town\'\'\''
     matchcity = re.search(patterncity, match.group(u'city'))
 
@@ -88,8 +101,8 @@ def convertItems(page, text):
     '''
     # Added the color part to prevent matching on other tables
     # Only these 4, rest should be done by hand
-    pattern = u'\|--[\s\r\n]+(?P<pos>\!\s*\{\{(NRHP|HD|NHL|NHLD) color\}\}.*[\s\r\n]+)(?P<name>\|.*[\s\r\n]+)(?P<image>\|.*[\s\r\n]+)(?P<date>\|.*[\s\r\n]+)(?P<location>\|.*[\s\r\n]+)(?P<city>\|.*[\s\r\n]+)(?P<description>\|.*[\s\r\n]+)'
-
+    #pattern = u'\|--[\s\r\n]+(?P<pos>\!\s*\{\{(NRHP|HD|NHL|NHLD) color\}\}.*[\s\r\n]+)(?P<name>\|.*[\s\r\n]+)(?P<image>\|.*[\s\r\n]+)(?P<date>\|.*[\s\r\n]+)(?P<location>\|.*[\s\r\n]+)(?P<city>\|.*[\s\r\n]+)(?P<description>\|.*[\s\r\n]+)'
+    pattern = u'\|--[\s\r\n]+(?P<pos>\!\s*\{\{(NRHP|HD|NHL|NHLD) color\}\}.+[\s\r\n]+)(?P<name>\|.*[\s\r\n]+)(?P<image>\|.*[\s\r\n]+)(?P<date>\|.*[\s\r\n]+)(?P<location>\|.*[\s\r\n]+)(?P<city>\|.*[\s\r\n]+)(?P<description>\|[^-^\}].*[\s\r\n]+)'
     text = re.sub(pattern, convertItem, text)
     text = addCounty(page, text)
     
@@ -119,7 +132,7 @@ def convertItem(match):
     fields['refnum'] = getRefnum(fields.get('article'))
     fields['county'] = u''
 
-    return u'{{NRHP row|pos=%(pos)s\n|refnum=%(refnum)s\n|type=%(type)s\n|article=%(article)s\n|name=%(name)s\n|address=%(address)s\n|city=%(city)s\n|county=%(county)s\n|date=%(date)s\n|image=%(image)s\n|lat=%(lat)s\n|lon=%(lon)s\n|description=%(description)s\n}}\n' % fields
+    return u'{{NRHP row\n|pos=%(pos)s\n|refnum=%(refnum)s\n|type=%(type)s\n|article=%(article)s\n|name=%(name)s\n|address=%(address)s\n|city=%(city)s\n|county=%(county)s\n|date=%(date)s\n|image=%(image)s\n|lat=%(lat)s\n|lon=%(lon)s\n|description=%(description)s\n}}\n' % fields
 
 def extractTypeAndPos(line):
     '''
@@ -150,7 +163,8 @@ def extractArticleAndName(line):
         return (matchSimple.group('name').strip(), matchSimple.group('name').strip())
     if matchDifferent:
         return (matchDifferent.group('article').strip(), matchDifferent.group('name').strip())
-    
+
+    wikipedia.output(line)
     # FIXME: If the bot reaches this, it will die
     return
 
@@ -182,7 +196,7 @@ def extractDate(line):
     matchDate = re.search(patternDate, line, flags=re.IGNORECASE)
     matchEmpty = re.search(patternEmpty, line)
 
-    if patternDate:
+    if matchDate:
         year = matchDate.group('year')
         if len(matchDate.group('month'))==1:
             month = u'0%s' % (matchDate.group('month'),)
@@ -330,6 +344,14 @@ def addCounty(page, text):
     for category in page.categories():
         if category.titleWithoutNamespace() == countyFromTitle:
             foundCountyCategory = True
+            
+        countryFromCategory = category.titleWithoutNamespace().replace(u'National Register of Historic Places in', u'').strip()
+        if countryFromCategory == countyFromTitle:
+            foundCountyCategory = True
+            
+        countryFromCategory2 = category.titleWithoutNamespace().replace(u'National Register of Historic Places listings in', u'').strip()
+        if countryFromCategory2 == countyFromTitle:
+            foundCountyCategory = True
 
     foundCountyPage = False
     for linkedPage in page.linkedPages():
@@ -337,8 +359,8 @@ def addCounty(page, text):
             foundCountyPage = True    
 
     if foundCountyCategory and foundCountyPage:
-        pattern = u'\|county= \|'
-        newtext = re.sub(pattern, u'|county=[[%s]] |' % (countyFromTitle,), text)
+        pattern = u'\|county=[\s\r\n]+\|'
+        newtext = re.sub(pattern, u'|county=[[%s]] \n|' % (countyFromTitle,), text)
         return newtext
 
     # That didn't work. Return the unchanged text
@@ -350,6 +372,8 @@ def main():
     The main loop
     '''
     # First find out what to work on
+    successList = []
+    failedList = []
 
     # Load a lot of default generators
     genFactory = pagegenerators.GeneratorFactory()
@@ -365,7 +389,19 @@ def main():
 
         for page in pregenerator:
             if page.exists() and (page.namespace() == 0) and not page.isRedirectPage():
-                convertList(page)
+                status = convertList(page)
+                if status==u'Success':
+                    successList.append(page.title())
+                elif status==u'Failed':
+                    failedList.append(page.title())
+
+    wikipedia.output(u'Number of pages changed: %s' % (len(successList),))
+    for title in successList:
+        wikipedia.output(title)
+
+    wikipedia.output(u'Number of pages that failed: %s' % (len(failedList),))
+    for title in failedList:
+        wikipedia.output(title)  
 
 
 
