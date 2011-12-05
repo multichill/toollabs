@@ -86,7 +86,7 @@ def getCity(line):
     return False
 
 def getCounty(line):
-    pattern = u'\[\[(?P<county>.+)\sCounty, (?P<state>.+)\]\]'
+    pattern = u'\[\[(?P<county>.+)\s(County|Parish), (?P<state>.+)\]\]'
 
     match = re.search(pattern, line)
 
