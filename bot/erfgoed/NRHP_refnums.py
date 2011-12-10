@@ -6,7 +6,7 @@ A program do generate descriptions for KIT (Tropenmuseum) images and to upload t
 '''
 import sys, os.path, glob, re, hashlib, base64
 
-#sys.path.append("/home/multichill/pywikipedia")
+sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, MySQLdb
 import sys, time, warnings, traceback
 import wikipedia, config, pagegenerators
@@ -38,10 +38,10 @@ def addRefnums(page):
     if not text==newtext:
         wikipedia.showDiff(text, newtext)
 
-        comment = u'Adding reference numbers'
+        comment = u'Adding reference numbers based on NRHP database'
 
-        choice = wikipedia.inputChoice(u'Do you want to accept these changes?', ['Yes', 'No'], ['y', 'n'], 'n')
-        #choice = 'y'
+        #choice = wikipedia.inputChoice(u'Do you want to accept these changes?', ['Yes', 'No'], ['y', 'n'], 'n')
+        choice = 'y'
 
         if choice == 'y':
             #DEBUG
@@ -58,7 +58,7 @@ def addRefnum(match):
     #dbAddress
     dbCity = getCity(match.group(u'city'))
     (dbCounty, dbState) = getCounty(match.group(u'county'))
-    dbDate = match.group(u'date').replace(u'-', u'')
+    dbDate = match.group(u'date').replace(u'-', u'').strip()
     if not(dbCity and dbCounty and dbState and dbDate):
         # We don't have all info, just return
         return match.group(0)
@@ -67,8 +67,31 @@ def addRefnum(match):
     if dbState==u'VIRGINIA' and dbCity==dbCounty:
         dbCity = dbCity + u' (Independent city)'
         
-    monuments = getMonuments(dbCity, dbCounty, dbState, dbDate)
-    print monuments
+    rows = getMonuments(dbCity, dbCounty, dbState, dbDate)
+    if not rows:
+	# Nothing found, just return
+	return match.group(0)
+    name = match.group(u'name').strip()
+    article = match.group(u'article').strip()
+    address = match.group(u'address').replace(u'[', u'').replace(u']', u'').strip()
+
+    for row in rows:
+	dbName = row[1]
+	dbAddress = row[2]
+	#print u'-----------'
+	#print dbName
+	#print name
+	#print dbName
+	#print article
+	#print dbAddress
+	#print address
+	#print u'-----------'
+	if dbName==name or dbName==article or (dbAddress==address and not address==u'Address Restricted'):
+	    #print u'WE HAVE A MATCH'
+	    refnum = row[0]
+	    newtext = match.group(0).replace(u'|refnum=', u'|refnum=' + refnum)
+	    return newtext
+
 
     return match.group(0)
     
@@ -106,6 +129,7 @@ def getMonuments(dbCity, dbCounty, dbState, dbDate):
     '''
     Get the different titels from \"Titel\" based on objectNumber
     '''
+    global cursor
     query = u"""SELECT REFNUM, RESNAME, ADDRESS, CITY, COUNTY, STATE, CERTDATE FROM main WHERE CITY=%s AND COUNTY=%s AND STATE=%s AND CERTDATE=%s LIMIT 100"""
 
     cursor.execute(query, (dbCity, dbCounty, dbState, dbDate)) 
