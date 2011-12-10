@@ -62,15 +62,22 @@ def addRefnum(match):
     if not(dbCity and dbCounty and dbState and dbDate):
         # We don't have all info, just return
         return match.group(0)
-
-    # Do a trick for independent cities in Virginia
-    if dbState==u'VIRGINIA' and dbCity==dbCounty:
-        dbCity = dbCity + u' (Independent city)'
         
     rows = getMonuments(dbCity, dbCounty, dbState, dbDate)
     if not rows:
-	# Nothing found, just return
-	return match.group(0)
+	# Nothing found, just return, try Virginia
+	# Do a trick for independent cities
+	if dbCity==dbCounty:
+	    dbCity = dbCity + u' (Independent city)'
+	    #Try again
+	    rows = getMonuments(dbCity, dbCounty, dbState, dbDate)
+	    if not rows:
+		# Nothing found in Virginia
+		return match.group(0)
+	else:
+	    # Not in Virginia
+	    return match.group(0)
+
     name = match.group(u'name').strip()
     article = match.group(u'article').strip()
     address = match.group(u'address').replace(u'[', u'').replace(u']', u'').strip()
