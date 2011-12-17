@@ -21,6 +21,7 @@ def convertList(page):
     except TypeError or AttributeError:
         wikipedia.output(u'One of the regexes failed at %s, skipping this page' % (page.title,))
         traceback.print_exc(file=sys.stdout)
+        time.sleep(10)
         return u'Failed'
 
     if not text==newtext:
@@ -44,7 +45,7 @@ def convertHeaders(page, text):
     '''
     Convert the headers of a NRHP list. It's possible to have multiple headers on a page.
     '''
-    pattern = u'\{\|\s*class="wikitable sortable"(\s*style="width:\d+%")?[\s\r\n]+(?P<pos>\!\s*\{\{(NRHP|HD|NHL|NHLD) color\}\}.*[\s\r\n]+)(?P<name>\!.*[\s\r\n]+)(?P<image>\!.*[\s\r\n]+)(?P<date>\!.*[\s\r\n]+)(?P<location>\!.*[\s\r\n]+)(?P<city>\!.*[\s\r\n]+)(?P<description>\!.*[\s\r\n]+)'
+    pattern = u'\{\|\s*class="wikitable sortable"(\s*style="width:\d+%")?[\s\r\n]+(?P<pos>\!\s*\{\{(NRHP|HD|NHL|NHLD|NMON|NHS|NMEM|NHP|NB|NMP|NBP|NBS|NHR|IHS) color\}\}.*[\s\r\n]+)(?P<name>\!.*[\s\r\n]+)(?P<image>\!.*[\s\r\n]+)(?P<date>\!.*[\s\r\n]+)(?P<location>\!.*[\s\r\n]+)(?P<city>\!.*[\s\r\n]+)(?P<description>\!.*[\s\r\n]+)'
 
     return re.sub(pattern, convertHeader, text)
         
@@ -138,7 +139,8 @@ def extractTypeAndPos(line):
     '''
     Extract the NRHP type and the position in the list
     '''
-    pattern = u'\!\s*\{\{(?P<type>.+) color\}\}\s*\|\s*<small>(?P<pos>\d+)</small>'
+    print line
+    pattern = u'\!\s*\{\{(?P<type>.+) color\}\}\s*\|\s*<small>(?P<pos>[\.\d\s]+)</small>'
 
     match = re.search(pattern, line)
 
@@ -337,7 +339,8 @@ def addCounty(page, text):
     countyFromTitle = page.title().replace(u'National Register of Historic Places listings in ', u'').strip()
 
     # Check if we're actually on a county page.
-    if not u'County' in countyFromTitle:
+    # FIXME: Parish and borough
+    if (not u'County' in countyFromTitle) and (not u'Parish' in countyFromTitle):
         return text
     
     foundCountyCategory = False  
@@ -351,6 +354,14 @@ def addCounty(page, text):
             
         countryFromCategory2 = category.titleWithoutNamespace().replace(u'National Register of Historic Places listings in', u'').strip()
         if countryFromCategory2 == countyFromTitle:
+            foundCountyCategory = True
+
+        countryFromCategory3 = category.titleWithoutNamespace().replace(u'Buildings and structures in', u'').strip()
+        if countryFromCategory3 == countyFromTitle:
+            foundCountyCategory = True
+
+        countryFromCategory4 = category.titleWithoutNamespace().replace(u'History of', u'').strip()
+        if countryFromCategory4 == countyFromTitle:
             foundCountyCategory = True
 
     foundCountyPage = False
