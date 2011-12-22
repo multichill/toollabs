@@ -20,7 +20,7 @@ def connectDatabase():
     '''
     global conn
     global cursor
-    conn = MySQLdb.connect('sql.toolserver.org', db='p_erfgoed_nrhp_p', user = config.db_username, passwd = config.db_password, use_unicode=True)
+    conn = MySQLdb.connect('sql.toolserver.org', db='p_erfgoed_nrhp_p', user = config.db_username, passwd = config.db_password, use_unicode=True, charset='utf8')
 
     cursor = conn.cursor()
     return (conn, cursor)
@@ -59,18 +59,19 @@ def addRefnum(match):
     dbCity = getCity(match.group(u'city'))
     (dbCounty, dbState) = getCounty(match.group(u'county'))
     dbDate = match.group(u'date').replace(u'-', u'').strip()
-    if not(dbCity and dbCounty and dbState and dbDate):
+    if not(dbCounty and dbState and dbDate):
         # We don't have all info, just return
         return match.group(0)
         
-    rows = getMonuments(dbCity, dbCounty, dbState, dbDate)
+    rows = getMonuments(dbCounty, dbState, dbDate)
     if not rows:
 	# Nothing found, just return, try Virginia
 	# Do a trick for independent cities
+	# FIXME: Should not be reached anymore
 	if dbCity==dbCounty:
 	    dbCity = dbCity + u' (Independent city)'
 	    #Try again
-	    rows = getMonuments(dbCity, dbCounty, dbState, dbDate)
+	    rows = getMonuments(dbCounty, dbState, dbDate)
 	    if not rows:
 		# Nothing found in Virginia
 		return match.group(0)
@@ -85,6 +86,17 @@ def addRefnum(match):
     for row in rows:
 	dbName = row[1]
 	dbAddress = row[2]
+	nameParts = row[1].split(u', ', 2)
+	if len(nameParts)==2:
+	    dbNameGlued = nameParts[1] + u' ' + nameParts[0]
+	elif len(nameParts)==3:
+	    dbNameGlued = nameParts[1] + u' ' + nameParts[0] + u' ' + nameParts[2]
+	#elif len(nameParts)==4:
+	#    dbNameGlued = nameParts[1] + u' ' + nameParts[0]
+	else:
+	    dbNameGlued = False
+
+	dbNameDashes = dbName.replace(u'--', u'-')
 	#print u'-----------'
 	#print dbName
 	#print name
@@ -93,7 +105,7 @@ def addRefnum(match):
 	#print dbAddress
 	#print address
 	#print u'-----------'
-	if dbName==name or dbName==article or (dbAddress==address and not address==u'Address Restricted'):
+	if dbName==name or dbName==article or dbNameGlued==name or dbNameGlued==article or dbNameDashes==name or dbNameDashes==article or (dbAddress==address and not address==u'Address Restricted'):
 	    #print u'WE HAVE A MATCH'
 	    refnum = row[0]
 	    newtext = match.group(0).replace(u'|refnum=', u'|refnum=' + refnum)
@@ -140,16 +152,16 @@ def getCounty(line):
     return (False, False)
     
 
-def getMonuments(dbCity, dbCounty, dbState, dbDate):
+def getMonuments(dbCounty, dbState, dbDate):
     '''
     Get the different titels from \"Titel\" based on objectNumber
     '''
     global cursor
-    query = u"""SELECT REFNUM, RESNAME, ADDRESS, CITY, COUNTY, STATE, CERTDATE FROM main WHERE CITY=%s AND COUNTY=%s AND STATE=%s AND CERTDATE=%s LIMIT 100"""
+    query = u"""SELECT REFNUM, RESNAME, ADDRESS, CITY, COUNTY, STATE, CERTDATE FROM main WHERE COUNTY=%s AND STATE=%s AND CERTDATE=%s LIMIT 100"""
 
-    cursor.execute(query, (dbCity, dbCounty, dbState, dbDate)) 
+    cursor.execute(query, (dbCounty, dbState, dbDate)) 
     result= cursor.fetchall()
-   
+
     return result
 
 
