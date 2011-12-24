@@ -90,6 +90,8 @@ def addRefnum(match):
 	if len(nameParts)==2:
 	    dbNameGlued = nameParts[1] + u' ' + nameParts[0]
 	elif len(nameParts)==3:
+	    # NRHP adds extra spaces in initials, we remove them
+	    nameParts[1] = nameParts[1].replace(u'. ', u'.')
 	    dbNameGlued = nameParts[1] + u' ' + nameParts[0] + u' ' + nameParts[2]
 	#elif len(nameParts)==4:
 	#    dbNameGlued = nameParts[1] + u' ' + nameParts[0]
@@ -140,6 +142,16 @@ def getCounty(line):
     if matchc:
         dbCounty = matchc.group('county').strip()
         dbState = matchc.group('state').strip().upper()
+	if dbCounty==u'DeKalb':
+	    dbCounty=u'De Kalb'
+	elif dbCounty==u'DuPage':
+	    dbCounty=u'Du Page'
+	elif dbCounty==u'LaPorte':
+	    dbCounty=u'La Porte'
+	elif dbCounty==u'DeSoto':
+	    dbCounty=u'De Soto'
+	elif dbCounty==u'LaCrosse':
+	    dbCounty=u'La Crosse'
         return (dbCounty, dbState)
 
     matchi = re.search(patterni, line)
