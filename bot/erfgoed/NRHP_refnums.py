@@ -88,13 +88,13 @@ def addRefnum(match):
 	dbAddress = row[2]
 	nameParts = row[1].split(u', ', 2)
 	if len(nameParts)==2:
-	    dbNameGlued = nameParts[1] + u' ' + nameParts[0]
+	    dbNameGlued = nameParts[1].strip() + u' ' + nameParts[0].strip()
 	elif len(nameParts)==3:
 	    # NRHP adds extra spaces in initials, we remove them
 	    nameParts[1] = nameParts[1].replace(u'. ', u'.')
-	    dbNameGlued = nameParts[1] + u' ' + nameParts[0] + u' ' + nameParts[2]
-	#elif len(nameParts)==4:
-	#    dbNameGlued = nameParts[1] + u' ' + nameParts[0]
+	    dbNameGlued = nameParts[1].strip() + u' ' + nameParts[0].strip() + u' ' + nameParts[2].strip()
+	elif len(nameParts)==4:
+	    dbNameGlued = nameParts[1].strip() + u' ' + nameParts[2].strip() + u' ' + nameParts[0].strip() + u' ' + nameParts[3].strip()
 	else:
 	    dbNameGlued = False
 
@@ -134,7 +134,7 @@ def getCity(line):
     return False
 
 def getCounty(line):
-    patternc = u'\[\[(?P<county>.+)(County|Parish), (?P<state>.+)\]\]'
+    patternc = u'\[\[(?P<county>.+)(County|Parish|Borough|Census Area), (?P<state>.+)\]\]'
     patterni = u'\[\[(?P<county>.+), (?P<state>.+)\]\]'
 
     matchc = re.search(patternc, line)
