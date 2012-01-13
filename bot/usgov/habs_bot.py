@@ -40,12 +40,44 @@ def findDuplicateImages(photo = None, site = wikipedia.getSite(u'commons', u'com
     hashObject.update(photo.getvalue())
     return site.getFilesFromAnHash(base64.b16encode(hashObject.digest()))
 
-def getMetadata(photo_id):
+def getMetadata(url):
     '''
     Get all the metadata for a single image and store it in the photoinfo dict
     '''
-    photoinfo = {}
-     
+    metadata = {}
+
+    imagePage = urllib.urlopen(url)
+    data = imagePage.read()
+    soup = BeautifulSoup(data)    
+    tiflink = soup.find('a', href=re.compile('http://lcweb2.loc.gov/pnp/habshaer/.*\.tif'))
+    if not tiflink:
+	#print u'Not found at %s' %(url,)
+	return False
+    metadata['tifurl'] = tiflink.get('href')
+   
+    soup = BeautifulSoup(data)
+    # imagelinks = soup.findAll('a', href=re.compile('http://www.loc.gov/pictures/collection/hh/item/.*'))
+    metafields = soup.findAll('meta')#, attribname=re.compile('dc.*'))
+
+    for metafield in metafields:
+	name = metafield.get('name')
+	content = metafield.get('content')
+	if name:
+	    if name==u'dc.identifier' and content.startswith(u'http://hdl.loc.gov/loc.pnp/'):
+		metadata[name]=content
+		metadata[u'identifier']=content.replace(u'http://hdl.loc.gov/loc.pnp/', u'')
+
+	    elif name.startswith(u'dc.'):
+		metadata[name]=content
+    # Do something with county extraction
+    
+    match=re.match(u'^.*,(?P<county>[^,]+),(?P<state>[^,]+)', metadata['dc.title'], re.DOTALL)
+    if match:
+	metadata[u'county'] = match.group(u'county').strip()
+	metadata[u'state'] = match.group(u'state').strip()
+
+    return metadata
+    ''' 
     url = 'http://www.navy.mil/view_single.asp?id=' + str(photo_id)
     navyPage = urllib.urlopen(url)
 
@@ -75,6 +107,7 @@ def getMetadata(photo_id):
     else:
 	# Incorrect photo_id
 	return False
+    '''
 
 def getNavyIdentifier(url):
     result = url
@@ -213,31 +246,31 @@ def buildTitle(photo_id, metadata):
 
 
 
-def processPhoto(photo_id):
+def processPhoto(url):
     '''
     Work on a single photo at 
     http://www.navy.mil/view_single.asp?id=<photo_id>    
     get the metadata, check for dupes, build description, upload the image
     '''
+    print url
 
     # Get all the metadata
-    metadata = getMetadata(photo_id)
-    
+    metadata = getMetadata(url)
     if not metadata:
-        #Incorrect photo_id
-        return False
+	# No image at the page
+	return False
 
-    photo = downloadPhoto(metadata['url'])
+    photo = downloadPhoto(metadata['tifurl'])
 
     duplicates = findDuplicateImages(photo)
     #duplicates = False
-    # We don't want to upload tupes
+    # We don't want to upload dupes
     if duplicates:
         wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
 	# The file is at Commons so return True
         return True
-    
-    title = buildTitle(photo_id, metadata)
+    '''
+    title = buildTitle(metadata)
     description = buildDescription(photo_id, metadata)
 
     wikipedia.output(title)
@@ -251,25 +284,23 @@ def processPhoto(photo_id):
 	#High res is missing, just skip it
 	pass
     return False
+    ''' 
 
 def processSearchPage(page_id):
-    # http://www.loc.gov/pictures/search/?fa=displayed%3Aanywhere&sp=18473&co=hh&st=list
-    # http://www.loc.gov/pictures/collection/hh/item/
+    #url = 'http://www.loc.gov/pictures/collection/hh/item/ak0003.color.570352c/'
+    url = 'http://www.loc.gov/pictures/search/?fa=displayed%%3Aanywhere&sp=%s&co=hh&st=list' %(str(page_id),)
+    #url = 'http://www.loc.gov/pictures/search/?fa=displayed%3Aanywhere&sp=18473&co=hh&st=list'
 
-        photoinfo = {}
-     
-    url = 'http://www.loc.gov/pictures/search/?fa=displayed%3Aanywhere&sp=%s&co=hh&st=list' %(str(page_id),)
-    
     searchPage = urllib.urlopen(url)
-
     data = searchPage.read()
-
     soup = BeautifulSoup(data)
+    #allTags = soup.findAll(True)
+    imagelinks = soup.findAll('a', href=re.compile('http://www.loc.gov/pictures/collection/hh/item/.*'))
+    for imagelink in imagelinks:
+	processPhoto(imagelink.get('href'))
 
-    for photourl in soup.findall('a', href=re.compile('http://www.loc.gov/pictures/collection/hh/item/')):
-        print photourl
 
-def processSearchPages(start_id=0, end_id=20000):
+def processSearchPages(start_id=1, end_id=20000):
     '''
     Loop over a bunch of images
     '''
@@ -297,9 +328,9 @@ def main(args):
     '''
     Main loop.
     '''
-    start_id = 0
+    start_id = 1
     end_id   = 18473
-    #single_id = 0
+    single_id = 0
     #latest = False
     #updaterun = False
     site = wikipedia.getSite('commons', 'commons')
