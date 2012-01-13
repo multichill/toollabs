@@ -165,60 +165,32 @@ def getDateAndLocation(description):
     return (date, location)
 
 
-def buildDescription(photo_id, metadata):
+def getDescription(metadata):
     '''
-    Create the description of the image based on the metadata
+    Generate a description for a file
     '''
-    description = u''
-
-    description = description + u'== {{int:filedesc}} ==\n'
-    description = description + u'{{Information\n'
-    description = description + u'|description={{en|1=' + metadata.get('description') + u'}}\n'
-    description = description + u'|date=' + metadata.get('date') + u'\n' # MM/DD/YYYY
-    #description = description + u'|source={{Navy News Service|' + str(photo_id) + u'}}\n'
-    description = description + u'|source={{ID-USMil|' + metadata.get('navyid') + u'|Navy|url=http://www.navy.mil/view_single.asp?id=' + str(photo_id) + u'}}\n'
-    description = description + u'|author=' + metadata.get('author') + u'\n'
-    description = description + u'|permission=\n'
-    description = description + u'|other_versions=\n'
-    description = description + u'|other_fields=\n'
+		    
+    description = u'{{User:Multichill/HABS\n'
+    for key, value in metadata.iteritems():
+	description = description + u'|' + key + u'=%(' + key + u')s\n'
     description = description + u'}}\n'
-    description = description + u'\n'
-    description = description + u'== {{int:license}} ==\n'
-    description = description + u'{{PD-USGov-Military-Navy}}\n'
-    description = description + u'\n'
-    if not metadata.get('ship')==u'':
-	description = description + getShipCategory(metadata.get('ship')) + u'\n'
-    else:
-	description = description + u'[[Category:Images from US Navy, location ' + metadata.get('location') + u']]\n'
-    #else:
-    #	description = description + u'{{Uncategorized-navy}}\n'
-    #description = description + u''
+	
+    return description % metadata
 
-    return description
-
-def getShipCategory(ship):
-    '''
-    Try to find a ship category based on the ship's name
-    '''
-    cleanedUpShip = re.sub(u'(USS.*)\((\w+)\s(\w+)\)', u'\\1(\\2-\\3)', ship)
-    shipPage = wikipedia.Page(wikipedia.getSite('commons', 'commons'), u'Category:' + cleanedUpShip)
-    if shipPage.exists():
-	return u'[[Category:' + cleanedUpShip + u']]'	
-    # No category found, add temp one
-    return u'[[Category:Images from US Navy, ship ' + ship + u']]'
-
-def buildTitle(photo_id, metadata):
+def getTitle(metadata):
     '''
     Build a valid title for the image to be uploaded to.
     '''
-    description = metadata['shortdescription']
-    if len(description)>120:
-	description = description[0 : 120]
-    #elif len(description) < 10:
-    #	#Stupid title blacklist
-    #	description = u'navy_' + description
+    title = metadata['dc.title']
+    if len(title)>120:
+	title = title[0 : 120]
+	title = title.strip()
 
-    title = u'US_Navy_' + metadata['navyid'] + u'_' + description + '.jpg'
+    if title.startswith(u' - '):
+	title = title[3:]
+    identifier = metadata['identifier'].replace(u'/', u'.')
+
+    title = u'%s_-_LOC_-_%s_.tif' % (title, identifier)
 
     title = re.sub(u"[<{\\[]", u"(", title)
     title = re.sub(u"[>}\\]]", u")", title)
@@ -240,7 +212,6 @@ def buildTitle(photo_id, metadata):
     title = title.replace(u"..", u".")
     title = title.replace(u"._.", u".")
     
-    #print title
     return title
 
 
@@ -269,22 +240,16 @@ def processPhoto(url):
         wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
 	# The file is at Commons so return True
         return True
-    '''
-    title = buildTitle(metadata)
-    description = buildDescription(photo_id, metadata)
+
+    description = getDescription(metadata)
+    title = getTitle(metadata)
 
     wikipedia.output(title)
     #wikipedia.output(description)
 
-    try:
-	bot = upload.UploadRobot(metadata['url'], description=description, useFilename=title, keepFilename=True, verifyDescription=False, targetSite = wikipedia.getSite('commons', 'commons'))
-	bot.upload_image(debug=False)
-	return True
-    except wikipedia.PageNotFound:
-	#High res is missing, just skip it
-	pass
-    return False
-    ''' 
+    bot = upload.UploadRobot(metadata['tifurl'], description=description, useFilename=title, keepFilename=True, verifyDescription=False, targetSite = wikipedia.getSite('commons', 'commons'))
+    bot.upload_image(debug=False)
+    return True
 
 def processSearchPage(page_id):
     #url = 'http://www.loc.gov/pictures/collection/hh/item/ak0003.color.570352c/'
