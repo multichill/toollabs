@@ -256,13 +256,20 @@ def processSearchPage(page_id):
     url = 'http://www.loc.gov/pictures/search/?fa=displayed%%3Aanywhere&sp=%s&co=hh&st=list' %(str(page_id),)
     #url = 'http://www.loc.gov/pictures/search/?fa=displayed%3Aanywhere&sp=18473&co=hh&st=list'
 
+    imageurls = set()
+
     searchPage = urllib.urlopen(url)
     data = searchPage.read()
     soup = BeautifulSoup(data)
     #allTags = soup.findAll(True)
     imagelinks = soup.findAll('a', href=re.compile('http://www.loc.gov/pictures/collection/hh/item/.*'))
+    
+    # First collect all links. Set will remove the dupes
     for imagelink in imagelinks:
-	processPhoto(imagelink.get('href'))
+	imageurls.add(imagelink.get('href'))
+    # Now work on the actual urls
+    for imageurl in imageurls:
+	processPhoto(imageurl)
 
 
 def processSearchPages(start_id=1, end_id=20000):
