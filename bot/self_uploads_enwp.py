@@ -22,13 +22,17 @@ def processUser(cursor, userpage):
     site = userpage.site()
     username = userpage.title(withNamespace=False)
     subpage = wikipedia.Page(site, u'User:Multichill/top_self_uploaders/%s' % (username,))
-    images = userSelfUploadsQuery(cursor, username)
 
     wikipedia.output(u'Working on %s' % (subpage.title(),))
     if subpage.exists():
-	oldtext = subpage.get()
+	oldtext = subpage.get().strip()
+	if not oldtext == u'':
+	    # I don't want to change existing galleries unless they're empty
+	    return False
     else:
 	oldtext = u''
+
+    images = userSelfUploadsQuery(cursor, username)
 
     if images:
 	# Should probably make some sort of pretty header
@@ -75,7 +79,7 @@ def userSelfUploadsQuery(cursor, username):
     LIMIT 350"""
 
     images = []
-    cursor.execute(query % (username,))
+    cursor.execute(query % (username.encode('utf-8').decode('latin-1'),))
     result = cursor.fetchall()
     
     for (image,) in result:
@@ -91,7 +95,6 @@ def main():
     basepage = wikipedia.Page(site, u'User:Multichill/top self uploaders')
 
     for userpage in basepage.linkedPages():
-	print 
 	if userpage.namespace()==2 and not '/' in userpage.title():
 	    processUser(cursor, userpage)
 
