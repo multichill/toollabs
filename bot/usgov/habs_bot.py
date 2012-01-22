@@ -11,7 +11,7 @@ Screen scraping is done with BeautifulSoup so this needs to be installed.
 
 '''
 import sys, os, StringIO, hashlib, base64
-import os.path
+import os.path, subprocess
 import urllib, re
 from urllib import FancyURLopener
 from datetime import datetime
@@ -28,16 +28,24 @@ def downloadPhoto(photoUrl = ''):
     TODO: Add exception handling
     '''
     imageFile=urllib.urlopen(photoUrl).read()
-    return StringIO.StringIO(imageFile)
+    filename = u'/tmp/habs_image.tif'
+    f = open(filename, 'wrb')
+    f.truncate(0)
+    f.write(imageFile)
+    f.close()
+    return filename
 
-def findDuplicateImages(photo = None, site = wikipedia.getSite(u'commons', u'commons')):
+def findDuplicateImages(filename, site = wikipedia.getSite(u'commons', u'commons')):
     '''
     Takes the photo, calculates the SHA1 hash and asks the mediawiki api for a list of duplicates.
 
     TODO: Add exception handling, fix site thing
     '''
+    f = open(filename, 'rb')
+    data = f.read()
     hashObject = hashlib.sha1()
-    hashObject.update(photo.getvalue())
+    hashObject.update(data) 
+    f.close()
     return site.getFilesFromAnHash(base64.b16encode(hashObject.digest()))
 
 def getMetadata(url):
@@ -76,94 +84,8 @@ def getMetadata(url):
 	metadata[u'county'] = match.group(u'county').strip()
 	metadata[u'state'] = match.group(u'state').strip()
 
+    metadata[u'basefilename'] = getBaseTitle(metadata)
     return metadata
-    ''' 
-    url = 'http://www.navy.mil/view_single.asp?id=' + str(photo_id)
-    navyPage = urllib.urlopen(url)
-
-    data = navyPage.read()
-
-    soup = BeautifulSoup(data)
-    
-    if soup.find("meta", {'name' : 'HI_RES_IMAGE'}):
-	photoinfo['url'] = soup.find("meta", {'name' : 'HI_RES_IMAGE'}).get('content')
-    if soup.find("meta", {'name' : 'MED_RES_IMAGE'}):
-	photoinfo['url_medium'] = soup.find("meta", {'name' : 'MED_RES_IMAGE'}).get('content')
-	
-    if soup.find("meta", {'name' : 'DESCRIPTION'}):
-	photoinfo['fulldescription'] = soup.find("meta", {'name' : 'DESCRIPTION'}).get('content')
-    if soup.find("meta", {'name' : 'ALT_TAG'}):
-	photoinfo['shortdescription'] = soup.find("meta", {'name' : 'ALT_TAG'}).get('content')
-
-    if photoinfo.get('url') and photoinfo.get('fulldescription') and photoinfo.get('shortdescription'):
-	photoinfo['navyid'] = getNavyIdentifier(photoinfo['url'])
-	photoinfo['description'] = re.sub(u'\w*-\w*-\w*-\w*[\r\n\s]+', u'', photoinfo['fulldescription'])
-	#photoinfo['description'] = cleanDescription(photoinfo['fulldescription'])
-	photoinfo['author'] = getAuthor(photoinfo['fulldescription'])
-	(photoinfo['date'], photoinfo['location']) = getDateAndLocation(photoinfo['fulldescription'])
-	photoinfo['ship'] = getShip(photoinfo['fulldescription'])
-	
-	return photoinfo
-    else:
-	# Incorrect photo_id
-	return False
-    '''
-
-def getNavyIdentifier(url):
-    result = url
-    result = result.replace(u'http://www.navy.mil/management/photodb/photos/', u'')
-    result = result.replace(u'.jpg', u'')
-    return result
-
-def getAuthor(description):
-    authorregex = []
-    authorregex.append(u'\((U.S. [^\)]+)[\\/]\s?Released\)')
-    authorregex.append(u'(U.S. \s?Navy photo by .*)\(RELEASED\)')
-
-    for regex in authorregex:
-	matches = re.search(regex, description, re.I)
-	if  matches:
-	    return matches.group(1)
-    
-    #Nothing matched
-    return u'U.S. Navy photo<!-- Please update this from the description field-->'
-
-def getShip(description):
-    # Try to find a USS ...(...) ship
-    shipRegex = u'(USNS|USS) [^\(]{1,25}\([^\)]+\)'
-
-    matches = re.search(shipRegex, description, re.I)
-    if matches:
-	#print matches.group(0)
-        return matches.group(0)
-    else:
-	# No ship found
-        return u''
-
-def getDateAndLocation(description):
-    '''
-    Get date and location.
-    Is one regex so I might as well build one function for it
-    '''
-    date = u''
-    location = u'unknown'
-    #dateregex = u'\(([^\)]+\d\d\d\d)\)'
-    #locationregex = u'^([^\(^\r^\n]+)\(([^\)]+\d\d\d\d)\)'
-    regexlist = []
-    regexlist.append(u'^([^\(^\r^\n]+)\(([^\)]+\d\d\d\d)\)')
-    regexlist.append(u'^([^\r^\n]+)\s([^\s]* \d{1,2}, \d\d\d\d)\s+(-|--|&ndash)')
-    #matches = re.search(regex, description, re.MULTILINE)
-    for regex in regexlist:
-        matches = re.search(regex, description, re.MULTILINE)
-        if  matches:
-	    date = matches.group(2)
-	    location = matches.group(1)
-	    location = location.strip()
-	    location = location.rstrip(',')
-	    location = re.sub(u'\w*-\w*-\w*-\w*\s', u'', location)
-            return (date, location)
-    return (date, location)
-
 
 def getDescription(metadata):
     '''
@@ -177,7 +99,7 @@ def getDescription(metadata):
 	
     return description % metadata
 
-def getTitle(metadata):
+def getBaseTitle(metadata):
     '''
     Build a valid title for the image to be uploaded to.
     '''
@@ -190,7 +112,7 @@ def getTitle(metadata):
 	title = title[3:]
     identifier = metadata['identifier'].replace(u'/', u'.')
 
-    title = u'%s_-_LOC_-_%s_.tif' % (title, identifier)
+    title = u'%s_-_LOC_-_%s' % (title, identifier)
 
     title = re.sub(u"[<{\\[]", u"(", title)
     title = re.sub(u"[>}\\]]", u")", title)
@@ -215,7 +137,13 @@ def getTitle(metadata):
     return title
 
 
-
+def makeJpgFromTif(sourcetif, destjpg):
+    if os.path.exists(destjpg):
+	# File already exists, delete it
+	os.remove(destjpg)
+    cmd = [u'convert', sourcetif, '-quality', '100', destjpg]
+    subprocess.call(cmd)
+    return
 
 def processPhoto(url):
     '''
@@ -225,31 +153,79 @@ def processPhoto(url):
     '''
     print url
 
-    # Get all the metadata
+    # Get all the metadata (this includes the suggested title)
     metadata = getMetadata(url)
     if not metadata:
 	# No image at the page
 	return False
 
-    photo = downloadPhoto(metadata['tifurl'])
+    site = wikipedia.getSite('commons', 'commons')
 
-    duplicates = findDuplicateImages(photo)
-    #duplicates = False
-    # We don't want to upload dupes
-    if duplicates:
-        wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
-	# The file is at Commons so return True
-        return True
+    # Check if the .tif exists
+    tiffilename = metadata[u'basefilename'] + u'.tif'
+    tifImagePage = wikipedia.Page(site, u'File:' + tiffilename)
+    tifImageExists = tifImagePage.exists()
+    wikipedia.output(tiffilename)
 
+    # Check if the .jpg exists
+    jpgfilename = metadata[u'basefilename'] + u'.jpg'
+    jpgImagePage = wikipedia.Page(site, u'File:' + jpgfilename)
+    jpgImageExists = jpgImagePage.exists()
+    wikipedia.output(jpgfilename)
+
+    # If both exist with our names, just return
+    if tifImageExists and jpgImageExists:
+	wikipedia.output(u'The .tif and .jpg file already exist, skipping')
+	return True
+
+    if jpgImageExists:
+	wikipedia.output(u'The .jpg file already exist, assuming the .tif is also online already, skipping')
+	return True
+
+    # Download the tif file to a temp dir
+    tmptiffile = downloadPhoto(metadata['tifurl'])
+
+    # If the tif already exists under our name or another name, store it
+    if not tifImageExists:
+	duplicates = findDuplicateImages(tmptiffile)
+	if duplicates:
+	    tiffilename = duplicates.pop()
+	    wikipedia.output(u'Found duplicate image at %s' % tiffilename)
+	    tifImageExists = True
+
+    # If both exists with the tif a different name, just return
+    if tifImageExists and jpgImageExists:
+	wikipedia.output(u'The .tif exists with a diferent name and the .jpg file already exists too, skipping')
+	return True
+
+    # Update the metadata with the filenames we figured out. This is used for other_versions
+    metadata['tiffilename'] = tiffilename.replace(u'_', u' ')
+    metadata['jpgfilename'] = jpgfilename.replace(u'_', u' ')
+
+    # Time to build the description
     description = getDescription(metadata)
-    title = getTitle(metadata)
 
-    wikipedia.output(title)
+
+    # If the tif image is not already online, upload it:
+    if not tifImageExists:
+	tifbot = upload.UploadRobot(tmptiffile, description=description, useFilename=tiffilename, keepFilename=True, verifyDescription=False, targetSite = site)
+	#wikipedia.output(met)
+	#wikipedia.output(description)
+	tifbot.upload_image(debug=False)
+    # If the jpg image is not already online, convert it and upload it:
+    if not jpgImageExists:
+	makeJpgFromTif(tmptiffile, u'/tmp/habs_image.jpg')
+	jpgbot = upload.UploadRobot(u'/tmp/habs_image.jpg', description=description, useFilename=jpgfilename, keepFilename=True, verifyDescription=False, targetSite = site)
+	wikipedia.output(metadata['jpgfilename'])
+	wikipedia.output(description)
+	jpgbot.upload_image(debug=False)
+
+    #wikipedia.output(title)
     #wikipedia.output(description)
 
-    bot = upload.UploadRobot(metadata['tifurl'], description=description, useFilename=title, keepFilename=True, verifyDescription=False, targetSite = wikipedia.getSite('commons', 'commons'))
-    bot.upload_image(debug=False)
-    return True
+    #bot = upload.UploadRobot(metadata['tifurl'], description=description, useFilename=title, keepFilename=True, verifyDescription=False, targetSite = wikipedia.getSite('commons', 'commons'))
+    #bot.upload_image(debug=False)
+    #return True
 
 def processSearchPage(page_id):
     #url = 'http://www.loc.gov/pictures/collection/hh/item/ak0003.color.570352c/'
