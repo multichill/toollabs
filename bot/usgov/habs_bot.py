@@ -92,7 +92,7 @@ def getDescription(metadata):
     Generate a description for a file
     '''
 		    
-    description = u'{{User:Multichill/HABS\n'
+    description = u'{{subst:User:Multichill/HABS|subst=subst:\n'
     for key, value in metadata.iteritems():
 	description = description + u'|' + key + u'=%(' + key + u')s\n'
     description = description + u'}}\n'
