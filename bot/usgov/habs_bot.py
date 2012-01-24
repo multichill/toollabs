@@ -11,7 +11,7 @@ Screen scraping is done with BeautifulSoup so this needs to be installed.
 
 '''
 import sys, os, StringIO, hashlib, base64
-import os.path, subprocess
+import os.path, subprocess, json
 import urllib, re
 from urllib import FancyURLopener
 from datetime import datetime
@@ -77,6 +77,13 @@ def getMetadata(url):
 
 	    elif name.startswith(u'dc.'):
 		metadata[name]=content
+    
+    # Get the JSON page for the call_number
+    jsonurl = url + u'?fo=json'
+    jsonPage = urllib.urlopen(jsonurl)
+    jsondata = json.load(jsonPage) 
+    metadata['call_number'] = jsondata["item"]["call_number"]
+    
     # Do something with county extraction
     
     match=re.match(u'^.*,(?P<county>[^,]+),(?P<state>[^,]+)', metadata['dc.title'], re.DOTALL)
@@ -158,6 +165,16 @@ def processPhoto(url):
     if not metadata:
 	# No image at the page
 	return False
+
+    # Blacklist some images
+    # FIXME: Do something with fancy regexes
+    blacklist = [u'Photocopy',
+		 u'Historic Society',
+		 ]
+    for blitem in blacklist:
+	if blitem in metadata['dc.title']:
+	    wikipedia.output(u'Found a blacklisted word in the title: "%s"' % blitem)
+	    return False
 
     site = wikipedia.getSite('commons', 'commons')
 
