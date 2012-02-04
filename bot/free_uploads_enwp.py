@@ -13,7 +13,7 @@ def connectDatabase():
     '''
     Connect to the mysql database, if it fails, go down in flames
     '''
-    conn = MySQLdb.connect('enwiki-p.db.toolserver.org', db='enwiki_p', user = config.db_username, passwd = config.db_password, use_unicode=True)
+    conn = MySQLdb.connect('enwiki-p.rrdb.toolserver.org', db='enwiki_p', user = config.db_username, passwd = config.db_password, use_unicode=True)
 
     cursor = conn.cursor()
     return (conn, cursor)
