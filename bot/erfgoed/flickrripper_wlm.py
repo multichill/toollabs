@@ -2,7 +2,7 @@
 # -*- coding: utf-8  -*-
 '''
 
-Bot to copy files from http://www.flickr.com/groups/wikilovesmonuments/pool/ to Commons
+Bot to copy files from http://www.flickr.com/groups/wlm2011nl/pool/ to Commons
 
 '''
 import sys
@@ -28,7 +28,7 @@ def processPhoto(flickr=None, photo_id=u'', flickrreview=False, reviewer=u'', ad
         if duplicates:
             wikipedia.output(u'Found duplicate image at %s' % duplicates.pop())
         else:
-            filename = flickrripper.getFilename(photoInfo, project=u'WLM')
+            filename = flickrripper.getFilename(photoInfo, project=u'WLM_2011')
             flinfoDescription = flickrripper.getFlinfoDescription(photo_id)
 
 	    rijksmonumentid = getRijksmonumentid(photoInfo)
@@ -61,7 +61,7 @@ def buildDescription(flinfoDescription=u'', flickrreview=False, reviewer=u'', ad
         description = wikipedia.removeCategoryLinks(description, wikipedia.getSite('commons', 'commons'))
     
     # Add template
-    description = description.replace(u'{{cc-by', u'{{Wiki Loves Monuments}}\n{{cc-by')
+    description = description.replace(u'{{cc-by', u'{{Wiki Loves Monuments 2011|nl}}\n{{cc-by')
 
     if flickrreview:
         if reviewer:
@@ -109,7 +109,7 @@ def main():
         wikipedia.output('Any flickr user can get a key at http://www.flickr.com/services/api/keys/apply/')
         return
 
-    group_id = u'1516413@N22'
+    group_id = u'1710854@N24'
     addCategory = u'Rijksmonumenten'
     removeCategories = True
     autonomous = True
