@@ -62,7 +62,7 @@ def addRefnum(match):
     if not(dbCounty and dbState and dbDate):
         # We don't have all info, just return
         return match.group(0)
-        
+    
     rows = getMonuments(dbCounty, dbState, dbDate)
     if not rows:
 	# Nothing found, just return, try Virginia
@@ -99,6 +99,11 @@ def addRefnum(match):
 	    dbNameGlued = False
 
 	dbNameDashes = dbName.replace(u'--', u'-')
+	dbNameDashes = dbNameDashes.replace(u' #', u' No. ')
+
+	if dbNameGlued:
+	    dbNameGlued = dbNameGlued.replace(u'--', u'-')
+	    dbNameGlued = dbNameGlued.replace(u' #', u' No. ')
 	#print u'-----------'
 	#print dbName
 	#print name
