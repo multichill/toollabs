@@ -26,7 +26,7 @@ function buildStartScreen($query) {
 	$result[] = "<H2>Europeana search tool query</H2>";
 	$result[] = '<img alt="File:Europeana logo 3 eu black.png" src="http://upload.wikimedia.org/wikipedia/commons/b/be/Europeana_logo_3_eu_black.png" width="128" height="70" />';
 	$result[] = '<p>With this tool you can find images in Europeana to be uploaded to Wikimedia Commons.</p>';
-	$result[] = '<p><b>Be careful to check if the file is <a href="https://secure.wikimedia.org/wikipedia/commons/wiki/Commons:Licensing">free</a> before you upload it!</b></p>';
+	$result[] = '<p><b>Be careful to check if the file is <a href="https://commons.wikimedia.org/wiki/Commons:Licensing">free</a> before you upload it!</b></p>';
 	$result[] = '<form method="get" accept-charset="UTF-8" name="europeana-search" id="europeana-search">';
 	$result[] = '<input class="search-input" name="query" id="query" type="text" title="Search term(s)" value="' . urldecode($query) . '" maxlength="75"/>';
 	$result[] = '<input id="submit_search" type="submit" class="button" value="Search" />';
@@ -111,7 +111,7 @@ function getSingleRecordPage($record) {
 	$result[] = "<H2>" . $metadata['dc:title'][0] . "</H2>";
 	$result[] = '<a href=' . $metadata['europeana:isShownAt'][0] . ' class="image"><img alt="Download the original image" target="_blank" src="' . $metadata['europeana:object'][0] . '" height="120" /><p><small>(click thumbnail to download the original)</small></p></a>';
 	$result[] = '<p>' . $metadata['dc:description'][0] . '</p>';
-	$result[] = '<p><b>Be careful to check if the file is <a href="https://secure.wikimedia.org/wikipedia/commons/wiki/Commons:Licensing">free</a> before you upload it!</b></p>';
+	$result[] = '<p><b>Be careful to check if the file is <a href="https://commons.wikimedia.org/wiki/Commons:Licensing">free</a> before you upload it!</b></p>';
 	$result[] = '<a href="' . makeUploadLink($metadata) .'" title="Upload this file to Wikimedia Commons" target="_blank">Upload this file to Wikimedia Commons</a>';
 	//$result[] = getTemplateCode("Europeana bla", $metadata);
 	return implode("\n", $result);
@@ -119,7 +119,7 @@ function getSingleRecordPage($record) {
 
 function makeUploadLink($metadata) {
 	$result = array();
-	$result[] = "https://secure.wikimedia.org/wikipedia/commons/w/index.php?title=Special:Upload&uploadformstyle=basic";
+	$result[] = "https://commons.wikimedia.org/w/index.php?title=Special:Upload&uploadformstyle=basic";
 	//FIXME: Figure out the extension
 	$wpDestFile = $metadata['dc:title'][0] . '.jpg';
 	$wpUploadDescription = getTemplateCode ("Europeana upload", $metadata);
