@@ -1,8 +1,13 @@
 from dbfpy import dbf
+import sys, time
+#sys.path.append("/home/multichill/pywikipedia")
+sys.path.append("c:/pywikipedia/")
+import wikipedia as pywikibot
+import config
 import geo_helper
 
-def demo1():
-    db = dbf.Dbf('Listed_Buildings.dbf', readOnly=1)
+def procesDB(db):
+    #db = dbf.Dbf('Listed_Buildings.dbf', readOnly=1)
     #dbf1.openFile('Listed_Buildings.dbf', readOnly=1)
     #print db.fieldNames()
 
@@ -10,45 +15,6 @@ def demo1():
     #fields[u'HBNUM'] = set()
     #fields[u'COUNAME']
     #fields[u'PARBUR']
-    locations = {}
-    hbnums = set()
-    counties = set()
-    for record in db:
-        recorddict = record.asDict()
-        if not recorddict[u'HBNUM'] in hbnums:
-            counties.add(recorddict[u'COUNAME'])
-            if not (recorddict[u'COUNAME'], recorddict[u'PARBUR']) in locations:
-                locations[(recorddict[u'COUNAME'], recorddict[u'PARBUR'])] = []
-            hbnums.add(recorddict[u'HBNUM'])
-
-            locations[(recorddict[u'COUNAME'], recorddict[u'PARBUR'])].append({
-                u'hbnum' : recorddict[u'HBNUM'],
-                u'name' : recorddict[u'ADDRESS'],
-                u'category' : recorddict[u'CATEGORY'],
-                u'date' : recorddict[u'LISTDATE1'],
-                u'x' : recorddict[u'X'],
-                u'y' : recorddict[u'Y']
-                })
-
-    shortest = 100
-    longest = 0
-
-    for (county, parbur) in locations:
-        items = len(locations[(county, parbur)])
-        if items > 10 and items < 20:
-            print u'%s - %s - %s' % (county, parbur, items)
-            if items < shortest:
-                shortest = items
-            if items > longest:
-                longest = items
-
-    print u'Shortest list is %s items' % shortest
-    print u'Longest list is %s items' % longest
-    print u'Total numer of lists: %s' % len(locations)
-    print u'Number of counties: %s'% len(counties)
-
-    for county in sorted(counties):
-        print county
 
     countyMappings = {
         u'ABERDEEN, CITY OF' : u'City of Aberdeen',
@@ -84,10 +50,89 @@ def demo1():
         u'WEST LOTHIAN' : u'West Lothian',
         u'WESTERN ISLES' : u'Western Isles',
     }
+    
+    locations = {}
+    hbnums = set()
+    counties = set()
+    #parburs = []
+    for record in db:
+        recorddict = record.asDict()
+        if not recorddict[u'HBNUM'] in hbnums:
+            counties.add(recorddict[u'COUNAME'])
+            #parburs.append(recorddict[u'PARBUR'])
+            if not (recorddict[u'COUNAME'], recorddict[u'PARBUR']) in locations:
+                locations[(recorddict[u'COUNAME'], recorddict[u'PARBUR'])] = []
+            hbnums.add(recorddict[u'HBNUM'])
+
+            locations[(recorddict[u'COUNAME'], recorddict[u'PARBUR'])].append({
+                u'hbnum' : recorddict[u'HBNUM'],
+                u'name' : recorddict[u'ADDRESS'],
+                u'category' : recorddict[u'CATEGORY'],
+                u'date' : recorddict[u'LISTDATE1'],
+                u'x' : recorddict[u'X'],
+                u'y' : recorddict[u'Y']
+                })
+
+    shortest = 100
+    longest = 0
+
+    locationnames = []
+    
+    for (county, parbur) in locations:
+        items = len(locations[(county, parbur)])
+        if items > 10 and items < 20 or True:
+            print u'%s - %s - %s' % (county, parbur, items)
+            locationnames.append(parbur.title() + u', ' + countyMappings[county].replace(u' (council area)', u''))
+            if items < shortest:
+                shortest = items
+            if items > longest:
+                longest = items
+
+    print u'Shortest list is %s items' % shortest
+    print u'Longest list is %s items' % longest
+    print u'Total numer of lists: %s' % len(locations)
+    print u'Number of counties: %s'% len(counties)
+
+    for county in sorted(counties):
+        print county
+
+    for locationname in sorted(locationnames):
+        print u'*[[' + locationname + u']]' 
+    #for parbur in sorted(parburs):
+    #    print parbur
+
+    #for key in sorted(countyMappings):
+    #    name = countyMappings[key].replace(u' (council area)', u'')
+    #    print u'* [[List of listed buildings in %s]]' % (name, )
+
+    for countycaps in sorted(countyMappings):
+        print u'------------------------------'
+        countyarticle = countyMappings[countycaps]
+        countytitle = countyMappings[countycaps].replace(u' (council area)', u'')
+        print u'This is a list of [[listed building#Scotland|listed building]]s in [[%s|%s]]. The list is split out by [[List of civil parishes in Scotland|parish]].' % (countyarticle, countytitle)
+        print u''
+        items = []
+        for county, parbur in locations:
+            if countycaps == county:
+                listTitle = u'List of listed buildings in %s, %s' % (parbur.title(), countytitle) 
+                items.append(u'* [[List of listed buildings in %s, %s]]' % (parbur.title(), countytitle))
+                createListPage(listTitle, parbur.title(), countyarticle, countytitle, locations[(county, parbur)])
+        for item in sorted(items):
+            print item
+
+        print u''
+        print u'{{Commons category|Listed buildings in %s}}' % (countyarticle,)
+        print u'{{Navigation lists of listed buildings in Scotland}}'
+        print u'[[Category:Lists of listed buildings in Scotland|%s]]' % (countyarticle,)
+        print u'[[Category:Lists of listed buildings in %s| ]]' % (countyarticle,)           
+                            
+                
+    #    name = countyMappings[key].replace(u' (council area)', u'')
+    #    print u'* [[List of listed buildings in %s]]' % (name, )
         
     # Get the county article and county name
     # Get the parish article and parish name
-
+    '''
     print u'This is a \'\'\'list of [[listed building#Scotland|listed building]]s in the [[List of civil parishes in Scotland|parish]] [[Uig, Lewis|Uig]]\'\'\', [[Western Isles]], [[Scotland]].'
     print u''
     
@@ -122,7 +167,7 @@ def demo1():
     print u''
     print u'[[Category:Lists of listed buildings in Western Isles]]'                   
         
-        
+    '''
     #for fldName in db.fieldNames():
     #     print '%s:\t %s'%(fldName, record[fldName])
 
@@ -148,9 +193,87 @@ PERTH AND KINROSS - TIBBERMORE
     dbf1.close()
     '''
 
+def createListPage(listTitle, parbur, countyarticle, countytitle, items):
+    if not countyarticle==u'Aberdeenshire':
+        return
+    
+    text = u''
+
+    text = text + u'This is a list of [[listed building#Scotland|listed building]]s in the [[List of civil parishes in Scotland|parish]] of '
+    if countyarticle == countytitle:
+        text = text + u'[[%s, %s|%s]] in [[%s]], [[Scotland]].\n' % (parbur, countytitle, parbur, countyarticle)
+        text = text + u'{{KML}}\n'
+        text = text + u'== List ==\n'
+        text = text + u'{{HB Scotland header|county=[[%s]]|parbur=[[%s, %s|%s]]}}\n' % (countyarticle, parbur, countytitle, parbur)
+    else:
+        text = text + u'[[%s, %s|%s]] in [[%s|%s]], [[Scotland]].\n' % (parbur, countytitle, parbur, countyarticle, countytitle)
+        text = text + u'{{KML}}\n'
+        text = text + u'== List ==\n'
+        text = text + u'{{HB Scotland header|county=[[%s|%s]]|parbur=[[%s, %s|%s]]}}\n' % (countyarticle, countytitle, parbur, countytitle, parbur)
+
+    for item in items:
+        text = text + u'{{HB Scotland row\n'
+        text = text + u'|hbnum = %s\n' % item[u'hbnum']
+        text = text + u'|name = %s\n' % item[u'name'].title().replace(u'\'S', u'\'s').rstrip(u'.')
+        text = text + u'|notes = \n'
+        text = text + u'|category = %s\n' % item[u'category']
+        #text = text + u'|date = %s\n' % item[u'date']
+        (lat_dec, long_dec) = geo_helper.turn_eastingnorthing_into_osgb36(item[u'x'],item[u'y'])
+        (lat, lon, height) = geo_helper.turn_osgb36_into_wgs84(lat_dec, long_dec,0)
+        text = text + u'|lat = %s\n' % round(lat, 6)
+        text = text + u'|lon = %s\n' % round(lon, 6)
+        text = text + u'|image = \n' 
+        text = text + u'}}\n'
+
+    text = text + u'|}\n'
+    text = text + u'\n'
+    text = text + u'== Key ==\n'
+    text = text + u'{{Listed-Scotland}}\n'
+    text = text + u'\n'
+    text = text + u'== See also ==\n'
+    text = text + u'* [[List of listed buildings in %s]]\n' % (countytitle,)
+    text = text + u'\n'
+    text = text + u'== References ==\n'
+    text = text + u'* All entries, addresses and coordinates are based on data from [http://hsewsf.sedsh.gov.uk Historic Scotland]. This data falls under the [http://www.nationalarchives.gov.uk/doc/open-government-licence/ Open Government Licence]\n'
+    text = text + u'\n'
+    text = text + u'{{Reflist}}\n'
+    text = text + u'\n'
+    text = text + u'[[Category:Lists of listed buildings in %s|%s]]\n' % (countyarticle, parbur)
+
+    site = pywikibot.getSite(u'en', u'wikipedia')
+    page = pywikibot.Page(site, listTitle)
+    if not page.exists():
+        comment = u'Creating new list of listed buildings'
+        pywikibot.showDiff(u'', text)
+        page.put(text, comment)
+        time.sleep(10)
+    
+
+    #print text
+    
+def usage():
+    pywikibot.output(u'Scotland_lists.py -db:<dblocation>')
+
+
+def main(*args):
+    dblocation = u''
+    for arg in pywikibot.handleArgs(*args):
+        if arg.startswith('-db:'):
+            if len(arg) == 4:
+                dblocation = pywikibot.input(
+                    u'Please enter the location of the database')
+            else:
+                dblocation = arg[4:]
+    if not dblocation:
+        usage()
+        return
+        
+    db = dbf.Dbf(dblocation, readOnly=1)
+    procesDB(db)
+    
+
 if __name__ == "__main__":
     try:
-        demo1()
+        main()
     finally:
-        print "done"
-
+        pywikibot.stopme()
