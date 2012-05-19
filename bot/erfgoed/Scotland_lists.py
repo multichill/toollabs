@@ -17,28 +17,28 @@ def procesDB(db):
     #fields[u'PARBUR']
 
     countyMappings = {
-        u'ABERDEEN, CITY OF' : u'City of Aberdeen',
+        u'ABERDEEN, CITY OF' : u'Aberdeen',
         u'ABERDEENSHIRE' : u'Aberdeenshire',
         u'ANGUS' : u'Angus',
         u'ARGYLL AND BUTE' : u'Argyll and Bute',
         u'CLACKMANNAN' : u'Clackmannanshire',
         u'DUMFRIES AND GALLOWAY' : u'Dumfries and Galloway',
-        u'DUNDEE, CITY OF' : u'City of Dundee',
+        u'DUNDEE, CITY OF' : u'Dundee',
         u'EAST AYRSHIRE' : u'East Ayrshire',
         u'EAST DUNBARTONSHIRE' : u'East Dunbartonshire',
         u'EAST LOTHIAN' : u'East Lothian',
         u'EAST RENFREWSHIRE' : u'East Renfrewshire',
-        u'EDINBURGH, CITY OF' : u'City of Edinburgh',
+        u'EDINBURGH, CITY OF' : u'Edinburgh',
         u'FALKIRK' : u'Falkirk (council area)',
         u'FIFE' : u'Fife',
-        u'GLASGOW, CITY OF' : u'City of Glasgow',
+        u'GLASGOW, CITY OF' : u'Glasgow',
         u'HIGHLAND' : u'Highland (council area)',
         u'INVERCLYDE' : u'Inverclyde',
         u'MIDLOTHIAN' : u'Midlothian',
         u'MORAY' : u'Moray',
         u'NORTH AYRSHIRE' : u'North Ayrshire',
         u'NORTH LANARKSHIRE' : u'North Lanarkshire',
-        u'ORKNEY ISLANDS' : u'Orkney Islands',
+        u'ORKNEY ISLANDS' : u'Orkney',
         u'PERTH AND KINROSS' : u'Perth and Kinross',
         u'RENFREWSHIRE' : u'Renfrewshire',
         u'SCOTTISH BORDERS' : u'Scottish Borders',
@@ -116,7 +116,16 @@ def procesDB(db):
             if countycaps == county:
                 listTitle = u'List of listed buildings in %s, %s' % (parbur.title(), countytitle) 
                 items.append(u'* [[List of listed buildings in %s, %s]]' % (parbur.title(), countytitle))
-                createListPage(listTitle, parbur.title(), countyarticle, countytitle, locations[(county, parbur)])
+                
+                maxLength = 150
+                
+                if len(locations[(county, parbur)]) > maxLength:
+                    n =0
+                    for i in xrange(0, len(locations[(county, parbur)]), maxLength):
+                        n = n + 1
+                        createListPage(listTitle + u'/%s' %(n,) , parbur.title(), countyarticle, countytitle, locations[(county, parbur)][i:i+maxLength])
+                else:
+                    createListPage(listTitle, parbur.title(), countyarticle, countytitle, locations[(county, parbur)])
         for item in sorted(items):
             print item
 
@@ -192,15 +201,38 @@ PERTH AND KINROSS - TIBBERMORE
         print
     dbf1.close()
     '''
+def chunks(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+
 
 def createListPage(listTitle, parbur, countyarticle, countytitle, items):
-    if not countyarticle==u'Aberdeenshire':
+    todo = [
+        u'Aberdeen',
+        u'Dundee',
+        u'Edinburgh',
+        u'Glasgow',
+        ]
+    if not countyarticle in todo:
+        return
+
+    if not parbur in todo:
         return
     
+    #countyarticle = u'Aberdeen'
+    #countytitle = u'Aberdeen'
+    listTitle = listTitle.replace(u', %s/' % (countyarticle,), u'/')
     text = u''
 
     text = text + u'This is a list of [[listed building#Scotland|listed building]]s in the [[List of civil parishes in Scotland|parish]] of '
-    if countyarticle == countytitle:
+    if countyarticle == parbur:
+        text = u'This is a list of [[listed building#Scotland|listed building]]s in [[%s]], [[Scotland]].\n' % (parbur)
+        text = text + u'{{KML}}\n'
+        text = text + u'== List ==\n'
+        text = text + u'{{HB Scotland header|county=[[%s]]|parbur=[[%s]]}}\n' % (countyarticle, parbur)        
+    elif countyarticle == countytitle:
         text = text + u'[[%s, %s|%s]] in [[%s]], [[Scotland]].\n' % (parbur, countytitle, parbur, countyarticle)
         text = text + u'{{KML}}\n'
         text = text + u'== List ==\n'
@@ -214,7 +246,15 @@ def createListPage(listTitle, parbur, countyarticle, countytitle, items):
     for item in items:
         text = text + u'{{HB Scotland row\n'
         text = text + u'|hbnum = %s\n' % item[u'hbnum']
-        text = text + u'|name = %s\n' % item[u'name'].title().replace(u'\'S', u'\'s').rstrip(u'.')
+        #print item[u'name']
+        try:
+            name = item[u'name']
+            name = name.title()
+            name = name.replace(u'\'S', u'\'s')
+            name = name.rstrip(u'.')
+        except UnicodeDecodeError:
+            name = u'{{UnicodeDecodeError}}'
+        text = text + u'|name = %s\n' % name
         text = text + u'|notes = \n'
         text = text + u'|category = %s\n' % item[u'category']
         #text = text + u'|date = %s\n' % item[u'date']
@@ -231,7 +271,7 @@ def createListPage(listTitle, parbur, countyarticle, countytitle, items):
     text = text + u'{{Listed-Scotland}}\n'
     text = text + u'\n'
     text = text + u'== See also ==\n'
-    text = text + u'* [[List of listed buildings in %s]]\n' % (countytitle,)
+    text = text + u'* [[List of listed buildings in %s]]\n' % (countyarticle,)
     text = text + u'\n'
     text = text + u'== References ==\n'
     text = text + u'* All entries, addresses and coordinates are based on data from [http://hsewsf.sedsh.gov.uk Historic Scotland]. This data falls under the [http://www.nationalarchives.gov.uk/doc/open-government-licence/ Open Government Licence]\n'
@@ -242,8 +282,10 @@ def createListPage(listTitle, parbur, countyarticle, countytitle, items):
 
     site = pywikibot.getSite(u'en', u'wikipedia')
     page = pywikibot.Page(site, listTitle)
+    
     if not page.exists():
         comment = u'Creating new list of listed buildings'
+        #pywikibot.output(listTitle)
         pywikibot.showDiff(u'', text)
         page.put(text, comment)
         time.sleep(10)
