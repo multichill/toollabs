@@ -18,7 +18,7 @@ def connectDatabase():
     cursor = conn.cursor()
     return (conn, cursor)
 
-def processUser(cursor, userpage):
+def processUser(cursor, userpage, force):
     site = userpage.site()
     username = userpage.title(withNamespace=False)
     subpage = wikipedia.Page(site, u'User:Multichill/top_self_uploaders/%s' % (username,))
@@ -26,7 +26,9 @@ def processUser(cursor, userpage):
     wikipedia.output(u'Working on %s' % (subpage.title(),))
     if subpage.exists():
 	oldtext = subpage.get().strip()
-	if not oldtext == u'':
+	if force:
+	    oldtext = u''
+	elif not oldtext == u'':
 	    # I don't want to change existing galleries unless they're empty
 	    return False
     else:
@@ -36,10 +38,10 @@ def processUser(cursor, userpage):
 
     if images:
 	# Should probably make some sort of pretty header
-	text = u'<gallery>\n'
+	text = u'{{#tag:gallery|\n'
 	for image in images:
-	    text = text + u'File:%s\n' % (image,)
-	text = text + u'</gallery>\n'
+	    text = text + u'{{IsLocal|%s}}\n' % (image,)
+	text = text + u'}}\n'
 	comment = u'Updating list of self made free images, %d images left' % (len(images),)
 	if not(oldtext.strip()==text.strip()):
 	    wikipedia.showDiff(oldtext, text)
@@ -74,12 +76,12 @@ def userSelfUploadsQuery(cursor, username):
     AND free.cl_to='All_free_media'
     AND self.cl_to='Self-published_work'
     AND NOT EXISTS(SELECT * FROM categorylinks WHERE page_id=cl_from AND cl_to='All_possibly_unfree_Wikipedia_files')
-    AND img_user_text='%s'
+    AND img_user_text=%s
     ORDER BY page_title ASC
     LIMIT 350"""
 
     images = []
-    cursor.execute(query % (username.encode('utf-8').decode('latin-1'),))
+    cursor.execute(query, (username.encode('utf-8').decode('latin-1'),))
     result = cursor.fetchall()
     
     for (image,) in result:
@@ -94,9 +96,14 @@ def main():
     site = wikipedia.getSite('en', 'wikipedia')
     basepage = wikipedia.Page(site, u'User:Multichill/top self uploaders')
 
+    force = False
+    for arg in wikipedia.handleArgs():
+	if arg == '-force':
+	    force = True
+
     for userpage in basepage.linkedPages():
 	if userpage.namespace()==2 and not '/' in userpage.title():
-	    processUser(cursor, userpage)
+	    processUser(cursor, userpage, force)
 
 if __name__ == "__main__":
     try:

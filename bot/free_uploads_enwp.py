@@ -33,10 +33,10 @@ def dailyFreeUploadsPage(images, day):
 
     if images:
 	# Should probably make some sort of pretty header
-	text = u'<gallery>\n'
+	text = u'{{#tag:gallery|\n'
 	for image in images:
-	    text = text + u'File:%s\n' % (image,)
-	text = text + u'</gallery>\n'
+	    text = text + u'{{IsLocal|%s}}\n' % (image,)
+	text = text + u'}}\n'
 	comment = u'Updating list of free images, %d images left' % (len(images),)
 	if not(oldtext.strip()==text.strip()):
 	    wikipedia.showDiff(oldtext, text)
@@ -76,8 +76,11 @@ def dailyFreeUploadsQuery(cursor, day):
     OR cl_to='All_Wikipedia_files_with_unknown_source'
     OR cl_to='All_Wikipedia_files_with_no_copyright_tag'
     OR cl_to='All_possibly_unfree_Wikipedia_files'
+    OR cl_to='Wikipedia_files_for_deletion'
     OR cl_to='Non-free_Wikipedia_files_with_valid_backlink'
     OR cl_to='Uploaded_from_Commons_main_page_images'
+    OR cl_to='Temporary_cropped_main_page_images'
+    OR cl_to='PD_Italy'
     OR cl_to LIKE 'Wikipedia\_files\_with\_the\_same\_name\_on\_Wikimedia\_Commons%%'
     OR cl_to LIKE 'Wikipedia\_files\_with\_a\_different\_name\_on\_Wikimedia\_Commons%%'))
     ORDER BY page_title ASC"""
