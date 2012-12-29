@@ -1,11 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8  -*-
 '''
-Bot to upload all images from the site of the US Navy (Navy News Service located at http://www.navy.mil/view_photos_top.asp
 
-http://www.navy.mil/view_single.asp?id=<the id>
-The images have ids from 0 to about 77000 in October 2009.
-Start and end can be controlled with -start_id and -end_id
 
 Screen scraping is done with BeautifulSoup so this needs to be installed.
 
@@ -15,8 +11,8 @@ import os.path, subprocess, json
 import urllib, re
 from urllib import FancyURLopener
 from datetime import datetime
-from BeautifulSoup import BeautifulSoup 
-sys.path.append("/home/multichill/pywikipedia")
+from BeautifulSoup import BeautifulSoup
+sys.path.append("../../pywikipedia")
 import wikipedia, upload
 import config
 
@@ -228,14 +224,14 @@ def processPhoto(url):
 	tifbot = upload.UploadRobot(tmptiffile, description=description, useFilename=tiffilename, keepFilename=True, verifyDescription=False, targetSite = site)
 	#wikipedia.output(met)
 	#wikipedia.output(description)
-	tifbot.upload_image(debug=False)
+	#tifbot.upload_image(debug=False)
     # If the jpg image is not already online, convert it and upload it:
     if not jpgImageExists:
 	makeJpgFromTif(tmptiffile, u'/tmp/habs_image.jpg')
 	jpgbot = upload.UploadRobot(u'/tmp/habs_image.jpg', description=description, useFilename=jpgfilename, keepFilename=True, verifyDescription=False, targetSite = site)
 	wikipedia.output(metadata['jpgfilename'])
 	wikipedia.output(description)
-	jpgbot.upload_image(debug=False)
+	#jpgbot.upload_image(debug=False)
 
     #wikipedia.output(title)
     #wikipedia.output(description)
@@ -276,18 +272,7 @@ def processSearchPages(start_id=1, end_id=20000):
 	    last_id=i
     return last_id
 
-def processLatestPhotos():
-    '''
-    Upload the photos at http://www.navy.mil/view_photos_top.asp?sort_type=0&sort_row=8
-    '''
-    url = 'http://www.navy.mil/view_photos_top.asp?sort_type=0&sort_row=8'
-    latestPage = urllib.urlopen(url)
-    data = latestPage.read()
 
-    regex = u'<td valign="bottom"><a href="view_single.asp\?id=(\d+)"><img border=0'
-
-    for match in re.finditer (regex, data):
-	processPhoto(int(match.group(1)))
 
 def main(args):
     '''
@@ -296,11 +281,9 @@ def main(args):
     start_id = 1
     end_id   = 18473
     single_id = 0
-    #latest = False
-    #updaterun = False
+
     site = wikipedia.getSite('commons', 'commons')
-    #updatePage = wikipedia.Page(site, u'User:BotMultichillT/Navy_latest') 
-    #interval=100
+
 
     for arg in wikipedia.handleArgs():
         if arg.startswith('-start_id'):
