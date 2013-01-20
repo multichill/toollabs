@@ -15,6 +15,7 @@ def updateMetadata(metadata):
     '''
             
     # Coordinates crap. I might end up removing them completely
+    '''
     if metadata.get('Monument_monument.number.x_coordinates') and metadata.get('Monument_monument.number.y_coordinates'):
         if not (metadata.get('Monument_monument.province')==u'Noord-Holland' and metadata.get('Monument_monument.place')=='Amsterdam'):
             # Noord: 52.393
@@ -29,6 +30,9 @@ def updateMetadata(metadata):
                 # Coordinates places it in Amsterdam, but it's somewhere else
                 del metadata['Monument_monument.number.x_coordinates']
                 del metadata['Monument_monument.number.y_coordinates']
+    '''
+    if not metadata.get('Monument_monument.place'):
+	metadata['Monument_monument.place'] = u'Unknown'
 
     # Make sure that it's free and a description is set
     if metadata.get('Rights_rights.notes')==u'http://creativecommons.org/licenses/by-sa/3.0/' and metadata.get('Reproduction_reproduction.reference') and metadata.get('Description_description'):
@@ -40,8 +44,8 @@ def updateMetadata(metadata):
             
 if __name__=="__main__":
     baseurl = u'http://cultureelerfgoed.adlibsoft.com/harvest/wwwopac.ashx?database=images&search=priref=%s&limit=10&output=json'
-    start = 20024668
-    end = 20093000
+    start = 20312013
+    end =   30089092
     JSONBase = [u'adlibJSON', u'recordList', u'record', 0]
     
     reader =  data_ingestion.JSONReader(baseurl, start=start, end=end, JSONBase=JSONBase, metadataFunction=updateMetadata)
