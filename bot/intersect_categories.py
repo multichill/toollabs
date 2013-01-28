@@ -57,26 +57,37 @@ def getImages(categoryA, categoryB):
     query = u"""SELECT DISTINCT file.page_namespace, file.page_title FROM page AS file
 		JOIN categorylinks AS cat0A ON file.page_id=cat0A.cl_from
 		JOIN categorylinks AS cat0B ON file.page_id=cat0B.cl_from
+
 		JOIN page AS pcat0B ON cat0B.cl_to=pcat0B.page_title
 		JOIN categorylinks AS cat1B ON pcat0B.page_id=cat1B.cl_from
+
 		JOIN page AS pcat1B ON cat1B.cl_to=pcat1B.page_title
 		JOIN categorylinks AS cat2B ON pcat1B.page_id=cat2B.cl_from
+
 		JOIN page AS pcat2B ON cat2B.cl_to=pcat2B.page_title
 		JOIN categorylinks AS cat3B ON pcat2B.page_id=cat3B.cl_from
+
+                JOIN page AS pcat3B ON cat3B.cl_to=pcat3B.page_title
+                JOIN categorylinks AS cat4B ON pcat3B.page_id=cat4B.cl_from
+
 		WHERE file.page_namespace=6 AND file.page_is_redirect=0 AND
 		pcat0B.page_namespace=14 AND pcat0B.page_is_redirect=0 AND
 		pcat1B.page_namespace=14 AND pcat1B.page_is_redirect=0 AND
 		pcat2B.page_namespace=14 AND pcat2B.page_is_redirect=0 AND
+		pcat3B.page_namespace=14 AND pcat3B.page_is_redirect=0 AND
 		cat0A.cl_to='%s' AND (
 		cat0B.cl_to='%s' OR
 		cat1B.cl_to='%s' OR
 		cat2B.cl_to='%s' OR
-		cat3B.cl_to='%s')"""
+		cat3B.cl_to='%s' OR
+		cat4B.cl_to='%s')"""
 		
     catA = categoryA.replace(u' ', u'_').replace(u'\'', u'\\\'')
     catB = categoryB.replace(u' ', u'_').replace(u'\'', u'\\\'')
 
-    result = pagegenerators.MySQLPageGenerator(query % (catA, catB, catB, catB, catB))
+    print query % (catA, catB, catB, catB, catB, catB)
+
+    result = pagegenerators.MySQLPageGenerator(query % (catA, catB, catB, catB, catB, catB))
     return result
 
 def replaceCategories(page, oldcats, newcat):
@@ -89,7 +100,7 @@ def replaceCategories(page, oldcats, newcat):
 	    newcats.append(cat)
 
     newtext = wikipedia.replaceCategoryLinks (oldtext, newcats)
-    comment = u'[[' + oldcats[0].title() + u']] \u2229 [[' + oldcats[1].title() + u']] (and 3 levels of subcategories) -> [[' + newcat.title() + u']]' 
+    comment = u'[[' + oldcats[0].title() + u']] \u2229 [[' + oldcats[1].title() + u']] (and 4 levels of subcategories) -> [[' + newcat.title() + u']]' 
 
     wikipedia.showDiff(oldtext, newtext)
     page.put(newtext, comment)
@@ -106,13 +117,17 @@ def removeTemplate(page = None, counter=0):
 	wikipedia.output(comment)
 	page.put (newtext, comment)
 
-def splitOutCategory(bigcategory):
+def splitOutCategory(bigcategory, target):
+    if target:
+	targetcat = catlib.Category(wikipedia.getSite(), target)
+    else:
+	targetcat = catlib.Category(wikipedia.getSite(), bigcategory)
     bigcat = catlib.Category(wikipedia.getSite(), bigcategory)
     
-    for subcat in bigcat.subcategories():
+    for subcat in targetcat.subcategories():
 	topic = subcat.titleWithoutNamespace()
 	print topic
-	location = subcat.sortKey
+	location = subcat.sortKeyPrefix
 	locationcat = catlib.Category(wikipedia.getSite(), u'Category:' + location)
 	subcatWithoutSortkey = catlib.Category(wikipedia.getSite(), subcat.title())
 	if locationcat.exists():
@@ -126,6 +141,7 @@ def main():
     wikipedia.setSite(wikipedia.getSite(u'commons', u'commons'))
 
     bigcategory = u''
+    target = u''
 
     generator = None
     for arg in wikipedia.handleArgs():
@@ -138,9 +154,15 @@ def main():
 	    if len(arg) == 7:
 		bigcategory = wikipedia.input(u'What category do you want to split out?')
 	    else:
-		bigcategory = arg[8:]
+    		bigcategory = arg[8:]
+	elif arg.startswith('-target'):
+	    if len(arg) == 7:
+		target = wikipedia.input(u'What category is the target category?')
+	    else:
+		target = arg[8:]
+
     if not bigcategory==u'':
-	splitOutCategory(bigcategory)
+	splitOutCategory(bigcategory, target)
     else:
 	if not generator:
 	    generator = pagegenerators.NamespaceFilterPageGenerator(pagegenerators.ReferringPageGenerator(wikipedia.Page(wikipedia.getSite(), u'Template:Intersect categories'), onlyTemplateInclusion=True), [14])
