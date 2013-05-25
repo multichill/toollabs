@@ -132,7 +132,7 @@ function makeUploadLink($metadata) {
 
 function getRecordMetadata($record) {
 	/* $link should point to an Europeana XML record */
-	$link = "http://www.europeana.eu/portal/record/" .$record . ".srw?wskey=QYLCOXOPNF";
+	$link = $record . ".srw?wskey=QYLCOXOPNF";
 
 	$xml = new XMLReader();
 	// FIXME: Use record and key
