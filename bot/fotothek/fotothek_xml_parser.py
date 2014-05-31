@@ -3,7 +3,6 @@
 import sys, os
 import os.path
 import xml.etree.ElementTree
-sys.path.append("/home/multichill/pywikipedia")
 #import wikipedia
 import MySQLdb, config
 

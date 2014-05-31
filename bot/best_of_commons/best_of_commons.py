@@ -4,7 +4,6 @@
 test
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia
 
 #First get a list of images to work on

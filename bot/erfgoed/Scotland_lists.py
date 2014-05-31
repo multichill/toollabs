@@ -1,7 +1,5 @@
 from dbfpy import dbf
 import sys, time
-#sys.path.append("/home/multichill/pywikipedia")
-sys.path.append("c:/pywikipedia/")
 import wikipedia as pywikibot
 import config
 import geo_helper

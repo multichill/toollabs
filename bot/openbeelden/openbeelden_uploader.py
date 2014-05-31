@@ -7,7 +7,6 @@ import sys, os.path, hashlib, base64,  glob, re, urllib, time, StringIO
 sys.path.append("/home/multichill/pyoai-2.4.4/src/")
 from oaipmh.client import Client
 from oaipmh.metadata import MetadataRegistry, MetadataReader
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query, socket, upload
 
 def getLicenseTemplate(metadata):

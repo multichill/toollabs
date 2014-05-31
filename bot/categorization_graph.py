@@ -4,7 +4,6 @@
 Generate stats to create a nice diagram
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config
 from datetime import datetime
 from datetime import timedelta

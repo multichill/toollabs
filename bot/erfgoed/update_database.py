@@ -5,7 +5,6 @@ Update the monuments database either from a text file or from some wiki page(s)
 
 '''
 import sys, time
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config, re, pagegenerators
 
 def connectDatabase():

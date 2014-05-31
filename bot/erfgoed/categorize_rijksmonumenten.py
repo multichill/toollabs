@@ -6,7 +6,6 @@ Bot to move images from http://commons.wikimedia.org/wiki/Category:Rijksmonument
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, pagegenerators, catlib
 import re, imagerecat
 import MySQLdb, config

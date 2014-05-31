@@ -5,7 +5,6 @@ import os.path
 import urllib, re
 from datetime import datetime
 from BeautifulSoup import BeautifulSoup 
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, upload
 import config
 

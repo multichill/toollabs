@@ -5,7 +5,6 @@ Clean up the wiki tabels for the erfgoed project
 
 '''
 import sys, time
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, re, pagegenerators
 
 def cleanupMonument(page, oldtext):

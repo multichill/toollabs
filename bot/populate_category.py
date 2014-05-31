@@ -6,7 +6,6 @@ Bot to categorize images based on gallery information
 *Put categorized files in a subcategory
 '''
 import sys
-sys.path.append("../pywikipedia")
 import wikipedia, config, pagegenerators
 import re, imagerecat
 import MySQLdb, config

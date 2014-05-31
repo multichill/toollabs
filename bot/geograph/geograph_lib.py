@@ -5,7 +5,6 @@ Lib with Geograph functions shared by multiple programs
 
 '''
 import sys, os.path, hashlib, base64, MySQLdb, glob, re, urllib, time
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query, socket
 import xml.etree.ElementTree, shutil
 import imagerecat, pagegenerators

@@ -4,7 +4,6 @@
 Create a list of users who uploaded a lot of uncategorized files
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config
 
 def connectDatabase():

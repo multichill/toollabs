@@ -4,7 +4,6 @@
 Script to keep http://nl.wikipedia.org/wiki/Wikipedia:Te_verwijderen_sjablonen up to date. 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia/")
 import wikipedia
 from datetime import datetime
 from datetime import timedelta

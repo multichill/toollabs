@@ -7,7 +7,6 @@ download_WLM.py -lang:commons -family:commons -target:"c:\temp\WLM" -cat:Images_
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, pagegenerators
 import urllib2, codecs
  

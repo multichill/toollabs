@@ -5,7 +5,6 @@ Tag images we {{NowCommons}} at the English Wikipedia.
 Could later be expanded to work on other sites too
 '''
 import sys
-sys.path.append("../pywikipedia")
 import wikipedia, MySQLdb, config
 
 skips = {}

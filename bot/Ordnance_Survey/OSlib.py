@@ -4,7 +4,6 @@
 Library of functions used by the Ordnance Survey bots
 '''
 import sys, os.path, hashlib, base64, MySQLdb, glob, re, urllib, time
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query
 import xml.etree.ElementTree, shutil
 import imagerecat

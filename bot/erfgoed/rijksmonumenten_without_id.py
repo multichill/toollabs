@@ -8,7 +8,6 @@ FIXME: Encoding issues.
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, pagegenerators, catlib
 import re, imagerecat
 import MySQLdb, config, time

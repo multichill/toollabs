@@ -4,7 +4,6 @@
 Notify users of uncategorized files they uploaded.
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config, imagerecat, pagegenerators
 from datetime import datetime
 from datetime import timedelta
@@ -15,7 +14,7 @@ def connectDatabase():
     '''
     Connect to the mysql database, if it fails, go down in flames
     '''
-    conn = MySQLdb.connect('commonswiki-p.db.toolserver.org', db='commonswiki_p', user = config.db_username, passwd = config.db_password)
+    conn = MySQLdb.connect('commonswiki.labsdb', db='commonswiki_p', user = config.db_username, passwd = config.db_password)
     cursor = conn.cursor()
     return (conn, cursor)
 

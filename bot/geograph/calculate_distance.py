@@ -5,7 +5,6 @@ Bot to calculate distance between the coordinates on the image and the coordinat
 
 '''
 import sys, os.path, hashlib, base64, MySQLdb, glob, re, urllib, time, math
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query
 import xml.etree.ElementTree, shutil
 import imagerecat, pagegenerators

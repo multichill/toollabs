@@ -6,7 +6,6 @@ Bot to copy files from http://www.flickr.com/groups/wlm2011nl/pool/ to Commons
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, upload
 import re, flickrripper, flickrapi
 

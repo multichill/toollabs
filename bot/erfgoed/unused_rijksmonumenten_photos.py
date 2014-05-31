@@ -6,7 +6,6 @@ Make a gallery of unused photos so people can add them
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, pagegenerators, catlib
 import re, imagerecat
 import MySQLdb, config, time

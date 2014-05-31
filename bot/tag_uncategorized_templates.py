@@ -5,7 +5,6 @@ Tag uncategorized templates at Wikimedia Commons.
 Could later be expanded to work on other sites too
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia/")
 import wikipedia, MySQLdb, config
 
 uncategorizedTemplate ={

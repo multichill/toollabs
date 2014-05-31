@@ -6,7 +6,6 @@ The bot will create todays category and tomorrows category if they didnt exist y
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia/")
 import wikipedia
 from datetime import datetime
 from datetime import timedelta

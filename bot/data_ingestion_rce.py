@@ -6,7 +6,6 @@ Bot relies on data_ingestion.py in Pywikipedia
 
 '''
 import sys
-sys.path.append("../pywikipedia")
 import pywikibot, data_ingestion
 
 def updateMetadata(metadata):

@@ -14,7 +14,6 @@ The descriptions are stripped of nasty characters.
 '''
 import sys, os.path, glob, re
 import MySQLdb
-sys.path.append("/home/multichill/pywikipedia")
 import config
 
 maxTitleLength = 80

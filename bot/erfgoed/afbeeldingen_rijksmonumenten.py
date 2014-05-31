@@ -5,7 +5,6 @@ Update the stats at
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config, re
 
 new_marker = u'<!-- Add new categorization stats here -->'

@@ -6,7 +6,6 @@ Bot to populate a category based on a intersection of two other categories
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, pagegenerators, catlib
 import re, imagerecat
 import MySQLdb, config

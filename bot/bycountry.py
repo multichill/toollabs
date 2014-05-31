@@ -4,7 +4,6 @@
 Create a list at http://commons.wikimedia.org/wiki/User:Multichill/By_country_to_fix of categories which are not in their corresponding <subject>_by_country category.
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config
 
 def connectDatabase():

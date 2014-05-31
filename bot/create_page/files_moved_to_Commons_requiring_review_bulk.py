@@ -7,7 +7,6 @@ The start date is hardcoded.
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia/")
 import wikipedia, catlib
 from datetime import datetime
 from datetime import timedelta

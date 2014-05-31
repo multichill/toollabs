@@ -5,11 +5,10 @@ Generate a list of categories which appear to be related to a country, but not a
 Put the list at http://commons.wikimedia.org/wiki/User:Multichill/No_country
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config
 
 def connectDatabase():
-    conn = MySQLdb.connect(u'sql-s2.toolserver.org', db='u_multichill_commons_categories_p', user = config.db_username, passwd = config.db_password)
+    conn = MySQLdb.connect(u'commonswiki.labsdb', db='u_multichill_commons_categories_p', user = config.db_username, passwd = config.db_password)
     cursor = conn.cursor()
     return (conn, cursor)
 

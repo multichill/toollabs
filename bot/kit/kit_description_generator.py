@@ -6,7 +6,6 @@ A program do generate descriptions for KIT (Tropenmuseum) images and to upload t
 '''
 import sys, os.path, glob, re, hashlib, base64
 import pyodbc
-#sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query, upload
 
 def connectDatabase():

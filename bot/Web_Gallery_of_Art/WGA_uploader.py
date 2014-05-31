@@ -5,9 +5,6 @@ A program to upload all the images in the Web Gallery of Art website at http://w
 
 '''
 import sys, os.path, glob, re, hashlib, base64, StringIO
-#sys.path.append("/home/multichill/pywikipedia")
-sys.path.append("D:/Wikipedia/pywikipedia/")
-sys.path.append("../")
 import wikipedia, config, query, upload
 import csv, urllib
 import dezoomify

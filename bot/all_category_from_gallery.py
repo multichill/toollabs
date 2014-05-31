@@ -4,7 +4,6 @@
 Categorize all files which are uncategorized and in use a gallery with a category with the same name
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config, imagerecat
 
 def connectDatabase():

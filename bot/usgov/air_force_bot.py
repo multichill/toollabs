@@ -18,8 +18,7 @@ import os.path
 import urllib, re
 from urllib import FancyURLopener
 from datetime import datetime
-from BeautifulSoup import BeautifulSoup 
-sys.path.append("/home/multichill/pywikipedia")
+from BeautifulSoup import BeautifulSoup
 import wikipedia, upload, pagegenerators
 import config
 

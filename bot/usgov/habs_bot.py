@@ -7,7 +7,6 @@ Bot to upload images from the Historic American Buildings Survey
 '''
 import urllib, re, json
 import sys
-sys.path.append("../../pywikipedia")
 import pywikibot, data_ingestion
 
 def HABSReader(start=1, end=20000):

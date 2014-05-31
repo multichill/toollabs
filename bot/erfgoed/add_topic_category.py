@@ -6,7 +6,6 @@ Bot to add topic a topic category to images with only a Rijksmonumenten category
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, pagegenerators, catlib
 import re, imagerecat
 import MySQLdb, config

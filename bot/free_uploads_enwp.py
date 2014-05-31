@@ -4,7 +4,6 @@
 Program to update http://en.wikipedia.org/wiki/User:Multichill/Free_uploads
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia/")
 import wikipedia, MySQLdb, config
 from datetime import datetime
 from datetime import timedelta
@@ -13,7 +12,7 @@ def connectDatabase():
     '''
     Connect to the mysql database, if it fails, go down in flames
     '''
-    conn = MySQLdb.connect('enwiki-p.rrdb.toolserver.org', db='enwiki_p', user = config.db_username, passwd = config.db_password, use_unicode=True)
+    conn = MySQLdb.connect('enwiki.labsdb', db='enwiki_p', user = config.db_username, passwd = config.db_password, use_unicode=True)
 
     cursor = conn.cursor()
     return (conn, cursor)

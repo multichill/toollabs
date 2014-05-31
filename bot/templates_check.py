@@ -4,7 +4,6 @@
 Do some checks on Commons templates
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config
 from datetime import datetime
 

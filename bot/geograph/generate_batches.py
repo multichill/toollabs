@@ -5,7 +5,6 @@ Bot to create lots of batches for Geograph
 
 '''
 import sys, os.path, glob, re, urllib, time
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, query
 import shutil
 from subprocess import *

@@ -5,7 +5,6 @@ Find categories which appear to be related to a country, but not a subcategory o
 Output the result as a script
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, MySQLdb, config
 
 def connectDatabase():

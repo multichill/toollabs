@@ -6,7 +6,6 @@ Bot to add {{Object location dec}} to rijksmonumenten. Location is based on info
 
 '''
 import sys
-sys.path.append("/home/multichill/pywikipedia")
 import wikipedia, config, pagegenerators, catlib
 import re, imagerecat
 import MySQLdb, config, time
