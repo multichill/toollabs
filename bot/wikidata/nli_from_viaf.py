@@ -145,7 +145,7 @@ def WikidataQueryPageGenerator(query, site=None):
 
 
 def main():
-    query = u'CLAIM[27:801] AND CLAIM[214] AND NOCLAIM[949]'
+    query = u'CLAIM[214] AND NOCLAIM[949]'
     #query = u'CLAIM[214] AND NOCLAIM[245] AND CLAIM[106:1028181]' # Only painters
     #query = u'CLAIM[214] AND NOCLAIM[245] AND CLAIM[106:(TREE[329439,3391743,15296811][][279])]' # Engraver, visual artist and drawer tree
     #query = u'CLAIM[214] AND CLAIM[650] AND NOCLAIM[245]' # Has VIAF and RKDartists, but not ULAN
