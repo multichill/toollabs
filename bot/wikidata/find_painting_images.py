@@ -96,7 +96,7 @@ class PaintingsMatchBot:
         institutioncounts = {}
         cicounts = {}
         
-        url = u'http://tools.wmflabs.org/multichill/queries/commons/paintings_without_wikidata_ci.txt'
+        url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_ci.txt'
         regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<creator>\d+) - Q(?P<institution>\d+)$'
 
         queryPage = urllib2.urlopen(url)
@@ -140,7 +140,7 @@ class PaintingsMatchBot:
         Bla 
         '''
         result = []
-        url = u'http://tools.wmflabs.org/multichill/queries/commons/paintings_without_wikidata.txt'
+        url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata.txt'
         regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\]$'
 
         queryPage = urllib2.urlopen(url)
@@ -156,7 +156,7 @@ class PaintingsMatchBot:
         Bla %02d
         '''
         result = {}
-        url = u'http://tools.wmflabs.org/multichill/queries/commons/paintings_with_wikidata_ci.txt'
+        url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_with_wikidata_ci.txt'
         regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<paintingitem>\d+) - Q(?P<creator>\d+) - Q(?P<institution>\d+)$'
 
         queryPage = urllib2.urlopen(url)
@@ -175,7 +175,7 @@ class PaintingsMatchBot:
         Bla %02d
         '''
         result = {}
-        url = u'http://tools.wmflabs.org/multichill/queries/commons/paintings_with_wikidata.txt'
+        url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_with_wikidata.txt'
         regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<paintingitem>\d+)$'
 
         queryPage = urllib2.urlopen(url)
@@ -207,6 +207,7 @@ class PaintingsMatchBot:
         query = u'CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND NOCLAIM[18]'
         wd_queryset = wdquery.QuerySet(query)
 
+        # FIXME: Add code to not crash if WDQ is slow
         wd_query = wdquery.WikidataQuery(cacheMaxAge=0) # 30, be careful
         data = wd_query.query(wd_queryset, props=[str(170),str(195),str(276),str(973)])
 
@@ -288,6 +289,7 @@ class PaintingsMatchBot:
         query = u'CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND CLAIM[18]'
         wd_queryset = wdquery.QuerySet(query)
 
+        # FIXME: Add code to not crash if WDQ is slow
         wd_query = wdquery.WikidataQuery(cacheMaxAge=0) # 30, be careful
         data = wd_query.query(wd_queryset, props=[str(18),str(170),str(195),str(973)])
 
