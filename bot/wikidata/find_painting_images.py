@@ -13,6 +13,7 @@ import re
 import pywikibot.data.wikidataquery as wdquery
 import datetime
 import random
+import requests
 
 class PaintingsMatchBot:
     """
@@ -207,9 +208,15 @@ class PaintingsMatchBot:
         query = u'CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND NOCLAIM[18]'
         wd_queryset = wdquery.QuerySet(query)
 
-        # FIXME: Add code to not crash if WDQ is slow
         wd_query = wdquery.WikidataQuery(cacheMaxAge=0) # 30, be careful
-        data = wd_query.query(wd_queryset, props=[str(170),str(195),str(276),str(973)])
+        for i in range(0,5):
+            try:
+                data = wd_query.query(wd_queryset, props=[str(170),str(195),str(276),str(973)])
+                continue
+            except requests.exceptions.Timeout:
+                pywikibot.output(u'Hit a timeout on %s. Retrying' % (query,))
+
+        # Crash and burn if after 5 retries data has not been retrieved.
 
         if data.get('status').get('error')=='OK':
             expectedItems = data.get('status').get('items')
@@ -289,9 +296,16 @@ class PaintingsMatchBot:
         query = u'CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND CLAIM[18]'
         wd_queryset = wdquery.QuerySet(query)
 
-        # FIXME: Add code to not crash if WDQ is slow
         wd_query = wdquery.WikidataQuery(cacheMaxAge=0) # 30, be careful
-        data = wd_query.query(wd_queryset, props=[str(18),str(170),str(195),str(973)])
+
+        for i in range(0,5):
+            try:
+                data = wd_query.query(wd_queryset, props=[str(18),str(170),str(195),str(973)])
+                continue
+            except requests.exceptions.Timeout:
+                pywikibot.output(u'Hit a timeout on %s. Retrying' % (query,))
+
+        # Crash and burn if after 5 retries data has not been retrieved.
 
         if data.get('status').get('error')=='OK':
             expectedItems = data.get('status').get('items')
