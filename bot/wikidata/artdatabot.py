@@ -18,7 +18,6 @@ from urllib import urlopen
 import hashlib
 import io
 import base64
-import upload
 import tempfile
 import os
 import time
