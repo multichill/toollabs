@@ -208,6 +208,8 @@ class PaintingBot:
         creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(creator, step=None, total=50, namespaces=[0], site=self.repo)))
 
         for creatoritem in creategen:
+            if creatoritem.isRedirectPage():
+                creatoritem = creatoritem.getRedirectTarget()
             # See if the label or one of the aliases of the creatoritem matches the string we have. Only label is case insensitive.
             if (creatoritem.get().get('labels').get('en') and creatoritem.get().get('labels').get('en').lower() == creator.lower()) or (creatoritem.get().get('aliases').get('en') and creator in creatoritem.get().get('aliases').get('en')):
                 if u'P106' in creatoritem.get().get('claims'):
