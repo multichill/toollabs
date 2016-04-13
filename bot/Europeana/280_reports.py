@@ -202,7 +202,7 @@ class Europeana280Bot:
             if artworkinfo.get(u'label'):
                 totallabel = totallabel + 1
                 rowtext = rowtext + u'| style="background: lightgreen;" data-sort-value="1"'
-                rowtext = rowtext + u'| [[Q%s|{{label|Q%s|%s}}]]\n' % (artworkid, artworkid, lang,)  # FIXME: Hard code label if known
+                rowtext = rowtext + u'| [[Q%s|%s]]\n' % (artworkid, artworkinfo.get(u'label'),)  # FIXME: Hard code label if known
             else:
                 #rowtext = rowtext + u'| style="background: yellow;"'
                 rowtext = rowtext + u'| <small>[<i>[[Q%s|{{label|Q%s|%s}}]]</i>]</small>\n' % (artworkid, artworkid, lang,)
@@ -212,7 +212,7 @@ class Europeana280Bot:
             if artworkinfo.get(u'description'):
                 totaldescription = totaldescription + 1
                 rowtext = rowtext + u'| style="background: lightgreen;" data-sort-value="1"'
-                rowtext = rowtext + u'| {{Autodescription|Q%s|%s}}\n' % (artworkid, lang,) # FIXME: Hard code description if known
+                rowtext = rowtext + u'| %s\n' % (artworkinfo.get(u'description'),) # FIXME: Hard code description if known
             else:
                 rowtext = rowtext + u'| <small>[<i>{{Autodescription|Q%s|%s}}</i>]</small>\n' % (artworkid, lang,)
 
