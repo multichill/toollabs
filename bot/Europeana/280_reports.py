@@ -100,9 +100,9 @@ class Europeana280Bot:
 
         #print eulangstats
         for eulang in self.eulangs:
-            self.publishLangStats(eulang, eulangstats.get(eulang))
+            self.publishLangStats(eulang, eulangstats.get(eulang), eulangstats.get('en'))
         #self.publishLangStats(u'de', eulangstats.get(u'de'))
-        #self.publishLangStats(u'nl', eulangstats.get(u'nl'))
+        #self.publishLangStats(u'nl', eulangstats.get(u'nl'), eulangstats.get('en'))
         #self.publishTotalStats()
                 
     def publishTotalStats(self):
@@ -138,7 +138,7 @@ class Europeana280Bot:
         #print textdescriptions
         #print textsitelinks    
 
-    def publishLangStats(self, lang, langstats):
+    def publishLangStats(self, lang, langstats, fallback):
         """
         Publish the statistics for one language
         """
@@ -205,7 +205,11 @@ class Europeana280Bot:
                 rowtext = rowtext + u'| [[Q%s|%s]]\n' % (artworkid, artworkinfo.get(u'label'),)  # FIXME: Hard code label if known
             else:
                 #rowtext = rowtext + u'| style="background: yellow;"'
-                rowtext = rowtext + u'| <small>[<i>[[Q%s|{{label|Q%s|%s}}]]</i>]</small>\n' % (artworkid, artworkid, lang,)
+                #rowtext = rowtext + u'| <small>[<i>[[Q%s|{{label|Q%s|%s}}]]</i>]</small>\n' % (artworkid, artworkid, lang,)
+                fallbacklabel = u'no label'
+                if fallback.get(artworkid).get('label'):
+                    fallbacklabel= fallback.get(artworkid).get('label')
+                rowtext = rowtext + u'| <small>[<i>[[Q%s|%s]]</i>]</small>\n' % (artworkid, fallbacklabel,)
 
 
             # Wikidata description
@@ -214,7 +218,11 @@ class Europeana280Bot:
                 rowtext = rowtext + u'| style="background: lightgreen;" data-sort-value="1"'
                 rowtext = rowtext + u'| %s\n' % (artworkinfo.get(u'description'),) # FIXME: Hard code description if known
             else:
-                rowtext = rowtext + u'| <small>[<i>{{Autodescription|Q%s|%s}}</i>]</small>\n' % (artworkid, lang,)
+                fallbackdescription = u'no description'
+                if fallback.get(artworkid).get('description'):
+                    fallbackdescription = fallback.get(artworkid).get('description')
+                #rowtext = rowtext + u'| <small>[<i>{{Autodescription|Q%s|%s}}</i>]</small>\n' % (artworkid, lang,)
+                rowtext = rowtext + u'| <small>[<i>%s</i>]</small>\n' % (fallbackdescription,)
 
         # We got the rows and counted along the way. Build the page text
 
