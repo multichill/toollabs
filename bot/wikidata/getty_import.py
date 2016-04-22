@@ -20,9 +20,9 @@ from urllib import urlopen
 import hashlib
 import io
 import base64
-import upload
 import tempfile
 import os
+import time
 
 class PaintingsBot:
     """
@@ -308,7 +308,7 @@ class PaintingsBot:
                             commonssite.upload(imagefile,
                                                source_filename=tempname,
                                                ignore_warnings=True)
-                                
+
                             #bot = upload.UploadRobot(url=tempname,
                             #                         description=description,
                             #                         useFilename=imagetitle,
@@ -317,10 +317,9 @@ class PaintingsBot:
                             #                         uploadByUrl=False,
                             #                         targetSite=commonssite)
                             #bot._contents = photo.downloadPhoto().getvalue()
+                            pywikibot.output('Uploaded a file, sleeping a bit so I don\it run into lagging databases')
+                            time.sleep(15)
 
-                            
-
-                            
                             #bot._retrieved = True
                             #bot.run()
                     
