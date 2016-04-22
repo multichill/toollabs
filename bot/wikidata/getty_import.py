@@ -307,7 +307,8 @@ class PaintingsBot:
                             #tempname
                             commonssite.upload(imagefile,
                                                source_filename=tempname,
-                                               ignore_warnings=True)
+                                               ignore_warnings=True,
+                                               chunk_size=1000000)
 
                             #bot = upload.UploadRobot(url=tempname,
                             #                         description=description,
