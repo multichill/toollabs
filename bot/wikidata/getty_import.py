@@ -273,45 +273,56 @@ class PaintingsBot:
                 # Upload an image baby! BUT NOT NOW
                 
                 imagetitle = u''
-                if painting.get(u'imageurl') and u'P18' not in claims:
-                    commonssite = pywikibot.Site("commons", "commons")
-                    photo = Photo(painting[u'imageurl'], painting)
-                    titlefmt = u'%(creator)s - %(title)s - %(id)s - J. Paul Getty Museum.%(_ext)s'
-                    pagefmt = u'User:Multichill/J. Paul Getty Museum'
-                    
-                    duplicates = photo.findDuplicateImages()
-                    if duplicates:
-                        pywikibot.output(u"Skipping duplicate of %r" % duplicates)
-                        imagetitle=duplicates[0]
-                        #return duplicates[0]
-                    else:
+                if painting.get(u'imageurl'):
+                    #A free file is available, let's see how big the current file is
+                    if u'P18' in claims:
+                        imagefile = claims.get('P18')[0].getTarget()
+                        size = imagefile.latest_file_info.size
+                    if u'P18' not in claims or size < 1000000:
+                        commonssite = pywikibot.Site("commons", "commons")
+                        photo = Photo(painting[u'imageurl'], painting)
+                        titlefmt = u'%(creator)s - %(title)s - %(id)s - J. Paul Getty Museum.%(_ext)s'
+                        pagefmt = u'User:Multichill/J. Paul Getty Museum'
+                        
+                        duplicates = photo.findDuplicateImages()
+                        if duplicates:
+                            pywikibot.output(u"Skipping duplicate of %r" % duplicates)
+                            imagetitle=duplicates[0]
+                            #return duplicates[0]
+                        else:
 
-                        imagetitle = self.cleanUpTitle(photo.getTitle(titlefmt))
-                        pywikibot.output(imagetitle)
-                        description = photo.getDescription(pagefmt)
-                        pywikibot.output(description)
+                            imagetitle = self.cleanUpTitle(photo.getTitle(titlefmt))
+                            imagefile = pywikibot.FilePage(commonssite, title=imagetitle)
+                            imagetitle = imagefile.title()
+                            pywikibot.output(imagetitle)
+                            description = photo.getDescription(pagefmt)
+                            pywikibot.output(description)
+                            imagefile.text=description
 
 
-                        handle, tempname = tempfile.mkstemp()
-                        with os.fdopen(handle, "wb") as t:
-                            t.write(photo.downloadPhoto().getvalue())
-                            t.close()
-                        #tempname
+                            handle, tempname = tempfile.mkstemp()
+                            with os.fdopen(handle, "wb") as t:
+                                t.write(photo.downloadPhoto().getvalue())
+                                t.close()
+                            #tempname
+                            commonssite.upload(imagefile,
+                                               source_filename=tempname,
+                                               ignore_warnings=True)
+                                
+                            #bot = upload.UploadRobot(url=tempname,
+                            #                         description=description,
+                            #                         useFilename=imagetitle,
+                            #                         keepFilename=True,
+                            #                         verifyDescription=False,
+                            #                         uploadByUrl=False,
+                            #                         targetSite=commonssite)
+                            #bot._contents = photo.downloadPhoto().getvalue()
+
                             
-                        bot = upload.UploadRobot(url=tempname,
-                                                 description=description,
-                                                 useFilename=imagetitle,
-                                                 keepFilename=True,
-                                                 verifyDescription=False,
-                                                 uploadByUrl=False,
-                                                 targetSite=commonssite)
-                        #bot._contents = photo.downloadPhoto().getvalue()
 
-                        
-
-                        
-                        #bot._retrieved = True
-                        bot.run()
+                            
+                            #bot._retrieved = True
+                            #bot.run()
                     
                 
                 if u'P18' not in claims and imagetitle:
