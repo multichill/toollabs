@@ -243,20 +243,21 @@ class Europeana280Bot:
         #    text = text + u'| style="background: lightgreen;" '
         text = text + u'! %s\n' % (len(self.countries), )
 
-        if totalsitelink==totalitems:
-            text = text + u'! <font color=darkgreen>%s</font>\n' % (totalsitelink,) # FIXME: Include baseline
-        else:
-            text = text + u'! %s\n' % (totalsitelink,) # FIXME: Include baseline
+        # Doesn't work, sortable breaks
+        #if totalsitelink==totalitems:
+        #    text = text + u'! <font color=darkgreen>%s</font>\n' % (totalsitelink,) # FIXME: Include baseline
+        #else:
+        text = text + u'! %s\n' % (totalsitelink,) # FIXME: Include baseline
         
-        if totallabel==totalitems:
-            text = text + u'! <font color=darkgreen>%s</font>\n' % (totallabel,) # FIXME: Include baseline
-        else:
-            text = text + u'! %s\n' % (totallabel,) # FIXME: Include baseline
+        #if totallabel==totalitems:
+        #    text = text + u'! <font color=darkgreen>%s</font>\n' % (totallabel,) # FIXME: Include baseline
+        #else:
+        text = text + u'! %s\n' % (totallabel,) # FIXME: Include baseline
 
-        if totaldescription==totalitems:
-            text = text + u'! <font color=darkgreen>%s</font>\n' % (totaldescription,) # FIXME: Include baseline
-        else:
-            text = text + u'! %s\n' % (totaldescription,) # FIXME: Include baseline
+        #if totaldescription==totalitems:
+        #    text = text + u'! <font color=darkgreen>%s</font>\n' % (totaldescription,) # FIXME: Include baseline
+        #else:
+        text = text + u'! %s\n' % (totaldescription,) # FIXME: Include baseline
   
         #text = text + u'!\n'
         text = text + rowtext
