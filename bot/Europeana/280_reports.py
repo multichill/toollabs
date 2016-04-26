@@ -270,7 +270,10 @@ class Europeana280Bot:
         repo = pywikibot.Site().data_repository()
         title = u'Wikidata:Europeana Art History Challenge/%s' % (langname,)
         page = pywikibot.Page(repo, title=title)
-        summary = u'Updating Europeana 280 statistics language statistics with %s completed items' % (totalcompleteitems,)
+        summary = u'Updating statistics: %s labels, %s descriptions, %s translations %s completed items' % (totallabel,
+                                                                                                         totaldescription,
+                                                                                                         totalsitelink,
+                                                                                                         totalcompleteitems,)
         page.put(text, summary)
             
     def getFlag(self, itemid):
