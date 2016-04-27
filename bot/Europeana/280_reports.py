@@ -94,14 +94,19 @@ class Europeana280Bot:
                     langstats[u'label']=data.get(u'labels').get(eulang)
                 if data.get(u'descriptions').get(eulang):
                     langstats[u'description']=data.get(u'descriptions').get(eulang)
-                if data.get(u'sitelinks').get(u'%swiki' % (eulang,)):
-                    langstats[u'sitelink']=data.get(u'sitelinks').get(u'%swiki' % (eulang,))
+                # Fun exceptions where the language code is not the code of the wiki
+                if eulang==u'nb':
+                    wikiname = u'nowiki'
+                else:
+                    wikiname = u'%swiki' % (eulang,)
+                if data.get(u'sitelinks').get(wikiname):
+                    langstats[u'sitelink']=data.get(u'sitelinks').get(wikiname)
                 eulangstats[eulang][artworkid]=langstats
 
         #print eulangstats
         for eulang in self.eulangs:
             self.publishLangStats(eulang, eulangstats.get(eulang), eulangstats.get('en'))
-        #self.publishLangStats(u'de', eulangstats.get(u'de'))
+        #self.publishLangStats(u'nb', eulangstats.get(u'nb'), eulangstats.get('en'))
         #self.publishLangStats(u'nl', eulangstats.get(u'nl'), eulangstats.get('en'))
         #self.publishTotalStats()
                 
@@ -270,10 +275,10 @@ class Europeana280Bot:
         repo = pywikibot.Site().data_repository()
         title = u'Wikidata:Europeana Art History Challenge/%s' % (langname,)
         page = pywikibot.Page(repo, title=title)
-        summary = u'Updating statistics: %s labels, %s descriptions, %s translations %s completed items' % (totallabel,
-                                                                                                         totaldescription,
-                                                                                                         totalsitelink,
-                                                                                                         totalcompleteitems,)
+        summary = u'Updating statistics: %s labels, %s descriptions, %s translations and %s completed items' % (totallabel,
+                                                                                                                totaldescription,
+                                                                                                                totalsitelink,
+                                                                                                                totalcompleteitems,)
         page.put(text, summary)
             
     def getFlag(self, itemid):
@@ -289,14 +294,20 @@ class Europeana280Bot:
 
     def getArticleLink(self, itemid, destlang, artworkinfo):
         """
-        Make this link in wikitext for itemid in the destination language
+        Make this link in wikitext for itemid in the destination wiki
         * If it exists, just check it
-        * If it doesn't exist 
-        """
-        if artworkinfo.get(u'sitelink'):
-            return u'[[File:Yes_check.svg|25px|link=W:%s:%s|%s]]\n' % (destlang, artworkinfo.get(u'sitelink'), artworkinfo.get(u'sitelink'),)
+        * If it doesn't exist
 
-        return u'[[File:Noun project - crayon.svg|25px|link=//www.wikidata.org/w/index.php?title=Wikidata:Europeana_Art_History_Challenge/Content_Translation&withJS=MediaWiki:EuropeanaContentTranslation.js&itemid=Q%s&destlang=%s|Translate]]' % (itemid, destlang) 
+        The destination wiki is usually the same as the destination language, but not always
+        """
+        if destlang==u'nb':
+            destwiki=u'no'
+        else:
+            destwiki=destlang
+        if artworkinfo.get(u'sitelink'):
+            return u'[[File:Yes_check.svg|25px|link=W:%s:%s|%s]]\n' % (destwiki, artworkinfo.get(u'sitelink'), artworkinfo.get(u'sitelink'),)
+
+        return u'[[File:Noun project - crayon.svg|25px|link=//www.wikidata.org/w/index.php?title=Wikidata:Europeana_Art_History_Challenge/Content_Translation&withJS=MediaWiki:EuropeanaContentTranslation.js&itemid=Q%s&destlang=%s|Translate]]' % (itemid, destwiki) 
 
                 
     def getLanguages(self, artworks):
