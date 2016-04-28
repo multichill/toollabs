@@ -85,7 +85,7 @@ def getDulwichGenerator():
                 pywikibot.output(u'The title data for this painting is BORKED!')
                 continue
 
-            metadata['title'] = { u'en' : htmlparser.unescape(matchTitle.group(1).strip(u'\s\r\n\t')),
+            metadata['title'] = { u'en' : htmlparser.unescape(matchTitle.group(1)),
                                   }
             #pywikibot.output(metadata.get('title'))
 
@@ -96,7 +96,7 @@ def getDulwichGenerator():
 
             #FIXME: Add some logic for work after and clean up
 
-            name = htmlparser.unescape(creatorMatch.group(1).strip(u'\s\r\n\t'))
+            name = htmlparser.unescape(creatorMatch.group(1))
             # We need to normalize the name
             if u',' in name:
                 (surname, sep, firstname) = name.partition(u',')
