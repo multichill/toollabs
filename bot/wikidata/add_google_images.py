@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to match images from the MNAC. 
+Bot to match images in one of the subcategories of https://commons.wikimedia.org/wiki/Category:Google_Art_Project_works_by_collection with Wikidata items.
 
 """
 #import artdatabot
@@ -104,10 +104,33 @@ class ImageFindBot:
                 pywikibot.output('Adding %s --> %s based on inventory number %s' % (newclaim.getID(), newclaim.getTarget(), invnum))
                 artworkItem.addClaim(newclaim)
 
-def main():
+def main(*args):
 
-    imageFindBot = ImageFindBot(u'Category:Google Art Project works in Museu Nacional d\'Art de Catalunya - MNAC, Barcelona', u'Q861252')
-    imageFindBot.run()
+    # Process global args and prepare generator args parser
+    local_args = pywikibot.handle_args(args)
+    googlecat = False
+    collectionid = False
+    for arg in local_args:
+        if arg.startswith('-googlecat'):
+            if len(arg) == 10:
+                googlecat = pywikibot.input(
+                    u'Please enter the category you want to work on:')
+            else:
+                googlecat = arg[11:]
+        elif arg.startswith('-collectionid'):
+            if len(arg) == 13:
+                collectionid = pywikibot.input(
+                    u'Please enter the collectionid you want to work on:')
+            else:
+                collectionid = arg[14:]
+        #else:
+        #    generator_factory.handleArg(arg)
+
+    if googlecat and collectionid:
+        imageFindBot = ImageFindBot(googlecat, collectionid)
+        imageFindBot.run()
+    else:
+        pywikibot.output(u'Usage: pwb.py add_google_images.py -googlecat:<category name> -collectionid:Q<123>')
     
     
 
