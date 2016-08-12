@@ -8,7 +8,6 @@ Is in need in some serious clean up.
 import json
 import pywikibot
 from pywikibot import pagegenerators
-import urllib2
 import re
 import pywikibot.data.wikidataquery as wdquery
 import datetime
@@ -19,7 +18,6 @@ from urllib import urlopen
 import hashlib
 import io
 import base64
-import upload
 import tempfile
 import os
 import time
