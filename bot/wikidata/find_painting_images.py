@@ -34,6 +34,7 @@ class PaintingsMatchBot:
         self.commonsCIWithout = {} # Creator/institution -> image
         self.commonsCIAWithout = {} # Creator/institution/inventory number -> image
         self.commonsCIWith = {} # Creator/institution -> image and item
+        self.commonsCIAWith = {} # Creator/institution/inventory number -> image and item
 
         self.wikidataNoImages = [] # List of items without images
         self.wikidataImages = {} # Dictionary of image on wikidata file -> item
@@ -63,6 +64,7 @@ class PaintingsMatchBot:
         self.commonsNoLink = self.getCommonsWithoutAll()
 
         self.commonsCIWith = self.getCommonsWithCI()
+        self.commonsCIAWith = self.getCommonsWithCIA()
         self.commonsLink = self.getCommonsWithAll()
 
         print 'self.commonsNoLink %s' % (len(self.commonsNoLink),)
@@ -208,6 +210,30 @@ class PaintingsMatchBot:
             if not ci in result:
                 result[ci] = []
             result[ci].append({ u'image' : match.group("image"), u'item' : match.group("paintingitem") })
+        
+        return result
+
+    def getCommonsWithCIA(self):
+        '''
+        Bla %02d
+        '''
+        result = {}
+        url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_with_wikidata_cia.txt'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<paintingitem>\d+) - Q(?P<creator>\d+) - Q(?P<institution>\d+) - (?P<invnum>.+)$'
+        invurlregex = u'^\[(http[^\s]+)\s(.+)\]$'
+
+        queryPage = urllib2.urlopen(url)
+        queryData = unicode(queryPage.read(), u'utf-8')
+
+        for match in re.finditer(regex, queryData, flags=re.M):
+            invnum = match.group("invnum").strip()
+            invurlmatch = re.match(invurlregex, invnum)
+            if invurlmatch:
+                invnum = invurlmatch.group(2)
+            cia = (match.group("creator"), match.group("institution"), invnum)
+            if not cia in result:
+                result[cia] = []
+            result[cia].append({ u'image' : match.group("image"), u'item' : match.group("paintingitem") })
         
         return result
 
@@ -696,13 +722,17 @@ class PaintingsMatchBot:
         Publish a list of images pairs that might be the same
 
         FIXME: Left hand side should only show the image that is in use on Wikidata
+        FIXME: Should probably use the Wikidata list as starting point as these have more inventory numbers
         """
-        self.bothWithoutKeys = set(self.commonsCIWithout.keys()) & set(self.commonsCIWith.keys())
+        self.bothWithoutCIAKeys = set(self.commonsCIAWithout.keys()) & set(self.commonsCIAWith.keys())
+        self.bothWithoutCIKeys = set(self.commonsCIWithout.keys()) & set(self.commonsCIWith.keys())
 
+        #FIXME: This is quick and dirty.
+        self.sampleCIAKeys = self.bothWithoutCIAKeys
         if self.filter:
-            self.sampleKeys = self.bothWithoutKeys
+            self.sampleCIKeys = self.bothWithoutCIKeys
         else:
-            self.sampleKeys = random.sample(self.bothWithoutKeys, samplesize)
+            self.sampleCIKeys = random.sample(self.bothWithoutCIKeys, samplesize)
 
         pageTitle = u'User:Multichill/Same image without Wikidata'
         line = 0
@@ -712,7 +742,23 @@ class PaintingsMatchBot:
         # self.commonsCIWith[ci].append({ u'image' : match.group("image"), u'item' : match.group("paintingitem") })
         text = u'{{/header}}\n{| class="wikitable sortable"\n'
         text = text + u'! Image Wikidata !! Image without !! Wikidata id !! To add !! Filenames\n'
-        for key in self.sampleKeys: #sorted(self.sampleKeys, reverse=True):
+
+        for key in self.sampleCIAKeys:
+            firstrow = True
+            (creator, institution, invnum) = key
+
+            for imagedict in self.commonsCIAWith.get(key):
+                # Only use images that are in use on Wikidata
+                if imagedict.get('image') in wikidataimageslist:
+                    for imagewithout in self.commonsCIAWithout.get(key):
+                        line = line + 1
+                        
+                        if line < maxlines:
+                            text = text + u'|-\n'
+                            text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:Q%s|Q%s]] || <nowiki>|</nowiki> wikidata = Q%s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=Q%s}} Add] || %s<BR/>%s\n' % (imagedict.get('image'), imagewithout, imagedict.get('item'), imagedict.get('item'), imagedict.get('item'), imagewithout, imagedict.get('item'), imagedict.get('image'), imagewithout)
+
+        
+        for key in self.sampleCIKeys: #sorted(self.sampleKeys, reverse=True):
             firstrow = True
             (creator, institution) = key
             # Only work on certain collections
@@ -732,10 +778,10 @@ class PaintingsMatchBot:
         text = text + u'\n[[Category:User:Multichill]]\n'
 
         possiblematches = 0
-        for key in self.bothWithoutKeys:
+        for key in self.bothWithoutCIKeys:
             possiblematches = possiblematches + min(len(self.commonsCIWithout.get(key)),len(self.commonsCIWith.get(key)))
             
-        summary = u'Updating same image suggestions. %s suggestions out a total of %s suggestions in %s combinations' % (min(line, maxlines), possiblematches, len(self.bothWithoutKeys))
+        summary = u'Updating same image suggestions. %s suggestions out a total of %s suggestions in %s combinations' % (min(line, maxlines), possiblematches, len(self.bothWithoutCIKeys))
         pywikibot.output(summary)
         page.put(text, summary)
 
