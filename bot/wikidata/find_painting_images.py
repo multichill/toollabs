@@ -32,12 +32,14 @@ class PaintingsMatchBot:
         self.commonsLink = {} # Dictionary of images with a wikidata link, file -> item
         
         self.commonsCIWithout = {} # Creator/institution -> image
+        self.commonsCIAWithout = {} # Creator/institution/inventory number -> image
         self.commonsCIWith = {} # Creator/institution -> image and item
-        
+
         self.wikidataNoImages = [] # List of items without images
         self.wikidataImages = {} # Dictionary of image on wikidata file -> item
 
         self.wikidataCIWithout = {} # Creator/institution -> item & url
+        self.wikidataCIAWithout = {} # Creator/institution -> item & url
         self.wikidataCIWith = {} # Creator/institution -> item & url
 
         self.filter=False
@@ -57,23 +59,28 @@ class PaintingsMatchBot:
         Starts the robot.
         """
         self.commonsCIWithout = self.getCommonsWithoutCI()
+        self.commonsCIAWithout = self.getCommonsWithoutCIA()
         self.commonsNoLink = self.getCommonsWithoutAll()
 
         self.commonsCIWith = self.getCommonsWithCI()
         self.commonsLink = self.getCommonsWithAll()
 
-        print len(self.commonsNoLink)
-        print len(self.commonsLink)
-        print len(self.commonsCIWithout)
-        print len(self.commonsCIWith)
+        print 'self.commonsNoLink %s' % (len(self.commonsNoLink),)
+        print 'self.commonsLink %s' % (len(self.commonsLink),)
+        print 'self.commonsCIWithout %s' % (len(self.commonsCIWithout),)
+        print 'self.commonsCIAWithout %s' % (len(self.commonsCIAWithout),)
+        print 'self.commonsCIWith %s' % (len(self.commonsCIWith),)
+
+        #print self.commonsCIAWithout
         
-        self.getWikidataWithout()
+        self.getWikidataWithoutCIA()
         self.getWikidataWith()
 
-        print len(self.wikidataNoImages)
-        print len(self.wikidataImages)
-        print len(self.wikidataCIWithout)
-        print len(self.wikidataCIWith)
+        print 'self.wikidataNoImages %s' % (len(self.wikidataNoImages),)
+        print 'self.wikidataImages %s' % (len(self.wikidataImages),)
+        print 'self.wikidataCIWithout %s' % (len(self.wikidataCIWithout),)
+        print 'self.wikidataCIAWithout %s' % (len(self.wikidataCIAWithout),)
+        print 'self.wikidataCIWith %s' % (len(self.wikidataCIWith),)
 
         #testci = (u'330848', u'679527')
         #print u'Commons without Boij'
@@ -83,14 +90,16 @@ class PaintingsMatchBot:
 
         self.addMissingCommonsLinks()
         self.addMissingWikidataStatements()
-        
+
         self.publishWikidataSuggestions()
         self.publishCommonsSuggestions()
         self.publishCommonsNoTracker()
 
     def getCommonsWithoutCI(self):
         '''
-        Bla 
+        Get the result of the database query of the images that have:
+        * Creator template with Wikidata link
+        * Institution template with Wikidata link
         '''
         result = {}
         creatorcounts = {}
@@ -134,6 +143,37 @@ class PaintingsMatchBot:
         for (creator, institution)  in sorted(cicounts, key=cicounts.get, reverse=True)[:10]:
             pywikibot.output(u'* {{Q|%s}} & {{Q|%s}} - %s' % (creator, institution, cicounts[ci]))
 
+        return result
+
+    def getCommonsWithoutCIA(self):
+        '''
+        Get the result of the database query of the images that have:
+        * Creator template with Wikidata link
+        * Institution template with Wikidata link
+        * Inventory number
+        Clean up the inventory number (strip and remove url)
+        
+        '''
+        result = {}
+
+        url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_cia.txt'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<creator>\d+) - Q(?P<institution>\d+) - (?P<invnum>.+)$'
+
+        invurlregex = u'^\[(http[^\s]+)\s(.+)\]$'
+
+        queryPage = urllib2.urlopen(url)
+        queryData = unicode(queryPage.read(), u'utf-8')
+
+        for match in re.finditer(regex, queryData, flags=re.M):
+            invnum = match.group("invnum").strip()
+            invurlmatch = re.match(invurlregex, invnum)
+            if invurlmatch:
+                invnum = invurlmatch.group(2)
+            cia = (match.group("creator"), match.group("institution"), invnum)
+            if not cia in result:
+                result[cia] = []
+
+            result[cia].append(match.group("image"))
         return result
 
     def getCommonsWithoutAll(self):
@@ -193,7 +233,7 @@ class PaintingsMatchBot:
 
         return result
     
-    def getWikidataWithout(self):
+    def getWikidataWithoutCI(self):
         '''
         Query Wikidata to get paintings without images, but with creator and collection
         '''
@@ -257,6 +297,126 @@ class PaintingsMatchBot:
                     if not ci2 in self.wikidataCIWithout:
                         self.wikidataCIWithout[ci2] = []
                     self.wikidataCIWithout[ci2].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})
+
+                (creator, institutions) = ci
+                if not creator in creatorcounts:
+                    creatorcounts[creator]=0
+                creatorcounts[creator] = creatorcounts[creator] + 1
+                
+                if not institutions in institutioncounts:
+                    institutioncounts[institutions]=0
+                institutioncounts[institutions] = institutioncounts[institutions] + 1
+
+                if not ci in cicounts:
+                    cicounts[ci]=0
+                cicounts[ci] = cicounts[ci] + 1
+
+        pywikibot.output(u'The top creators without image on Wikidata are:')
+        for creator in sorted(creatorcounts, key=creatorcounts.get, reverse=True)[:20]:
+            pywikibot.output(u'* {{Q|%s}} - %s' % (creator, creatorcounts[creator]))
+
+        pywikibot.output(u'The top institutions without image on Wikidata are:')
+        for institution in sorted(institutioncounts, key=institutioncounts.get, reverse=True)[:20]:
+            pywikibot.output(u'* {{Q|%s}} - %s' % (institution, institutioncounts[institution]))
+
+        pywikibot.output(u'The top combinations without image on Wikidata are:')
+        for (creator, institution)  in sorted(cicounts, key=cicounts.get, reverse=True)[:10]:
+            pywikibot.output(u'* {{Q|%s}} & {{Q|%s}} - %s' % (creator, institution, cicounts[ci]))
+        return
+
+    def getWikidataWithoutCIA(self):
+        '''
+        Query Wikidata to get paintings without images, but with creator, collection and inventory number
+        '''
+        paintingdict = {}
+        creatorcounts = {}
+        institutioncounts = {}
+        cicounts = {}
+
+        #wdq.wmflabs.org/api?q=CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND CLAIM[357] AND NOCLAIM[18]&props=170,195
+
+        query = u'CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND NOCLAIM[18]'
+        wd_queryset = wdquery.QuerySet(query)
+
+        wd_query = wdquery.WikidataQuery(cacheMaxAge=0) # 30, be careful
+        for i in range(0,5):
+            try:
+                data = wd_query.query(wd_queryset, props=[str(170),str(195),str(217),str(276),str(973)])
+                continue
+            except requests.exceptions.Timeout:
+                pywikibot.output(u'Hit a timeout on %s. Retrying' % (query,))
+
+        # Crash and burn if after 5 retries data has not been retrieved.
+
+        if data.get('status').get('error')=='OK':
+            expectedItems = data.get('status').get('items')
+            for item in data.get('items'):
+                paintingdict[item] = { u'creator' : False, u'institution' : False, u'invnum' : False, u'location' : False, u'url' : False }
+                self.wikidataNoImages.append(u'%s' % (item,))
+
+            creatorprops = data.get('props').get(str(170))
+
+            for creatorprop in creatorprops:
+                paintingdict[creatorprop[0]][u'creator']=creatorprop[2]
+
+            institutionprops = data.get('props').get(str(195))
+
+            for institutionprop in institutionprops:
+                paintingdict[institutionprop[0]][u'institution']=institutionprop[2]
+
+            invnumprops = data.get('props').get(str(217))
+
+            for invnumprop in invnumprops:
+                invnumber = invnumprop[2]
+                if type(invnumber) is int:
+                    invnumber = unicode(invnumber)
+                else:
+                    invnumber = invnumber.strip()
+                paintingdict[invnumprop[0]][u'invnum']=invnumber
+
+            locationprops = data.get('props').get(str(276))
+
+            for locationprop in locationprops:
+                paintingdict[locationprop[0]][u'institution']=locationprop[2]
+                
+            urlprops = data.get('props').get(str(973))
+
+            for urlprop in urlprops:
+                paintingdict[urlprop[0]][u'url']=urlprop[2]
+
+            for paintingid, painting in paintingdict.items():
+                ci = (u'%s' % (painting.get(u'creator'),), u'%s' % (painting.get(u'institution'),))
+                
+
+                if painting.get(u'invnum'):
+                    cia = (u'%s' % (painting.get(u'creator'),),
+                           u'%s' % (painting.get(u'institution'),),
+                           u'%s' % (painting.get(u'invnum'),))
+                else:
+                    cia = False
+        
+                if not ci in self.wikidataCIWithout:
+                    self.wikidataCIWithout[ci] = []
+                self.wikidataCIWithout[ci].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})
+
+                if cia:
+                    if not cia in self.wikidataCIAWithout:
+                        self.wikidataCIAWithout[cia] = []
+                    self.wikidataCIAWithout[cia].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})                    
+
+                # Location and collection are sometimes different:
+                if painting.get(u'location') and painting.get(u'institution')!=painting.get(u'location'):
+                    ci2 = (u'%s' % (painting.get(u'creator'),), u'%s' % (painting.get(u'location'),))
+                    if not ci2 in self.wikidataCIWithout:
+                        self.wikidataCIWithout[ci2] = []
+                    self.wikidataCIWithout[ci2].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})
+                    if cia:
+                        cia2 = (u'%s' % (painting.get(u'creator'),),
+                                u'%s' % (painting.get(u'location'),),
+                                u'%s' % (painting.get(u'invnum'),))
+                        if not cia2 in self.wikidataCIAWithout:
+                            self.wikidataCIAWithout[cia2] = []
+                        self.wikidataCIAWithout[cia2].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})                        
 
                 (creator, institutions) = ci
                 if not creator in creatorcounts:
@@ -432,14 +592,22 @@ class PaintingsMatchBot:
         #self.commonsWithoutKeys = set(self.commonsCIWithout.keys())
         #self.wikidataWithoutKeys = set(self.wikidataCIWithout.keys())
 
-        self.bothWithoutKeys = set(self.commonsCIWithout.keys()) & set(self.wikidataCIWithout.keys())
+        #self.bothWithoutKeys = set(self.commonsCIWithout.keys()) & set(self.wikidataCIWithout.keys())
+        self.bothWithoutCIAKeys = set(self.commonsCIAWithout.keys()) & set(self.wikidataCIAWithout.keys())
+        self.bothWithoutCIKeys = set(self.commonsCIWithout.keys()) & set(self.wikidataCIWithout.keys())
 
         #pywikibot.output(u'Found %s possible creator & collection combinations' % (len(self.bothWithoutKeys),))
 
-        if self.filter:
-            self.sampleKeys = self.bothWithoutKeys
+        if len(self.bothWithoutCIAKeys) > samplesize and not self.filter:
+            self.sampleCIAKeys = random.sample(self.bothWithoutCIAKeys, samplesize)
+            # Already found enough
+            self.sampleCIKeys = []
         else:
-            self.sampleKeys = random.sample(self.bothWithoutKeys, samplesize)
+            self.sampleCIAKeys = self.bothWithoutCIAKeys
+            if len(self.bothWithoutCIKeys) > samplesize and not self.filter:
+                self.sampleCIKeys = random.sample(self.bothWithoutCIKeys, samplesize)
+            else:
+                self.sampleCIKeys = self.bothWithoutCIKeys           
 
         pageTitle = u'User:Multichill/Image suggestions'
         line = 0
@@ -450,7 +618,32 @@ class PaintingsMatchBot:
         text = u'{{/header}}\n{| class="wikitable sortable"\n'
         #text = text + u'! Painting !! Image title !! Link !! Creator !! Collection !! Image !! \n'
         text = text + u'! Painting !! Image !! Image title !! Link !! Add !! Creator !! Collection\n'
-        for key in self.sampleKeys: #sorted(self.sampleKeys, reverse=True):
+        for key in self.sampleCIAKeys: #sorted(self.sampleKeys, reverse=True):
+            firstrow = True
+            (creator, institution, inv) = key
+                
+            for image in self.commonsCIAWithout.get(key):
+                for paintingdict in self.wikidataCIAWithout.get(key):
+                    paintingitem = paintingdict.get('item')
+                    paintingurl = paintingdict.get('url')
+                    line = line + 1
+                    
+                    if line < maxlines:
+                        text = text + u'|-\n'
+                    
+                        addlink = u'[https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:Q%s\tP18\t"%s"}} Add]' % (paintingitem, image) # urlencode?
+                        describedlink = u''
+                        if paintingurl:
+                            describedlink = u'[%s Link]' % (paintingurl,)
+   
+                        if firstrow:                            
+                            text = text + u'| {{Q|%s}} || [[File:%s|100px]] || <small>%s</small> || %s || %s || {{Q|%s}} || {{Q|%s}}   \n' % (paintingitem, image, image, describedlink, addlink, creator, institution,)
+                            firstrow=False
+                        else:
+                            text = text + u'| {{Q|%s}} || [[File:%s|100px]] || <small>%s</small> || %s || %s || [[Q%s]] || [[Q%s]]   \n' % (paintingitem, image, image, describedlink, addlink, creator, institution,)
+
+
+        for key in self.sampleCIKeys: #sorted(self.sampleKeys, reverse=True):
             firstrow = True
             (creator, institution) = key
             # Only work on certain collections
@@ -484,15 +677,16 @@ class PaintingsMatchBot:
                         else:
                             #text = text + u'| {{Q|%s}} || <small>%s</small> || %s || [[Q%s]] || [[Q%s]] || [[File:%s|100px]] || %s \n' % (paintingitem, image, describedlink, creator, institution, image, addlink)
                             text = text + u'| {{Q|%s}} || [[File:%s|100px]] || <small>%s</small> || %s || %s || [[Q%s]] || [[Q%s]]   \n' % (paintingitem, image, image, describedlink, addlink, creator, institution,)
+
            
         text = text + u'|}\n'
         text = text + u'\n[[Category:User:Multichill]]\n'
 
         possiblematches = 0
-        for key in self.bothWithoutKeys:
+        for key in self.bothWithoutCIKeys:
             possiblematches = possiblematches + min(len(self.commonsCIWithout.get(key)),len(self.wikidataCIWithout.get(key)))
             
-        summary = u'Updating image suggestions. %s suggestions out a total of %s suggestions in %s combinations' % (min(line, maxlines), possiblematches, len(self.bothWithoutKeys))
+        summary = u'Updating image suggestions. %s suggestions out a total of %s suggestions in %s combinations' % (min(line, maxlines), possiblematches, len(self.bothWithoutCIKeys))
         pywikibot.output(summary)
         page.put(text, summary)
 
