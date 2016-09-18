@@ -729,10 +729,10 @@ class PaintingsMatchBot:
 
         #FIXME: This is quick and dirty.
         self.sampleCIAKeys = self.bothWithoutCIAKeys
-        if self.filter:
-            self.sampleCIKeys = self.bothWithoutCIKeys
-        else:
+        if len(self.bothWithoutCIKeys) > samplesize and not self.filter:
             self.sampleCIKeys = random.sample(self.bothWithoutCIKeys, samplesize)
+        else:
+            self.sampleCIKeys = self.bothWithoutCIKeys
 
         pageTitle = u'User:Multichill/Same image without Wikidata'
         line = 0
