@@ -54,8 +54,6 @@ def getNBMGenerator():
             if record.get('Title'):
                 metadata['title'] = { u'nl' : record.get('Title')[0].get('title')[0].get('value')[0],
                                     }
-            # Dimensions are available!
-            # Material is available
 
             if record.get('Production') and record.get('Production')[0].get('creator')[0]:
                 name = record.get('Production')[0].get('creator')[0].get('value')[0]
@@ -73,6 +71,18 @@ def getNBMGenerator():
                                             u'en' : u'painting by anonymous painter',
                                             }
                 metadata['creatorqid'] = u'Q4233718'
+
+            # Dimensions are available!
+            # Material is available
+
+            # Set the inception only if start and end is the same
+            if record.get('Production_date') and \
+                record.get('Production_date')[0].get('production.date.start')  and \
+                record.get('Production_date')[0].get('production.date.end'):
+                proddate = record.get('Production_date')[0].get('production.date.start')[0]
+                if proddate == record.get('Production_date')[0].get('production.date.end')[0]:
+                    metadata['inception']=proddate
+
             yield metadata
 
     return
