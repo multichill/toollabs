@@ -214,7 +214,8 @@ class ArtDataBot:
 
                 # Inception
                 if u'P571' not in claims and metadata.get(u'inception'):
-                    if len(metadata[u'inception'])==4 and metadata[u'inception'].isnumeric(): # It's a year
+                    if type(metadata[u'inception']) is int or (len(metadata[u'inception'])==4 and \
+                                                                   metadata[u'inception'].isnumeric()): # It's a year
                         newdate = pywikibot.WbTime(year=metadata[u'inception'])
                         newclaim = pywikibot.Claim(self.repo, u'P571')
                         newclaim.setTarget(newdate)
