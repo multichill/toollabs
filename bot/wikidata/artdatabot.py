@@ -224,33 +224,32 @@ class ArtDataBot:
                 
                         self.addReference(artworkItem, newclaim, metadata[u'refurl'])
 
-                '''
                 # material used
-                if u'P186' not in claims and painting.get(u'medium'):
-                    if painting.get(u'medium')==u'Oil on canvas':
-                        olieverf = pywikibot.ItemPage(self.repo, u'Q296955')
-                        doek = pywikibot.ItemPage(self.repo, u'Q4259259')
-                        oppervlak = pywikibot.ItemPage(self.repo, u'Q861259')
+                # FIXME: This does not scale at all.
+                if u'P186' not in claims and metadata.get(u'medium'):
+                    if metadata.get(u'medium') == u'oil on canvas':
+                        oil_paint = pywikibot.ItemPage(self.repo, u'Q296955')
+                        canvas = pywikibot.ItemPage(self.repo, u'Q4259259')
+                        painting_surface = pywikibot.ItemPage(self.repo, u'Q861259')
                         
                         newclaim = pywikibot.Claim(self.repo, u'P186')
-                        newclaim.setTarget(olieverf)
-                        pywikibot.output('Adding new oil paint claim to %s' % paintingItem)
-                        paintingItem.addClaim(newclaim)
+                        newclaim.setTarget(oil_paint)
+                        pywikibot.output('Adding new oil paint claim to %s' % artworkItem)
+                        artworkItem.addClaim(newclaim)
 
-                        self.addReference(paintingItem, newclaim, painting[u'url'])
+                        self.addReference(artworkItem, newclaim, metadata[u'refurl'])
 
                         newclaim = pywikibot.Claim(self.repo, u'P186')
-                        newclaim.setTarget(doek)
-                        pywikibot.output('Adding new canvas claim to %s' % paintingItem)
-                        paintingItem.addClaim(newclaim)
+                        newclaim.setTarget(canvas)
+                        pywikibot.output('Adding new canvas claim to %s' % artworkItem)
+                        artworkItem.addClaim(newclaim)
 
-                        self.addReference(paintingItem, newclaim, painting[u'url'])
-                
                         newqualifier = pywikibot.Claim(self.repo, u'P518') #Applies to part
-                        newqualifier.setTarget(oppervlak)
-                        pywikibot.output('Adding new qualifier claim to %s' % paintingItem)
+                        newqualifier.setTarget(painting_surface)
+                        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
                         newclaim.addQualifier(newqualifier)
-                '''
+
+                        self.addReference(artworkItem, newclaim, metadata[u'refurl'])
 
                 # Height in centimetres. Expect something that can be converted to a Decimal with . and not ,
                 if u'P2048' not in claims and metadata.get(u'heightcm'):
