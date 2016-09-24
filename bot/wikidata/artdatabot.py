@@ -273,6 +273,18 @@ class ArtDataBot:
 
                     self.addReference(artworkItem, newclaim, metadata[u'refurl'])
 
+                # Thickness in centimetres. Expect something that can be converted to a Decimal with . and not ,
+                # Some museums provide this, but not a lot
+                if u'P2610' not in claims and metadata.get(u'thicknesscm'):
+                    newthickness = pywikibot.WbQuantity(amount=metadata.get(u'thicknesscm'),
+                                                        unit=u'http://www.wikidata.org/entity/Q174728')
+                    newclaim = pywikibot.Claim(self.repo, u'P2610')
+                    newclaim.setTarget(newthickness)
+                    pywikibot.output('Adding thickness in cm claim to %s' % artworkItem)
+                    artworkItem.addClaim(newclaim)
+
+                    self.addReference(artworkItem, newclaim, metadata[u'refurl'])
+
                 # Described at url 
                 if u'P973' not in claims:
                     newclaim = pywikibot.Claim(self.repo, u'P973')
