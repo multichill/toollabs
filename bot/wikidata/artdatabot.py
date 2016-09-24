@@ -251,7 +251,29 @@ class ArtDataBot:
                         pywikibot.output('Adding new qualifier claim to %s' % paintingItem)
                         newclaim.addQualifier(newqualifier)
                 '''
-                
+
+                # Height in centimetres. Expect something that can be converted to a Decimal with . and not ,
+                if u'P2048' not in claims and metadata.get(u'heightcm'):
+                    newheight = pywikibot.WbQuantity(amount=metadata.get(u'heightcm'),
+                                                     unit=u'http://www.wikidata.org/entity/Q174728')
+                    newclaim = pywikibot.Claim(self.repo, u'P2048')
+                    newclaim.setTarget(newheight)
+                    pywikibot.output('Adding height in cm claim to %s' % artworkItem)
+                    artworkItem.addClaim(newclaim)
+
+                    self.addReference(artworkItem, newclaim, metadata[u'refurl'])
+
+                # Width in centimetres. Expect something that can be converted to a Decimal with . and not ,
+                if u'P2049' not in claims and metadata.get(u'widthcm'):
+                    newwidth = pywikibot.WbQuantity(amount=metadata.get(u'widthcm'),
+                                                    unit=u'http://www.wikidata.org/entity/Q174728')
+                    newclaim = pywikibot.Claim(self.repo, u'P2049')
+                    newclaim.setTarget(newwidth)
+                    pywikibot.output('Adding width in cm claim to %s' % artworkItem)
+                    artworkItem.addClaim(newclaim)
+
+                    self.addReference(artworkItem, newclaim, metadata[u'refurl'])
+
                 # Described at url 
                 if u'P973' not in claims:
                     newclaim = pywikibot.Claim(self.repo, u'P973')
