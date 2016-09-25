@@ -98,7 +98,7 @@ def main():
     #for painting in dictGen:
     #    print painting
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
 
 if __name__ == "__main__":
