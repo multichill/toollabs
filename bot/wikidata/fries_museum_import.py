@@ -82,7 +82,7 @@ def getFriesGenerator():
 
             if itemfields.get('nave_material') and \
                 itemfields.get('nave_material')[0].get('value') == u'olieverf' and \
-                itemfields.get('nave_material')[0].get('value') == u'doek':
+                itemfields.get('nave_material')[1].get('value') == u'doek':
                 metadata['medium'] = u'oil on canvas'
 
             if itemfields.get('dc_date'):
