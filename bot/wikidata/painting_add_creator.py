@@ -286,65 +286,35 @@ class PaintingBot:
         self.replaceableCreators[oldCreatorItem.title()]= False
         return False
 
-
-def WikidataQueryItemPageGenerator(query, site=None):
-    """Generate pages that result from the given WikidataQuery.
-
-    @param query: the WikidataQuery query string.
-
+def main(*args):
     """
-    if site is None:
-        site = pywikibot.Site()
-    repo = site.data_repository()
+    Do a query and have the bot process the items
+    :param args:
+    :return:
+    """
 
-    wd_queryset = wdquery.QuerySet(query)
+    # The queries for paintings without a creator, all or a specific collection
+    query = u'SELECT ?item WHERE { ?item wdt:P31 wd:Q3305213 . MINUS { ?item wdt:P170 [] } }'
+    querycollection = u"""SELECT ?item WHERE { ?item wdt:P31 wd:Q3305213 .
+                                 ?item wdt:P195 wd:%s .
+                                 MINUS { ?item wdt:P170 [] }
+                           }"""
 
-    wd_query = wdquery.WikidataQuery(cacheMaxAge=0)
-    data = wd_query.query(wd_queryset)
+    for arg in pywikibot.handle_args(args):
+        print arg
+        if arg.startswith('-collectionid'):
+            if len(arg) == 13:
+                collectionid = pywikibot.input(
+                        u'Please enter the collectionid you want to work on:')
+            else:
+                collectionid = arg[14:]
+            query = querycollection % (collectionid,)
 
-    pywikibot.output(u'retrieved %d items' % data[u'status'][u'items'])
-    for item in data[u'items']:
-        yield pywikibot.ItemPage(repo, u'Q' + unicode(item))
-        
+    repo = pywikibot.Site().data_repository()
+    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
-
-def testGenerator():
-    '''
-    Simple generator to test a single item
-    '''
-    site = pywikibot.Site()
-    repo = site.data_repository()
-    yield pywikibot.ItemPage(repo, u'Q20881436')
-    
-    
-
-
-def main():
-
-    # Paintings without a creator
-    query = u'CLAIM[31:3305213] AND NOCLAIM[170]' # All paintings without creator
-    #query = u'CLAIM[31:132137] AND NOCLAIM[170]' # Icons!
-    # query = u'CLAIM[31:3305213] AND CLAIM[170] AND NOCLAIM[170:(CLAIM[106:1028181] )] AND NOCLAIM[170:4233718] AND NOCLAIM[170:4294967294]' # Creators to correct?
-    #query = u'CLAIM[195:2983474] AND NOCLAIM[170]' # Finnish museum
-    #query = u'CLAIM[31:3305213] AND NOCLAIM[170] AND CLAIM[195:1928672]' # Working on MuZEE
-    #query = u'CLAIM[31:3305213] AND NOCLAIM[170] AND CLAIM[195:1641836))]' # Working on LACMA
-    #query = u'CLAIM[31:3305213] AND NOCLAIM[170] AND CLAIM[195:1192305]' # Working on SAAM
-    #query = u'CLAIM[31:3305213] AND NOCLAIM[170] AND CLAIM[195:132783]' # Working on Hermitage
-    #query = u'CLAIM[31:3305213] AND NOCLAIM[170] AND CLAIM[195:1700481]' # Working on Minneapolis Institute of Art
-    #query = u'CLAIM[31:3305213] AND CLAIM[195:705551] AND NOCLAIM[170] ' # Working on AGNSW
-    #query = u'CLAIM[31:3305213] AND NOCLAIM[170] AND CLAIM[195:1416890]' # Working on San Fran
-    #query = u'CLAIM[31:3305213] AND NOCLAIM[170] AND CLAIM[195:526170]' # Working on Biblioteca Museu Víctor Balaguer
-    #query = u'CLAIM[31:3305213] AND NOCLAIM[170] AND CLAIM[195:1952033)]' # Working on Pennsylvania Academy of the Fine Arts
-    #query = u'CLAIM[31:3305213] AND NOCLAIM[170] AND CLAIM[195:842858)]' # Working on Nationalmuseum Sweden
-    #query = u'CLAIM[31:3305213] AND CLAIM[195:49133] AND NOCLAIM[170]' # Working on Boston
-    pigenerator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(WikidataQueryItemPageGenerator(query)))
-    #pigenerator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(testGenerator()))
-    
-
-    paintingBot = PaintingBot(pigenerator, change=False)
+    paintingBot = PaintingBot(generator, change=False)
     paintingBot.run()
-    
-   
 
 if __name__ == "__main__":
     main()
