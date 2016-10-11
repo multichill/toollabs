@@ -55,7 +55,7 @@ class PPImporterBot:
             # Do some checking if it actually exists?
             bioPage = requests.get(biourl, verify=False)
 
-            ppregex = u'\<a href=\"http:\/\/www\.parlementairdocumentatiecentrum\.nl\/id\/([^\"]+)\"\>'
+            ppregex = u'href=\"http:\/\/www\.parlementairdocumentatiecentrum\.nl\/id\/([^\"]+)\"\>'
 
             ppmatch = re.search(ppregex, bioPage.text)
             if ppmatch:
