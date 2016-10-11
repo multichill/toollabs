@@ -55,7 +55,7 @@ class RKDArtistsImporterBot:
             # Do some checking if it actually exists?
             bioPage = requests.get(biourl, verify=False)
 
-            rkdregex = u'href\=\"http:\/\/www\.rkd\.nl\/rkddb\/dispatcher\.aspx\?action=search\&amp;database\=ChoiceArtists\&amp;search\=priref\=(\d+)\"\>RKD Artists\<\/a\>'
+            rkdregex = u'href\=\"http:\/\/www\.rkd\.nl\/rkddb\/dispatcher\.aspx\?action=search\&amp;database\=ChoiceArtists\&amp;search\=priref\=(\d+)\"\>'
 
             rkdmatch = re.search(rkdregex, bioPage.text)
             if rkdmatch:
