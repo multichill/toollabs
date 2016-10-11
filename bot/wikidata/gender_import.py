@@ -34,7 +34,12 @@ class GenderBot:
         """
             
         for itempage in self.generator:
-            
+            if not itempage.exists():
+                pywikibot.output(u'Item does not exist, skipping')
+                continue
+
+            if itempage.isRedirectPage():
+                itempage = itempage.getRedirectTarget()
                 
             data = itempage.get()
             claims = data.get('claims')
@@ -122,11 +127,27 @@ class GenderBot:
             elif rkdgender:
                 gender=rkdgender
 
-            if not gender:
-                pywikibot.output(u'No gender found')
-                continue
+            biogender = None
+            newclaim = None
 
-            if gender==u'm':
+            if not gender:
+                pywikibot.output(u'No gender found in ULAN and RKD')
+                if u'P651' in claims:
+                    bioid = claims.get('P651')[0].getTarget()
+                    print bioid
+                    biourl = u'http://www.biografischportaal.nl/persoon/%s' % (bioid,)
+                    bioPage = requests.get(biourl, verify=False)
+
+                    biogenderregex = u'\<th\>sekse\</th\>\s*\<td\>\s*\<ul\>\<li\>(man|vrouw)\</li\>\</ul\>'
+
+                    biogendermatch = re.search(biogenderregex, bioPage.text)
+                    if biogendermatch:
+                        biogender = True
+                        if biogendermatch.group(1) == u'man':
+                            newclaim = self.addItemStatement(itempage, u'P21', u'Q6581097')
+                        elif biogendermatch.group(1) == u'vrouw':
+                            newclaim = self.addItemStatement(itempage, u'P21', u'Q6581072')
+            elif gender==u'm':
                 newclaim = self.addItemStatement(itempage, u'P21', u'Q6581097')
             elif gender==u'f':
                 newclaim = self.addItemStatement(itempage, u'P21', u'Q6581072')
@@ -136,6 +157,8 @@ class GenderBot:
                     self.addReference(itempage, newclaim, ulanurl)
                 if rkdgender:
                     self.addReference(itempage, newclaim, rkdurl)
+                if biogender:
+                    self.addReference(itempage, newclaim, biourl)
 
     def addItemStatement(self, item, pid, qid):
         '''
@@ -170,9 +193,6 @@ class GenderBot:
         newclaim.addSources([refurl, refdate])
 
 def main():
-    #query = u'CLAIM[650] AND CLAIM[245] AND NOCLAIM[21] AND CLAIM[31:5]' # Humans, no gender, ULAN and RKD
-    #query = u'CLAIM[650] AND NOCLAIM[21] AND CLAIM[31:5]' # Humans, no gender, RKD
-    query = u'(claim[650] OR CLAIM[245]) and noclaim[21] AND CLAIM[31:5]' # Humans, no gender, RKD or ULAN
     query = u"""SELECT DISTINCT ?item WHERE {
   { ?item wdt:P245 [] } UNION
   { ?item wdt:P650 [] } UNION
