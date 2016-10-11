@@ -5,25 +5,13 @@ Bot to add gender based on RKDartists and ULAN.
 Is in need in some serious clean up.
 
 """
-import json
+
 import pywikibot
 from pywikibot import pagegenerators
 import re
-import pywikibot.data.wikidataquery as wdquery
 import datetime
-import HTMLParser
-import posixpath
-from urlparse import urlparse
-from urllib import urlopen
-import hashlib
-import io
-import base64
-import tempfile
-import os
-import time
-import itertools
 import requests
-import simplejson
+#import simplejson
 
 class GenderBot:
     """
@@ -40,10 +28,6 @@ class GenderBot:
         self.generator = generator
         self.repo = pywikibot.Site().data_repository()
 
-
-        
-
-                        
     def run(self):
         """
         Starts the robot.
@@ -58,7 +42,6 @@ class GenderBot:
             if u'P21' in claims:
                 pywikibot.output(u'Already has gender, skipping')
                 continue
-
 
             ulanid = None
             ulanurl = None
@@ -89,8 +72,7 @@ class GenderBot:
                                     else:
                                         pywikibot.output(u'Found weird ulan gender: %s' % (binding.get(u'Object').get(u'value'),))
                                     break
-                                                         
-                                        
+                # I didn't import simplejson. Does this still work?
                 except simplejson.scanner.JSONDecodeError:
                     pywikibot.output('On %s I got a json error while working on %s, skipping it' % (itempage.title(), ulanapiurl))
                     ulangender = None
@@ -154,35 +136,6 @@ class GenderBot:
                     self.addReference(itempage, newclaim, ulanurl)
                 if rkdgender:
                     self.addReference(itempage, newclaim, rkdurl)
-                
-                
-            '''
-            europeanaurl = 
-            #print europeanaurl
-
-            amid = europeanaurl.replace('2021608/dispatcher_aspx_action_search_database_ChoiceCollect_search_priref_', u'')
-            if europeanaurl==amid:
-                pywikibot.output(u'Can\'t extract the id, skipping')
-                continue
-
-            
-            print amid
-
-            if u'P1184' not in claims:
-                handletext = u'11259/collection.%s' % (amid,)
-                newclaim = pywikibot.Claim(self.repo, u'P1184')
-                newclaim.setTarget(handletext)
-                pywikibot.output('Adding handle at claim to %s' % itempage)
-                itempage.addClaim(newclaim)
-                
-            if u'P973' not in claims:
-                url = u'http://am.adlibhosting.com/amonline/details/collect/%s' % (amid,)
-                newclaim = pywikibot.Claim(self.repo, u'P973')
-                newclaim.setTarget(url)
-                pywikibot.output('Adding described at claim to %s' % itempage)
-                itempage.addClaim(newclaim)
-                
-            '''
 
     def addItemStatement(self, item, pid, qid):
         '''
@@ -215,52 +168,24 @@ class GenderBot:
         date = pywikibot.WbTime(year=today.year, month=today.month, day=today.day)
         refdate.setTarget(date)
         newclaim.addSources([refurl, refdate])
-      
-        
-def WikidataQueryPageGenerator(query, site=None):
-    """Generate pages that result from the given WikidataQuery.
-
-    @param query: the WikidataQuery query string.
-    @param site: Site for generator results.
-    @type site: L{pywikibot.site.BaseSite}
-
-    """
-    if site is None:
-        site = pywikibot.Site()
-    repo = site.data_repository()
-
-    wd_queryset = wdquery.QuerySet(query)
-
-    wd_query = wdquery.WikidataQuery(cacheMaxAge=100)
-    data = wd_query.query(wd_queryset)
-
-    pywikibot.output(u'retrieved %d items' % data[u'status'][u'items'])
-
-    foundit=True
-    
-    for item in data[u'items']:
-        if int(item) > 17380752:
-            foundit=True
-        if foundit:
-            itempage = pywikibot.ItemPage(repo, u'Q' + unicode(item))
-            yield itempage
-
-        
 
 def main():
     #query = u'CLAIM[650] AND CLAIM[245] AND NOCLAIM[21] AND CLAIM[31:5]' # Humans, no gender, ULAN and RKD
     #query = u'CLAIM[650] AND NOCLAIM[21] AND CLAIM[31:5]' # Humans, no gender, RKD
     query = u'(claim[650] OR CLAIM[245]) and noclaim[21] AND CLAIM[31:5]' # Humans, no gender, RKD or ULAN
+    query = u"""SELECT DISTINCT ?item WHERE {
+  { ?item wdt:P245 [] } UNION
+  { ?item wdt:P650 [] } UNION
+  { ?item wdt:P651 [] } .
+  ?item wdt:P31 wd:Q5 .
+  MINUS { ?item wdt:P21 [] } .
+}"""
 
-    generator = WikidataQueryPageGenerator(query)
-
-
-    #for painting in dictGen:
-    #    pywikibot.output(painting)
+    repo = pywikibot.Site().data_repository()
+    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     genderBot = GenderBot(generator)
-    genderBot.run() 
-    
+    genderBot.run()
 
 if __name__ == "__main__":
     main()
