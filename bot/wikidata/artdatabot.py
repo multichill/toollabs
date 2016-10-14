@@ -173,6 +173,14 @@ class ArtDataBot:
                 artworkItem.addClaim(collectionclaim)
 
                 # Add the date they got it as a qualifier to the collection
+                if metadata.get(u'acquisitiondate'):
+                    if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
+                                                                   metadata[u'acquisitiondate'].isnumeric()): # It's a year
+                        acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
+                        colqualifier = pywikibot.Claim(self.repo, u'P580')
+                        colqualifier.setTarget(acdate)
+                        pywikibot.output('Adding new acquisition date qualifier claim to collection on %s' % artworkItem)
+                        collectionclaim.addQualifier(colqualifier)
                 # FIXME: Still have to rewrite this part
                 '''
                 if metadata.get(u'acquisitiondate'):
@@ -185,8 +193,7 @@ class ArtDataBot:
                         acdate = pywikibot.WbTime(year=int(acyear), month=int(acmonth), day=int(acday))
                     if acdate:
                         colqualifier.setTarget(acdate)
-                        pywikibot.output('Adding new acquisition date qualifier claim to collection on %s' % paintingItem)
-                        collectionclaim.addQualifier(colqualifier)
+
                 '''
                 
                 self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
