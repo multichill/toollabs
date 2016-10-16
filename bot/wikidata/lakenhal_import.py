@@ -13,6 +13,7 @@ import pywikibot
 import requests
 import re
 import HTMLParser
+import time
 
 def getLakenhalGenerator():
     """
@@ -24,7 +25,7 @@ def getLakenhalGenerator():
 
     htmlparser = HTMLParser.HTMLParser()
 
-    for i in range(1, 99):
+    for i in range(1, 100):
         searchUrl = basesearchurl % (i, )
         searchPage = requests.get(searchUrl)
         searchPageData = searchPage.text
@@ -45,6 +46,15 @@ def getLakenhalGenerator():
             itemPageData = itemPage.text
 
             fieldsregex = u'\<dt class=\"col l-eleven m-seven s-all\">([^\<]+)\<\/dt\>\<dd class\=\"col l-ten m-six s-all\"\>([^\<]+)</dd>'
+
+            fieldcheck = re.search(fieldsregex, itemPageData)
+            if not fieldcheck:
+                print u'Something went horribly wrong. No matches at all. Waiting for 2 minutes'
+                time.sleep(120)
+                print u'Let\'s try it agin'
+                itemPage = requests.get(metadata['url'])
+                itemPageData = itemPage.text
+
             fieldmatches = re.finditer(fieldsregex, itemPageData)
             for fieldmatch in fieldmatches:
                 fieldname = htmlparser.unescape(fieldmatch.group(1))
@@ -71,7 +81,12 @@ def getLakenhalGenerator():
                 elif fieldname == u'Materialen':
                     if fieldvalue == u'doek, olieverf':
                         metadata['medium'] = u'oil on canvas'
-            yield metadata
+            if metadata.get('id'):
+                yield metadata
+            else:
+                print u'No id found. Not returning metadata:'
+                print metadata
+                time.sleep(120)
 
     return
     
