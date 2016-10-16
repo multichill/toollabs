@@ -71,8 +71,12 @@ class RKDArtistsImporterBot:
                 self.addDateOfDeath(itempage, rkdartistsdocs, refurl)
             if u'P19' not in claims:
                 self.addPlaceOfBirth(itempage, rkdartistsdocs, refurl)
-            if u'P27' not in claims and (u'P569' in claims or u'P570' in claims):
-                self.addCountry(itempage, rkdartistsdocs, refurl)
+            if u'P20' not in claims:
+                self.addPlaceOfDeath(itempage, rkdartistsdocs, refurl)
+            # Disabled for now. WbTime comparison seems to contain bugs
+            # Can be enabled when https://phabricator.wikimedia.org/T148280 is fixed
+            #if u'P27' not in claims and (u'P569' in claims or u'P570' in claims):
+            #    self.addCountry(itempage, rkdartistsdocs, refurl)
 
 
     def addGender(self, itempage, rkdartistsdocs, refurl):
@@ -180,23 +184,192 @@ class RKDArtistsImporterBot:
 
     def addPlaceOfBirth(self, itempage, rkdartistsdocs, refurl):
         '''
-        TODO: Implement
-        :param itempage:
-        :param rkdartistsdocs:
-        :param refurl:
-        :return:
+        Add the place of birth to the itempage
+        :param itempage: The ItemPage to update
+        :param rkdartistsdocs: The json with the RKD information
+        :param refurl: The url to add as reference
+        :return: Nothing, update the itempage in place
         '''
-        return
+        if rkdartistsdocs.get('geboorteplaats_lref') and \
+                rkdartistsdocs.get('geboorteplaats_lref')[0]:
+            plaats_lref = rkdartistsdocs.get('geboorteplaats_lref')[0]
+            self.addPlaceProperty(itempage, plaats_lref, u'P19', refurl)
 
     def addPlaceOfDeath(self, itempage, rkdartistsdocs, refurl):
         '''
-        TODO: Implement
-        :param itempage:
-        :param rkdartistsdocs:
-        :param refurl:
-        :return:
+        Add the place of death to the itempage
+        :param itempage: The ItemPage to update
+        :param rkdartistsdocs: The json with the RKD information
+        :param refurl: The url to add as reference
+        :return: Nothing, update the itempage in place
         '''
-        return
+        if rkdartistsdocs.get('sterfplaats_lref') and \
+                rkdartistsdocs.get('sterfplaats_lref')[0]:
+            plaats_lref = rkdartistsdocs.get('sterfplaats_lref')[0]
+            self.addPlaceProperty(itempage, plaats_lref, u'P20', refurl)
+
+    def addPlaceProperty(self, itempage, plaats_lref, property, refurl):
+        '''
+        Add the place using property to the itempage
+        :param itempage: The ItemPage to update
+        :param plaats_lref: The rkd thesaurus id of the place
+        :param property: The property to add
+        :param refurl: The url to add as reference
+        :return: Nothing, update the itempage in place
+        '''
+        places = { 1 : u'Q55', # Dutch -> Netherlands
+                   3 : u'Q36600', # The Hague
+                   11 : u'Q43631', # Leiden
+                   29 : u'Q727', # Amsterdam
+                   30 : u'Q34370', # Rotterdam
+                   35 : u'Q749', # Groningen (stad)
+                   36 : u'Q2766547', # Den Bosch
+                   46 : u'Q1309', # Maastricht
+                   52 : u'Q365', # Keulen
+                   80 : u'Q803', # Utrecht
+                   90 : u'Q10002', # Enschede
+                   92 : u'Q52101', # Middelburg
+                   100 : u'Q40844', # Breda
+                   103 : u'Q9898', # Amstelveen
+                   112 : u'Q9920', # Haarlem
+                   118 : u'Q26421', # Dordrecht
+                   120 : u'Q1199713', # Batavia
+                   123 : u'Q1310', # Arnhem
+                   134 : u'Q9832', # Eindhoven
+                   149 : u'Q9871', # Tilburg
+                   129 : u'Q90', # Parijs
+                   182 : u'Q495', # Turin
+                   193 : u'Q220', # Rome
+                   195 : u'Q239', # Brussel
+                   204 : u'Q279', # Modena
+                   208 : u'Q1891', # Bologna
+                   219 : u'Q2634', # Naples
+                   220 : u'Q641', # Venice
+                   221 : u'Q2044', # Florence
+                   225 : u'Q992', # Amersfoort
+                   223 : u'Q12892', # Antwerpen
+                   236 : u'Q84', # London
+                   245 : u'Q490', # Milaan
+                   248 : u'Q16977290', # Alkmaar
+                   257 : u'Q9799', # Heerlen
+                   266 : u'Q134672', # Exeter
+                   286 : u'Q1490', # Tokyo
+                   287 : u'Q38', # Italië
+                   293 : u'Q9783', # Roermond
+                   304 : u'Q1741', # Vienna
+                   334 : u'Q26296883', # Deventer
+                   343 : u'Q1297', # Chicago
+                   344 : u'Q23436', # Edinburgh
+                   347 : u'Q1726', # München
+                   355 : u'Q70', # Bern
+                   380 : u'Q25390', # Leeuwarden
+                   387 : u'Q1085', # Praag
+                   392 : u'Q60', # New York City
+                   411 : u'Q656', # Sint-Petersburg
+                   424 : u'Q47887', # Nijmegen
+                   425 : u'Q8818', # Valencia
+                   450 : u'Q8717', # Sevilla
+                   454 : u'Q159', # Rusland
+                   455 : u'Q142', # Frankrijk
+                   462 : u'Q2865', # Kassel
+                   475 : u'Q1718', # Düsseldorf
+                   480 : u'Q1296', # Gent
+                   485 : u'Q78', # Basel
+                   490 : u'Q64', # Berlin
+                   520 : u'Q1781', # Boedapest
+                   533 : u'Q1731', # Dresden
+                   541 : u'Q4093', # Glasgow
+                   557 : u'Q270', # Warsaw
+                   573 : u'Q39121', # Leeds
+                   599 : u'Q690', # Delft
+                   601 : u'Q10056', # Zeist
+                   650 : u'Q506745', # Rijswijk
+                   659 : u'Q72', # Zürich
+                   684 : u'Q1022', # Stuttgart
+                   698 : u'Q1055', # Hamburg
+                   714 : u'Q456', # Lyon
+                   724 : u'Q3322237', # Venlo
+                   750 : u'Q118958', # Leuven
+                   754 : u'Q244327', # Gorinchem
+                   762 : u'Q12994', # Brugge
+                   764 : u'Q162022', # Mechelen
+                   786 : u'Q71', # Genève
+                   808 : u'Q1486', # Buenos Aires
+                   835 : u'Q203312', # Ukkel
+                   877 : u'Q2807', # Madrid
+                   883 : u'Q33935', # Tel Aviv
+                   887 : u'Q1715', # Hannover
+                   900 : u'Q36405', # Aberdeen
+                   914 : u'Q204709', # Schiedam
+                   915 : u'Q62', # San Francisco
+                   969 : u'Q9945', # Laren
+                   974 : u'Q809821', # Voorburg
+                   986 : u'Q9934', # Hilversum
+                   1032 : u'Q9909', # Bussum
+                   1041 : u'Q18419', # Brooklyn
+                   1048 : u'Q2973', # Darmstadt
+                   1053 : u'Q1449', # Genua
+                   1084 : u'Q2090', # Nuremberg
+                   1127 : u'Q2028', # Verona
+                   1168 : u'Q131491', # Brighton
+                   1173 : u'Q65', # Los Angeles
+                   1174 : u'Q505601', # Wassenaar
+                   1242 : u'Q3130', # Sydney
+                   1276 : u'Q743535', # Chelsea
+                   1330 : u'Q13298', # Graz
+                   1349 : u'Q1794', # Frankfurt am Main
+                   1367 : u'Q1735', # Innsbruck
+                   1426 : u'Q1492', # Barcelona
+                   1445 : u'Q2749', # Augsburg
+                   1506 : u'Q10027', # Baarn
+                   1597 : u'Q9908', # Bloemendaal
+                   1636 : u'Q9906', # Blaricum
+                   1650 : u'Q1754', # Stockholm
+                   1729 : u'Q10006', # Hengelo
+                   1763 : u'Q24826', # Liverpool
+                   1774 : u'Q3992', # Luik
+                   1785 : u'Q84125', # Gouda
+                   1791 : u'Q192508', # Bergen op Zoom
+                   1806 : u'Q18125', # Manchester
+                   1901 : u'Q128147', # Hull
+                   1993 : u'Q24879', # Bremen
+                   2032 : u'Q1761', # Dublin
+                   2095 : u'Q12996', # Oostende
+                   2102 : u'Q1345', # Philadelphia
+                   2124 : u'Q12995', # Kortrijk
+                   2138 : u'Q766353', # Hampton
+                   2140 : u'Q41262', # Nottingham
+                   2431 : u'Q100', # Boston
+                   2533 : u'Q211037', # Roeselare
+                   2549 : u'Q208713', # Elsene
+                   2606 : u'Q1040', # Karlsruhe
+                   2637 : u'Q2256', # Birmingham
+                   2774 : u'Q12887', # Schaarbeek
+                   2812 : u'Q9901', # Bergen (Noord-Holland)
+                   2959 : u'Q22889', # Bath
+                   2976 : u'Q23154', # Bristol
+                   3018 : u'Q130191', # Norwich
+                   3399 : u'Q2079', # Leipzig
+                   3754 : u'Q585', # Oslo
+                   3902 : u'Q5092', # Baltimore
+                   3910 : u'Q99', # Californië
+                   5080 : u'Q3141', # Melbourne
+                   5583 : u'Q288781', # Kensington
+                   5671 : u'Q1757',# Helsinki
+                   8112 : u'Q25287', # Göteborg
+                   14643 : u'Q23666', # Groot-Brittannië
+                   30433 : u'Q1425428', # Newcastle upon Tyne
+                   32465 : u'Q30096', # Frederiksberg
+                   41540 : u'Q1748', # Copenhagen
+                   76789 : u'Q793', # Zwolle
+                   78789 : u'Q13127', # Sint-Niklaas
+                   }
+
+        if not plaats_lref in places:
+            return False
+        placeitemtitle = places.get(plaats_lref)
+        newclaim = self.addItemStatement(itempage, property, placeitemtitle)
+        self.addReference(itempage, newclaim, refurl)
 
     def addCountry(self, itempage, rkdartistsdocs, refurl):
         '''
