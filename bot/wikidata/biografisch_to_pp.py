@@ -1,10 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import missing Parlement & Politiek ID ( http://www.parlement.com/ ) links based on
+OBSOLETE Bot to import missing Parlement & Politiek ID ( http://www.parlement.com/ ) links based on
 Biografisch portaal van Nederland ( http://www.biografischportaal.nl )
 
 The bot does a SPARQL query to find a list of potential candidates and loops over these.
+
+OBSOLETE, use biografisch_finder.py
 
 """
 import pywikibot
