@@ -28,7 +28,7 @@ class BPNFinderBot:
     """
     A bot to add missing links based on Biografisch portaal van Nederland
     """
-    def __init__(self, generator, otherproperty, idregex, report=None):
+    def __init__(self, generator, otherproperty, idregex, otherbaseurl, report=None):
         """
         Arguments:
         :param generator     - A generator of BPN id's
@@ -39,9 +39,10 @@ class BPNFinderBot:
         """
         self.generator = generator
         self.bpnproperty = u'P651'
-        self.bpnbaseurl = u'http://www.biografischportaal.nl/persoon/%s?'
+        self.bpnbaseurl = u'http://www.biografischportaal.nl/persoon/%s'
         self.otherproperty = otherproperty
         self.idregex = idregex
+        self.otherbaseurl = otherbaseurl
         self.report = report
 
         self.repo = pywikibot.Site().data_repository()
@@ -169,7 +170,8 @@ class BPNFinderBot:
             return False
         if otherid not in self.missingbpn:
             pywikibot.output(u'BPN %s gave other id %s, but nothing found for this id' % (bpnid, otherid))
-            self.missingtext = self.missingtext + u'* On page [%s %s] found %s but couldn\'t find Wikidata item\n' % (bpnurl, bpnid, otherid)
+            otherurl = self.otherbaseurl % (otherid,)
+            self.missingtext = self.missingtext + u'* On page [%s %s] found [%s %s] but couldn\'t find Wikidata item\n' % (bpnurl, bpnid, otherurl, otherid)
             return False
 
         # We found an item that has the other property, but not BPN
@@ -180,6 +182,7 @@ class BPNFinderBot:
 
         if self.bpnproperty in claims:
             # Looks like it already has the same property, let's check if it's the same
+            # FIXME: This only checks the first statement, the same one could be the second.
             if claims.get(self.bpnproperty)[0].getTarget() == bpnid:
                 # Already complete, if it's another id, add the other one to find duplicates
                 return True
@@ -250,15 +253,18 @@ def main(*args):
     """
     sources = {u'P650' : { u'property' : u'P650', # RKDartists ID
                            u'source_id' : u'rkdartists',
-                           u'idregex' : u'href\=\"http:\/\/www\.rkd\.nl\/rkddb\/dispatcher\.aspx\?action=search\&amp;database\=ChoiceArtists\&amp;search\=priref\=(\d+)\"\>'
+                           u'idregex' : u'href\=\"http:\/\/www\.rkd\.nl\/rkddb\/dispatcher\.aspx\?action=search\&amp;database\=ChoiceArtists\&amp;search\=priref\=(\d+)\"\>',
+                           u'baseurl' : u'https://rkd.nl/en/artists/%s',
                            },
                u'P723' : { u'property' : u'P723',# DBNL author ID
                            u'source_id' : u'dbnl',
-                           u'idregex' : u'href\=\"http\:\/\/www.dbnl.org\/auteurs\/auteur.php\?id\=([a-z_]{4}[0-9]{3})\"\>'
+                           u'idregex' : u'href\=\"http\:\/\/www.dbnl.org\/auteurs\/auteur.php\?id\=([a-z_]{4}[0-9]{3})\"\>',
+                           u'baseurl' : u'http://www.dbnl.org/auteurs/auteur.php?id=%s',
                            },
                u'P1749' : { u'property' : u'P1749',# Parlement & Politiek ID
                             u'source_id' : u'pdc',
-                            u'idregex' : u'href\=\"http:\/\/www\.parlementairdocumentatiecentrum\.nl\/id\/([^\"]+)\"\>'
+                            u'idregex' : u'href\=\"http:\/\/www\.parlementairdocumentatiecentrum\.nl\/id\/([^\"]+)\"\>',
+                            u'baseurl' : u'http://www.parlement.com/id/%s',
                             },
                }
 
@@ -282,13 +288,20 @@ def main(*args):
     # Source was passed on the commandline. Only work on that one
     if source and source in sources:
         idgenerator = biografischportaalGenerator(sources.get(source).get(u'source_id'))
-        bpnFinderBot = BPNFinderBot(idgenerator, otherproperty=source, idregex=sources.get(source).get(u'idregex'), report=report)
+        bpnFinderBot = BPNFinderBot(idgenerator,
+                                    otherproperty=source,
+                                    idregex=sources.get(source).get(u'idregex'),
+                                    otherbaseurl=sources.get(source).get(u'baseurl'),
+                                    report=report)
         bpnFinderBot.run()
     else:
         # Let's work on all of them
         for source in sources:
             idgenerator = biografischportaalGenerator(sources.get(source).get(u'source_id'))
-            bpnFinderBot = BPNFinderBot(idgenerator, otherproperty=source, idregex=sources.get(source).get(u'idregex'))
+            bpnFinderBot = BPNFinderBot(idgenerator,
+                                        otherproperty=source,
+                                        idregex=sources.get(source).get(u'idregex'),
+                                        otherbaseurl=sources.get(source).get(u'baseurl'))
             bpnFinderBot.run()
 
 if __name__ == "__main__":
