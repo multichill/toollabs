@@ -11,9 +11,11 @@ This should make https://www.wikidata.org/wiki/Wikidata:Database_reports/Constra
 """
 import pywikibot
 from pywikibot import pagegenerators
+import pywikibot.data.sparql
 import requests
 import re
 import datetime
+import time
 
 class RKDArtistsImporterBot:
     """
@@ -466,34 +468,228 @@ class RKDArtistsImporterBot:
         newclaim.addSources([refurl, refdate])
 
 
-def main():
+class RKDArtistsCreatorBot:
+    """
+    A bot to enrich humans on Wikidata
+    """
+    def __init__(self):
+        """
+        Arguments:
+            * generator    - A generator that yields ItemPage objects.
+
+        """
+        self.currentrkd = self.rkdArtistsOnWikidata()
+        self.repo = pywikibot.Site().data_repository()
+
+    def rkdArtistsOnWikidata(self):
+        '''
+        Just return all the RKD images as a dict
+        :return: Dict
+        '''
+        result = {}
+        sq = pywikibot.data.sparql.SparqlQuery()
+        query = u'SELECT ?item ?id WHERE { ?item wdt:P650 ?id }'
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            result[int(resultitem.get('id'))] = qid
+        return result
+
+    def getArtistsGenerator(self):
+        '''
+        Generate a bunch of artists from RKD.
+        '''
+        limit = 2
+        #baseurl = u'https://api.rkd.nl/api/search/artists?filters[kwalificatie]=painter&fieldset=detail&format=json&rows=%s&start=%s'
+        baseurl = u'https://api.rkd.nl/api/search/artists?fieldset=detail&format=json&rows=%s&start=%s'
+
+
+        for i in range(60000, 361707, limit):
+
+            url = baseurl % (limit, i)
+            #print url
+            rkdartistsApiPage = requests.get(url, verify=False)
+            rkdartistsApiPageJson = rkdartistsApiPage.json()
+            #print rkdartistsApiPageJson
+            if rkdartistsApiPageJson.get('content') and rkdartistsApiPageJson.get('content').get('message'):
+                pywikibot.output(u'Something went wrong')
+                continue
+
+            for rkdartistsdocs in rkdartistsApiPageJson.get('response').get('docs'):
+                yield rkdartistsdocs
+
+    def filterArtists(self, generator):
+        """
+        Starts the robot.
+        """
+        for rkdartistsdocs in generator:
+            if rkdartistsdocs.get('priref') in self.currentrkd:
+                pywikibot.output(u'Already got %s on %s' % (rkdartistsdocs.get('priref'),
+                                                            self.currentrkd.get(rkdartistsdocs.get('priref'))))
+                continue
+            if rkdartistsdocs.get(u'results_in_other_databases') and \
+                rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar'):
+                number = rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar').get('count')
+                if number > 0:
+                    print rkdartistsdocs.get('kwalificatie')
+                    if u'schilder' in rkdartistsdocs.get('kwalificatie'):
+                        yield rkdartistsdocs
+
+    def procesArtist(self, rkdartistsdocs):
+        """
+        Process a single artist. If it hits one of the creator criteria, create it
+        :param rkdartistsdocs:
+        :return:
+        """
+        summary = u''
+        if rkdartistsdocs.get('priref') in self.currentrkd:
+            pywikibot.output(u'Already got %s on %s' % (rkdartistsdocs.get('priref'),
+                                                        self.currentrkd.get(rkdartistsdocs.get('priref'))))
+            return False
+        print rkdartistsdocs.get('priref')
+        number = -1
+        if rkdartistsdocs.get(u'results_in_other_databases') and \
+                rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar').get('count'):
+            number = rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar').get('count')
+        if number > 25:
+            summary = u'Creating artist based on RKD: Artist has more than 25 works in RKDimages'
+            return self.createartist(rkdartistsdocs, summary)
+        # Focus on painters here
+        if 'schilder' in rkdartistsdocs.get('kwalificatie'):
+            if 'Koninklijke subsidie voor vrije schilderkunst' in rkdartistsdocs.get('winnaar_van_prijs'):
+                summary = u'Creating artist based on RKD: Painter won the Royal Prize for Painting'
+                return self.createartist(rkdartistsdocs, summary)
+            # Could add more prizes here
+            if number > 5:
+                summary = u'Creating artist based on RKD: Painter has more than 5 works in RKDimages'
+                return self.createartist(rkdartistsdocs, summary)
+            if number > 0 and rkdartistsdocs.get('geboortedatum_begin') and rkdartistsdocs.get('geboorteplaats'):
+                summary = u'Creating artist based on RKD: Painter with works in RKDimages and date and place of birth known'
+                return self.createartist(rkdartistsdocs, summary)
+            #summary = u'Stresstest'
+            #return self.createartist(rkdartistsdocs, summary)
+        return None
+
+    def createartist(self, rkdartistsdocs, summary):
+        """
+        The magic create function
+        :param rkdartistsdocs:
+        :param summary:
+        :return:
+        """
+
+        langs = [u'de', u'en', u'es', u'fr', u'nl']
+
+        data = {'labels': {},
+                'aliases': {},
+                }
+        kunstenaarsnaam = rkdartistsdocs.get('virtualFields').get('hoofdTitel').get('kunstenaarsnaam')
+        if kunstenaarsnaam.get('label') == u'Voorkeursnaam':
+            for lang in langs:
+                data['labels'][lang] = {'language': lang, 'value': kunstenaarsnaam.get('contents')}
+
+            spellingsvarianten = rkdartistsdocs.get('virtualFields').get('naamsvarianten').get('contents').get('spellingsvarianten').get('contents')
+            aliases = []
+            for spellingsvariant in spellingsvarianten:
+                name = spellingsvariant
+                if u',' in name:
+                    (surname, sep, firstname) = name.partition(u',')
+                    name = u'%s %s' % (firstname.strip(), surname.strip(),)
+                aliases.append(name)
+            if aliases:
+                for lang in langs:
+                    data['aliases'][lang]=[]
+                    for alias in aliases:
+                        data['aliases'][lang].append({'language': lang, 'value': alias})
+
+            print data
+
+        priref = rkdartistsdocs.get('priref')
+
+        identification = {}
+        pywikibot.output(summary)
+
+        # No need for duplicate checking
+        result = self.repo.editEntity(identification, data, summary=summary)
+        artistTitle = result.get(u'entity').get('id')
+
+        # Wikidata is sometimes lagging. Wait for 10 seconds before trying to actually use the item
+        time.sleep(10)
+
+        artistItem = pywikibot.ItemPage(self.repo, title=artistTitle)
+
+        # Add to self.artworkIds so that we don't create dupes
+        self.currentrkd[priref]=artistTitle
+
+        # Add human
+        humanitem = pywikibot.ItemPage(self.repo,u'Q5')
+        instanceclaim = pywikibot.Claim(self.repo, u'P31')
+        instanceclaim.setTarget(humanitem)
+        artistItem.addClaim(instanceclaim)
+
+        # Add the id to the item so we can get back to it later
+        newclaim = pywikibot.Claim(self.repo, u'P650')
+        newclaim.setTarget(unicode(priref))
+        pywikibot.output('Adding new RKDartists ID claim to %s' % artistItem)
+        artistItem.addClaim(newclaim)
+
+        # Force an update so everything is available for the next step
+        artistItem.get(force=True)
+
+        return artistItem
+
+    def run(self):
+        """
+        Starts the robot.
+        """
+        for rkdartistsdocs in self.getArtistsGenerator():
+            artist = self.procesArtist(rkdartistsdocs)
+            if artist:
+                yield artist
+
+
+def main(*args):
     """
     Main function. Grab a generator and pass it to the bot to work on
     """
-    query = u"""SELECT DISTINCT ?item {
-  {
-	?item wdt:P650 ?value .
-	?item wdt:P31 wd:Q5 . # Needs to be human
-	MINUS { ?item wdt:P21 [] . # No gender
-            ?item wdt:P106 [] . # No occupation
-            ?item wdt:P569 [] . # No date of birth
-           } .
-} UNION {
-  ?item wdt:P650 [] .
-  ?item p:P569 ?birthclaim .
-  MINUS { ?item p:P27 [] } # No country of citizenship
-  ?birthclaim ps:P569 ?birth .
-  FILTER(?birth > "+1900-00-00T00:00:00Z"^^xsd:dateTime) .
-} UNION {
-  ?item wdt:P650 [] .
-  ?item p:P569 ?birthclaim .
-  MINUS { ?item p:P570 [] } # No date of death
-  ?birthclaim ps:P569 ?birth .
-  FILTER(?birth < "+1900-00-15T00:00:00Z"^^xsd:dateTime)
-}
-}"""
-    repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    create = False
+    for arg in pywikibot.handle_args(args):
+        if arg=='-create':
+            create = True
+
+    if create:
+        pywikibot.output(u'Going to create new artists!')
+        rkdArtistsCreatorBot = RKDArtistsCreatorBot()
+        generator = rkdArtistsCreatorBot.run()
+    else:
+        pywikibot.output(u'Going to try to expand existing artists')
+
+        query = u"""SELECT DISTINCT ?item {
+        {
+            ?item wdt:P650 ?value .
+            ?item wdt:P31 wd:Q5 . # Needs to be human
+            MINUS { ?item wdt:P21 [] . # No gender
+                    ?item wdt:P106 [] . # No occupation
+                    ?item wdt:P569 [] . # No date of birth
+                   } .
+        } UNION {
+          ?item wdt:P650 [] .
+          ?item p:P569 ?birthclaim .
+          MINUS { ?item p:P27 [] } # No country of citizenship
+          ?birthclaim ps:P569 ?birth .
+          FILTER(?birth > "+1900-00-00T00:00:00Z"^^xsd:dateTime) .
+        } UNION {
+          ?item wdt:P650 [] .
+          ?item p:P569 ?birthclaim .
+          MINUS { ?item p:P570 [] } # No date of death
+          ?birthclaim ps:P569 ?birth .
+          FILTER(?birth < "+1900-00-15T00:00:00Z"^^xsd:dateTime)
+        }
+        }"""
+        repo = pywikibot.Site().data_repository()
+        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     rkdArtistsImporterBot = RKDArtistsImporterBot(generator)
     rkdArtistsImporterBot.run()
