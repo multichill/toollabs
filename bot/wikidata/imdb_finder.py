@@ -56,34 +56,36 @@ class IMDBFinderBot:
         try:
             for i in range(1, int(seasons)+1):
                 seasonpage = requests.get(seasonurl % (seriesimdb,i))
-                for episode in seasonpage.json().get('Episodes'):
-                    if not previous:
-                        previous = episode.get('imdbID')
-                        previousTitle = episode.get('Title')
-                    elif not current:
-                        current = episode.get('imdbID')
-                        currentTitle = episode.get('Title')
-                    else:
-                        next = episode.get('imdbID')
-                        nextTitle = episode.get('Title')
-                        if not result:
-                            # Result is empty, we need to add the first item
-                            result[previous] = {u'previous' : u'',
-                                                u'previoustitle' : u'',
-                                                u'title' : previousTitle,
-                                                u'next' : next,
-                                                u'nexttitle' : nextTitle}
-                        result[current] = {u'previous' : previous,
-                                           u'previoustitle' : previousTitle,
-                                           u'title' : currentTitle,
-                                           u'next' : next,
-                                           u'nexttitle' : nextTitle}
-                        previous = current
-                        previousTitle = currentTitle
-                        current = next
-                        currentTitle = nextTitle
-                        next = u''
-                        nextTitle = u''
+                episodes = seasonpage.json().get('Episodes')
+                if episodes:
+                    for episode in episodes:
+                        if not previous:
+                            previous = episode.get('imdbID')
+                            previousTitle = episode.get('Title')
+                        elif not current:
+                            current = episode.get('imdbID')
+                            currentTitle = episode.get('Title')
+                        else:
+                            next = episode.get('imdbID')
+                            nextTitle = episode.get('Title')
+                            if not result:
+                                # Result is empty, we need to add the first item
+                                result[previous] = {u'previous' : u'',
+                                                    u'previoustitle' : u'',
+                                                    u'title' : previousTitle,
+                                                    u'next' : next,
+                                                    u'nexttitle' : nextTitle}
+                            result[current] = {u'previous' : previous,
+                                               u'previoustitle' : previousTitle,
+                                               u'title' : currentTitle,
+                                               u'next' : next,
+                                               u'nexttitle' : nextTitle}
+                            previous = current
+                            previousTitle = currentTitle
+                            current = next
+                            currentTitle = nextTitle
+                            next = u''
+                            nextTitle = u''
                 time.sleep(1)
 
             result[current] = {u'previous' : previous,
@@ -164,7 +166,7 @@ class IMDBFinderBot:
                 if label==imdbtitle_from_previous:
                     newclaim = pywikibot.Claim(self.repo, u'P345')
                     newclaim.setTarget(imdbid_from_previous)
-                    summary = u'Adding link based on same label in English and link from [[%s|previous]] and [[%s|next item]]' % (previousitem.title(), nextitem.title())
+                    summary = u'Adding link based on same label and link from [[%s|previous]] and [[%s|next item]]' % (previousitem.title(), nextitem.title())
                     pywikibot.output(summary)
                     item.addClaim(newclaim, summary=summary)
                     return True
@@ -180,7 +182,7 @@ class IMDBFinderBot:
             if label==imdbtitle_from_previous:
                 newclaim = pywikibot.Claim(self.repo, u'P345')
                 newclaim.setTarget(imdbid_from_previous)
-                summary = u'Adding link based on same label in English and link from [[%s|previous item]]' % (previousitem.title(),)
+                summary = u'Adding link based on same label and link from [[%s|previous item]]' % (previousitem.title(),)
                 pywikibot.output(summary)
                 item.addClaim(newclaim, summary=summary)
                 if nextitem:
@@ -189,11 +191,14 @@ class IMDBFinderBot:
             else:
                 pywikibot.output(u'The label "%s" is not the same as imdb "%s", skipping' % (label,
                                                                                              imdbtitle_from_previous))
+                # This will make the bot iterate the linked list.
+                if nextitem:
+                    self.addImdb(nextitem)
         elif imdbid_from_next:
             if label==imdbtitle_from_next:
                 newclaim = pywikibot.Claim(self.repo, u'P345')
                 newclaim.setTarget(imdbid_from_next)
-                summary = u'Adding link based on same label in English and link from [[%s|next item]]' % (nextitem.title(),)
+                summary = u'Adding link based on same label and link from [[%s|next item]]' % (nextitem.title(),)
                 pywikibot.output(summary)
                 item.addClaim(newclaim, summary=summary)
                 if previousitem:
@@ -202,7 +207,9 @@ class IMDBFinderBot:
             else:
                 pywikibot.output(u'The label "%s" is not the same as imdb "%s", skipping' % (label,
                                                                                              imdbtitle_from_next))
-
+                # This will make the bot iterate the linked list.
+                if previousitem:
+                    self.addImdb(previousitem)
         pywikibot.output(u'Something went wrong. Couldn\'t add anything to %s' % (item.title(),))
 
 def main(*args):
