@@ -9,7 +9,7 @@ import pywikibot
 from pywikibot import pagegenerators
 import urllib2
 import re
-import pywikibot.data.wikidataquery as wdquery
+import pywikibot.data.sparql
 import datetime
 import HTMLParser
 import posixpath
@@ -43,40 +43,26 @@ class ArtDataBot:
         self.idProperty = firstrecord.get(u'idpid')
         self.collectionqid = firstrecord.get(u'collectionqid')
         self.collectionitem = pywikibot.ItemPage(self.repo, self.collectionqid)
-        self.artworkIds = self.fillCache(self.collectionqid, u'217')
+        self.artworkIds = self.fillCache(self.collectionqid,self.idProperty)
 
-        self.artworkIds[u'1']=u'21614077'
-        self.artworkIds[u'123']=u'21614244'
-        
-    def fillCache(self, collectionqid, idProperty, queryoverride=u'', cacheMaxAge=0):
+    def fillCache(self, collectionqid, idProperty):
         '''
-        Query Wikidata to fill the cache of items we already have an object for
+        Build an ID cache so we can quickly look up the id's for property
+
         '''
         result = {}
-        if queryoverride:
-            query = queryoverride
-        else:
-            query = u'CLAIM[195:%s] AND CLAIM[%s]' % (collectionqid.replace(u'Q', u''),
-                                                      idProperty,)
+        sq = pywikibot.data.sparql.SparqlQuery()
 
-        wd_queryset = wdquery.QuerySet(query)
+        # FIXME: Do something with the collection qualifier
+        query = u'SELECT ?item ?id WHERE { ?item wdt:P195 wd:%s . ?item wdt:%s ?id }' % (collectionqid,
+                                                                                                idProperty)
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
 
-        wd_query = wdquery.WikidataQuery(cacheMaxAge=cacheMaxAge)
-        data = wd_query.query(wd_queryset, props=[str(idProperty),])
-
-        if data.get('status').get('error')=='OK':
-            expectedItems = data.get('status').get('items')
-            props = data.get('props').get(str(idProperty))
-            for prop in props:
-                # FIXME: This will overwrite id's that are used more than once.
-                # Use with care and clean up your dataset first
-                result[prop[2]] = prop[0]
-
-            if expectedItems==len(result):
-                pywikibot.output('I now have %s items in cache' % expectedItems)
-            else:
-                pywikibot.output('I expected %s items, but I have %s items in cache' % (expectedItems, len(result),))
-
+        for resultitem in queryresult:
+            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            result[resultitem.get('id')] = qid
+        pywikibot.output(u'The query "%s" returned %s items' % (query, len(result)))
         return result
                         
     def run(self):
@@ -102,7 +88,7 @@ class ArtDataBot:
             artworkItem = None
             newclaims = []
             if metadata[u'id'] in self.artworkIds:
-                artworkItemTitle = u'Q%s' % (self.artworkIds.get(metadata[u'id']),)
+                artworkItemTitle = self.artworkIds.get(metadata[u'id'])
                 print artworkItemTitle
                 artworkItem = pywikibot.ItemPage(self.repo, title=artworkItemTitle)
 
@@ -152,7 +138,7 @@ class ArtDataBot:
                 artworkItem = pywikibot.ItemPage(self.repo, title=artworkItemTitle)
 
                 # Add to self.artworkIds so that we don't create dupes
-                self.artworkIds[metadata[u'id']]=artworkItemTitle.replace(u'Q', u'')
+                self.artworkIds[metadata[u'id']]=artworkItemTitle
 
                 # Add the id to the item so we can get back to it later
                 newclaim = pywikibot.Claim(self.repo, self.idProperty)
