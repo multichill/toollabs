@@ -7,13 +7,10 @@ Bot to import ULAN statements from viaf. Could be expanded later to something mo
 import json
 import pywikibot
 from pywikibot import pagegenerators
-import urllib2
 import re
-import pywikibot.data.wikidataquery as wdquery
-import csv
 import time
-from collections import OrderedDict
 import datetime
+import requests
 
 class ViafImportBot:
     """
@@ -62,33 +59,17 @@ class ViafImportBot:
             
             viafurl = u'http://www.viaf.org/viaf/%s/' % (viafid,)
             viafurljson = u'%sjustlinks.json' % (viafurl,)
+            viafPage = requests.get(viafurljson)
+
             try:
-                viafPage = urllib2.urlopen(viafurljson)
-            except urllib2.HTTPError as e:
-                pywikibot.output('On %s the VIAF link %s returned this HTTPError %s: %s' % (item.title(), viafurljson, e.errno, e.strerror))
-                
-                
-                
-            viafPageData = viafPage.read()
-
-
-            # That didn't work. Stupid viaf api always returns 200
-            #if not viafPage.getcode()==200:
-            #    pywikibot.output('On %s the VIAF link %s gave a %s http code, skipping it' % (item.title(), viafurl, viafPage.getcode()))
-            #    continue
-
-            # viaf json api might return junk if it's a redirect
-            try:
-                viafPageDataDataObject = json.loads(viafPageData)
+                viafPageDataDataObject = viafPage.json()
             except ValueError:
-                pywikibot.output('On %s the VIAF link %s returned this junk:\n %s' % (item.title(), viafurljson, viafPageData))
+                pywikibot.output('On %s the VIAF link %s returned this junk:\n %s' % (item.title(), viafurljson, viafPage.text))
                 continue
 
-            if viafPageDataDataObject.get(u'JPG'):
+            if isinstance(viafPageDataDataObject, dict) and viafPageDataDataObject.get(u'JPG'):
                 ulanid = viafPageDataDataObject.get(u'JPG')[0]
-                #print u'I found ulanid %s for item %s' % (ulanid, item.title())
 
-                
                 newclaim = pywikibot.Claim(self.repo, u'P245')
                 newclaim.setTarget(ulanid)
                 pywikibot.output('Adding ULAN %s claim to %s' % (ulanid, item.title(),) )
@@ -115,42 +96,19 @@ class ViafImportBot:
                 newclaim.addSources([refsource,refurl, refdate])
 
 
-def WikidataQueryPageGenerator(query, site=None):
-    """Generate pages that result from the given WikidataQuery.
-
-    @param query: the WikidataQuery query string.
-    @param site: Site for generator results.
-    @type site: L{pywikibot.site.BaseSite}
-
-    """
-    if site is None:
-        site = pywikibot.Site()
-    repo = site.data_repository()
-
-    wd_queryset = wdquery.QuerySet(query)
-
-    wd_query = wdquery.WikidataQuery(cacheMaxAge=0)
-    data = wd_query.query(wd_queryset)
-
-    pywikibot.output(u'retrieved %d items' % data[u'status'][u'items'])
-
-    foundit=True
-    
-    for item in data[u'items']:
-        if int(item) > 17380752:
-            foundit=True
-        if foundit:
-            itempage = pywikibot.ItemPage(repo, u'Q' + unicode(item))
-            yield itempage       
-
-
 def main():
-    #query = u'CLAIM[214] AND NOCLAIM[245]'
-    #query = u'CLAIM[214] AND NOCLAIM[245] AND CLAIM[106:1028181]' # Only painters
-    #query = u'CLAIM[214] AND NOCLAIM[245] AND CLAIM[106:(TREE[329439,3391743,15296811][][279])]' # Engraver, visual artist and drawer tree
-    query = u'CLAIM[214] AND CLAIM[650] AND NOCLAIM[245]' # Has VIAF and RKDartists, but not ULAN
+    """
+    Do a query for items that do have RKDartists (P650) and VIAF (P214), but no ULAN (P245)
+    :return:
+    """
 
-    generator = WikidataQueryPageGenerator(query)
+    query = u"""SELECT ?item WHERE {
+  ?item wdt:P650 [] .
+  ?item wdt:P214 [] .
+  MINUS { ?item wdt:P245 [] }
+}"""
+    repo = pywikibot.Site().data_repository()
+    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     
     viafImportBot = ViafImportBot(generator)
     viafImportBot.run()
