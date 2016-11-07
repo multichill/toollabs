@@ -72,9 +72,12 @@ def getPradoGenerator():
             metadata['instanceofqid'] = u'Q3305213'
 
             metadata['url'] = url
-            metadata['title'] = { u'en' : jsondata.get('name'),
-                                  u'es' : esjsondata.get('name'),
-                                  }
+
+            metadata['title'] = {}
+            if jsondata.get('name'):
+                metadata['title'][u'en'] = jsondata.get('name')
+            if esjsondata.get('name'):
+                metadata['title'][u'es'] = esjsondata.get('name')
 
             metadata['idpid'] = u'P217'
             metadata['id'] = jsondata.get('artEdition')
