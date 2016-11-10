@@ -291,7 +291,7 @@ class PaintingsBot:
         refdate.setTarget(date)
         newclaim.addSources([refurl, refdate])
 
-def getNoclaimGenerator(templates, lang=u'nl'):
+def getNoclaimGeneratorOld(templates, lang=u'nl'):
     '''
     Bla %02d
     '''
@@ -312,16 +312,32 @@ def getNoclaimGenerator(templates, lang=u'nl'):
     #for linkmatch in pywikibot.link_regex.finditer(noclaimData):
     #    yield pywikibot.Page(pywikibot.Link(linkmatch.group("title"), site))
 
-    
-        
-def getTemplateClaims(lang=u'nl'):
+def getNoclaimGenerator(lang=u'nl', pageTitle = u'Wikidata:Database reports/without claims by site/nlwiki'):
+    '''
+    Bla %02d
+    '''
     site = pywikibot.Site(lang, u'wikipedia')
-    pageTitle = u'user:NoclaimsBot/Template claim'
+    repo = site.data_repository()
+    page = pywikibot.Page(repo, title=pageTitle)
+
+    text = page.get()
+
+    regex = u'^\* \[\[(?P<item>Q\d+)\]\] - \[\[:%s:(?P<article>[^\]]+)\]\]' % (lang,)
+
+
+
+
+    for match in re.finditer(regex, text, flags=re.M):
+        yield pywikibot.Page(pywikibot.Link(match.group("article"), site))
+        
+def getTemplateClaims(lang=u'nl', pageTitle = u'user:NoclaimsBot/Template claim'):
+    site = pywikibot.Site(lang, u'wikipedia')
     page = pywikibot.Page(site, title=pageTitle)
 
     text = page.get()
 
-    regex = u'^\* \[\[(?P<title>Template:[^\]]+)\]\]\s*(?P<P1>P\d+)\s*(?P<Q1>Q\d+)\s*((?P<P2>P\d+)\s*(?P<Q2>Q\d+))?\s*((?P<P3>P\d+)?\s*(?P<Q3>Q\d+))?$'
+
+    regex = u'^\* \[\[(?P<title>%s:[^\]]+)\]\]\s*(?P<P1>P\d+)\s*(?P<Q1>Q\d+)\s*((?P<P2>P\d+)\s*(?P<Q2>Q\d+))?\s*((?P<P3>P\d+)?\s*(?P<Q3>Q\d+))?$' % (site.namespace(10),)
 
     result = {}
 
@@ -334,26 +350,15 @@ def getTemplateClaims(lang=u'nl'):
 
     #print result
     return result
-    
-    
-        
 
-
-
-
-def main():
-    lang = u'nl'
-
-    templates = getTemplateClaims(lang=lang)
-    #print templates
-    noclaimgen = getNoclaimGenerator(templates, lang=lang)
+def processPage(lang, page, templates):
     repo = pywikibot.Site().data_repository()
-    #print templates.keys()
 
-    for (page, template) in noclaimgen:
-        pywikibot.output(u'Working on %s using %s' % (page.title(), template))
-        if template in templates.keys() and page.exists() and not page.isRedirectPage():
-            claimslist = templates.get(template)
+    for pagetemplate in page.itertemplates():
+        templatetitle = pagetemplate.title()
+        if templatetitle in templates.keys():
+            pywikibot.output(u'Working on %s using %s' % (page.title(), templatetitle))
+            claimslist = templates.get(templatetitle)
             try:
                 item = page.data_item()
                 data = item.get()
@@ -364,15 +369,64 @@ def main():
                         newclaim = pywikibot.Claim(repo, pid)
                         claimtarget = pywikibot.ItemPage(repo, qid)
                         newclaim.setTarget(claimtarget)
-                        summary = u'Adding [[Property:%s]] -> [[%s]] based on [[%s:%s]]' % (pid, qid, lang, template)
+                        summary = u'Adding [[Property:%s]] -> [[%s]] based on [[%s:%s]]' % (pid, qid, lang, templatetitle)
                         pywikibot.output(summary)
                         item.addClaim(newclaim, summary=summary)
             except pywikibot.exceptions.NoPage:
                 print u'That page did not exist'
-            #except pywikibot.data.api.APIError:
-            #    print u'That did not save'
-                
+            return
+
+
+def main():
+    lang = u'nl'
+
+    sites = {u'nl' : {u'noclaims' : u'Wikidata:Database reports/without claims by site/nlwiki',
+                      u'templateclaims' : u'Gebruiker:NoclaimsBot/Template claim',
+             },
+    }
+
+    repo = pywikibot.Site().data_repository()
+
+    for lang in sites:
+        templates = getTemplateClaims(lang, sites[lang][u'templateclaims'])
+
+        #for template in templates:
+        #    print template
+        #    print templates[template]
+        noclaimgen = pagegenerators.PreloadingGenerator(getNoclaimGenerator(lang, sites[lang][u'noclaims']))
+        for claim in noclaimgen:
+            processPage(lang, claim, templates)
+
     '''
+    #templates = getTemplateClaims(lang=lang)
+    ##print templates
+    #noclaimgen = getNoclaimGenerator(templates, lang=lang)
+    #
+    ##print templates.keys()
+
+        for page in noclaimgen:
+            pywikibot.output(u'Working on %s using %s' % (page.title(), template))
+            if template in templates.keys() and page.exists() and not page.isRedirectPage():
+                claimslist = templates.get(template)
+                try:
+                    item = page.data_item()
+                    data = item.get()
+                    claims = data.get('claims')
+
+                    for pid, qid in claimslist:
+                        if pid not in claims:
+                            newclaim = pywikibot.Claim(repo, pid)
+                            claimtarget = pywikibot.ItemPage(repo, qid)
+                            newclaim.setTarget(claimtarget)
+                            summary = u'Adding [[Property:%s]] -> [[%s]] based on [[%s:%s]]' % (pid, qid, lang, template)
+                            pywikibot.output(summary)
+                            item.addClaim(newclaim, summary=summary)
+                except pywikibot.exceptions.NoPage:
+                    print u'That page did not exist'
+                #except pywikibot.data.api.APIError:
+                #    print u'That did not save'
+                
+
 
     categories = {}
     templates = {}
