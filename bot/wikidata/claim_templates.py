@@ -351,7 +351,7 @@ def getTemplateClaims(lang=u'nl', pageTitle = u'user:NoclaimsBot/Template claim'
     #print result
     return result
 
-def processPage(lang, page, templates):
+def processPage(page, templates):
     repo = pywikibot.Site().data_repository()
 
     for pagetemplate in page.itertemplates():
@@ -369,7 +369,7 @@ def processPage(lang, page, templates):
                         newclaim = pywikibot.Claim(repo, pid)
                         claimtarget = pywikibot.ItemPage(repo, qid)
                         newclaim.setTarget(claimtarget)
-                        summary = u'Adding [[Property:%s]] -> [[%s]] based on [[%s:%s]]' % (pid, qid, lang, templatetitle)
+                        summary = u'Adding [[Property:%s]] -> [[%s]] based on [[%s:%s]]' % (pid, qid, page.site.lang, templatetitle)
                         pywikibot.output(summary)
                         item.addClaim(newclaim, summary=summary)
             except pywikibot.exceptions.NoPage:
@@ -377,25 +377,55 @@ def processPage(lang, page, templates):
             return
 
 
-def main():
+def main(*args):
     lang = u'nl'
 
-    sites = {u'nl' : {u'noclaims' : u'Wikidata:Database reports/without claims by site/nlwiki',
-                      u'templateclaims' : u'Gebruiker:NoclaimsBot/Template claim',
-             },
+    # https://ca.wikipedia.org/wiki/Usuari:NoclaimsBot/Template_claim empty
+    # https://de.wikipedia.org/wiki/Benutzer:NoclaimsBot/Template_claim empty
+    # https://en.wikipedia.org/wiki/User:NoclaimsBot/Template_claim long list
+    # https://es.wikipedia.org/wiki/Usuario:NoclaimsBot/Template_claim empty
+    # https://fr.wikipedia.org/wiki/Utilisateur:NoclaimsBot/Template_claim one item
+    # https://sv.wikipedia.org/wiki/Anv%C3%A4ndare:NoclaimsBot/Template_claim
+
+
+    sources = {u'fr' : {u'noclaims' : u'Wikidata:Database reports/without claims by site/frwiki',
+                        u'templateclaims' : u'Utilisateur:NoclaimsBot/Template_claim',
+                       },
+               u'nl' : {u'noclaims' : u'Wikidata:Database reports/without claims by site/nlwiki',
+                        u'templateclaims' : u'Gebruiker:NoclaimsBot/Template claim',
+                       },
+               u'sv' : {u'noclaims' : u'Wikidata:Database reports/without claims by site/svwiki',
+                        u'templateclaims' : u'Användare:NoclaimsBot/Template claim',
+                       },
     }
+
+
+    source = None
+
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-source:'):
+            if len(arg) == 8:
+                source = pywikibot.input(
+                        u'Please enter the source property you want to work on:')
+            else:
+                source = arg[8:]
 
     repo = pywikibot.Site().data_repository()
 
-    for lang in sites:
-        templates = getTemplateClaims(lang, sites[lang][u'templateclaims'])
+    if source and source in sources.keys():
+        worklangs = [source,]
+    else:
+        worklangs = sources.keys()
+
+    for lang in worklangs: # in sites:
+        templates = getTemplateClaims(lang, sources[source][u'templateclaims'])
 
         #for template in templates:
         #    print template
         #    print templates[template]
-        noclaimgen = pagegenerators.PreloadingGenerator(getNoclaimGenerator(lang, sites[lang][u'noclaims']))
-        for claim in noclaimgen:
-            processPage(lang, claim, templates)
+        noclaimgen = pagegenerators.PreloadingGenerator(getNoclaimGenerator(lang, sources[lang][u'noclaims']))
+        for page in noclaimgen:
+            processPage(page, templates)
 
     '''
     #templates = getTemplateClaims(lang=lang)
