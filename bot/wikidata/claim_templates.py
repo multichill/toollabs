@@ -388,9 +388,12 @@ def main(*args):
     # https://sv.wikipedia.org/wiki/Anv%C3%A4ndare:NoclaimsBot/Template_claim
 
 
-    sources = {u'fr' : {u'noclaims' : u'Wikidata:Database reports/without claims by site/frwiki',
-                        u'templateclaims' : u'Utilisateur:NoclaimsBot/Template_claim',
+    sources = {u'en' : {u'noclaims' : u'Wikidata:Database reports/without claims by site/enwiki',
+                        u'templateclaims' : u'User:NoclaimsBot/Template claim',
                        },
+               u'fr' : {u'noclaims' : u'Wikidata:Database reports/without claims by site/frwiki',
+                        u'templateclaims' : u'Utilisateur:NoclaimsBot/Template_claim',
+                        },
                u'nl' : {u'noclaims' : u'Wikidata:Database reports/without claims by site/nlwiki',
                         u'templateclaims' : u'Gebruiker:NoclaimsBot/Template claim',
                        },
@@ -418,12 +421,12 @@ def main(*args):
         worklangs = sources.keys()
 
     for lang in worklangs: # in sites:
-        templates = getTemplateClaims(lang, sources[source][u'templateclaims'])
+        templates = getTemplateClaims(lang, sources[lang][u'templateclaims'])
 
         #for template in templates:
         #    print template
         #    print templates[template]
-        noclaimgen = pagegenerators.PreloadingGenerator(getNoclaimGenerator(lang, sources[lang][u'noclaims']))
+        noclaimgen = pagegenerators.PreloadingGenerator(pagegenerators.NamespaceFilterPageGenerator(getNoclaimGenerator(lang, sources[lang][u'noclaims']), 0))
         for page in noclaimgen:
             processPage(page, templates)
 
