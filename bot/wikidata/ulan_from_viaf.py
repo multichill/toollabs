@@ -8,7 +8,6 @@ import json
 import pywikibot
 from pywikibot import pagegenerators
 import re
-import time
 import datetime
 import requests
 
@@ -27,11 +26,10 @@ class ViafImportBot:
         self.generator = pagegenerators.PreloadingItemGenerator(generator)
         self.viafitem = pywikibot.ItemPage(self.repo, u'Q54919')
 
-    
-    def run (self):
-        '''
+    def run(self):
+        """
         Work on all items
-        '''
+        """
 
         for item in self.generator:
             if not item.exists():
@@ -43,7 +41,7 @@ class ViafImportBot:
             data = item.get()
             claims = data.get('claims')
 
-            if not u'P214' in claims:
+            if u'P214' not in claims:
                 print u'No viaf found, skipping'
                 continue
 
@@ -64,7 +62,9 @@ class ViafImportBot:
             try:
                 viafPageDataDataObject = viafPage.json()
             except ValueError:
-                pywikibot.output('On %s the VIAF link %s returned this junk:\n %s' % (item.title(), viafurljson, viafPage.text))
+                pywikibot.output('On %s the VIAF link %s returned this junk:\n %s' % (item.title(),
+                                                                                      viafurljson,
+                                                                                      viafPage.text))
                 continue
 
             if isinstance(viafPageDataDataObject, dict) and viafPageDataDataObject.get(u'JPG'):
@@ -72,17 +72,16 @@ class ViafImportBot:
 
                 newclaim = pywikibot.Claim(self.repo, u'P245')
                 newclaim.setTarget(ulanid)
-                pywikibot.output('Adding ULAN %s claim to %s' % (ulanid, item.title(),) )
+                pywikibot.output('Adding ULAN %s claim to %s' % (ulanid, item.title(), ))
 
-                #Default text is "‎Created claim: ULAN identifier (P245): 500204732, "
-
+                # Default text is "‎Created claim: ULAN identifier (P245): 500204732, "
                 summary = u'based on VIAF %s' % (viafid,)
                 
                 item.addClaim(newclaim, summary=summary)
 
                 pywikibot.output('Adding new reference claim to %s' % item)
 
-                refsource = pywikibot.Claim(self.repo, u'P143')
+                refsource = pywikibot.Claim(self.repo, u'P248')
                 refsource.setTarget(self.viafitem)
                 
                 refurl = pywikibot.Claim(self.repo, u'P854')
@@ -93,7 +92,7 @@ class ViafImportBot:
                 date = pywikibot.WbTime(year=today.year, month=today.month, day=today.day)
                 refdate.setTarget(date)
                 
-                newclaim.addSources([refsource,refurl, refdate])
+                newclaim.addSources([refsource, refurl, refdate])
 
 
 def main():
