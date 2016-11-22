@@ -7,6 +7,7 @@ Tool to match RKD images on Wikidata with RKD images and make some sort of easy 
 import pywikibot
 import requests
 import pywikibot.data.sparql
+import re
 
         
 def getArtistsGenerator():
@@ -77,16 +78,19 @@ def paintingsInvOnWikidata(collectionid):
     '''
     result = {}
     sq = pywikibot.data.sparql.SparqlQuery()
-    query = u'SELECT ?item ?id WHERE { ?item wdt:P217 ?id . ?item wdt:P195 wd:%s }' % (collectionid,)
+    query = u'SELECT ?item ?id ?url WHERE { ?item wdt:P217 ?id . ?item wdt:P195 wd:%s . OPTIONAL { ?item wdt:P973 ?url } }' % (collectionid,)
     sq = pywikibot.data.sparql.SparqlQuery()
     queryresult = sq.select(query)
 
     for resultitem in queryresult:
         qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-        result[resultitem.get('id')] = qid
+        result[resultitem.get('id')] = { u'qid' : qid }
+        if resultitem.get('url'):
+            result[resultitem.get('id')]['url'] = resultitem.get('url')
+
     return result
 
-def rkdImagesGenerator(currentimages, invnumbers, collection=u''):
+def rkdImagesGenerator(currentimages, invnumbers, collection, replacements):
     '''
 
     :param currentimages:
@@ -119,23 +123,20 @@ def rkdImagesGenerator(currentimages, invnumbers, collection=u''):
                 imageinfo[u'creator'] = rkdimage.get(u'kunstenaar')
                 imageinfo[u'invnum'] = None
                 imageinfo[u'qid'] = None
+                imageinfo[u'url'] = None
                 for collectie in rkdimage.get(u'collectie'):
                     if collectie.get('collectienaam') == collection:
                         invnum = collectie.get('inventarisnummer')
                         if invnum:
-                            if (invnum.startswith(u'A ') or invnum.startswith(u'C ')):
-                                invnum = u'SK-' + invnum.replace(u' ', u'-')
-                            elif invnum.startswith(u'A'):
-                                invnum = invnum.replace(u'A', u'SK-A-')
-                            elif invnum.startswith(u'C'):
-                                invnum = invnum.replace(u'C', u'SK-C-')
+                            for (regex, replace) in replacements:
+                                invnum = re.sub(regex, replace, invnum)
                         imageinfo[u'invnum'] = invnum
                         imageinfo[u'startime'] = collectie.get('begindatum_in_collectie')
                         if invnum in invnumbers:
                             pywikibot.output(u'Found a Wikidata id!')
-                            imageinfo[u'qid'] = invnumbers.get(invnum)
-
-
+                            imageinfo[u'qid'] = invnumbers.get(invnum).get('qid')
+                            if invnumbers.get(invnum).get('url'):
+                                imageinfo[u'url'] = invnumbers.get(invnum).get('url')
 
                 yield imageinfo
 
@@ -148,25 +149,31 @@ def main():
     collectionid = u'Q190804'
     urlformat = u'https://www.rijksmuseum.nl/nl/collectie/%(invnum)s'
     pageTitle = u'User:Multichill/Rijksmuseum RKD to match'
+    replacements = [(u'^(A|C)\s*(\d+)$', u'SK-\\1-\\2'),
+                    (u'^[sS][kK]\s*-?(A|C)-?\s*(\d+)$', u'SK-\\1-\\2'),
+                    (u'^cat\.(A|C)\s*(\d+)$', u'SK-\\1-\\2')]
 
-    """
+
     collectienaam = u'Koninklijk Kabinet van Schilderijen Mauritshuis'
     collectionid = u'Q221092'
     urlformat = u'http://resolver.kb.nl/resolve?urn=urn:gvn:MAU01:%(invnum)04d'
     pageTitle = u'User:Multichill/Mauritshuis RKD to match'
-
     """
+
     collectienaam = u'Amsterdam Museum'
     collectionid = u'Q1820897'
     urlformat = u'http://resolver.kb.nl/resolve?urn=urn:gvn:MAU01:%(invnum)04d' # https://www.rijksmuseum.nl/nl/collectie/%(invnum)s
-    """
+    pageTitle = u'User:Multichill/Amsterdam Museum RKD to match'
+    replacements = [(u'^S?(A|B)\s*(\d+)$', u'S\\1 \\2'),
+                    ]
+
 
     currentimages = rkdImagesOnWikidata(collectionid)
     invnumbers = paintingsInvOnWikidata(collectionid)
     #print invnumbers
 
     #print currentimages
-    gen = rkdImagesGenerator(currentimages, invnumbers, collection=collectienaam)
+    gen = rkdImagesGenerator(currentimages, invnumbers, collectienaam, replacements)
 
     text = u'<big><big><big>This list contains quite a few mistakes. These will probably fill up at the top. Please check every suggestion before approving</big></big></big>\n\n'
     text = text + u'This list was generated with a bot. If I was confident enough about the suggestions I would have just have the bot add them. '
@@ -188,15 +195,15 @@ def main():
     for invnum in sorted(imagedict.keys()):
         for rkdimageid in imagedict.get(invnum):
             invnum = rkdimageid.get('invnum')
-            if not invnum:
-                rkdimageid[u'url'] = None
-            else:
-                if invnum.isdigit():
-                    invnum = int(invnum)
-                try:
-                    rkdimageid[u'url'] = urlformat % { u'invnum' : invnum }
-                except TypeError:
-                    rkdimageid[u'url'] = None
+            #if not invnum:
+            #    rkdimageid[u'url'] = None
+            #else:
+            #    if invnum.isdigit():
+            #        invnum = int(invnum)
+            #    try:
+            #        rkdimageid[u'url'] = urlformat % { u'invnum' : invnum }
+            #    except TypeError:
+            #        rkdimageid[u'url'] = None
 
 
             if rkdimageid.get(u'qid'):
