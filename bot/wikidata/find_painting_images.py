@@ -607,7 +607,7 @@ class PaintingsMatchBot:
         for filename in missingCommonsLinks:
             success = self.addMissingCommonsLink(filename, self.wikidataImages.get(filename))
             if not success:
-                text = text + u'* [[:File:%s]] - <nowiki>|</nowiki> wikidata = Q%s\n' % (filename, self.wikidataImages.get(filename))
+                text = text + u'* [[:File:%s]] - <nowiki>|</nowiki> wikidata = %s\n' % (filename, self.wikidataImages.get(filename))
                 
         text = text + u'\n[[Category:User:Multichill]]\n'
             
@@ -836,7 +836,7 @@ class PaintingsMatchBot:
                         
                         if line < maxlines:
                             text = text + u'|-\n'
-                            text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=Q%s}} Add] || %s<BR/>%s\n' % (imagedict.get('image'), imagewithout, imagedict.get('item'), imagedict.get('item'), imagedict.get('item'), imagewithout, imagedict.get('item'), imagedict.get('image'), imagewithout)
+                            text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=%s}} Add] || %s<BR/>%s\n' % (imagedict.get('image'), imagewithout, imagedict.get('item'), imagedict.get('item'), imagedict.get('item'), imagewithout, imagedict.get('item'), imagedict.get('image'), imagewithout)
            
         text = text + u'|}\n'
         text = text + u'\n[[Category:User:Multichill]]\n'
