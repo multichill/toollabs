@@ -14,6 +14,7 @@ import pywikibot.data.wikidataquery as wdquery
 import datetime
 import random
 import requests
+import pywikibot.data.sparql
 
 class PaintingsMatchBot:
     """
@@ -72,6 +73,7 @@ class PaintingsMatchBot:
         print 'self.commonsCIWithout %s' % (len(self.commonsCIWithout),)
         print 'self.commonsCIAWithout %s' % (len(self.commonsCIAWithout),)
         print 'self.commonsCIWith %s' % (len(self.commonsCIWith),)
+        print 'self.commonsCIAWith %s' % (len(self.commonsCIAWith),)
 
         #print self.commonsCIAWithout
         
@@ -109,7 +111,7 @@ class PaintingsMatchBot:
         cicounts = {}
         
         url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_ci.txt'
-        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<creator>\d+) - Q(?P<institution>\d+)$'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<creator>Q\d+) - (?P<institution>Q\d+)$'
 
         queryPage = urllib2.urlopen(url)
         queryData = unicode(queryPage.read(), u'utf-8')
@@ -159,7 +161,7 @@ class PaintingsMatchBot:
         result = {}
 
         url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_cia.txt'
-        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<creator>\d+) - Q(?P<institution>\d+) - (?P<invnum>.+)$'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<creator>Q\d+) - (?P<institution>Q\d+) - (?P<invnum>.+)$'
 
         invurlregex = u'^\[(http[^\s]+)\s(.+)\]$'
 
@@ -200,7 +202,7 @@ class PaintingsMatchBot:
         '''
         result = {}
         url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_with_wikidata_ci.txt'
-        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<paintingitem>\d+) - Q(?P<creator>\d+) - Q(?P<institution>\d+)$'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<paintingitem>Q\d+) - (?P<creator>Q\d+) - (?P<institution>Q\d+)$'
 
         queryPage = urllib2.urlopen(url)
         queryData = unicode(queryPage.read(), u'utf-8')
@@ -219,7 +221,7 @@ class PaintingsMatchBot:
         '''
         result = {}
         url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_with_wikidata_cia.txt'
-        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<paintingitem>\d+) - Q(?P<creator>\d+) - Q(?P<institution>\d+) - (?P<invnum>.+)$'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<paintingitem>Q\d+) - (?P<creator>Q\d+) - (?P<institution>Q\d+) - (?P<invnum>.+)$'
         invurlregex = u'^\[(http[^\s]+)\s(.+)\]$'
 
         queryPage = urllib2.urlopen(url)
@@ -243,7 +245,7 @@ class PaintingsMatchBot:
         '''
         result = {}
         url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_with_wikidata.txt'
-        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - Q(?P<paintingitem>\d+)$'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<paintingitem>Q\d+)$'
 
         queryPage = urllib2.urlopen(url)
         queryData = unicode(queryPage.read(), u'utf-8')
@@ -261,6 +263,7 @@ class PaintingsMatchBot:
     
     def getWikidataWithoutCI(self):
         '''
+        NOT ACTUALLY USED RIGHT NOW
         Query Wikidata to get paintings without images, but with creator and collection
         '''
         paintingdict = {}
@@ -362,6 +365,33 @@ class PaintingsMatchBot:
         #wdq.wmflabs.org/api?q=CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND CLAIM[357] AND NOCLAIM[18]&props=170,195
 
         query = u'CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND NOCLAIM[18]'
+
+        sq = pywikibot.data.sparql.SparqlQuery()
+        query = u"""SELECT ?item ?creator ?institution ?invnum ?location ?url WHERE {
+        ?item wdt:P31 wd:Q3305213 .
+        ?item wdt:P170 ?creator .
+        ?item wdt:P195 ?institution .
+        MINUS { ?item wdt:P18 [] } .
+        OPTIONAL { ?item wdt:P217 ?invnum } .
+        OPTIONAL { ?item wdt:P276 ?location } .
+        OPTIONAL { ?item wdt:P973 ?url } .
+        }"""
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            item = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            paintingdict[item] = { u'creator' : False, u'institution' : False, u'invnum' : False, u'location' : False, u'url' : False }
+            paintingdict[item]['creator'] = resultitem.get('creator').replace(u'http://www.wikidata.org/entity/', u'')
+            paintingdict[item]['institution'] = resultitem.get('institution').replace(u'http://www.wikidata.org/entity/', u'')
+            if resultitem.get('invnum'):
+                paintingdict[item]['invnum'] = resultitem.get('invnum')
+            if resultitem.get('location'):
+                paintingdict[item]['location'] = resultitem.get('location').replace(u'http://www.wikidata.org/entity/', u'')
+            if resultitem.get('url'):
+                paintingdict[item]['url'] = resultitem.get('url')
+
+        """
         wd_queryset = wdquery.QuerySet(query)
 
         wd_query = wdquery.WikidataQuery(cacheMaxAge=0) # 30, be careful
@@ -409,53 +439,53 @@ class PaintingsMatchBot:
 
             for urlprop in urlprops:
                 paintingdict[urlprop[0]][u'url']=urlprop[2]
+        """
 
-            for paintingid, painting in paintingdict.items():
-                ci = (u'%s' % (painting.get(u'creator'),), u'%s' % (painting.get(u'institution'),))
-                
+        for paintingid, painting in paintingdict.items():
+            ci = (u'%s' % (painting.get(u'creator'),), u'%s' % (painting.get(u'institution'),))
 
-                if painting.get(u'invnum'):
-                    cia = (u'%s' % (painting.get(u'creator'),),
-                           u'%s' % (painting.get(u'institution'),),
-                           u'%s' % (painting.get(u'invnum'),))
-                else:
-                    cia = False
-        
-                if not ci in self.wikidataCIWithout:
-                    self.wikidataCIWithout[ci] = []
-                self.wikidataCIWithout[ci].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})
+            if painting.get(u'invnum'):
+                cia = (u'%s' % (painting.get(u'creator'),),
+                       u'%s' % (painting.get(u'institution'),),
+                       u'%s' % (painting.get(u'invnum'),))
+            else:
+                cia = False
 
+            if not ci in self.wikidataCIWithout:
+                self.wikidataCIWithout[ci] = []
+            self.wikidataCIWithout[ci].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})
+
+            if cia:
+                if not cia in self.wikidataCIAWithout:
+                    self.wikidataCIAWithout[cia] = []
+                self.wikidataCIAWithout[cia].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})
+
+            # Location and collection are sometimes different:
+            if painting.get(u'location') and painting.get(u'institution')!=painting.get(u'location'):
+                ci2 = (u'%s' % (painting.get(u'creator'),), u'%s' % (painting.get(u'location'),))
+                if not ci2 in self.wikidataCIWithout:
+                    self.wikidataCIWithout[ci2] = []
+                self.wikidataCIWithout[ci2].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})
                 if cia:
-                    if not cia in self.wikidataCIAWithout:
-                        self.wikidataCIAWithout[cia] = []
-                    self.wikidataCIAWithout[cia].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})                    
+                    cia2 = (u'%s' % (painting.get(u'creator'),),
+                            u'%s' % (painting.get(u'location'),),
+                            u'%s' % (painting.get(u'invnum'),))
+                    if not cia2 in self.wikidataCIAWithout:
+                        self.wikidataCIAWithout[cia2] = []
+                    self.wikidataCIAWithout[cia2].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})
 
-                # Location and collection are sometimes different:
-                if painting.get(u'location') and painting.get(u'institution')!=painting.get(u'location'):
-                    ci2 = (u'%s' % (painting.get(u'creator'),), u'%s' % (painting.get(u'location'),))
-                    if not ci2 in self.wikidataCIWithout:
-                        self.wikidataCIWithout[ci2] = []
-                    self.wikidataCIWithout[ci2].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})
-                    if cia:
-                        cia2 = (u'%s' % (painting.get(u'creator'),),
-                                u'%s' % (painting.get(u'location'),),
-                                u'%s' % (painting.get(u'invnum'),))
-                        if not cia2 in self.wikidataCIAWithout:
-                            self.wikidataCIAWithout[cia2] = []
-                        self.wikidataCIAWithout[cia2].append({ u'item' : u'%s' % (paintingid,), u'url' : painting.get(u'url')})                        
+            (creator, institutions) = ci
+            if not creator in creatorcounts:
+                creatorcounts[creator]=0
+            creatorcounts[creator] = creatorcounts[creator] + 1
 
-                (creator, institutions) = ci
-                if not creator in creatorcounts:
-                    creatorcounts[creator]=0
-                creatorcounts[creator] = creatorcounts[creator] + 1
-                
-                if not institutions in institutioncounts:
-                    institutioncounts[institutions]=0
-                institutioncounts[institutions] = institutioncounts[institutions] + 1
+            if not institutions in institutioncounts:
+                institutioncounts[institutions]=0
+            institutioncounts[institutions] = institutioncounts[institutions] + 1
 
-                if not ci in cicounts:
-                    cicounts[ci]=0
-                cicounts[ci] = cicounts[ci] + 1
+            if not ci in cicounts:
+                cicounts[ci]=0
+            cicounts[ci] = cicounts[ci] + 1
 
         pywikibot.output(u'The top creators without image on Wikidata are:')
         for creator in sorted(creatorcounts, key=creatorcounts.get, reverse=True)[:20]:
@@ -479,6 +509,36 @@ class PaintingsMatchBot:
 
         #wdq.wmflabs.org/api?q=CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND CLAIM[357] AND NOCLAIM[18]&props=170,195
 
+        query = u'CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND CLAIM[18]'
+
+        sq = pywikibot.data.sparql.SparqlQuery()
+        query = u"""SELECT ?item ?creator ?institution ?image ?invnum ?location ?url WHERE {
+        ?item wdt:P31 wd:Q3305213 .
+        ?item wdt:P170 ?creator .
+        ?item wdt:P195 ?institution .
+        ?item wdt:P18 ?image .
+        OPTIONAL { ?item wdt:P217 ?invnum } .
+        OPTIONAL { ?item wdt:P276 ?location } .
+        OPTIONAL { ?item wdt:P973 ?url } .
+        }"""
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            item = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            paintingdict[item] = { u'creator' : False, u'institution' : False,  u'image' : False, u'invnum' : False, u'location' : False, u'url' : False }
+            paintingdict[item]['creator'] = resultitem.get('creator').replace(u'http://www.wikidata.org/entity/', u'')
+            paintingdict[item]['institution'] = resultitem.get('institution').replace(u'http://www.wikidata.org/entity/', u'')
+            paintingdict[item]['image'] = pywikibot.FilePage(pywikibot.Site('commons', 'commons'),resultitem.get('image').replace(u'http://commons.wikimedia.org/wiki/Special:FilePath/', u'')).title(underscore=True, withNamespace=False)
+            self.wikidataImages[paintingdict[item]['image']] = item
+            if resultitem.get('invnum'):
+                paintingdict[item]['invnum'] = resultitem.get('invnum')
+            if resultitem.get('location'):
+                paintingdict[item]['location'] = resultitem.get('location').replace(u'http://www.wikidata.org/entity/', u'')
+            if resultitem.get('url'):
+                paintingdict[item]['url'] = resultitem.get('url')
+
+        """
         query = u'CLAIM[31:3305213] AND CLAIM[170] AND CLAIM[195] AND CLAIM[18]'
         wd_queryset = wdquery.QuerySet(query)
 
@@ -527,12 +587,13 @@ class PaintingsMatchBot:
 
             for urlprop in urlprops:
                 paintingdict[urlprop[0]][u'url']=urlprop[2]
+            """
 
-            for paintingid, painting in paintingdict.items():
-                ci = (u'%s' % (painting.get(u'creator'),), u'%s' % (painting.get(u'institution'),))
-                if not ci in self.wikidataCIWith:
-                    self.wikidataCIWith[ci] = []
-                self.wikidataCIWith[ci].append({ u'id' : str(paintingid), u'image' : painting.get(u'image'), u'url' : painting.get(u'url') })
+        for paintingid, painting in paintingdict.items():
+            ci = (u'%s' % (painting.get(u'creator'),), u'%s' % (painting.get(u'institution'),))
+            if not ci in self.wikidataCIWith:
+                self.wikidataCIWith[ci] = []
+            self.wikidataCIWith[ci].append({ u'id' : str(paintingid), u'image' : painting.get(u'image'), u'url' : painting.get(u'url') })
 
     def addMissingCommonsLinks(self):
         '''
@@ -577,11 +638,11 @@ class PaintingsMatchBot:
             return False
 
         # First try to update an existing fiel
-        newtext = re.sub(emptywikidataregex, u'\\1Q%s\n' % (wikidataitem,), text, count=1)
+        newtext = re.sub(emptywikidataregex, u'\\1%s\n' % (wikidataitem,), text, count=1)
 
         if text==newtext:
             #Ok, that didn't work, just slap it at the top   
-            newtext = re.sub(replaceregex, u'{{\\1\n|wikidata=Q%s' % (wikidataitem,), text, count=1, flags=re.I)
+            newtext = re.sub(replaceregex, u'{{\\1\n|wikidata=%s' % (wikidataitem,), text, count=1, flags=re.I)
             if text==newtext:
                 pywikibot.output(u'Unable to add Wikidata link to %s' % (filename,))
                 return False
@@ -589,7 +650,7 @@ class PaintingsMatchBot:
         #nextext = re.sub(cleanupregex, u'\\1\\2', newtext, count=1, flags=re.DOTALL)
 
         pywikibot.showDiff(text, newtext)
-        summary = u'Adding link to [[:d:Q%s]] based on usage on that item' % (wikidataitem,)
+        summary = u'Adding link to [[:d:%s]] based on usage on that item' % (wikidataitem,)
         pywikibot.output(summary)
         filepage.put(newtext, summary=summary)
         return True
@@ -602,7 +663,7 @@ class PaintingsMatchBot:
         missingWikidataClaims = set(self.wikidataNoImages) & set(self.commonsLink.values())
 
         for itemid in missingWikidataClaims:
-            paintingItem = pywikibot.ItemPage(self.repo, title=u'Q%s' % (itemid,))
+            paintingItem = pywikibot.ItemPage(self.repo, title=u'%s' % (itemid,))
             filename = self.commonsLink.get(itemid)
             filepage = pywikibot.FilePage(self.commons, title=filename)
             data = paintingItem.get()
@@ -657,7 +718,7 @@ class PaintingsMatchBot:
                     if line < maxlines:
                         text = text + u'|-\n'
                     
-                        addlink = u'[https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:Q%s\tP18\t"%s"}} Add]' % (paintingitem, image) # urlencode?
+                        addlink = u'[https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:%s\tP18\t"%s"}} Add]' % (paintingitem, image) # urlencode?
                         describedlink = u''
                         if paintingurl:
                             describedlink = u'[%s Link]' % (paintingurl,)
@@ -666,7 +727,7 @@ class PaintingsMatchBot:
                             text = text + u'| {{Q|%s}} || [[File:%s|100px]] || <small>%s</small> || %s || %s || {{Q|%s}} || {{Q|%s}}   \n' % (paintingitem, image, image, describedlink, addlink, creator, institution,)
                             firstrow=False
                         else:
-                            text = text + u'| {{Q|%s}} || [[File:%s|100px]] || <small>%s</small> || %s || %s || [[Q%s]] || [[Q%s]]   \n' % (paintingitem, image, image, describedlink, addlink, creator, institution,)
+                            text = text + u'| {{Q|%s}} || [[File:%s|100px]] || <small>%s</small> || %s || %s || [[%s]] || [[%s]]   \n' % (paintingitem, image, image, describedlink, addlink, creator, institution,)
 
 
         for key in self.sampleCIKeys: #sorted(self.sampleKeys, reverse=True):
@@ -691,7 +752,7 @@ class PaintingsMatchBot:
                     if line < maxlines:
                         text = text + u'|-\n'
                     
-                        addlink = u'[https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:Q%s\tP18\t"%s"}} Add]' % (paintingitem, image) # urlencode?
+                        addlink = u'[https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:%s\tP18\t"%s"}} Add]' % (paintingitem, image) # urlencode?
                         describedlink = u''
                         if paintingurl:
                             describedlink = u'[%s Link]' % (paintingurl,)
@@ -702,7 +763,7 @@ class PaintingsMatchBot:
                             firstrow=False
                         else:
                             #text = text + u'| {{Q|%s}} || <small>%s</small> || %s || [[Q%s]] || [[Q%s]] || [[File:%s|100px]] || %s \n' % (paintingitem, image, describedlink, creator, institution, image, addlink)
-                            text = text + u'| {{Q|%s}} || [[File:%s|100px]] || <small>%s</small> || %s || %s || [[Q%s]] || [[Q%s]]   \n' % (paintingitem, image, image, describedlink, addlink, creator, institution,)
+                            text = text + u'| {{Q|%s}} || [[File:%s|100px]] || <small>%s</small> || %s || %s || [[%s]] || [[%s]]   \n' % (paintingitem, image, image, describedlink, addlink, creator, institution,)
 
            
         text = text + u'|}\n'
@@ -726,6 +787,9 @@ class PaintingsMatchBot:
         """
         self.bothWithoutCIAKeys = set(self.commonsCIAWithout.keys()) & set(self.commonsCIAWith.keys())
         self.bothWithoutCIKeys = set(self.commonsCIWithout.keys()) & set(self.commonsCIWith.keys())
+
+        print u'The length of bothWithoutCIAKeys: %s ' % (len(self.bothWithoutCIAKeys),)
+        print u'The length of bothWithoutCIKeys: %s ' % (len(self.bothWithoutCIKeys),)
 
         #FIXME: This is quick and dirty.
         self.sampleCIAKeys = self.bothWithoutCIAKeys
@@ -755,7 +819,7 @@ class PaintingsMatchBot:
                         
                         if line < maxlines:
                             text = text + u'|-\n'
-                            text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:Q%s|Q%s]] || <nowiki>|</nowiki> wikidata = Q%s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=Q%s}} Add] || %s<BR/>%s\n' % (imagedict.get('image'), imagewithout, imagedict.get('item'), imagedict.get('item'), imagedict.get('item'), imagewithout, imagedict.get('item'), imagedict.get('image'), imagewithout)
+                            text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=Q%s}} Add] || %s<BR/>%s\n' % (imagedict.get('image'), imagewithout, imagedict.get('item'), imagedict.get('item'), imagedict.get('item'), imagewithout, imagedict.get('item'), imagedict.get('image'), imagewithout)
 
         
         for key in self.sampleCIKeys: #sorted(self.sampleKeys, reverse=True):
@@ -772,7 +836,7 @@ class PaintingsMatchBot:
                         
                         if line < maxlines:
                             text = text + u'|-\n'
-                            text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:Q%s|Q%s]] || <nowiki>|</nowiki> wikidata = Q%s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=Q%s}} Add] || %s<BR/>%s\n' % (imagedict.get('image'), imagewithout, imagedict.get('item'), imagedict.get('item'), imagedict.get('item'), imagewithout, imagedict.get('item'), imagedict.get('image'), imagewithout)
+                            text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=Q%s}} Add] || %s<BR/>%s\n' % (imagedict.get('image'), imagewithout, imagedict.get('item'), imagedict.get('item'), imagedict.get('item'), imagewithout, imagedict.get('item'), imagedict.get('image'), imagewithout)
            
         text = text + u'|}\n'
         text = text + u'\n[[Category:User:Multichill]]\n'
