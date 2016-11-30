@@ -2,7 +2,20 @@
 # -*- coding: utf-8 -*-
 """
 Bot to add gender based on RKDartists and ULAN.
-Is in need in some serious clean up.
+Over time more sources were added. Now it's in need in some serious clean up.
+
+Probably best to have a dict with the sources and a genertic + specific functions to process all sources.
+
+Current sources:
+* ULAN ID (P245)
+* RKDartists ID (P650)
+* Biografisch Portaal number (P651)
+* DAAO ID (P1707) - TODO
+* Benezit ID (P2843) - TODO
+* ECARTICO person ID (P2915) - TODO
+* Auckland Art Gallery artist ID (P3372)
+
+See also https://www.wikidata.org/wiki/User:Multichill/Humans_no_gender
 
 """
 
@@ -11,7 +24,6 @@ from pywikibot import pagegenerators
 import re
 import datetime
 import requests
-#import simplejson
 
 class GenderBot:
     """
@@ -128,6 +140,7 @@ class GenderBot:
                 gender=rkdgender
 
             biogender = None
+            aucklandgender = None
             newclaim = None
 
             if not gender:
@@ -147,6 +160,24 @@ class GenderBot:
                             newclaim = self.addItemStatement(itempage, u'P21', u'Q6581097')
                         elif biogendermatch.group(1) == u'vrouw':
                             newclaim = self.addItemStatement(itempage, u'P21', u'Q6581072')
+                elif u'P3372' in claims:
+                    aucklandid = claims.get('P3372')[0].getTarget()
+                    print aucklandid
+                    aucklandurl = u'http://www.aucklandartgallery.com/explore-art-and-ideas/artist/%s/' % (aucklandid,)
+                    aucklandPage = requests.get(aucklandurl, verify=False)
+
+                    aucklandgenderregex = u'\<dt\>Gender\<\/dt\>\s*\n\s*\<dd\>(Male|Female)\<\/dd\>'
+
+                    aucklandgendermatch = re.search(aucklandgenderregex, aucklandPage.text)
+                    if aucklandgendermatch:
+                        aucklandgender = True
+                        if aucklandgendermatch.group(1) == u'Male':
+                            newclaim = self.addItemStatement(itempage, u'P21', u'Q6581097')
+                        elif aucklandgendermatch.group(1) == u'Female':
+                            newclaim = self.addItemStatement(itempage, u'P21', u'Q6581072')
+
+
+
             elif gender==u'm':
                 newclaim = self.addItemStatement(itempage, u'P21', u'Q6581097')
             elif gender==u'f':
@@ -159,6 +190,8 @@ class GenderBot:
                     self.addReference(itempage, newclaim, rkdurl)
                 if biogender:
                     self.addReference(itempage, newclaim, biourl)
+                if aucklandgender:
+                    self.addReference(itempage, newclaim, aucklandurl)
 
     def addItemStatement(self, item, pid, qid):
         '''
@@ -196,7 +229,8 @@ def main():
     query = u"""SELECT DISTINCT ?item WHERE {
   { ?item wdt:P245 [] } UNION
   { ?item wdt:P650 [] } UNION
-  { ?item wdt:P651 [] } .
+  { ?item wdt:P651 [] } UNION
+  { ?item wdt:P3372 [] } .
   ?item wdt:P31 wd:Q5 .
   MINUS { ?item wdt:P21 [] } .
 }"""
