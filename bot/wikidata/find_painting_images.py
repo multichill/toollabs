@@ -819,7 +819,7 @@ class PaintingsMatchBot:
                         
                         if line < maxlines:
                             text = text + u'|-\n'
-                            text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=Q%s}} Add] || %s<BR/>%s\n' % (imagedict.get('image'), imagewithout, imagedict.get('item'), imagedict.get('item'), imagedict.get('item'), imagewithout, imagedict.get('item'), imagedict.get('image'), imagewithout)
+                            text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=%s}} Add] || %s<BR/>%s\n' % (imagedict.get('image'), imagewithout, imagedict.get('item'), imagedict.get('item'), imagedict.get('item'), imagewithout, imagedict.get('item'), imagedict.get('image'), imagewithout)
 
         
         for key in self.sampleCIKeys: #sorted(self.sampleKeys, reverse=True):
