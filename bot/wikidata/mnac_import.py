@@ -26,19 +26,21 @@ def getMNACGenerator():
     
     """
 
-    # 0 - 86 (something between 80 and 90
+    # 0 - 89 (something between 80 and 90
     searchBaseUrl = u'http://www.museunacional.cat/en/advanced-piece-search?title_1=&title=&field_piece_inventory_number_value=&keys=&field_piece_type_value_i18n[0]=pintura&&&page=%s'
+    # 0 - 48, for some reason not all paintings get returned in the main query
+    # searchBaseUrl = u'http://www.museunacional.cat/en/advanced-piece-search?field_piece_type_value_i18n[0]=pintura&field_piece_info_content_value[p.%%2019th]=p.%%2019th&field_piece_info_content_value[q.%%2020th]=q.%%2020th&&page=%s'
     htmlparser = HTMLParser.HTMLParser()
 
     foundit=True
 
-    for i in range(0, 86):
+    for i in range(0, 89):
         searchUrl = searchBaseUrl % (i,)
         print searchUrl
         searchPage = urllib2.urlopen(searchUrl)
         searchPageData = searchPage.read()
 
-        searchRegex = u'<a href="(/en/colleccio/[^\"]+)">Read more</a>'
+        searchRegex = u'\<a href\=\"(\/en\/colleccio\/[^\"]+)\"\>Read more\<\/a\>'
         itemmatches = re.finditer(searchRegex, searchPageData)
         urllist = []
         #for match in matches:
@@ -132,7 +134,6 @@ def getMNACGenerator():
                 metadata['inception'] = dateMatch.group(1)
 
             yield metadata
-
         
 
 def main():
