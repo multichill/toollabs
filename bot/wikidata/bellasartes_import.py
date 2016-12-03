@@ -105,7 +105,7 @@ def getBellasartesGenerator():
 
         # Only add the medium if it's oil on canvas
         oilregex = u'Técnica\:\s*\n*\s*\<span\><a href\=\"\/coleccion\/tecnica\/leo\" title\=\"Óleo\"\>Óleo\<\/a\>\<\/span\>'
-        canvasregex = u'\<li\>Soporte\: \<span\>sobre tela\<\/span\>\<\/li\>'
+        canvasregex = u'\<li\>Soporte\: \<span\>[sS]obre tela\<\/span\>\<\/li\>'
         oilmatch = re.search(oilregex, itempage.text)
         canvasmatch = re.search(canvasregex, itempage.text)
         if oilmatch and canvasmatch:
