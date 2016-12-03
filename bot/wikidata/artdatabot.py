@@ -247,7 +247,8 @@ class ArtDataBot:
                 # Height in centimetres. Expect something that can be converted to a Decimal with . and not ,
                 if u'P2048' not in claims and metadata.get(u'heightcm'):
                     newheight = pywikibot.WbQuantity(amount=metadata.get(u'heightcm'),
-                                                     unit=u'http://www.wikidata.org/entity/Q174728')
+                                                     unit=u'http://www.wikidata.org/entity/Q174728',
+                                                     site=self.repo)
                     newclaim = pywikibot.Claim(self.repo, u'P2048')
                     newclaim.setTarget(newheight)
                     pywikibot.output('Adding height in cm claim to %s' % artworkItem)
@@ -258,7 +259,8 @@ class ArtDataBot:
                 # Width in centimetres. Expect something that can be converted to a Decimal with . and not ,
                 if u'P2049' not in claims and metadata.get(u'widthcm'):
                     newwidth = pywikibot.WbQuantity(amount=metadata.get(u'widthcm'),
-                                                    unit=u'http://www.wikidata.org/entity/Q174728')
+                                                    unit=u'http://www.wikidata.org/entity/Q174728',
+                                                    site=self.repo)
                     newclaim = pywikibot.Claim(self.repo, u'P2049')
                     newclaim.setTarget(newwidth)
                     pywikibot.output('Adding width in cm claim to %s' % artworkItem)
@@ -271,7 +273,8 @@ class ArtDataBot:
                 # Some museums provide this, but not a lot
                 if u'P2610' not in claims and metadata.get(u'depthcm'):
                     newdepth = pywikibot.WbQuantity(amount=metadata.get(u'depthcm'),
-                                                    unit=u'http://www.wikidata.org/entity/Q174728')
+                                                    unit=u'http://www.wikidata.org/entity/Q174728',
+                                                    site=self.repo)
                     newclaim = pywikibot.Claim(self.repo, u'P2610')
                     newclaim.setTarget(newdepth)
                     pywikibot.output('Adding depth in cm claim to %s' % artworkItem)
