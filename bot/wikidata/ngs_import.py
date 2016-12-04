@@ -53,6 +53,10 @@ def getNGSGenerator():
             invregex = u'\<li class\=\"ngs-mimsy-data__item\"\>\s*\<span class\=\"ngs-mimsy-data__item-label\"\>accession number\:</span\>\s*\<span class\=\"ngs-mimsy-data__item-values\"\>([^\<]+)\<\/span\>\<\/li\>'
             invmatch = re.search(invregex, itempage.text)
 
+            if not invmatch:
+                pywikibot.output(u'Something went wrong, skipping this one')
+                continue
+
             metadata['id'] = invmatch.group(1).strip()
             metadata['idpid'] = u'P217'
 
