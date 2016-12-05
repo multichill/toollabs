@@ -13,6 +13,7 @@ import pywikibot
 import requests
 import re
 import HTMLParser
+import time
 
 def getHermitageGenerator():
     '''
@@ -47,8 +48,10 @@ def getHermitageGenerator():
             metadata['url_en'] = '%s?lng=en' % (metadata['url'],)
             metadata['url_ru'] = '%s?lng=ru' % (metadata['url'],)
 
-            itemPageEn = session.get(metadata['url_en'], verify=False)
-            itemPageRu = session.get(metadata['url_ru'], verify=False)
+            # Don't go too fast
+            # time.sleep(15)
+            itemPageEn = requests.get(metadata['url_en'], verify=False)
+            itemPageRu = requests.get(metadata['url_ru'], verify=False)
             print metadata['url_en']
 
             headerRegex = u'<header>[\r\n\s]+<h3>([^<]*)</h3>[\r\n\s]+<h1>([^<]*)</h1>[\r\n\s]+<p>([^<]*)</p>[\r\n\s]+</header>'
