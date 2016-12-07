@@ -72,13 +72,14 @@ def getNGSGenerator():
 
             titleregex = u'\<li class\=\"ngs-mimsy-data__item\"\>\s*\<span class\=\"ngs-mimsy-data__item-label\"\>title\:</span\>\s*\<span class\=\"ngs-mimsy-data__item-values\"\>([^\<]+)\<\/span\>\<\/li\>'
             titlematch = re.search(titleregex, itempage.text)
+            title = htmlparser.unescape(titlematch.group(1).strip())
             #if not titlematch:
             #    pywikibot.output(u'No title match, something went wrong on %s' % (url,))
             #    continue
             ## Chop chop, several very long titles
-            #if title > 220:
-            #    title = title[0:200]
-            metadata['title'] = { u'en' : htmlparser.unescape(titlematch.group(1).strip()),
+            if title > 220:
+                title = title[0:200]
+            metadata['title'] = { u'en' : title,
                                   }
 
             creatorregex = u'\<li class\=\"ngs-mimsy-data__item\"\>\s*\<span class\=\"ngs-mimsy-data__item-label\"\>artists?\:</span\>\s*\<span class\=\"ngs-mimsy-data__item-values\"\>(\<a href\=\"[^\"]+\" title=\"[^\"]+\"\>)?(?P<creator>[^\<]+)\<\/'
