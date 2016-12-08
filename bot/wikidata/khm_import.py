@@ -60,7 +60,7 @@ def getKHMGenerator():
             #No need to check, I'm actually searching for paintings.
             metadata['instanceofqid'] = u'Q3305213'
 
-            invregex = u'\<h2 class\=\"label\"\>Inv\. Nr\.\</\h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>Gemäldegalerie,\s*(\d+[^\<]*)\<\/p\>\s*\<\/div\>'
+            invregex = u'\<h2 class\=\"label\"\>Inv\. Nr\.\</\h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>Gemäldegalerie,\s*([^\<]*\d+[^\<]*)\<\/p\>\s*\<\/div\>'
             invmatch = re.search(invregex, itempage.text)
 
             #if not invmatch:
