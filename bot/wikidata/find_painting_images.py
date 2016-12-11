@@ -718,7 +718,7 @@ class PaintingsMatchBot:
                     if line < maxlines:
                         text = text + u'|-\n'
                     
-                        addlink = u'[https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:%s\tP18\t"%s"}} Add]' % (paintingitem, image) # urlencode?
+                        addlink = u'[https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:%s\tP18\t"%s"}} Add]' % (paintingitem, image.replace(u'_', u' ')) # urlencode?
                         describedlink = u''
                         if paintingurl:
                             describedlink = u'[%s Link]' % (paintingurl,)
@@ -752,7 +752,7 @@ class PaintingsMatchBot:
                     if line < maxlines:
                         text = text + u'|-\n'
                     
-                        addlink = u'[https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:%s\tP18\t"%s"}} Add]' % (paintingitem, image) # urlencode?
+                        addlink = u'[https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:%s\tP18\t"%s"}} Add]' % (paintingitem, image.replace(u'_', u' ')) # urlencode?
                         describedlink = u''
                         if paintingurl:
                             describedlink = u'[%s Link]' % (paintingurl,)
