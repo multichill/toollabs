@@ -60,21 +60,37 @@ def getKHMGenerator():
             #No need to check, I'm actually searching for paintings.
             metadata['instanceofqid'] = u'Q3305213'
 
-            invregex = u'\<h2 class\=\"label\"\>Inv\. Nr\.\</\h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>Gemäldegalerie,\s*([^\<]*\d+[^\<]*)\<\/p\>\s*\<\/div\>'
-            invmatch = re.search(invregex, itempage.text)
-
-            #if not invmatch:
-            #    pywikibot.output(u'Something went wrong, skipping this one')
-             #   continue
-
-            metadata['id'] = 'GG_%s' % (invmatch.group(1).strip(), )
             metadata['idpid'] = u'P217'
+
+            invggregex = u'\<h2 class\=\"label\"\>Inv\. Nr\.\</\h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>Gemäldegalerie,\s*([^\<]*\d+[^\<]*)\<\/p\>\s*\<\/div\>'
+            invsamregex = u'\<h2 class\=\"label\"\>Inv\. Nr\.\</\h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>Sammlung alter Musikinstrumente,\s*([^\<]*\d+[^\<]*)\<\/p\>\s*\<\/div\>'
+            invwbregex = u'\<h2 class\=\"label\"\>Inv\. Nr\.\</\h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>Wagenburg,\s*([^\<]*\d+[^\<]*)\<\/p\>\s*\<\/div\>'
+            invkkregex = u'\<h2 class\=\"label\"\>Inv\. Nr\.\</\h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>Kunstkammer,\s*([^\<]*\d+[^\<]*)\<\/p\>\s*\<\/div\>'
+            invamregex = u'\<h2 class\=\"label\"\>Inv\. Nr\.\</\h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>Sammlungen Schloss Ambras,\s*([^\<]*\d+[^\<]*)\<\/p\>\s*\<\/div\>'
+            invggmatch = re.search(invggregex, itempage.text)
+            invsammatch = re.search(invsamregex, itempage.text)
+            invwbmatch = re.search(invwbregex, itempage.text)
+            invkkmatch = re.search(invkkregex, itempage.text)
+            invammatch = re.search(invamregex, itempage.text)
+
+            if invggmatch:
+                metadata['id'] = 'GG_%s' % (invggmatch.group(1).strip(), )
+            elif invsammatch:
+                metadata['id'] = 'SAM_%s' % (invsammatch.group(1).strip(), )
+            elif invwbmatch:
+                metadata['id'] = 'WB_%s' % (invwbmatch.group(1).strip().replace(u' ', u'_'), )
+            elif invkkmatch:
+                metadata['id'] = 'KK_%s' % (invkkmatch.group(1).strip(), )
+            elif invammatch:
+                metadata['id'] = 'AM_%s' % (invammatch.group(1).strip().replace(u' ', u'_'), )
+            else:
+                pywikibot.output(u'Something went wrong, no inventory number found, skipping this one')
+                continue
 
             permaregex = u'\<span class\=\"icon-permalink\"\>\<\/span\>\s*Permalink \(zitierbarer Link\) zu dieser Seite\: \<a target\=\"_top\" href\=\"(https\:\/\/www\.khm\.at\/de\/object\/[^\"]+\/)\"\>'
             permamatch = re.search(permaregex, itempage.text)
 
             metadata['describedbyurl'] = permamatch.group(1).strip()
-
 
             titleregex = u'\<meta property\=\"og:title\" content\=\"([^\"]+)\"\s*\/\>'
             titlematch = re.search(titleregex, itempage.text)
@@ -90,6 +106,9 @@ def getKHMGenerator():
 
             descriptionregex = u'\<meta property\=\"og:description\" content\=\"([^\"]+)\"\s*\/\>'
             descriptionmatch = re.search(descriptionregex, itempage.text)
+            if not descriptionmatch:
+                pywikibot.output(u'Something went wrong, no description found, skipping this one')
+                continue
             (rawdate, sep, rawcreator) = htmlparser.unescape(descriptionmatch.group(1).strip()).replace(u', Kunsthistorisches Museum Wien, Gemäldegalerie', u'').partition(u',')
 
             # Don't worry about cleaning up here.
