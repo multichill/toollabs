@@ -33,8 +33,11 @@ def getBelvedereGenerator():
         for match in matches:
             metadata = {}
             url = match.group(1)
-            pywikibot.output(url)
 
+            # Museum site doesn't seem to like it when we go fast
+            time.sleep(15)
+
+            pywikibot.output(url)
             itempage = requests.get(url)
             metadata['url'] = url
             metadata['collectionqid'] = u'Q303139'
