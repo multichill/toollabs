@@ -25,7 +25,7 @@ def getBelvedereGenerator():
     for i in range(1, 318):
         searchurl = basesearchurl % (i,)
 
-        print searchurl
+        pywikibot.output(searchurl)
         searchPage = requests.get(searchurl)
 
         urlregex = u'data-a2a-url\=\"(http:\/\/digital\.belvedere\.at\/objects\/\d+\/[^\"]+)\;jsessionid\=[^\"]+\"'
@@ -33,7 +33,7 @@ def getBelvedereGenerator():
         for match in matches:
             metadata = {}
             url = match.group(1)
-            print url
+            pywikibot.output(url)
 
             itempage = requests.get(url)
             metadata['url'] = url
