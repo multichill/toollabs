@@ -7,14 +7,10 @@ Bot to import art data to Wikidata.
 import json
 import pywikibot
 from pywikibot import pagegenerators
-import urllib2
 import re
 import pywikibot.data.sparql
 import datetime
-import HTMLParser
 import posixpath
-from urlparse import urlparse
-from urllib import urlopen
 import hashlib
 import io
 import base64
@@ -35,7 +31,7 @@ class ArtDataBot:
             * create       - Boolean to say if you want to create new items or just update existing
 
         """
-        firstrecord  = dictGenerator.next()
+        firstrecord = next(dictGenerator)
         self.generator = itertools.chain([firstrecord], dictGenerator)
         self.repo = pywikibot.Site().data_repository()
         self.create = create
@@ -89,7 +85,7 @@ class ArtDataBot:
             newclaims = []
             if metadata[u'id'] in self.artworkIds:
                 artworkItemTitle = self.artworkIds.get(metadata[u'id'])
-                print artworkItemTitle
+                print (artworkItemTitle)
                 artworkItem = pywikibot.ItemPage(self.repo, title=artworkItemTitle)
 
             elif self.create:
@@ -114,8 +110,6 @@ class ArtDataBot:
                     for lang, description in metadata['description'].iteritems():
                         data['descriptions'][lang] = {'language': lang, 'value': description}
                 
-                print data
-                
                 identification = {}
                 summary = u'Creating new item with data from %s ' % (metadata[u'url'],)
                 pywikibot.output(summary)
@@ -128,8 +122,7 @@ class ArtDataBot:
                         data['descriptions'][lang] = {'language': lang, 'value': u'%s (%s %s)' % (description, metadata['collectionshort'], metadata['id'],) }
                     result = self.repo.editEntity(identification, data, summary=summary)
                     pass
-                    
-                    
+
                 artworkItemTitle = result.get(u'entity').get('id')
 
                 # Wikidata is sometimes lagging. Wait for 10 seconds before trying to actually use the item
@@ -323,11 +316,10 @@ class ArtDataBot:
         date = pywikibot.WbTime(year=today.year, month=today.month, day=today.day)
         refdate.setTarget(date)
         newclaim.addSources([refurl, refdate])
-      
-        
+
 
 def main():
-    print u'Dude, write your own bot'    
+    print ( u'Dude, write your own bot')
     
 
 if __name__ == "__main__":
