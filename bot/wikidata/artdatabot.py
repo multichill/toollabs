@@ -4,7 +4,6 @@
 Bot to import art data to Wikidata.
 
 """
-import json
 import pywikibot
 from pywikibot import pagegenerators
 import re
@@ -103,11 +102,11 @@ class ArtDataBot:
 
                 # loop over stuff
                 if metadata.get('title'):
-                    for lang, label in metadata['title'].iteritems():
+                    for lang, label in metadata['title'].items():
                         data['labels'][lang] = {'language': lang, 'value': label}
 
                 if metadata.get('description'):
-                    for lang, description in metadata['description'].iteritems():
+                    for lang, description in metadata['description'].items():
                         data['descriptions'][lang] = {'language': lang, 'value': description}
                 
                 identification = {}
@@ -118,7 +117,7 @@ class ArtDataBot:
                 except pywikibot.data.api.APIError:
                     # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
                     pywikibot.output(u'Oops, already had that one. Trying again')
-                    for lang, description in metadata['description'].iteritems():
+                    for lang, description in metadata['description'].items():
                         data['descriptions'][lang] = {'language': lang, 'value': u'%s (%s %s)' % (description, metadata['collectionshort'], metadata['id'],) }
                     result = self.repo.editEntity(identification, data, summary=summary)
                     pass
