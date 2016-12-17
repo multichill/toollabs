@@ -68,9 +68,10 @@ class KIDArtistsImporterBot:
             #    self.addPlaceOfDeath(itempage, kidPage.text, kidurl)
             if u'P27' not in claims:
                 self.addCountry(itempage, kidPage.text, kidurl)
-        print self.missingoccupations
-        print self.missingcountries
-
+        pywikibot.output(u'The list of missing occupations:')
+        pywikibot.output(self.missingoccupations)
+        pywikibot.output(u'The list of missing countries:')
+        pywikibot.output(self.missingcountries)
 
     def addGender(self, itempage, text, refurl):
         newclaim = None
@@ -113,8 +114,6 @@ class KIDArtistsImporterBot:
                 occupation = occupation.strip().lower()
                 if occupation:
                     if occupation not in occupations:
-                        print occupation
-                        print u'NOT FOUND OCCUPATION!'
                         if not occupation in self.missingoccupations:
                             self.missingoccupations[occupation] = 0
                         self.missingoccupations[occupation] = self.missingoccupations[occupation] + 1
@@ -172,7 +171,7 @@ class KIDArtistsImporterBot:
         elif yearlocationmatch:
             newdate = pywikibot.WbTime( year=int(yearlocationmatch.group(u'year')))
         else:
-            print datestring
+            #print datestring
             return False
 
         newclaim = pywikibot.Claim(self.repo, property)
@@ -220,8 +219,6 @@ class KIDArtistsImporterBot:
                 country = country.strip()
                 if country:
                     if country not in countries:
-                        print country
-                        print u'NOT FOUND COUNTRY!'
                         if not country in self.missingcountries:
                             self.missingcountries[country] = 0
                         self.missingcountries[country] = self.missingcountries[country] + 1
