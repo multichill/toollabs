@@ -10,59 +10,17 @@ import pywikibot.data.sparql
 import re
 
         
-def getArtistsGenerator():
-    '''
-    Generate a bunch of artists from RKD.
-    It returns tuples of title and description to be imported to http://tools.wmflabs.org/mix-n-match/
-    ''' 
-    url = 'http://api-rkd.picturae.pro/api/record/artists/%d?format=json'
-
-
-    for i in range(1, 335560):
-        
-        apiPage = urllib.urlopen(url % (i,))
-        apiData = apiPage.read()
-        jsonData = json.loads(apiData)
-        if jsonData.get(u'response'):
-            docs = jsonData.get(u'response').get('docs')[0]
-            
-            title = docs.get('kunstenaarsnaam')
-            descriptions = []
-
-            fields = [u'nationaliteit',
-                      u'kwalificatie',
-                      u'geboortedatum_begin',
-                      u'geboortedatum_eind',
-                      u'geboorteplaats',
-                      u'sterfdatum_begin',
-                      u'sterfdatum_eind',
-                      u'sterfplaats',
-                     ]
-
-            for field in fields:
-                if docs.get(field):
-                    if isinstance(docs.get(field), list):
-                        descriptions.extend(docs.get(field))
-                    elif not docs.get(field) == descriptions[-1]:
-                        # Remove dupes.
-                        descriptions.append(docs.get(field))
-
-            description = u'/'.join(descriptions)
-
-            print title
-            print description
-
-            yield (title, description)
-
-
-def rkdImagesOnWikidata(collectionid):
+def rkdImagesOnWikidata(collectionid=None):
     '''
     Just return all the RKD images as a dict
     :return: Dict
     '''
     result = {}
     sq = pywikibot.data.sparql.SparqlQuery()
-    query = u'SELECT ?item ?id WHERE { ?item wdt:P350 ?id . ?item wdt:P195 wd:%s }' % (collectionid,)
+    if collectionid:
+        query = u'SELECT ?item ?id WHERE { ?item wdt:P350 ?id . ?item wdt:P195 wd:%s }' % (collectionid,)
+    else:
+        query = u'SELECT ?item ?id WHERE { ?item wdt:P350 ?id  }'
     sq = pywikibot.data.sparql.SparqlQuery()
     queryresult = sq.select(query)
 
@@ -78,7 +36,7 @@ def paintingsInvOnWikidata(collectionid):
     '''
     result = {}
     sq = pywikibot.data.sparql.SparqlQuery()
-    query = u'SELECT ?item ?id ?url WHERE { ?item wdt:P217 ?id . ?item wdt:P195 wd:%s . OPTIONAL { ?item wdt:P973 ?url } }' % (collectionid,)
+    query = u'SELECT ?item ?id ?url WHERE { ?item wdt:P195 wd:%s . ?item wdt:P31 wd:Q3305213 . ?item wdt:P217 ?id .  OPTIONAL { ?item wdt:P973 ?url } }' % (collectionid,)
     sq = pywikibot.data.sparql.SparqlQuery()
     queryresult = sq.select(query)
 
@@ -100,7 +58,7 @@ def rkdImagesGenerator(currentimages, invnumbers, collection, replacements):
     # https://api.rkd.nl/api/search/images?filters[collectienaam]=Rijksmuseum&format=json&start=100&rows=50
     start = 0
     rows = 50
-    basesearchurl = u'https://api.rkd.nl/api/search/images?filters[collectienaam]=%s&format=json&start=%s&rows=%s'
+    basesearchurl = u'https://api.rkd.nl/api/search/images?filters[collectienaam]=%s&filters[objectcategorie][]=schilderij&format=json&start=%s&rows=%s'
     while True:
         searchUrl = basesearchurl % (collection.replace(u' ', u'+'), start, rows)
         start = start + rows
@@ -140,35 +98,12 @@ def rkdImagesGenerator(currentimages, invnumbers, collection, replacements):
 
                 yield imageinfo
 
+def processCollection(collectionid, collectienaam, replacements, pageTitle):
 
-
-def main():
-
-    """
-    collectienaam = u'Rijksmuseum'
-    collectionid = u'Q190804'
-    urlformat = u'https://www.rijksmuseum.nl/nl/collectie/%(invnum)s'
-    pageTitle = u'User:Multichill/Rijksmuseum RKD to match'
-    replacements = [(u'^(A|C)\s*(\d+)$', u'SK-\\1-\\2'),
-                    (u'^[sS][kK]\s*-?(A|C)-?\s*(\d+)$', u'SK-\\1-\\2'),
-                    (u'^cat\.(A|C)\s*(\d+)$', u'SK-\\1-\\2')]
-
-
-    collectienaam = u'Koninklijk Kabinet van Schilderijen Mauritshuis'
-    collectionid = u'Q221092'
-    urlformat = u'http://resolver.kb.nl/resolve?urn=urn:gvn:MAU01:%(invnum)04d'
-    pageTitle = u'User:Multichill/Mauritshuis RKD to match'
-    """
-
-    collectienaam = u'Amsterdam Museum'
-    collectionid = u'Q1820897'
-    urlformat = u'http://resolver.kb.nl/resolve?urn=urn:gvn:MAU01:%(invnum)04d' # https://www.rijksmuseum.nl/nl/collectie/%(invnum)s
-    pageTitle = u'User:Multichill/Amsterdam Museum RKD to match'
-    replacements = [(u'^S?(A|B)\s*(\d+)$', u'S\\1 \\2'),
-                    ]
-
+    result = u''
 
     currentimages = rkdImagesOnWikidata(collectionid)
+    allimages = rkdImagesOnWikidata()
     invnumbers = paintingsInvOnWikidata(collectionid)
     #print invnumbers
 
@@ -194,20 +129,9 @@ def main():
 
     for invnum in sorted(imagedict.keys()):
         for rkdimageid in imagedict.get(invnum):
-            invnum = rkdimageid.get('invnum')
-            #if not invnum:
-            #    rkdimageid[u'url'] = None
-            #else:
-            #    if invnum.isdigit():
-            #        invnum = int(invnum)
-            #    try:
-            #        rkdimageid[u'url'] = urlformat % { u'invnum' : invnum }
-            #    except TypeError:
-            #        rkdimageid[u'url'] = None
-
-
             if rkdimageid.get(u'qid'):
                 text = text + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
+                result = result + u'%(id)s|%(qid)s\n' % rkdimageid
                 addtext = addtext + u'%(qid)s\tP350\t"%(id)s"\n' % rkdimageid
                 i = i + 1
                 if not i % addcluster:
@@ -217,21 +141,151 @@ def main():
                 if i > 5000:
                     break
             else:
-                failedtext = failedtext + u'* [https://rkd.nl/explore/images/%(id)s %(id)s] -  [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
+                failedtext = failedtext + u'* [https://rkd.nl/explore/images/%(id)s %(id)s] -  %(invnum)s - %(title_nl)s - %(title_en)s' % rkdimageid
+                if rkdimageid['id'] in allimages.keys():
+                    failedtext = failedtext + u' -> Id already in use on {{Q|%s}}\n' % allimages[rkdimageid['id']]
+                else:
+                    failedtext = failedtext + u'\n'
+
+    # Add the last link if needed
+    if addtext:
+        text = text + addlink % (addtext, i % addcluster)
+
     text = text + u'\n== No matches found ==\n' + failedtext
     text = text + u'\n[[Category:User:Multichill]]'
-    #print text
     repo = pywikibot.Site().data_repository()
 
     page = pywikibot.Page(repo, title=pageTitle)
     summary = u'RKDimages to link'
     page.put(text, summary)
 
-    #artistGen = getArtistsGenerator()
-    #for artist in artistGen:
-    #    # Do something here
-    #    pass
-    
+    return result
+
+def main(*args):
+
+    suggestions = u''
+
+    sources = { u'Q190804' : { u'collectienaam' : u'Rijksmuseum',
+                               u'replacements' : [(u'^(A|C)\s*(\d+)$', u'SK-\\1-\\2'),
+                                                  (u'^[sS][kK]\s*-?(A|C)-?\s*(\d+)$', u'SK-\\1-\\2'),
+                                                  (u'^cat\.(A|C)\s*(\d+)$', u'SK-\\1-\\2')],
+                               u'pageTitle' : u'User:Multichill/Rijksmuseum RKD to match',
+                             },
+                u'Q221092' : { u'collectienaam' : u'Koninklijk Kabinet van Schilderijen Mauritshuis',
+                               u'replacements' : [],
+                               u'pageTitle' : u'User:Multichill/Mauritshuis RKD to match',
+                              },
+                u'Q1820897' : { u'collectienaam' : u'Amsterdam Museum',
+                               u'replacements' : [(u'^S?(A|B)\s*(\d+)$', u'S\\1 \\2'), ],
+                               u'pageTitle' : u'User:Multichill/Amsterdam Museum RKD to match',
+                               },
+                u'Q679527' : { u'collectienaam' : u'Museum Boijmans Van Beuningen',
+                            u'replacements' : [(u'^(\d+)$', u'\\1 (MK)'), ],
+                            u'pageTitle' : u'User:Multichill/Boijmans RKD to match',
+                            },
+                u'Q924335' : { u'collectienaam' : u'Stedelijk Museum Amsterdam',
+                            u'replacements' : [(u'^(\d+)$', u'A \\1'),],
+                            u'pageTitle' : u'User:Multichill/Stedelijk RKD to match',
+                            },
+                u'Q160236' : { u'collectienaam' : u'Metropolitan Museum of Art, The',
+                            u'replacements' : [],
+                            u'pageTitle' : u'User:Multichill/MET RKD to match',
+                            },
+                u'Q214867' : { u'collectienaam' : u'National Gallery of Art (Washington)',
+                            u'replacements' : [(u'^(\d+\.\d+\.\d+)[^\d]+.+$', u'\\1'), ],
+                            u'pageTitle' : u'User:Multichill/NGA RKD to match',
+                            },
+                u'Q132783' : { u'collectienaam' : u'Hermitage',
+                               u'replacements' : [(u'^(\d+)$', u'ГЭ-\\1'), ],
+                               u'pageTitle' : u'User:Multichill/Hermitage RKD to match',
+                               },
+                u'Q260913' : { u'collectienaam' : u'Centraal Museum',
+                               u'replacements' : [],
+                               u'pageTitle' : u'User:Multichill/Centraal Museum RKD to match',
+                               },
+                u'Q1499958' : { u'collectienaam' : u'Gemeentemuseum Den Haag',
+                               u'replacements' : [],
+                               u'pageTitle' : u'User:Multichill/Gemeentemuseum Den Haag RKD to match',
+                               },
+                u'Q1542668' : { u'collectienaam' : u'Groninger Museum',
+                               u'replacements' : [],
+                               u'pageTitle' : u'User:Multichill/Groninger Museum RKD to match',
+                               },
+                u'Q574961' : { u'collectienaam' : u'Frans Halsmuseum',
+                               u'replacements' : [],
+                               u'pageTitle' : u'User:Multichill/Frans Halsmuseum RKD to match',
+                               },
+                u'Q842858' : { u'collectienaam' : u'Nationalmuseum Stockholm',
+                               u'replacements' : [],
+                               u'pageTitle' : u'User:Multichill/Nationalmuseum RKD to match',
+                               },
+                u'Q671384' : { u'collectienaam' : u'SMK - National Gallery of Denmark',
+                               u'replacements' : [],
+                               u'pageTitle' : u'User:Multichill/SMK RKD to match',
+                               },
+                u'Q95569' : { u'collectienaam' : u'Kunsthistorisches Museum',
+                               u'replacements' : [(u'^(\d+)$', u'GG_\\1'),
+                                                  (u'^GG (\d+)$', u'GG_\\1'),
+                                                  ],
+                               u'pageTitle' : u'User:Multichill/Kunsthistorisches Museum RKD to match',
+                               },
+                u'Q160112' : { u'collectienaam' : u'Museo Nacional del Prado',
+                              u'replacements' : [(u'^(\d\d\d\d)$', u'P0\\1'),
+                                                 (u'^(\d\d\d)$', u'P00\\1'),
+                                                 (u'^PO? ?(\d\d\d\d)(\s*\(cat\. 2006\))?$', u'P0\\1'),
+                                                 ],
+                              u'pageTitle' : u'User:Multichill/Prado RKD to match',
+                              },
+                u'Q180788' : { u'collectienaam' : u'National Gallery (London)',
+                              u'replacements' : [],
+                              u'pageTitle' : u'User:Multichill/National Gallery RKD to match',
+                              },
+                u'Q1471477' : { u'collectienaam' : u'Koninklijk Museum voor Schone Kunsten Antwerpen',
+                              u'replacements' : [],
+                              u'pageTitle' : u'User:Multichill/KMSKA RKD to match',
+                              },
+                u'Q2874177' : { u'collectienaam' : u'Dordrechts Museum',
+                              u'replacements' : [],
+                              u'pageTitle' : u'User:Multichill/Dordrechts Museum RKD to match',
+                              },
+                u'Q2098586' : { u'collectienaam' : u'Stedelijk Museum De Lakenhal',
+                              u'replacements' : [],
+                              u'pageTitle' : u'User:Multichill/Lakenhal RKD to match',
+                              },
+                u'Q2130225' : { u'collectienaam' : u'Het Schielandshuis',
+                              u'replacements' : [],
+                              u'pageTitle' : u'User:Multichill/Museum Rotterdam RKD to match',
+                              },
+                u'Q224124' : { u'collectienaam' : u'Van Gogh Museum',
+                              u'replacements' : [],
+                              u'pageTitle' : u'User:Multichill/Van Gogh Museum RKD to match',
+                              },
+               }
+    collectionid = None
+
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-collectionid:'):
+            if len(arg) == 14:
+                collectionid = pywikibot.input(
+                        u'Please enter the collectionid you want to work on:')
+            else:
+                collectionid = arg[14:]
+
+    if collectionid and collectionid in sources.keys():
+        worksources = [collectionid, ]
+    else:
+        worksources = sources.keys()
+
+    for collectionid in worksources:
+        suggestion = processCollection(collectionid,
+                                       sources[collectionid][u'collectienaam'],
+                                       sources[collectionid][u'replacements'],
+                                       sources[collectionid][u'pageTitle'])
+        suggestions = suggestions + suggestion
+
+    with open('/tmp/rkd_images_suggestions.txt', u'wb') as txt:
+        txt.write(suggestions)
+        txt.close()
 
 if __name__ == "__main__":
     main()
