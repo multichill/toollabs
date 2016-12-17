@@ -51,7 +51,7 @@ class UlanImportBot:
 
             try:
                 ulanPageDataDataObject = ulanPage.json()
-            except simplejson.scanner.JSONDecodeError:
+            except ValueError:
                 pywikibot.output('On %s I got a json error while working on %s, skipping it' % (item.title(), ulanurljson))
                 continue
 
@@ -83,24 +83,31 @@ class UlanImportBot:
             if binding.get(u'Subject').get(u'type')==u'uri' and binding.get(u'Subject').get(u'value')==ulanvocaburl and binding.get(u'Object').get(u'type')==u'literal':
                 if binding.get(u'Predicate').get(u'type')==u'uri' and binding.get(u'Predicate').get(u'value')==u'http://www.w3.org/2004/02/skos/core#prefLabel':
                     templabel = binding.get(u'Object').get(u'value')
-                    if self.checkLatin1(templabel):
+                    if self.checkLatin(templabel):
                         prefLabel = self.normalizeName(templabel)
                 elif binding.get(u'Predicate').get(u'type')==u'uri' and binding.get(u'Predicate').get(u'value')==u'http://www.w3.org/2000/01/rdf-schema#label':
                     templabel = binding.get(u'Object').get(u'value')
-                    if self.checkLatin1(templabel):
+                    if self.checkLatin(templabel):
                         allLabels.append(self.normalizeName(templabel))
         return (prefLabel, allLabels)
 
-    def checkLatin1(self, label):
+    def checkLatin(self, label):
         """
-        Check if a label is Latin1
+        Check if a label is Latin1 or Latin2.
+        Latin1 covers most of Western Europe, Latin2 covers most of Eastern Europe
+        Full table is at https://docs.python.org/2/library/codecs.html
         """
         try:
             label.encode(u'latin1')
             return True
         except UnicodeEncodeError:
-            pywikibot.output(u'Filtering out non-Lat1 label %s' % (label, ))
-            return False
+            pywikibot.output(u'Encoding it as latin1 did not work. Trying latin2 for label %s' % (label, ))
+            try:
+                label.encode(u'latin2')
+                return True
+            except UnicodeEncodeError:
+                pywikibot.output(u'That did not work either. Filtering out non-Latin1/2 label %s' % (label, ))
+                return False
 
     def normalizeName(self, name):
         '''
@@ -155,7 +162,7 @@ class UlanImportBot:
         aliases = data.get('aliases').get(u'en')
 
         if not aliases:
-            pywikibot.output(u'This item doesn\'t have any English aliases!')
+            #pywikibot.output(u'This item doesn\'t have any English aliases!')
             aliases = []
         aliaseschanged = 0
 
