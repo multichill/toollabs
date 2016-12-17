@@ -177,8 +177,33 @@ class UlanImportBot:
             item.editAliases({u'en' : aliases}, summary=summary)
         return aliaseschanged
 
-def main():
-    query = u'SELECT ?item WHERE { ?item wdt:P245 [] . ?item wdt:P31 wd:Q5 }'
+def main(*args):
+    """
+    Run the bot. By default it only runs on the items changed in the last 14 days.
+    """
+    fullrun = False
+    days = u'14'
+    for arg in pywikibot.handle_args(args):
+        if arg=='-full':
+            fullrun = True
+        elif arg.startswith('-days:'):
+            if len(arg) == 6:
+                days = pywikibot.input(
+                    u'Please enter the number of days you want to work on:')
+            else:
+                days = arg[6:]
+
+    if fullrun:
+        pywikibot.output(u'Doing a full run')
+        query = u'SELECT DISTINCT ?item WHERE { ?item wdt:P245 [] . ?item wdt:P31 wd:Q5 }'
+    else:
+        pywikibot.output(u'Doing a run on the items modified in the last %s days' % (days,) )
+        query = u"""SELECT DISTINCT ?item {
+  ?item wdt:P245 [] . ?item wdt:P31 wd:Q5 .
+  ?item schema:dateModified ?date_modified .
+  BIND (now() - ?date_modified as ?date_range)
+  FILTER (?date_range < %s)
+}""" % (days,)
 
     repo = pywikibot.Site().data_repository()
     generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
