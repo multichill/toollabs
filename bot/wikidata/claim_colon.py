@@ -18,7 +18,7 @@ def getNoclaimGenerator():
     '''
     Bla %02d
     '''
-    url = u'https://tools.wmflabs.org/multichill/queries2/wikidata/noclaims_colon_list.txt'
+    url = u'https://tools.wmflabs.org/noclaims/queries/noclaims_colon_list.txt'
     repo = pywikibot.Site(u'wikidata', u'wikidata').data_repository()
     regex = u'^\*\[\[(?P<title>[^\]]+)\]\] - (?P<rest>.+)$'
 
