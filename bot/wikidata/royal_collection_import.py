@@ -29,7 +29,8 @@ def getRoyalCollectionGenerator():
     totalObjects = firstpage.json().get('totalObjects')
     pywikibot.output(u'Found a total of %s objects on %s pages' % (totalObjects, pages))
 
-    for i in range(1, totalObjects+1):
+    for i in range(1, pages+1):
+        print(u'On search page %s out of %s' % (i,pages ))
         searchpage = requests.post(apiurl, verify=False, data=postjson % (i,))
         searchjson =  searchpage.json()
         for item in searchjson.get('results'):
