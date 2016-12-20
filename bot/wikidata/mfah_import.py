@@ -60,16 +60,24 @@ def getMFAHGenerator():
             #    continue
 
             creatorritleregex = u'\<div class\=\"page-header clearfix\"\>[\s\t\r\n]+\<h1\>\<small\>([^\<]+)\<\/small\>\<br \/\>([^\<]+)\<\/h1\>'
+            onlytitleregex = u'\<div class\=\"page-header clearfix\"\>[\s\t\r\n]+\<h1\>\<small\>\<\/small\>\<br \/\>([^\<]+)\<\/h1\>'
             creatorritlematch = re.search(creatorritleregex, itempage.text)
 
-            title = htmlparser.unescape(creatorritlematch.group(2).strip())
+            if creatorritlematch:
+                title = htmlparser.unescape(creatorritlematch.group(2).strip())
+                name = htmlparser.unescape(creatorritlematch.group(1).strip())
+            else:
+                # Fun edge cases like https://www.mfah.org/art/detail/39197
+                onlytitlematch = re.search(onlytitleregex, itempage.text)
+                title = htmlparser.unescape(onlytitlematch.group(1).strip())
+                name = u''
+
             # Chop chop, several very long titles
             if title > 220:
                 title = title[0:200]
             metadata['title'] = { u'en' : title,
                                   }
 
-            name = htmlparser.unescape(creatorritlematch.group(1).strip())
             metadata['creatorname'] = name
             metadata['description'] = { u'nl' : u'schilderij van %s' % (name, ),
                                         u'en' : u'painting by %s' % (name, ),
