@@ -95,9 +95,10 @@ class PaintingsMatchBot:
         self.addMissingCommonsLinks()
         self.addMissingWikidataStatements()
 
+        #self.addWikidataSuggestions()
         self.publishWikidataSuggestions()
-        self.publishCommonsSuggestions()
-        self.publishCommonsNoTracker()
+        #self.publishCommonsSuggestions()
+        #self.publishCommonsNoTracker()
 
     def getCommonsWithoutCI(self):
         '''
@@ -674,6 +675,34 @@ class PaintingsMatchBot:
                 newclaim.setTarget(filepage)
                 summary = u'based on Commons backlink'
                 paintingItem.addClaim(newclaim, summary=summary)
+
+    def addWikidataSuggestions(self):
+        """
+        Some suggestions are too good to add by hand. Have the bot add them
+        :return:
+        """
+        # Make a list of creator/institution/inventory number (ascession number)
+        bothWithoutCIAKeys = set(self.commonsCIAWithout.keys()) & set(self.wikidataCIAWithout.keys())
+        for key in bothWithoutCIAKeys:
+            (creator, institution, inv) = key
+
+            # Just get one image and one item
+            image = self.commonsCIAWithout.get(key)[0]
+            paintingdict = self.wikidataCIAWithout.get(key)[0]
+            itemTitle = paintingdict.get('item')
+            item = pywikibot.ItemPage(self.repo, title=itemTitle)
+            data = item.get()
+            claims = data.get('claims')
+            if u'P18' not in claims:
+                #url = paintingdict.get('url')
+                summary = u'based on [[%s]] / [[%s]] / %s match with Commons' % (creator, institution, inv)
+                newclaim = pywikibot.Claim(self.repo, u'P18')
+                imagelink = pywikibot.Link(image, source=self.commons, defaultNamespace=6)
+                imagePage = pywikibot.ImagePage(imagelink)
+                if imagePage.isRedirectPage():
+                    imagePage = pywikibot.ImagePage(imagePage.getRedirectTarget())
+                newclaim.setTarget(imagePage)
+                item.addClaim(newclaim, summary=summary)
 
     def publishWikidataSuggestions(self, samplesize=300, maxlines=1000):
         #self.commonsWithoutKeys = set(self.commonsCIWithout.keys())
