@@ -175,7 +175,36 @@ class ArtDataBot:
                 '''
                 
                 self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
-                
+
+                # For the meta collections the option to add extra inventory number and extra collections
+                if metadata.get(u'extracollectionqid'):
+                    extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid'))
+                    collectionclaim = pywikibot.Claim(self.repo, u'P195')
+                    collectionclaim.setTarget(extracollectionitem)
+                    pywikibot.output('Adding collection claim to %s' % artworkItem)
+                    artworkItem.addClaim(collectionclaim)
+
+                    if metadata.get(u'extraid'):
+                        newclaim = pywikibot.Claim(self.repo, self.idProperty)
+                        newclaim.setTarget(metadata[u'extraid'])
+                        pywikibot.output('Adding extra new id claim to %s' % artworkItem)
+                        artworkItem.addClaim(newclaim)
+
+                        self.addReference(artworkItem, newclaim, metadata[u'idrefurl'])
+
+                        newqualifier = pywikibot.Claim(self.repo, u'P195') #Add collection, isQualifier=True
+                        newqualifier.setTarget(extracollectionitem)
+                        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
+                        newclaim.addQualifier(newqualifier)
+
+                # And in some cases we need this one
+                if metadata.get(u'extracollectionqid2'):
+                    extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid2'))
+                    collectionclaim = pywikibot.Claim(self.repo, u'P195')
+                    collectionclaim.setTarget(extracollectionitem)
+                    pywikibot.output('Adding collection claim to %s' % artworkItem)
+                    artworkItem.addClaim(collectionclaim)
+
             
             if artworkItem and artworkItem.exists():
                 metadata['wikidata'] = artworkItem.title()
@@ -280,7 +309,16 @@ class ArtDataBot:
                     newclaim.setTarget(metadata[u'describedbyurl'])
                     pywikibot.output('Adding described at claim to %s' % artworkItem)
                     artworkItem.addClaim(newclaim)
-                
+                else:
+                    foundurl = False
+                    for claim in claims.get(u'P973'):
+                        if claim.getTarget()==metadata[u'describedbyurl']:
+                            foundurl=True
+                    if not foundurl:
+                        newclaim = pywikibot.Claim(self.repo, u'P973')
+                        newclaim.setTarget(metadata[u'describedbyurl'])
+                        pywikibot.output('Adding additional described at claim to %s' % artworkItem)
+                        artworkItem.addClaim(newclaim)
 
     def addItemStatement(self, item, pid, qid, url):
         '''
