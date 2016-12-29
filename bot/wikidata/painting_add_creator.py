@@ -114,7 +114,7 @@ class PaintingBot:
                          u'Paris, France' : anonymous,
                          u'Siena' : anonymous,
                          u'South German' : anonymous,
-                         #u'' : anonymous,
+                         u'Unbekannter Künstler' : anonymous,
                          #u'' : anonymous,
                          #u'' : anonymous,
                          #u'' : anonymous,
