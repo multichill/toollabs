@@ -89,6 +89,17 @@ def getRijksmuseumGenerator():
                 if proddate == record.get('dating').get('yearEarly') == record.get('dating').get('yearLate'):
                     metadata['inception'] = proddate
 
+
+            # Provenance.
+            # TODO: Test and update artdatabot to actually use it.
+            if record.get('acquisition'):
+                if record.get('acquisition').get('date'):
+                    # This is not going to work yet. Artdatabot only understands years
+                    metadata[u'acquisitiondate'] = u'+%s' % (record.get('acquisition').get('date'),)
+                if record.get('acquisition').get('creditLine'):
+                    if record.get('acquisition').get('creditLine')==u'Bruikleen van de gemeente Amsterdam (legaat A. van der Hoop)':
+                        metadata['extracollectionqid'] = u'Q28097342'
+
             # Get the dimensions
             if record.get('dimensions'):
                 for dimension in record.get('dimensions'):
