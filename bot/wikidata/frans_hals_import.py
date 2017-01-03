@@ -112,7 +112,7 @@ def getFransHalsGenerator():
             # Can't really find dates
             # metadata['acquisitiondate'] = acquisitiondatematch.group(1)
 
-            mediumregex = u'\<th\>\<span\>Materiaal en techniek\<\/span\>\<\/th\>\<td\>\<span\>(olieverf op doek|olieverf op paneel|olieverf op koper)\<\/span\>\<\/td\>'
+            mediumregex = u'\<th\>\<span\>Materiaal en techniek\<\/span\>\<\/th\>\<td\>\<span\>(olieverf op doek|olieverf op paneel|olieverf op koper|olieverf op doek op paneel|olieverf op papier op paneel)\<\/span\>\<\/td\>'
             mediummatch = re.search(mediumregex, itempage.text)
 
             # Only return if a valid medium is found
