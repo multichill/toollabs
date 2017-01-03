@@ -209,12 +209,51 @@ class ArtDataBot:
             if artworkItem and artworkItem.exists():
                 metadata['wikidata'] = artworkItem.title()
 
-                # FIXME: Add logic to add missing labels or aliases (mind dupe exception)
-
-                # FIXME: Add logic to add missing description (mind dupe exception)
-                
                 data = artworkItem.get()
                 claims = data.get('claims')
+
+                # Add missing labels
+                # FIXME: Move to a function
+                # FIXME Do something with aliases too
+                labels = data.get('labels')
+                if metadata.get('title'):
+                    labelschanged = False
+                    for lang, label in metadata['title'].items():
+                        if lang not in labels:
+                            labels[lang] = label
+                            labelschanged = True
+                    if labelschanged:
+                        summary = u'Adding missing label(s) from %s' % (metadata.get(u'refurl'),)
+                        try:
+                            artworkItem.editLabels(labels, summary=summary)
+                        except pywikibot.data.api.APIError:
+                            # Just skip it for no
+                            pywikibot.output(u'Oops, already had that label/description combination. Skipping')
+                            pass
+
+                # Add missing descriptions
+                # FIXME Move to a function
+                descriptions = data.get('descriptions')
+                if metadata.get('description'):
+                    descriptionschanged = False
+                    for lang, description in metadata['description'].items():
+                        if lang not in descriptions:
+                            descriptions[lang] = description
+                            descriptionschanged = True
+                    if descriptionschanged:
+                        summary = u'Adding missing description(s) from %s' % (metadata.get(u'refurl'),)
+                        try:
+                            artworkItem.editDescriptions(descriptions, summary=summary)
+                        except pywikibot.data.api.APIError:
+                            # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
+                            pywikibot.output(u'Oops, already had that label/description combination. Trying again')
+                            for lang, description in metadata['description'].items():
+                                if lang not in descriptions:
+                                    descriptions[lang] = u'%s (%s %s)' % (description,
+                                                                             metadata['collectionshort'],
+                                                                             metadata['id'],)
+                            artworkItem.editDescriptions(descriptions, summary=summary)
+                            pass
                 #print claims
 
                 # instance of
