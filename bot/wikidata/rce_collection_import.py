@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import paintings from the RCEto Wikidata. This is going to be a fun one because this one is a meta collection.
+Bot to import paintings from the RCE to Wikidata. This is going to be a fun one because this one is a meta collection.
 This collection came from different sources, most notably the Stichting Nederlands Kunstbezit
 
 Overview of those at http://herkomstgezocht.nl/nl/search/collection?f[0]=type%3Ank_record&f[1]=field_objectaanduiding%3A11621
@@ -21,9 +21,8 @@ import re
 
 def getRCEGenerator():
     """
-    Generator to return Groninger Museum paintings
+    Generator to return RCE paintings
 
-    
     """
     basesearchurl = u'http://data.collectienederland.nl/api/search/v2/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aschilderij&format=json&start=%s&rows=%s'
     start = 1
@@ -136,6 +135,7 @@ def getRCEGenerator():
 
     while hasNext:
         searchUrl = basesearchurl % (start, rows)
+        print searchUrl
         searchPage = requests.get(searchUrl)
         searchJson = searchPage.json()
 
@@ -237,8 +237,8 @@ def getRCEGenerator():
                             metadata['extracollectionqid2'] = locations[location]
 
             # For now only the SNK collection
-            if metadata.get('extracollectionqid') and metadata.get('extracollectionqid')==u'Q28045665':
-                yield metadata
+            # if metadata.get('extracollectionqid') and metadata.get('extracollectionqid')==u'Q28045665':
+            yield metadata
 
     pywikibot.output(u'Provenance top 100:')
     for provenance in sorted(provenancecounts, key=provenancecounts.get, reverse=True)[:100]:
@@ -249,7 +249,6 @@ def getRCEGenerator():
         pywikibot.output(u'* %s - %s' % (location, locationcounts[location]))
 
     return
-
 
 def paintingsInvOnWikidata():
     '''
@@ -272,7 +271,6 @@ def paintingsInvOnWikidata():
         qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
         result[resultitem.get('id')] = { u'qid' : qid }
     return result
-
 
 def makeRijksReport(rijksworks):
     text = u'List of %s Rijksmuseum paintings to match. Find the right painting, add the inventory number qualified with {{Q|18600731}} \n\n' % (len(rijksworks),)
