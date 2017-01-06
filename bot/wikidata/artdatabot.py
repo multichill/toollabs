@@ -17,6 +17,7 @@ import tempfile
 import os
 import time
 import itertools
+import copy
 
 class ArtDataBot:
     """
@@ -233,7 +234,7 @@ class ArtDataBot:
 
                 # Add missing descriptions
                 # FIXME Move to a function
-                descriptions = data.get('descriptions')
+                descriptions = copy.deepcopy(data.get('descriptions'))
                 if metadata.get('description'):
                     descriptionschanged = False
                     for lang, description in metadata['description'].items():
@@ -246,6 +247,7 @@ class ArtDataBot:
                             artworkItem.editDescriptions(descriptions, summary=summary)
                         except pywikibot.data.api.APIError:
                             # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
+                            descriptions = copy.deepcopy(data.get('descriptions'))
                             pywikibot.output(u'Oops, already had that label/description combination. Trying again')
                             for lang, description in metadata['description'].items():
                                 if lang not in descriptions:
