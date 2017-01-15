@@ -477,7 +477,7 @@ class PaintingsMatchBot:
         text = u'{{User:Multichill/Same image without Wikidata/header}}\n{| class="wikitable sortable"\n'
         text = text + u'! Image Wikidata !! Image without !! Wikidata id !! To add !! Filenames\n'
 
-        for key in matchesKeys:
+        for key in publishKeys:
             for imagewithout in withoutdict.get(key):
                 for withinfodict in withdict.get(key):
                     line = line + 1
