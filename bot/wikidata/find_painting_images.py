@@ -86,8 +86,8 @@ class PaintingsMatchBot:
         Starts the robot.
         """
         self.publishAllWikidataSuggestions()
-        self.publishAllCommonsSuggestions()
         self.addMissingCommonsWikidataLinks()
+        self.publishAllCommonsSuggestions()
         self.publishCommonsNoTracker()
 
     def getCommonsWithoutLookupTables(self):
@@ -477,14 +477,12 @@ class PaintingsMatchBot:
         text = u'{{User:Multichill/Same image without Wikidata/header}}\n{| class="wikitable sortable"\n'
         text = text + u'! Image Wikidata !! Image without !! Wikidata id !! To add !! Filenames\n'
 
+        previousline = u''
         for key in publishKeys:
             for imagewithout in withoutdict.get(key):
                 for withinfodict in withdict.get(key):
-                    line = line + 1
-                    if line < maxlines:
-
-                        text = text + u'|-\n'
-                        text = text + u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=%s}} Add] || %s<BR/>%s\n' % (withinfodict.get('image'),
+                    if line < maxlines and not imagewithout in self.commonsLink:
+                        thisline = u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=%s}} Add] || %s<BR/>%s\n' % (withinfodict.get('image'),
                                                                                                                                                                                                                                                 imagewithout,
                                                                                                                                                                                                                                                 withinfodict.get('item'),
                                                                                                                                                                                                                                                 withinfodict.get('item'),
@@ -493,6 +491,13 @@ class PaintingsMatchBot:
                                                                                                                                                                                                                                                 withinfodict.get('item'),
                                                                                                                                                                                                                                                 withinfodict.get('image'),
                                                                                                                                                                                                                                                 imagewithout)
+                        # Prevent duplicate lines
+                        if thisline!=previousline:
+                            text = text + u'|-\n'
+                            text = text + thisline
+                            previousline = thisline
+                            line = line + 1
+
         text = text + u'|}\n'
         text = text + u'\n[[Category:User:Multichill]]\n'
 
@@ -512,8 +517,12 @@ class PaintingsMatchBot:
         for filename in missingCommonsLinks:
             wikidataitem = self.wikidataImages.get(filename).get('item')
             success = self.addMissingCommonsWikidataLink(filename, wikidataitem)
-            if not success:
+            if success:
+                # This prevents these files from showing up in the suggestions and missing link reports
+                self.commonsLink[filename]=wikidataitem
+            else:
                 text = text + u'* [[:File:%s]] - <nowiki>|</nowiki> wikidata = %s\n' % (filename, wikidataitem)
+
 
         text = text + u'\n[[Category:User:Multichill]]\n'
 
