@@ -224,7 +224,7 @@ class PaintingsMatchBot:
         * Filename -> wikidata id
         '''
         query = u"""SELECT ?item ?image ?creator ?institution ?invnum ?location ?url WHERE {
-        ?item wdt:P31 wd:Q3305213 .
+        ?item wdt:P31/wdt:P279* wd:Q3305213 .
         OPTIONAL { ?item wdt:P18 ?image } .
         OPTIONAL { ?item wdt:P170 ?creator } .
         OPTIONAL { ?item wdt:P195 ?institution } .
