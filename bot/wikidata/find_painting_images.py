@@ -85,6 +85,7 @@ class PaintingsMatchBot:
         """
         Starts the robot.
         """
+        #self.addWikidataSuggestions()
         self.publishAllWikidataSuggestions()
         self.addMissingCommonsWikidataLinks()
         self.publishAllCommonsSuggestions()
@@ -593,13 +594,13 @@ class PaintingsMatchBot:
         :return:
         """
         # Make a list of creator/institution/inventory number (ascession number)
-        bothWithoutCIAKeys = set(self.commonsCIAWithout.keys()) & set(self.wikidataCIAWithout.keys())
-        for key in bothWithoutCIAKeys:
+        matchesKeys = set(self.commonsWithoutCIA.keys()) & set(self.wikidataWithoutCIA.keys())
+        for key in matchesKeys:
             (creator, institution, inv) = key
 
             # Just get one image and one item
-            image = self.commonsCIAWithout.get(key)[0]
-            paintingdict = self.wikidataCIAWithout.get(key)[0]
+            image = self.commonsWithoutCIA.get(key)[0]
+            paintingdict = self.wikidataWithoutCIA.get(key)[0]
             itemTitle = paintingdict.get('item')
             item = pywikibot.ItemPage(self.repo, title=itemTitle)
             data = item.get()
