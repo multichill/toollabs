@@ -15,6 +15,9 @@ import re
 import datetime
 import random
 import pywikibot.data.sparql
+import json
+import copy
+from operator import itemgetter
 
 class PaintingsMatchBot:
     """
@@ -38,6 +41,8 @@ class PaintingsMatchBot:
         self.commonsWithCI = {} # Creator & instution -> image & item
         self.commonsWithIA = {} # Institution & accession number -> image & item
         self.commonsWithCA = {} # Creator & accession number -> image & item
+
+        self.bettersuggestions = []
 
         self.wikidataNoImages = {} # Dictionary of items without images -> item & url
         self.wikidataWithoutCIA = {} # Creator, institution & accession number -> item & url
@@ -67,6 +72,10 @@ class PaintingsMatchBot:
         print 'self.commonsWithIA %s' % (len(self.commonsWithIA),)
         print 'self.commonsWithCA %s' % (len(self.commonsWithCA),)
 
+        self.getBetterImageSuggestions()
+
+        print 'self.bettersuggestions %s' % (len(self.bettersuggestions),)
+
         self.getWikidataLookupTables()
 
         print 'self.wikidataNoImages %s' % (len(self.wikidataNoImages),)
@@ -87,6 +96,7 @@ class PaintingsMatchBot:
         """
         #self.addWikidataSuggestions()
         self.publishAllWikidataSuggestions()
+        self.publishBetterImageSuggestions()
         self.addMissingCommonsWikidataLinks()
         self.publishAllCommonsSuggestions()
         self.publishCommonsNoTracker()
@@ -210,6 +220,69 @@ class PaintingsMatchBot:
                 if not cakey in self.commonsWithCA:
                     self.commonsWithCA[cakey] = []
                 self.commonsWithCA[cakey].append(infodict)
+
+    def getBetterImageSuggestions(self):
+        """
+        Download the file at the url and produce a list of images that could be replaced on Wikidata
+        """
+        url = u'https://tools.wmflabs.org/multichill/queries2/commons/wikidata_image_sizes.txt'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] -  (?P<qidlink>Q\d+|None) - (?P<size>\d+) - (?P<width>\d+) - (?P<height>\d+) - (?P<qidused>Q\d+|None)$'
+        queryPage = requests.get(url)
+
+        suggestions = []
+
+        currentqid = u''
+        usedimage = None
+        otherimages = []
+        for match in re.finditer(regex, queryPage.text, flags=re.M):
+            #print match.group(0)
+            imageinfo = {}
+            imageinfo[u'image'] = match.group("image")
+            imageinfo[u'qidlink'] = match.group("qidlink")
+            imageinfo[u'size'] = int(match.group("size"))
+            imageinfo[u'width'] = int(match.group("width"))
+            imageinfo[u'height'] = int(match.group("height"))
+            imageinfo[u'qidused'] = match.group("qidused")
+            if not currentqid:
+                currentqid = imageinfo[u'qidlink']
+            elif currentqid!=imageinfo[u'qidlink']:
+                # Next image so flush out what we have
+                suggestion = self.getSuggestion(currentqid, usedimage, otherimages)
+                if suggestion:
+                    suggestions.append(suggestion)
+                # And set up the new one
+                currentqid = imageinfo[u'qidlink']
+                usedimage = None
+                otherimages = []
+            if imageinfo[u'qidused']==currentqid:
+                usedimage = imageinfo
+            else:
+                otherimages.append(imageinfo)
+        self.bettersuggestions = suggestions
+
+    def getSuggestion(self, currentqid, usedimage, otherimages):
+        """
+        Process one qid for a suggestion
+        :param currentqid: The Wikidata id we're working on
+        :param usedimage: The image currently in use that might need a replacement
+        :param otherimages: The other images on Commons that have a Wikidata link to currentqid
+        :return: A suggestion for replacement or None
+        """
+        if not currentqid or not usedimage or not otherimages:
+            return None
+        bestimage = copy.deepcopy(usedimage)
+        for image in otherimages:
+            if bestimage.get('size') < image.get('size') and \
+                            bestimage.get('width') < image.get('width') and \
+                            bestimage.get('height') < image.get('height'):
+                bestimage = copy.deepcopy(image)
+        if not bestimage.get('image')==usedimage.get('image'):
+            sizeincrease = float(bestimage.get('size')) / float(usedimage.get('size'))
+            widthincrease = float(bestimage.get('width')) / float(usedimage.get('width'))
+            heightincrease = float(bestimage.get('height')) / float(usedimage.get('height'))
+            totalincrease = sizeincrease * widthincrease * heightincrease
+            return (usedimage, bestimage, totalincrease, sizeincrease, widthincrease, heightincrease)
+        return None
 
     def getWikidataLookupTables(self):
         '''
@@ -355,18 +428,24 @@ class PaintingsMatchBot:
         """
         Publish the 4 suggestion pages on Wikidata
         """
-        self.publishWikidataSuggestions(self.commonsWithoutCIA,
+        suggestions = []
+        suggestions.extend(self.publishWikidataSuggestions(self.commonsWithoutCIA,
                                         self.wikidataWithoutCIA,
-                                        u'Wikidata:WikiProject sum of all paintings/Image suggestions/Creator, institution and inventory number match')
-        self.publishWikidataSuggestions(self.commonsWithoutCI,
+                                        u'Wikidata:WikiProject sum of all paintings/Image suggestions/Creator, institution and inventory number match'))
+        suggestions.extend(self.publishWikidataSuggestions(self.commonsWithoutCI,
                                         self.wikidataWithoutCI,
-                                        u'Wikidata:WikiProject sum of all paintings/Image suggestions/Creator and institution match')
-        self.publishWikidataSuggestions(self.commonsWithoutIA,
+                                        u'Wikidata:WikiProject sum of all paintings/Image suggestions/Creator and institution match'))
+        suggestions.extend(self.publishWikidataSuggestions(self.commonsWithoutIA,
                                         self.wikidataWithoutIA,
-                                        u'Wikidata:WikiProject sum of all paintings/Image suggestions/Institution and inventory number match')
-        self.publishWikidataSuggestions(self.commonsWithoutCA,
+                                        u'Wikidata:WikiProject sum of all paintings/Image suggestions/Institution and inventory number match'))
+        suggestions.extend(self.publishWikidataSuggestions(self.commonsWithoutCA,
                                         self.wikidataWithoutCA,
-                                        u'Wikidata:WikiProject sum of all paintings/Image suggestions/Creator and inventory number match')
+                                        u'Wikidata:WikiProject sum of all paintings/Image suggestions/Creator and inventory number match'))
+
+        # WIP: Shoulr probably not make a huge list, but deduplicate it and do it in a different format
+        ##suggestions = list(set(suggestions))
+        #with open(u'wikidatasuggestions.json', 'w') as suggestionfile:
+        #    json.dump(suggestions, suggestionfile)
 
 
     def publishWikidataSuggestions(self, commonsdict, wikidatadict, pageTitle, samplesize=300, maxlines=1000):
@@ -426,11 +505,64 @@ class PaintingsMatchBot:
                         elif firstrow:
                             text = text + u'|| %s \n' % (paintingdict.get('invnum'),)
 
-
         text = text + u'|}\n'
         text = text + u'\n[[Category:WikiProject sum of all paintings|Image suggestions/{{SUBPAGENAME}}]]\n'
 
         summary = u'Updating image suggestions. %s key matches out a total of %s key combinations that matched' % (len(publishKeys), len(matchesKeys))
+        pywikibot.output(summary)
+        page.put(text, summary)
+
+        # WIP: Not sure how to approach this one
+        suggestions = []
+
+        for key in matchesKeys:
+            for image in commonsdict.get(key):
+                for paintingdict in wikidatadict.get(key):
+                    suggestion = { u'qid' : paintingdict.get('item'),
+                                   u'creator' : None,
+                                   u'institution' : None,
+                                   u'invnum' : None,
+                                   u'url' : None,
+                                   u'image' : image,
+                                   }
+                    # To only get the fields on which we matched
+                    if paintingdict.get('creator') and paintingdict.get('creator') in key:
+                        suggestion[u'creator'] = paintingdict.get('creator')
+                    if paintingdict.get('institution') and paintingdict.get('institution') in key:
+                        suggestion[u'institution'] = paintingdict.get('institution')
+                    if paintingdict.get('invnum') and paintingdict.get('invnum') in key:
+                        suggestion[u'invnum'] = paintingdict.get('invnum')
+                    if paintingdict.get('url'):
+                        suggestion[u'url'] = paintingdict.get('url')
+                    # Might need to dedupe at some point
+                    suggestions.append(suggestion)
+        return suggestions
+
+    def publishBetterImageSuggestions(self, maxlines=300):
+        """
+        Publish the list of better image suggestions to Wikidata
+        """
+        bestsuggestions = sorted(self.bettersuggestions, key=itemgetter(2), reverse=True)[:maxlines]
+
+        pageTitle = u'Wikidata:WikiProject sum of all paintings/Image suggestions/Higher resolution'
+        page = pywikibot.Page(self.repo, title=pageTitle)
+
+        text = u'{{Wikidata:WikiProject sum of all paintings/Image suggestions/header}}\n{| class="wikitable sortable"\n'
+        text = text + u'! Painting !! Current image !! Suggested image !! Info\n'
+        for (usedimage, bestimage, totalincrease, sizeincrease, widthincrease, heightincrease) in bestsuggestions:
+            text = text + u'|-\n'
+            text = text + u'| {{Q|%s}}<BR/><small>( %s )</small>\n' % (usedimage.get('qidlink'), bestimage.get('image') )
+            text = text + u'| [[File:%s|100px]]\n' % (usedimage.get('image'), )
+            text = text + u'| [[File:%s|100px]]\n' % (bestimage.get('image'), )
+            text = text + u'|\n'
+            text = text + u'* Size: %s -> %s (%s)\n' % (usedimage.get('size'), bestimage.get('size'), sizeincrease,)
+            text = text + u'* Width: %s -> %s (%s)\n' % (usedimage.get('width'), bestimage.get('width'), widthincrease, )
+            text = text + u'* Height: %s -> %s (%s)\n' % (usedimage.get('height'), bestimage.get('height'), heightincrease, )
+            text = text + u'<small>[//commons.wikimedia.org/w/index.php?title=Category:Artworks_with_Wikidata_item&filefrom=+%s#mw-category-media more files]</small>\n' % (usedimage.get('qidlink'), )
+        text = text + u'|}\n'
+        text = text + u'\n[[Category:WikiProject sum of all paintings|Image suggestions/{{SUBPAGENAME}}]]\n'
+
+        summary = u'Updating %s better image suggestions out of %s.' % (len(bestsuggestions), len(self.bettersuggestions))
         pywikibot.output(summary)
         page.put(text, summary)
 
