@@ -201,7 +201,12 @@ class PaintingsMatchBot:
             if creator and invnum:
                 cakey = (creator, invnum)
 
-            infodict = { u'image' : image, u'item' : item }
+            infodict = { u'image' : image,
+                         u'item' : item,
+                         u'creator' : creator,
+                         u'institution' : institution,
+                         u'invnum' : invnum,
+                         }
             self.commonsLink[image]=item
 
             if ciakey:
@@ -598,12 +603,19 @@ class PaintingsMatchBot:
 
     def publishCommonsSuggestions(self, withoutdict, withdict, pageTitle, samplesize=300, maxlines=1000):
         matchesKeys = set(withoutdict.keys()) & set(withdict.keys())
-        print u'Found %s matches for %s' % (len(matchesKeys), pageTitle)
+        filteredKeys = set()
 
-        if len(matchesKeys) > samplesize:
-            publishKeys = random.sample(matchesKeys, samplesize)
+        # Commons data we don't have a distinction between creator and institution.
+        # We need to filter everything out were these are the same (can't be a match)
+        for matchkey in matchesKeys:
+            if not matchkey[0]==matchkey[1]:
+                filteredKeys.add(matchkey)
+        print u'Found %s matches for %s' % (len(filteredKeys), pageTitle)
+
+        if len(filteredKeys) > samplesize:
+            publishKeys = random.sample(filteredKeys, samplesize)
         else:
-            publishKeys = matchesKeys
+            publishKeys = filteredKeys
 
         line = 0
         page = pywikibot.Page(self.commons, title=pageTitle)
@@ -634,7 +646,7 @@ class PaintingsMatchBot:
         text = text + u'|}\n'
         text = text + u'\n[[Category:User:Multichill]]\n'
 
-        summary = u'Updating image suggestions. %s key matches out a total of %s key combinations that matched' % (len(publishKeys), len(matchesKeys))
+        summary = u'Updating image suggestions. %s key matches out a total of %s key combinations that matched' % (len(publishKeys), len(filteredKeys))
         pywikibot.output(summary)
         page.put(text, summary)
 
