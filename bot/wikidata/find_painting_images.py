@@ -42,7 +42,7 @@ class PaintingsMatchBot:
         self.commonsWithIA = {} # Institution & accession number -> image & item
         self.commonsWithCA = {} # Creator & accession number -> image & item
 
-        self.bettersuggestions = []
+        self.bettersuggestions = [] # List of images with better images
 
         self.wikidataNoImages = {} # Dictionary of items without images -> item & url
         self.wikidataWithoutCIA = {} # Creator, institution & accession number -> item & url
@@ -51,10 +51,13 @@ class PaintingsMatchBot:
         self.wikidataWithoutCA = {} # Creator & accession number -> item & url
 
         self.wikidataImages = {} # Dictionary of image on wikidata file -> item, image & url
+        self.wikidataWithImages = {}  # Dictionary of items with images -> item, image & url
         self.wikidataWithCIA = {} # Creator, institution & accession number -> item, image & url
         self.wikidataWithCI = {} # Creator & instution -> item, image & url
         self.wikidataWithIA = {} # Institution & accession number -> item, image & url
         self.wikidataWithCA = {} # Creator & accession number -> item, image & url
+
+        self.categorysuggestions = [] # List of images to connect to Wikidata based on category
 
         self.getCommonsWithoutLookupTables()
 
@@ -85,10 +88,15 @@ class PaintingsMatchBot:
         print 'self.wikidataWithoutCA %s' % (len(self.wikidataWithoutCA),)
 
         print 'self.wikidataImages %s' % (len(self.wikidataImages),)
+        print 'self.wikidataWithImages %s' % (len(self.wikidataWithImages),)
         print 'self.wikidataWithCIA %s' % (len(self.wikidataWithCIA),)
         print 'self.wikidataWithCI %s' % (len(self.wikidataWithCI),)
         print 'self.wikidataWithIA %s' % (len(self.wikidataWithIA),)
         print 'self.wikidataWithCA %s' % (len(self.wikidataWithCA),)
+
+        self.getCommonsCategorySuggestions()
+
+        print 'self.categorysuggestions %s' % (len(self.categorysuggestions),)
 
     def run(self):
         """
@@ -370,6 +378,7 @@ class PaintingsMatchBot:
 
             if paintingdict.get(u'image'):
                 self.wikidataImages[paintingdict.get(u'image')] = paintingdict
+                self.wikidataWithImages[paintingdict.get(u'item')] = paintingdict
                 if ciakey:
                     if not ciakey in self.wikidataWithCIA:
                         self.wikidataWithCIA[ciakey] = []
@@ -428,6 +437,28 @@ class PaintingsMatchBot:
                     if not cakey in self.wikidataWithoutCA:
                         self.wikidataWithoutCA[cakey] = []
                     self.wikidataWithoutCA[cakey].append(paintingdict)
+
+    def getCommonsCategorySuggestions(self):
+        """
+        Download the file at the url and produce a list of suggestions based on the category images are in
+        """
+        url = u'https://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_in_painting_category.txt'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<qid>Q\d+) - (?P<category>.+)$'
+        queryPage = requests.get(url)
+
+        suggestions = []
+
+        for match in re.finditer(regex, queryPage.text, flags=re.M):
+            imagewithout = match.group("image")
+            qid = match.group("qid")
+            #category = match.group("category")
+            if qid in self.wikidataWithImages:
+                imagewith = self.wikidataWithImages.get(qid).get('image')
+                suggestion = (imagewith, imagewithout, qid)
+                if suggestion not in suggestions:
+                    suggestions.append(suggestion)
+
+        self.categorysuggestions = suggestions
 
     def publishAllWikidataSuggestions(self):
         """
@@ -600,6 +631,7 @@ class PaintingsMatchBot:
         self.publishCommonsSuggestions(self.commonsWithoutCA,
                                        self.wikidataWithCA,
                                        u'User:Multichill/Same image without Wikidata/Wikidata creator and inventory number match')
+        self.publishCategorySuggestions(u'User:Multichill/Same image without Wikidata/Category match')
 
     def publishCommonsSuggestions(self, withoutdict, withdict, pageTitle, samplesize=300, maxlines=1000):
         matchesKeys = set(withoutdict.keys()) & set(withdict.keys())
@@ -647,6 +679,45 @@ class PaintingsMatchBot:
         text = text + u'\n[[Category:User:Multichill]]\n'
 
         summary = u'Updating image suggestions. %s key matches out a total of %s key combinations that matched' % (len(publishKeys), len(filteredKeys))
+        pywikibot.output(summary)
+        page.put(text, summary)
+
+    def publishCategorySuggestions(self, pageTitle, samplesize=300, maxlines=1000):
+        #self.categorysuggestions
+
+        if len(self.categorysuggestions) > samplesize:
+            worksuggestions = random.sample(self.categorysuggestions, samplesize)
+        else:
+            worksuggestions = self.categorysuggestions
+
+        line = 0
+        page = pywikibot.Page(self.commons, title=pageTitle)
+        text = u'{{User:Multichill/Same image without Wikidata/header}}\n{| class="wikitable sortable"\n'
+        text = text + u'! Image Wikidata !! Image without !! Wikidata id !! To add !! Filenames\n'
+
+        previousline = u''
+        for (imagewith, imagewithout, qid) in worksuggestions:
+            if line < maxlines and not imagewithout in self.commonsLink:
+                thisline = u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=%s}} Add] || %s<BR/>%s\n' % (imagewith,
+                                                                                                                                                                                                                                     imagewithout,
+                                                                                                                                                                                                                                     qid,
+                                                                                                                                                                                                                                     qid,
+                                                                                                                                                                                                                                     qid,
+                                                                                                                                                                                                                                     imagewithout,
+                                                                                                                                                                                                                                     qid,
+                                                                                                                                                                                                                                     imagewith,
+                                                                                                                                                                                                                                     imagewithout)
+                # Prevent duplicate lines
+                if thisline!=previousline:
+                    text = text + u'|-\n'
+                    text = text + thisline
+                    previousline = thisline
+                    ine = line + 1
+
+        text = text + u'|}\n'
+        text = text + u'\n[[Category:User:Multichill]]\n'
+
+        summary = u'Updating image suggestions. %s key matches out a total of %s key combinations that matched' % (len(worksuggestions), len(self.categorysuggestions))
         pywikibot.output(summary)
         page.put(text, summary)
 
