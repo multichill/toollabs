@@ -48,10 +48,13 @@ class IMDBFinderBot:
 
         previous = u''
         previousTitle = u''
+        previousReleased = u''
         current = u''
         currentTitle = u''
+        currentReleased = u''
         next = u''
         nextTitle = u''
+        nextReleased = u''
 
         try:
             for i in range(1, int(seasons)+1):
@@ -62,37 +65,53 @@ class IMDBFinderBot:
                         if not previous:
                             previous = episode.get('imdbID')
                             previousTitle = episode.get('Title')
+                            previousReleased  = episode.get('Released')
                         elif not current:
                             current = episode.get('imdbID')
                             currentTitle = episode.get('Title')
+                            currentReleased = episode.get('Released')
                         else:
                             next = episode.get('imdbID')
                             nextTitle = episode.get('Title')
+                            nextReleased = episode.get('Released')
+
                             if not result:
                                 # Result is empty, we need to add the first item
                                 result[previous] = {u'previous' : u'',
                                                     u'previoustitle' : u'',
+                                                    u'previousReleased' : u'',
                                                     u'title' : previousTitle,
+                                                    u'released' : previousReleased,
                                                     u'next' : next,
-                                                    u'nexttitle' : nextTitle}
+                                                    u'nexttitle' : nextTitle,
+                                                    u'nextReleased' : nextReleased}
                             result[current] = {u'previous' : previous,
                                                u'previoustitle' : previousTitle,
+                                               u'previousReleased' : previousReleased,
                                                u'title' : currentTitle,
+                                               u'released' :currentReleased,
                                                u'next' : next,
-                                               u'nexttitle' : nextTitle}
+                                               u'nexttitle' : nextTitle,
+                                               u'nextReleased' : nextReleased}
                             previous = current
                             previousTitle = currentTitle
+                            previousReleased = currentReleased
                             current = next
                             currentTitle = nextTitle
+                            currentReleased = nextReleased
                             next = u''
                             nextTitle = u''
+                            nextReleased = u''
                 time.sleep(1)
 
             result[current] = {u'previous' : previous,
                                u'previoustitle' : previousTitle,
+                               u'previousReleased' : previousReleased,
                                u'title' : currentTitle,
+                               u'released' :currentReleased,
                                u'next' : next,
-                               u'nexttitle' : nextTitle}
+                               u'nexttitle' : nextTitle,
+                               u'nextReleased' : nextReleased}
         except ValueError:
             pywikibot.output(u'Ran into a value error while working on %s' % (mainurl % (seriesimdb,),))
 
@@ -116,6 +135,7 @@ class IMDBFinderBot:
         data = item.get()
         claims = data.get('claims')
         if u'P345' in claims:
+            self.addReleased(item, claims.get(u'P345')[0].getTarget())
             return True
 
         langs = [u'en', u'es', u'fr', u'de', u'nl']
@@ -169,6 +189,7 @@ class IMDBFinderBot:
                     summary = u'Adding link based on same label and link from [[%s|previous]] and [[%s|next item]]' % (previousitem.title(), nextitem.title())
                     pywikibot.output(summary)
                     item.addClaim(newclaim, summary=summary)
+                    self.addReleased(item, imdbid_from_previous)
                     return True
                 else:
                     pywikibot.output(u'The label "%s" is not the same as imdb "%s", skipping' % (label,
@@ -185,6 +206,7 @@ class IMDBFinderBot:
                 summary = u'Adding link based on same label and link from [[%s|previous item]]' % (previousitem.title(),)
                 pywikibot.output(summary)
                 item.addClaim(newclaim, summary=summary)
+                self.addReleased(item, imdbid_from_previous)
                 if nextitem:
                     self.addImdb(nextitem)
                 return True
@@ -201,6 +223,7 @@ class IMDBFinderBot:
                 summary = u'Adding link based on same label and link from [[%s|next item]]' % (nextitem.title(),)
                 pywikibot.output(summary)
                 item.addClaim(newclaim, summary=summary)
+                self.addReleased(item, imdbid_from_next)
                 if previousitem:
                     self.addImdb(previousitem)
                 return True
@@ -211,6 +234,40 @@ class IMDBFinderBot:
                 if previousitem:
                     self.addImdb(previousitem)
         pywikibot.output(u'Something went wrong. Couldn\'t add anything to %s' % (item.title(),))
+
+    def addReleased(self, item, imdbid):
+        '''
+        Add the first airdate to the item based on the imdbid
+        '''
+        pywikibot.output(u'Trying to add date to %s based on %s' % (item, imdbid))
+        data = item.get()
+        claims = data.get('claims')
+        if u'P1191' in claims:
+            return True
+        if imdbid not in self.imdbcache:
+            return False
+        releasedate = self.imdbcache[imdbid].get('released')
+        regex = u'^(\d\d\d\d)-(\d\d)-(\d\d)$'
+        match = re.match(regex, releasedate)
+        if not match:
+            return False
+
+        newdate = pywikibot.WbTime(year=int(match.group(1)),
+                                    month=int(match.group(2)),
+                                    day=int(match.group(3)),)
+
+        newclaim = pywikibot.Claim(self.repo, u'P1191')
+        newclaim.setTarget(newdate)
+        pywikibot.output('Adding release date claim %s to %s' % (releasedate, item))
+        item.addClaim(newclaim)
+        refurl = pywikibot.Claim(self.repo, u'P854')
+        refurl.setTarget(u'http://www.omdbapi.com/?i=%s' % (imdbid,))
+        refdate = pywikibot.Claim(self.repo, u'P813')
+        today = datetime.datetime.today()
+        date = pywikibot.WbTime(year=today.year, month=today.month, day=today.day)
+        refdate.setTarget(date)
+        newclaim.addSources([refurl, refdate])
+
 
 def main(*args):
     """
@@ -236,9 +293,9 @@ def main(*args):
     basequery = u"""SELECT DISTINCT ?item WHERE {
   ?item wdt:P31 wd:Q21191270 .
   ?item wdt:P179 wd:%s .
-  MINUS { ?item wdt:P345 [] }
-  { ?item wdt:P155 ?otheritem } UNION { ?item wdt:P156 ?otheritem }
-  ?otheritem wdt:P345 [] .
+  MINUS { ?item wdt:P345 [] . ?item wdt:P1191 []}
+  #{ ?item wdt:P155 ?otheritem } UNION { ?item wdt:P156 ?otheritem }
+  #?otheritem wdt:P345 [] .
   }"""
 
     repo = pywikibot.Site().data_repository()
@@ -252,7 +309,7 @@ def main(*args):
         seriesquery = u"""SELECT DISTINCT ?item WHERE {
   ?episode wdt:P31 wd:Q21191270 .
   ?episode wdt:P179 ?item .
-  MINUS { ?episode wdt:P345 [] }
+  MINUS { ?episode wdt:P345 [] . ?item wdt:P1191 []}
   { ?episode wdt:P155 ?otheritem } UNION { ?episode wdt:P156 ?otheritem }
   ?otheritem wdt:P345 [] .
   ?otheritem wdt:P179 ?item .
