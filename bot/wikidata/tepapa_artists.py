@@ -19,14 +19,14 @@ def getTePagaArtistsGenerator():
     Generator to return Auckland Art Gallery paintings
 
     """
-
+    session = requests.session()
     baseurl=u'http://collections.tepapa.govt.nz/Person/%s'
 
     # Just loop over the pages
     for i in range(1, 50000):
         url = baseurl % (i,)
         print url
-        page = requests.get(url)
+        page = session.get(url)
         fieldregex = u'\<tr\>[\s\t\r\n]*\<td class\=\"heading\">([^\<]+)\<\/td\>[\s\t\r\n]*\<td\>([^\<]+)\<\/td\>'
         gettyregex = u'\<li\>\<a href\=\"http\:\/\/www\.getty\.edu\/vow\/ULANFullDisplay[^\"]*subjectid\=(\d+)\"\>www\.getty\.edu\<\/a\>\<\/li\>'
 
@@ -81,9 +81,31 @@ def getTePagaArtistsGenerator():
 
                 yield metadata
 
+def linkOnWikidata(property):
+    '''
+    Make a dict for ULAN -> qid
+    :return: Dict
+    '''
+    result = {}
+    # Need to use the long version here to get all ranks
+    query = u"""SELECT ?item ?id WHERE { ?item wdt:%s ?id }""" % (property,)
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+        result[resultitem.get('id')] = { u'qid' : qid }
+
+    return result
+
 
 def main():
-    artistsDict = getTePagaArtistsGenerator()
+    repo = pywikibot.Site().data_repository()
+    artistsGen= getTePagaArtistsGenerator()
+    tepapawd = linkOnWikidata(u'P3544')
+    pywikibot.output(u'Number of Te Papa items on Wikidata is %s' % (len(tepapawd),))
+    ulanwd = linkOnWikidata(u'P245')
+    pywikibot.output(u'Number of ULAN items on Wikidata is %s' % (len(ulanwd),))
     #for artist in artistsDict:
     #    print artist
 
@@ -100,7 +122,7 @@ def main():
         #No header!
         #writer.writeheader()
 
-        for artist in getTePagaArtistsGenerator():
+        for artist in artistsGen:
             artistdict = {u'Entry ID' : artist[u'id'].encode(u'utf-8'),
                           u'Entry name' : artist[u'name'].encode(u'utf-8'),
                           u'Entry description' : artist[u'description'].encode(u'utf-8'),
@@ -109,6 +131,29 @@ def main():
                           }
             print artist
             writer.writerow(artistdict)
+            if artist[u'id'] not in tepapawd and artist.get(u'ulan') and artist.get(u'ulan') in ulanwd:
+                itemTitle = ulanwd.get(artist.get(u'ulan')).get('qid')
+                pywikibot.output(u'Found %s as the Wikidata item to link to' % (itemTitle,))
+                item = pywikibot.ItemPage(repo, title=itemTitle)
+                if not item.exists():
+                    return False
+                if item.isRedirectPage():
+                    item = item.getRedirectTarget()
+
+                data = item.get()
+                claims = data.get('claims')
+
+                if u'P3544' not in claims:
+
+                    newclaim = pywikibot.Claim(repo, u'P3544')
+                    newclaim.setTarget(artist.get('id'))
+                    pywikibot.output('Adding Te Papa %s claim to %s' % (artist.get('id'), item.title(), ))
+
+                    # Default text is "‎Created claim: Te Papa identifier (P3544): 123, "
+                    summary = u'based on link to ULAN %s on entry "%s" on Te Papa website' % (artist.get(u'ulan'),
+                                                                                              artist.get(u'name'), )
+
+                    item.addClaim(newclaim, summary=summary)
 
 if __name__ == "__main__":
     main()
