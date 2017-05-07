@@ -22,9 +22,9 @@ def rkdImagesOnWikidata(collectionid=None):
         query = u"""SELECT ?item ?id WHERE {
         ?item wdt:P350 ?id .
         ?item p:P195 ?colstatement .
-        ?colstatement ps:P195 wd:%s . }""" % (collectionid,)
+        ?colstatement ps:P195 wd:%s . } LIMIT 10000008""" % (collectionid,)
     else:
-        query = u'SELECT ?item ?id WHERE { ?item wdt:P350 ?id  }'
+        query = u'SELECT ?item ?id WHERE { ?item wdt:P350 ?id  } LIMIT 10000008'
     sq = pywikibot.data.sparql.SparqlQuery()
     queryresult = sq.select(query)
 
@@ -51,7 +51,7 @@ def paintingsInvOnWikidata(collectionid):
     OPTIONAL { ?item wdt:P350 ?rkdimageid } .
     OPTIONAL { ?item wdt:P170 ?creator .
     ?creator wdt:P650 ?rkdartistid }
-    }""" % (collectionid, collectionid, )
+    } LIMIT 10000008""" % (collectionid, collectionid, )
     sq = pywikibot.data.sparql.SparqlQuery()
     queryresult = sq.select(query)
 
@@ -125,7 +125,6 @@ def rkdImagesGenerator(currentimages, invnumbers, collection, replacements):
 
 def processCollection(collectionid, collectienaam, replacements, pageTitle, autoadd):
 
-    result = u''
 
     currentimages = rkdImagesOnWikidata(collectionid)
     allimages = rkdImagesOnWikidata()
@@ -176,6 +175,14 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
     #text = text + u'Feel free to do any modifications in this page, but a bot will come along and overwrite this page every once in a while.\n\n'
     addtext = u''
 
+    totalimages = 0
+    totalautoadded = 0
+    totalnextadd = 0
+    totalsuggestions = 0
+    totalfailedinuse = 0
+    totailfailedoptions= 0
+    totalfailedelse = 0
+
     i = 0
     addcluster = 10
 
@@ -189,9 +196,9 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
 
     for invnum in sorted(imagedict.keys()):
         for rkdimageid in imagedict.get(invnum):
+            totalimages = totalimages + 1
             # We found a match, just not sure how solid it is
             if rkdimageid.get(u'qid'):
-                result = result + u'%(id)s|%(qid)s\n' % rkdimageid
                 # We found the same inventory number. If the creator matches too than I'm confident enough to add it by bot
                 if invnumbers[invnum].get(u'rkdartistid') and \
                                 invnumbers[invnum].get(u'rkdartistid')==rkdimageid.get(u'rkdartistid') and \
@@ -207,23 +214,27 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
                         if addsuccess:
                             autoaddedtext = autoaddedtext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
                             autoadd = autoadd - 1
+                            totalautoadded = totalautoadded + 1
                         else:
                             suggestionstext = suggestionstext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
 
                             addtext = addtext + u'%(qid)s\tP350\t"%(id)s"\n' % rkdimageid
                             i = i + 1
+                            totalsuggestions = totalsuggestions + 1
                             if not i % addcluster:
                                 suggestionstext = suggestionstext + addlink % (addtext, addcluster)
                                 addtext = u''
 
                     else:
                         nextaddedtext = nextaddedtext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
+                        totalnextadd = totalnextadd + 1
                 # Something is not adding up, add it to the suggestions list
                 else:
                     suggestionstext = suggestionstext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
 
                     addtext = addtext + u'%(qid)s\tP350\t"%(id)s"\n' % rkdimageid
                     i = i + 1
+                    totalsuggestions = totalsuggestions + 1
                     if not i % addcluster:
                         suggestionstext = suggestionstext + addlink % (addtext, addcluster)
                         addtext = u''
@@ -236,6 +247,7 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
                 # The id is used on some other Wikidata item.
                 if rkdimageid['id'] in allimages.keys():
                     failedtext = failedtext + u' -> Id already in use on {{Q|%s}}\n' % allimages[rkdimageid['id']]
+                    totalfailedinuse = totalfailedinuse + 1
 
                 # Anonymous (rkd id 1984) will make the list explode
                 elif not rkdimageid.get(u'rkdartistid')==u'1984':
@@ -246,12 +258,16 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
                             if firstsuggestion:
                                 failedtext = failedtext + u' -> Paintings by \'\'%s\'\' that still need a link: ' % (rkdimageid.get(u'creator'),)
                                 firstsuggestion = False
+                                totailfailedoptions = totailfailedoptions + 1
                             else:
                                 failedtext = failedtext + u', '
                             failedtext = failedtext + u'{{Q|%s}}' % (invitem.get(u'qid'),)
                     failedtext = failedtext + u'\n'
+                    if firstsuggestion:
+                        totalfailedelse = totalfailedelse + 1
                 else:
                     failedtext = failedtext + u'\n'
+                    totalfailedelse = totalfailedelse + 1
 
     # Add the last link if needed
     if addtext:
@@ -261,14 +277,42 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
     text = text + nextaddedtext
     text = text + suggestionstext
     text = text + failedtext
+    text = text + u'\n== Statistics ==\n'
+    text = text + u'* RKDimages needing a link: %s\n' % (totalimages,)
+    text = text + u'* Auto added links this run: %s\n' % (totalautoadded,)
+    text = text + u'* To auto add nex run: %s\n' % (totalnextadd,)
+    text = text + u'* Number of suggestions: %s\n' % (totalsuggestions,)
+    text = text + u'* No suggestion, but in use on another item: %s\n' % (totalfailedinuse,)
+    text = text + u'* No suggestion, but paintings available by the same painter: %s\n' % (totailfailedoptions,)
+    text = text + u'* No suggestion and nothing found: %s\n' % (totalfailedelse,)
+
     text = text + u'\n[[Category:WikiProject sum of all paintings RKD to match|%s]]' % (collectienaam, )
     repo = pywikibot.Site().data_repository()
 
     page = pywikibot.Page(repo, title=pageTitle)
-    summary = u'RKDimages to link'
+    summary = u'%s RKDimages to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
+                                                                                                                                                    totalautoadded,
+                                                                                                                                                    totalnextadd,
+                                                                                                                                                    totalsuggestions,
+                                                                                                                                                    totalfailedinuse,
+                                                                                                                                                    totailfailedoptions,
+                                                                                                                                                    totalfailedelse,
+                                                                                                                                                    )
     page.put(text, summary)
 
-    return result
+    collectionstats = {u'collectionid' : collectionid,
+                       u'collectienaam' : collectienaam,
+                       u'pageTitle' : pageTitle,
+                       u'totalimages' : totalimages,
+                       u'totalautoadded' : totalautoadded,
+                       u'totalnextadd' : totalnextadd,
+                       u'totalsuggestions' : totalsuggestions,
+                       u'totalfailedinuse' : totalfailedinuse,
+                       u'totailfailedoptions' : totailfailedoptions,
+                       u'totalfailedelse' : totalfailedelse,
+                       }
+
+    return collectionstats
 
 def addRkdimagesLink(itemTitle, rkdid, summary):
     repo = pywikibot.Site().data_repository()
@@ -295,6 +339,69 @@ def addRkdimagesLink(itemTitle, rkdid, summary):
     item.addClaim(newclaim, summary=summary)
 
     return True
+
+def publishStatistics(workstatistics):
+    repo = pywikibot.Site().data_repository()
+    page = pywikibot.Page(repo, title=u'Wikidata:WikiProject sum of all paintings/RKD to match')
+    text = u'This pages gives an overview of [https://rkd.nl/en/explore/images#filters%5Bobjectcategorie%5D%5B%5D=painting paintings in RKDimages] to match with paintings in collections on Wikidata.\n'
+    text = text + u'{| class="wikitable sortable"\n'
+    text = text + u'! Collection !! RKDimages !! Page !! Total !! Auto added !! Auto next !! Suggestions !! Failed in use !! Failed options !! Failed else\n'
+
+    totalimages = 0
+    totalautoadded = 0
+    totalnextadd = 0
+    totalsuggestions = 0
+    totalfailedinuse = 0
+    totailfailedoptions= 0
+    totalfailedelse = 0
+
+    for collectionstats in workstatistics:
+        rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bcollectienaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (collectionstats.get('collectienaam').replace(u' ', u'%20'),
+                                                                                                                                                                 collectionstats.get('collectienaam'), )
+        pagelink = u'[[%s|%s]]' % (collectionstats.get(u'pageTitle'),
+                                   collectionstats.get(u'pageTitle').replace(u'Wikidata:WikiProject sum of all paintings/RKD to match/', u''),
+                                   )
+        text = text + u'|-\n'
+        text = text + u'|| {{Q|%s}} ' % (collectionstats.get(u'collectionid'),)
+        text = text + u'|| %s ' % (rkdimageslink,)
+        text = text + u'|| %s ' % (pagelink,)
+        text = text + u'|| %s ' % (collectionstats.get(u'totalimages'),)
+        text = text + u'|| %s ' % (collectionstats.get(u'totalautoadded'),)
+        text = text + u'|| %s ' % (collectionstats.get(u'totalnextadd'),)
+        text = text + u'|| %s ' % (collectionstats.get(u'totalsuggestions'),)
+        text = text + u'|| %s ' % (collectionstats.get(u'totalfailedinuse'),)
+        text = text + u'|| %s ' % (collectionstats.get(u'totailfailedoptions'),)
+        text = text + u'|| %s \n' % (collectionstats.get(u'totalfailedelse'),)
+
+        totalimages = totalimages + collectionstats.get(u'totalimages')
+        totalautoadded = totalautoadded + collectionstats.get(u'totalautoadded')
+        totalnextadd = totalnextadd + collectionstats.get(u'totalnextadd')
+        totalsuggestions = totalsuggestions + collectionstats.get(u'totalsuggestions')
+        totalfailedinuse = totalfailedinuse + collectionstats.get(u'totalfailedinuse')
+        totailfailedoptions = totailfailedoptions + collectionstats.get(u'totailfailedoptions')
+        totalfailedelse = totalfailedelse + collectionstats.get(u'totalfailedelse')
+
+    text = text + u'|- class="sortbottom"\n'
+    text = text + u'| || || || %s || %s || %s || %s || %s || %s || %s\n' % (totalimages,
+                                                                            totalautoadded,
+                                                                            totalnextadd,
+                                                                            totalsuggestions,
+                                                                            totalfailedinuse,
+                                                                            totailfailedoptions,
+                                                                            totalfailedelse,
+                                                                            )
+    text = text + u'|}\n\n[[Category:WikiProject sum of all paintings RKD to match| ]]'
+
+    summary = u'%s RKDimages to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
+                                                                                                                                                    totalautoadded,
+                                                                                                                                                    totalnextadd,
+                                                                                                                                                    totalsuggestions,
+                                                                                                                                                    totalfailedinuse,
+                                                                                                                                                    totailfailedoptions,
+                                                                                                                                                    totalfailedelse,
+                                                                                                                                                    )
+    page.put(text, summary)
+
 
 def main(*args):
 
@@ -363,8 +470,8 @@ def main(*args):
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nationalmuseum',
                                },
                 u'Q671384' : { u'collectienaam' : u'SMK - National Gallery of Denmark',
-                               u'replacements' : [(u'^(\d+)$', u'KMS\\1'),
-                                                  (u'^KMS (\d+)$', u'KMS\\1'),],
+                               u'replacements' : [], #(u'^(\d+)$', u'KMS\\1'), # Mostly done, left overs manual
+                                                     #(u'^KMS (\d+)$', u'KMS\\1'),],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/SMK',
                                },
                 u'Q95569' : { u'collectienaam' : u'Kunsthistorisches Museum',
@@ -493,8 +600,10 @@ def main(*args):
                                  u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Munich Central Collecting Point',
                                  },
                 u'Q1241163' : { u'collectienaam' : u'Dulwich Picture Gallery',
-                                u'replacements' : [(u'^DPG (\d+)$', u'DPG\\1'),
-                                                   (u'^s(\d+)$', u'DPG\\1'),],
+                                u'replacements' : [(u'^DPG\s?(\d\d)$', u'DPG0\\1'),
+                                                   (u'^DPG (\d+)$', u'DPG\\1'),
+                                                   (u'^(\d\d)$', u'DPG0\\1'),
+                                                   (u'^(\d+)$', u'DPG\\1'),],
                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Dulwich Picture Gallery',
                                 },
                 u'Q18600731' : { u'collectienaam' : u'Instituut Collectie Nederland', #u'Rijksdienst voor het Cultureel Erfgoed',
@@ -601,6 +710,7 @@ def main(*args):
                 #                u'replacements' : [],
                 #                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Private collection',
                 #                },
+
                }
     collectionid = None
     autoadd = 0
@@ -627,18 +737,20 @@ def main(*args):
     else:
         worksources = sources.keys()
 
-    for collectionid in worksources:
-        suggestion = processCollection(collectionid,
-                                       sources[collectionid][u'collectienaam'],
-                                       sources[collectionid][u'replacements'],
-                                       sources[collectionid][u'pageTitle'],
-                                       autoadd,
-                                       )
-        suggestions = suggestions + suggestion
+    workstatistics = []
 
-    with open('/tmp/rkd_images_suggestions.txt', u'wb') as txt:
-        txt.write(suggestions)
-        txt.close()
+    for collectionid in worksources:
+        collectionstats = processCollection(collectionid,
+                                            sources[collectionid][u'collectienaam'],
+                                            sources[collectionid][u'replacements'],
+                                            sources[collectionid][u'pageTitle'],
+                                            autoadd,
+                                            )
+        workstatistics.append(collectionstats)
+
+    if len(workstatistics) > 1:
+        publishStatistics(workstatistics)
+
 
 if __name__ == "__main__":
     main()
