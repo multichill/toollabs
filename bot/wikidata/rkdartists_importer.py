@@ -501,12 +501,14 @@ class RKDArtistsCreatorBot:
         '''
         Generate a bunch of artists from RKD.
         '''
+        start = 0 # 60000
+        end = 1800 # 2608 # 361707
         limit = 2
         #baseurl = u'https://api.rkd.nl/api/search/artists?filters[kwalificatie]=painter&fieldset=detail&format=json&rows=%s&start=%s'
-        baseurl = u'https://api.rkd.nl/api/search/artists?fieldset=detail&format=json&rows=%s&start=%s'
+        #baseurl = u'https://api.rkd.nl/api/search/artists?fieldset=detail&format=json&rows=%s&start=%s'
+        baseurl = u'https://api.rkd.nl/api/search/artists?filters[winnaar_van_prijs]=*&fieldset=detail&format=json&rows=%s&start=%s'
 
-
-        for i in range(60000, 361707, limit):
+        for i in range(start, end, limit):
 
             url = baseurl % (limit, i)
             #print url
@@ -570,6 +572,18 @@ class RKDArtistsCreatorBot:
                 return self.createartist(rkdartistsdocs, summary)
             #summary = u'Stresstest'
             #return self.createartist(rkdartistsdocs, summary)
+        # Create remaining people who won something
+        if rkdartistsdocs.get('winnaar_van_prijs') and len(rkdartistsdocs.get('winnaar_van_prijs')) > 0:
+            if len(rkdartistsdocs.get('winnaar_van_prijs'))==1:
+                summary = u'Creating artist based on RKD: Person won the prize "%s"' % (rkdartistsdocs.get('winnaar_van_prijs')[0],)
+            elif len(rkdartistsdocs.get('winnaar_van_prijs'))==2:
+                summary = u'Creating artist based on RKD: Person won the prizes "%s" & "%s"' % (rkdartistsdocs.get('winnaar_van_prijs')[0],
+                                                                                                rkdartistsdocs.get('winnaar_van_prijs')[1],)
+            else:
+                summary = u'Creating artist based on RKD: Person won %s prizes including "%s" & "%s"' % (len(rkdartistsdocs.get('winnaar_van_prijs')),
+                                                                                                         rkdartistsdocs.get('winnaar_van_prijs')[0],
+                                                                                                         rkdartistsdocs.get('winnaar_van_prijs')[1],)
+            return self.createartist(rkdartistsdocs, summary)
         return None
 
     def createartist(self, rkdartistsdocs, summary):
