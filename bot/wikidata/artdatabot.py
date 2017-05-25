@@ -279,6 +279,31 @@ class ArtDataBot:
                 
                         self.addReference(artworkItem, newclaim, metadata[u'refurl'])
 
+                # Try to add the acquisitiondate to the existing collection claim
+                if u'P195' in claims and len(claims.get(u'P195'))==1 and metadata.get(u'acquisitiondate'):
+                    collectionclaim = claims.get(u'P195')[0]
+                    # Would like to use collectionclaim.has_qualifier(u'P580')
+                    if collectionclaim.getTarget()==self.collectionitem and not collectionclaim.qualifiers.get(u'P580'):
+                        acdate = None
+                        if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
+                                metadata[u'acquisitiondate'].isnumeric()): # It's a year
+                            acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
+                        else:
+                            try:
+                                acdate = pywikibot.WbTime.fromTimestr(metadata[u'acquisitiondate'])
+                                # Pff, precision is t0o high. Hack to fix this
+                                if acdate.precision > 11:
+                                    acdate.precision=11
+                            except ValueError:
+                                pywikibot.output(u'Can not parse %s' % metadata[u'acquisitiondate'])
+                        if acdate:
+                            colqualifier = pywikibot.Claim(self.repo, u'P580')
+                            colqualifier.setTarget(acdate)
+                            pywikibot.output('Update collection claim with start time on %s' % artworkItem)
+                            collectionclaim.addQualifier(colqualifier)
+                            # This might give multiple similar references
+                            self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
+
                 # material used
                 # FIXME: This does not scale at all.
                 if u'P186' not in claims and metadata.get(u'medium'):
