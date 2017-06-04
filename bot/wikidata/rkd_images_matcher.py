@@ -19,12 +19,15 @@ def rkdImagesOnWikidata(collectionid=None):
     sq = pywikibot.data.sparql.SparqlQuery()
     if collectionid:
         # Need to use the long version here to get all ranks
-        query = u"""SELECT ?item ?id WHERE {
+        query = u"""SELECT DISTINCT ?item ?id WHERE {
         ?item wdt:P350 ?id .
-        ?item p:P195 ?colstatement .
-        ?colstatement ps:P195 wd:%s . } LIMIT 10000008""" % (collectionid,)
+        { ?item p:P195 ?colstatement .
+        ?colstatement ps:P195 wd:%s . } UNION
+        { ?item p:P276 ?locationstatement .
+        ?locationstatement ps:P276 wd:%s . }
+        } LIMIT 10000007""" % (collectionid,collectionid,)
     else:
-        query = u'SELECT ?item ?id WHERE { ?item wdt:P350 ?id  } LIMIT 10000008'
+        query = u'SELECT ?item ?id WHERE { ?item wdt:P350 ?id  } LIMIT 10000003'
     sq = pywikibot.data.sparql.SparqlQuery()
     queryresult = sq.select(query)
 
@@ -40,18 +43,24 @@ def paintingsInvOnWikidata(collectionid):
     '''
     result = {}
     # Need to use the long version here to get all ranks
-    query = u"""SELECT ?item ?id ?url ?rkdimageid ?rkdartistid WHERE {
-    ?item p:P195 ?colstatement .
-    ?colstatement ps:P195 wd:%s .
+    query = u"""SELECT DISTINCT ?item ?id ?url ?rkdimageid ?rkdartistid WHERE {
     ?item wdt:P31 wd:Q3305213 .
+    { ?item p:P195 ?colstatement .
+    ?colstatement ps:P195 wd:%s .
     ?item p:P217 ?invstatement .
     ?invstatement ps:P217 ?id .
-    ?invstatement pq:P195 wd:%s .
+    ?invstatement pq:P195 wd:%s . } UNION
+    { wd:%s wdt:P361 ?collection .
+    ?item p:P276 ?locationstatement .
+    ?locationstatement ps:P276 wd:%s  .
+    ?item p:P217 ?invstatement .
+    ?invstatement ps:P217 ?id .
+    ?invstatement pq:P195 ?collection . }
     OPTIONAL { ?item wdt:P973 ?url } .
     OPTIONAL { ?item wdt:P350 ?rkdimageid } .
     OPTIONAL { ?item wdt:P170 ?creator .
     ?creator wdt:P650 ?rkdartistid }
-    } LIMIT 10000008""" % (collectionid, collectionid, )
+    } LIMIT 10000007""" % (collectionid, collectionid,collectionid,collectionid )
     sq = pywikibot.data.sparql.SparqlQuery()
     queryresult = sq.select(query)
 
@@ -422,7 +431,7 @@ def main(*args):
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Amsterdam Museum',
                                },
                 u'Q679527' : { u'collectienaam' : u'Museum Boijmans Van Beuningen',
-                            u'replacements' : [(u'^(\d+)$', u'\\1 (MK)'), ],
+                            u'replacements' : [(u'^(\d+)$', u'\\1 (OK)'), ],
                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Boijmans',
                             },
                 u'Q924335' : { u'collectienaam' : u'Stedelijk Museum Amsterdam',
@@ -516,10 +525,14 @@ def main(*args):
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Louvre',
                                },
-                u'Q154568' : { u'collectienaam' : u'Alte Pinakothek',
+                u'Q812285' : { u'collectienaam' : u'Bayerische Staatsgemäldesammlungen',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Alte Pinakothek',
+                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bavarian State Painting Collections',
                                 },
+                u'Q154568' : { u'collectienaam' : u'Alte Pinakothek',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Alte Pinakothek',
+                               },
                 u'Q848313' : { u'collectienaam' : u'Fries Museum',
                                u'replacements' : [(u'^(\d\d)$', u'S000\\1'),
                                                   (u'^(\d\d\d)$', u'S00\\1'),
