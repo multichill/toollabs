@@ -76,6 +76,51 @@ def paintingsInvOnWikidata(collectionid):
 
     return result
 
+def paintingsArtistOnWikidata(artistid):
+    '''
+    Just return all the RKD images as a dict
+    :return: Dict
+    '''
+    result = {}
+    # Need to use the long version here to get all ranks
+    query = u"""SELECT DISTINCT ?item ?year ?collection ?inv WHERE {
+    ?item wdt:P31 wd:Q3305213 .
+    ?item wdt:P170 wd:%s .
+    MINUS { ?item wdt:P350 [] } .
+    OPTIONAL { ?item wdt:P571 ?inception . BIND(year(?inception) as ?year) } .
+    OPTIONAL { ?item wdt:P195 ?collection } .
+    } ORDER BY ?item LIMIT 10000007""" % (artistid,  )
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+    #print query
+    #print queryresult
+
+    previousqid = None
+
+    for resultitem in queryresult:
+        qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+
+        paintingitem = { u'qid' : qid,
+                         u'inception' : u'',
+                         u'collection' : u'',
+                         }
+        if resultitem.get('year'):
+            paintingitem['inception'] = resultitem.get('year')
+        if resultitem.get('collection'):
+            paintingitem['collection'] = resultitem.get('collection').replace(u'http://www.wikidata.org/entity/', u'')
+
+        #result[qid] = { u'qid' : qid }
+        #if resultitem.get('url'):
+        #    result[resultitem.get('id')]['url'] = resultitem.get('url')
+        #if resultitem.get('rkdimageid'):
+        #    result[resultitem.get('id')]['rkdimageid'] = resultitem.get('rkdimageid')
+        #if resultitem.get('rkdartistid'):
+        #    result[resultitem.get('id')]['rkdartistid'] = resultitem.get('rkdartistid')
+        yield paintingitem
+
+    #return result
+
+
 def rkdImagesGenerator(currentimages, invnumbers, collection, replacements):
     '''
 
@@ -131,6 +176,64 @@ def rkdImagesGenerator(currentimages, invnumbers, collection, replacements):
                             break
 
                 yield imageinfo
+
+def rkdImagesArtistGenerator(aristname):
+    '''
+
+    :param currentimages:
+    :param collection:
+    :return:
+    '''
+    # https://api.rkd.nl/api/search/images?filters[collectienaam]=Rijksmuseum&format=json&start=100&rows=50
+    start = 0
+    rows = 50
+    basesearchurl = u'https://api.rkd.nl/api/search/images?filters[naam]=%s&filters[objectcategorie][]=schilderij&format=json&start=%s&rows=%s'
+    while True:
+        searchUrl = basesearchurl % (aristname.replace(u' ', u'+'), start, rows)
+        print searchUrl
+        searchPage = requests.get(searchUrl, verify=False)
+        searchJson = searchPage.json()
+        #print searchJson
+        numfound = searchJson.get('response').get('numFound')
+        print numfound
+        if not start < numfound:
+            return
+        start = start + rows
+        for rkdimage in  searchJson.get('response').get('docs'):
+            imageinfo = {}
+            imageinfo[u'id'] = rkdimage.get(u'priref')
+            titlenl = rkdimage.get(u'benaming_kunstwerk')[0]
+            titleen = rkdimage.get(u'titel_engels')
+            if titlenl==titleen:
+                imageinfo[u'title'] = titlenl
+            else:
+                imageinfo[u'title'] = u'%s / %s' % (titlenl, titleen)
+            if rkdimage.get(u'datering'):
+                datering = rkdimage.get(u'datering')[0]
+                if datering.startswith(u'ca.'):
+                    imageinfo[u'inception'] = datering[3:] + u' ' + datering[:3]
+                else:
+                    imageinfo[u'inception'] = datering
+            else:
+                imageinfo[u'inception'] = u''
+
+            # Inception and collection
+            imageinfo[u'creator'] = rkdimage.get(u'kunstenaar')
+            #if rkdimage.get(u'toeschrijving'):
+            #        imageinfo[u'rkdartistid'] = rkdimage.get(u'toeschrijving')[0].get(u'naam_linkref')
+            #        # Overwrite creator with something more readable
+            #        imageinfo[u'creator'] = rkdimage.get(u'toeschrijving')[0].get(u'naam_inverted')
+            collection = u''
+            if len(rkdimage.get(u'collectie')) > 0 :
+                for collectie in rkdimage.get(u'collectie'):
+                    if collectie.get('collectienaam'):
+                        collection = collection + collectie.get('collectienaam')
+                        if collectie.get('inventarisnummer') or collectie.get('begindatum_in_collectie'):
+                            collection = collection + u' (%s, %s)' % (collectie.get('inventarisnummer'),
+                                                                      collectie.get('begindatum_in_collectie'),)
+                        collection = collection + u'<BR/>\n'
+            imageinfo[u'collection'] = collection
+            yield imageinfo
 
 def processCollection(collectionid, collectienaam, replacements, pageTitle, autoadd):
 
@@ -322,6 +425,71 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
                        }
 
     return collectionstats
+
+
+def processArtist(artistid, artistname, replacements, pageTitle, autoadd):
+
+    #currentimages = rkdImagesOnWikidata(collectionid)
+    allimages = rkdImagesOnWikidata()
+    #invnumbers = paintingsInvOnWikidata(collectionid)
+    #print invnumbers
+
+    text = u'' # Everything combined in the end
+
+    text = text + u'This pages gives an overview of [https://rkd.nl/en/explore/images#filters%%5Cnaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s paintings in RKDimages] ' % (artistname.replace(u' ', u'%20'), artistname, )
+    text = text + u'that are not in use on a painting item (left table) and the painting items by {{Q|%s}} that do not have a link to RKDimages (right table).\n' % (artistid, )
+    text = text + u'You can help by connecting these two lists.\n'
+    text = text + u'{| style=\'width:100%\'\n| style=\'width:50%;vertical-align: top;\' |\n'
+    text = text + u'== RKD with no link to Wikidata ==\n'
+
+    text = text + u'{| class=\'wikitable sortable\' style=\'width:100%\'\n'
+    text = text + u'! RKDimage id\n'
+    text = text + u'! Title\n'
+    text = text + u'! Inception\n'
+    text = text + u'! Collection(s)\n'
+
+    #print currentimages
+    genrkd = rkdImagesArtistGenerator(artistname)
+    i = 0
+    for imageinfo in genrkd:
+        i = i + 1
+        if imageinfo.get('id') in allimages:
+            #FIXME: Better info
+            pywikibot.output(u'Already in use')
+        else:
+            text = text + u'|-\n'
+            text = text + u'| [https://rkd.nl/explore/images/%(id)s %(id)s]\n| %(title)s \n| %(inception)s \n| %(collection)s\n' % imageinfo
+
+    text = text + u'|}\n| style=\'width:50%;vertical-align: top;\' |\n'
+    text = text + u'== Wikidata with no link to RKD ==\n'
+    text = text + u'{| class=\'wikitable sortable\' style=\'width:100%\'\n'
+    text = text + u'! Painting\n'
+    text = text + u'! Inception\n'
+    text = text + u'! Collection\n'
+    #text = text + u'! Title (nl)\n'
+    #text = text + u'! Title (en)\n'
+    #text = text + u'! Collection(s)\n'
+
+    genwd = paintingsArtistOnWikidata(artistid)
+
+    for painting in genwd:
+        text = text + u'|-\n'
+        text = text + u'| {{Q|%(qid)s}} || %(inception)s ||' % painting
+        if painting.get(u'collection'):
+            text = text + u' {{Q|%(collection)s}} \n' % painting
+        else:
+            text = text + u'\n'
+
+    text = text + u'|}\n\n'
+
+    text = text + u'\n[[Category:WikiProject sum of all paintings RKD to match|%s]]' % (artistname, )
+    repo = pywikibot.Site().data_repository()
+
+    page = pywikibot.Page(repo, title=pageTitle)
+    summary = u'Updating RKD artist page'
+    page.put(text, summary)
+
+    return
 
 def addRkdimagesLink(itemTitle, rkdid, summary):
     repo = pywikibot.Site().data_repository()
@@ -719,13 +887,72 @@ def main(*args):
                                 u'replacements' : [],
                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Walters Art Museum',
                                 },
+                u'Q188740' : { u'collectienaam' : u'Museum of Modern Art, The',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Modern Art',
+                               },
                 #u'Q768717' : { u'collectienaam' : u'Private collection', # Probably still too big
                 #                u'replacements' : [],
                 #                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Private collection',
                 #                },
 
                }
+
+    artists = { u'Q289441' : { u'artistname' : u'Breitner, George Hendrik',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/George Hendrik Breitner',
+                             },
+                u'Q150679' : { u'artistname' : u'Dyck, Anthony van',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Anthony van Dyck',
+                               },
+                u'Q5582' : { u'artistname' : u'Gogh, Vincent van',
+                             u'replacements' : [],
+                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Vincent van Gogh',
+                             },
+                u'Q979534' : { u'artistname' : u'Israels, Isaac',
+                             u'replacements' : [],
+                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Isaac Israëls',
+                             },
+                u'Q528460' : { u'artistname' : u'Israëls, Jozef',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jozef Israëls',
+                               },
+                u'Q978158' : { u'artistname' : u'Maris, Jacob',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacob Maris',
+                               },
+                u'Q1375830' : { u'artistname' : u'Maris, Matthijs',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Matthijs Maris',
+                               },
+                u'Q591907' : { u'artistname' : u'Mauve, Anton',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Anton Mauve',
+                               },
+                u'Q151803' : { u'artistname' : u'Mondriaan, Piet',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Piet Mondrian',
+                               },
+                u'Q5598' : { u'artistname' : u'Rembrandt',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rembrandt',
+                               },
+                u'Q5599' : { u'artistname' : u'Rubens, Peter Paul',
+                             u'replacements' : [],
+                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Peter Paul Rubens',
+                            },
+                u'Q1682227' : { u'artistname' : u'Sluijters, Jan',
+                                u'replacements' : [],
+                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan Sluyters',
+                              },
+                u'Q1691988' : { u'artistname' : u'Weissenbruch, Jan Hendrik',
+                                u'replacements' : [],
+                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Johan Hendrik Weissenbruch',
+                                },
+                }
     collectionid = None
+    artistid = None
     autoadd = 0
 
     for arg in pywikibot.handle_args(args):
@@ -735,6 +962,12 @@ def main(*args):
                         u'Please enter the collectionid you want to work on:')
             else:
                 collectionid = arg[14:]
+        elif arg.startswith('-artistid:'):
+            if len(arg) == 10:
+                artistid = pywikibot.input(
+                        u'Please enter the aristid you want to work on:')
+            else:
+                artistid = arg[10:]
         elif arg.startswith('-autoadd:'):
             if len(arg) == 9:
                 autoadd = int(pywikibot.input(
@@ -746,24 +979,38 @@ def main(*args):
         if collectionid not in sources.keys():
             pywikibot.output(u'%s is not a valid collectionid!' % (collectionid,))
             return
-        worksources = [collectionid, ]
+        processCollection(collectionid,
+                          sources[collectionid][u'collectienaam'],
+                          sources[collectionid][u'replacements'],
+                          sources[collectionid][u'pageTitle'],
+                          autoadd,
+                          )
+    elif artistid:
+        processArtist(artistid,
+                      artists[artistid][u'artistname'],
+                      artists[artistid][u'replacements'],
+                      artists[artistid][u'pageTitle'],
+                      autoadd,
+                      )
+
     else:
-        worksources = sources.keys()
-
-    workstatistics = []
-
-    for collectionid in worksources:
-        collectionstats = processCollection(collectionid,
-                                            sources[collectionid][u'collectienaam'],
-                                            sources[collectionid][u'replacements'],
-                                            sources[collectionid][u'pageTitle'],
-                                            autoadd,
-                                            )
+        for artistid in artists.keys():
+            processArtist(artistid,
+                          artists[artistid][u'artistname'],
+                          artists[artistid][u'replacements'],
+                          artists[artistid][u'pageTitle'],
+                          autoadd,
+                          )
+        workstatistics = []
+        for collectionid in sources.keys():
+            collectionstats = processCollection(collectionid,
+                                                sources[collectionid][u'collectienaam'],
+                                                sources[collectionid][u'replacements'],
+                                                sources[collectionid][u'pageTitle'],
+                                                autoadd,
+                                                )
         workstatistics.append(collectionstats)
-
-    if len(workstatistics) > 1:
         publishStatistics(workstatistics)
-
 
 if __name__ == "__main__":
     main()
