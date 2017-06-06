@@ -73,27 +73,71 @@ def processArtist(repo, session, artist):
 
         print u'Found yob %s on Wikidata and %s on pinakothek' % (artist.get(u'yob'), yobpinakothek, )
         print u'Found yod %s on Wikidata and %s on pinakothek' % (artist.get(u'yod'), yodpinakothek, )
-        if int(artist.get(u'yob'))==int(yobpinakothek):
-            print u'yob match'
-        if int(artist.get(u'yod'))==int(yodpinakothek):
-            print u'yod match'
-        if int(artist.get(u'yob'))==int(yobpinakothek) and int(artist.get(u'yod'))==int(yodpinakothek):
-            print u'match'
-            item = pywikibot.ItemPage(repo, title=artist.get(u'creator'))
-            if not item.exists():
-                return False
-            if item.isRedirectPage():
-                return False
-            data = item.get()
-            claims = data.get('claims')
-            if u'P4025' not in claims:
 
+        item = pywikibot.ItemPage(repo, title=artist.get(u'creator'))
+        if not item.exists():
+            return False
+        if item.isRedirectPage():
+            return False
+        data = item.get()
+        claims = data.get('claims')
+        if u'P4025' not in claims:
+            if int(artist.get(u'yob'))==int(yobpinakothek) and int(artist.get(u'yod'))==int(yodpinakothek):
                 newclaim = pywikibot.Claim(repo, u'P4025')
                 newclaim.setTarget(artist.get(u'creatorid'))
                 pywikibot.output('Adding %(creatorid)s claim to %(creator)s' % artist)
 
                 summary = u'based on [[%(item)s]]: year of birth %(yob)s and year of death %(yod)s are the same' % artist
                 item.addClaim(newclaim, summary=summary)
+            elif int(artist.get(u'yob'))==int(yobpinakothek) and abs(int(artist.get(u'yod')) - int(yodpinakothek))==1:
+                newclaim = pywikibot.Claim(repo, u'P4025')
+                newclaim.setTarget(artist.get(u'creatorid'))
+                pywikibot.output('Adding %(creatorid)s claim to %(creator)s' % artist)
+
+                summary = u'based on [[%(item)s]]: year of birth %(yob)s is the same and year of death %(yod)s has just a one year difference' % artist
+                item.addClaim(newclaim, summary=summary)
+            elif int(artist.get(u'yod'))==int(yodpinakothek) and abs(int(artist.get(u'yob')) - int(yobpinakothek))==1:
+                newclaim = pywikibot.Claim(repo, u'P4025')
+                newclaim.setTarget(artist.get(u'creatorid'))
+                pywikibot.output('Adding %(creatorid)s claim to %(creator)s' % artist)
+
+                summary = u'based on [[%(item)s]]: year of birth %(yob)s has just a one year difference and year of death %(yod)s is the same' % artist
+                item.addClaim(newclaim, summary=summary)
+
+            else:
+                if int(artist.get(u'yob'))==int(yobpinakothek):
+                    pywikibot.output(u'The year of birth is the same (%s), but the year of death is different (%s / %s)' % (yobpinakothek,
+                                                                                                                    artist.get(u'yod'),
+                                                                                                                    yodpinakothek,))
+                    summary = u'based on [[%s]]: year of birth (%s) the same and year of death (%s / %s) confirmed by user' % (artist.get(u'item'),
+                                                                                                                             yobpinakothek,
+                                                                                                                             artist.get(u'yod'),
+                                                                                                                             yodpinakothek,)
+                elif int(artist.get(u'yod'))==int(yodpinakothek):
+                    pywikibot.output(u'The year of birth is different (%s / %s), but the year of death is the same ( %s )' % (artist.get(u'yob'),
+                                                                                                                       yobpinakothek,
+                                                                                                                       yodpinakothek,))
+                    summary = u'based on [[%s]]: year of birth  (%s / %s) confirmed by user and year of death (%s) the same' % (artist.get(u'item'),
+                                                                                                                                artist.get(u'yob'),
+                                                                                                                                yobpinakothek,
+                                                                                                                                yodpinakothek,)
+                else:
+                    pywikibot.output(u'The year of birth is different (%s / %s) and the year of death is different (%s / %s)' % (artist.get(u'yob'),
+                                                                                                                                 yobpinakothek,
+                                                                                                                                 artist.get(u'yod'),
+                                                                                                                                 yodpinakothek,))
+                    summary = u'based on [[%s]]: both year of birth  (%s / %s) and year of death (%s / %s) confirmed by user' % (artist.get(u'item'),
+                                                                                                                                 artist.get(u'yob'),
+                                                                                                                                 yobpinakothek,
+                                                                                                                                 artist.get(u'yod'),
+                                                                                                                                 yodpinakothek,)
+                choice = pywikibot.input_choice(u'Do you add it anyway?', [('Yes', 'y'), ('No', 'n'),], default='N')
+                if choice==u'y':
+                    newclaim = pywikibot.Claim(repo, u'P4025')
+                    newclaim.setTarget(artist.get(u'creatorid'))
+                    pywikibot.output('Adding %(creatorid)s claim to %(creator)s' % artist)
+                    item.addClaim(newclaim, summary=summary)
+
     else:
         print u'No match'
         print artist
