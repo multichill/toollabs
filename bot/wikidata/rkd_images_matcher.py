@@ -436,7 +436,7 @@ def processArtist(artistid, artistname, replacements, pageTitle, autoadd):
 
     text = u'' # Everything combined in the end
 
-    text = text + u'This pages gives an overview of [https://rkd.nl/en/explore/images#filters%%5Cnaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s paintings in RKDimages] ' % (artistname.replace(u' ', u'%20'), artistname, )
+    text = text + u'This pages gives an overview of [https://rkd.nl/en/explore/images#filters%%5Bnaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s paintings in RKDimages] ' % (artistname.replace(u' ', u'%20'), artistname, )
     text = text + u'that are not in use on a painting item (left table) and the painting items by {{Q|%s}} that do not have a link to RKDimages (right table).\n' % (artistid, )
     text = text + u'You can help by connecting these two lists.\n'
     text = text + u'{| style=\'width:100%\'\n| style=\'width:50%;vertical-align: top;\' |\n'
@@ -450,13 +450,15 @@ def processArtist(artistid, artistname, replacements, pageTitle, autoadd):
 
     #print currentimages
     genrkd = rkdImagesArtistGenerator(artistname)
-    i = 0
+    rkdcount = 0
+    rkdsuggestioncount = 0
     for imageinfo in genrkd:
-        i = i + 1
+        rkdcount = rkdcount + 1
         if imageinfo.get('id') in allimages:
             #FIXME: Better info
             pywikibot.output(u'Already in use')
         else:
+            rkdsuggestioncount = rkdsuggestioncount + 1
             text = text + u'|-\n'
             text = text + u'| [https://rkd.nl/explore/images/%(id)s %(id)s]\n| %(title)s \n| %(inception)s \n| %(collection)s\n' % imageinfo
 
@@ -472,7 +474,9 @@ def processArtist(artistid, artistname, replacements, pageTitle, autoadd):
 
     genwd = paintingsArtistOnWikidata(artistid)
 
+    wdsuggestioncount = 0
     for painting in genwd:
+        wdsuggestioncount = wdsuggestioncount + 1
         text = text + u'|-\n'
         text = text + u'| {{Q|%(qid)s}} || %(inception)s ||' % painting
         if painting.get(u'collection'):
@@ -489,7 +493,15 @@ def processArtist(artistid, artistname, replacements, pageTitle, autoadd):
     summary = u'Updating RKD artist page'
     page.put(text, summary)
 
-    return
+    artiststats = {u'artistid' : artistid,
+                   u'artistname' : artistname,
+                   u'pageTitle' : pageTitle,
+                   u'rkdcount' : rkdcount,
+                   u'rkdsuggestioncount' : rkdsuggestioncount,
+                   u'wdsuggestioncount' : wdsuggestioncount,
+                   }
+
+    return artiststats
 
 def addRkdimagesLink(itemTitle, rkdid, summary):
     repo = pywikibot.Site().data_repository()
@@ -517,12 +529,46 @@ def addRkdimagesLink(itemTitle, rkdid, summary):
 
     return True
 
-def publishStatistics(workstatistics):
+def publishStatistics(artistsstats, collectionsstats):
     repo = pywikibot.Site().data_repository()
     page = pywikibot.Page(repo, title=u'Wikidata:WikiProject sum of all paintings/RKD to match')
     text = u'This pages gives an overview of [https://rkd.nl/en/explore/images#filters%5Bobjectcategorie%5D%5B%5D=painting paintings in RKDimages] to match with paintings in collections on Wikidata.\n'
+
+    totalrkd = 0
+    totalrkdsuggestions = 0
+    totalwikidata = 0
+
+    text = text + u'== Artists ==\n'
     text = text + u'{| class="wikitable sortable"\n'
-    text = text + u'! Collection !! RKDimages !! Page !! Total !! Auto added !! Auto next !! Suggestions !! Failed in use !! Failed options !! Failed else\n'
+    text = text + u'! Artist !! RKDimages !! Page !! Total RKDimages !! RKDimages left to match !! Wikidata possibilities\n'
+
+    for artiststats in artistsstats:
+        rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bnaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (artiststats.get('artistname').replace(u' ', u'%20'),
+                                                                                                                                                        artiststats.get('artistname'), )
+        pagelink = u'[[%s|%s]]' % (artiststats.get(u'pageTitle'),
+                                   artiststats.get(u'pageTitle').replace(u'Wikidata:WikiProject sum of all paintings/RKD to match/', u''),
+                                   )
+        text = text + u'|-\n'
+        text = text + u'|| {{Q|%s}} ' % (artiststats.get(u'artistid'),)
+        text = text + u'|| %s ' % (rkdimageslink,)
+        text = text + u'|| %s ' % (pagelink,)
+        text = text + u'|| %s ' % (artiststats.get(u'rkdcount'),)
+        text = text + u'|| %s ' % (artiststats.get(u'rkdsuggestioncount'),)
+        text = text + u'|| %s \n' % (artiststats.get(u'wdsuggestioncount'),)
+
+        totalrkd = totalrkd + artiststats.get(u'rkdcount')
+        totalrkdsuggestions = totalrkdsuggestions + artiststats.get(u'rkdsuggestioncount')
+        totalwikidata = totalwikidata + artiststats.get(u'wdsuggestioncount')
+
+    text = text + u'|- class="sortbottom"\n'
+    text = text + u'| || || || %s || %s || %s\n' % (totalrkd,
+                                                    totalrkdsuggestions,
+                                                    totalwikidata,
+                                                    )
+    text = text + u'|}\n\n'
+    text = text + u'== Collections ==\n'
+    text = text + u'{| class="wikitable sortable"\n'
+    text = text + u'! Collection !! RKDimages !! Page !! RKDimages left to match !! Auto added !! Auto next !! Suggestions !! Failed in use !! Failed options !! Failed else\n'
 
     totalimages = 0
     totalautoadded = 0
@@ -532,7 +578,7 @@ def publishStatistics(workstatistics):
     totailfailedoptions= 0
     totalfailedelse = 0
 
-    for collectionstats in workstatistics:
+    for collectionstats in collectionsstats:
         rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bcollectienaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (collectionstats.get('collectienaam').replace(u' ', u'%20'),
                                                                                                                                                                  collectionstats.get('collectienaam'), )
         pagelink = u'[[%s|%s]]' % (collectionstats.get(u'pageTitle'),
@@ -897,11 +943,14 @@ def main(*args):
                 #                },
 
                }
-
     artists = { u'Q289441' : { u'artistname' : u'Breitner, George Hendrik',
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/George Hendrik Breitner',
                              },
+                u'Q160422' : { u'artistname' : u'Doesburg, Theo van',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Theo van Doesburg',
+                               },
                 u'Q150679' : { u'artistname' : u'Dyck, Anthony van',
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Anthony van Dyck',
@@ -909,6 +958,10 @@ def main(*args):
                 u'Q5582' : { u'artistname' : u'Gogh, Vincent van',
                              u'replacements' : [],
                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Vincent van Gogh',
+                             },
+                u'Q380704' : { u'artistname' : u'Helst, Bartholomeus van der',
+                             u'replacements' : [],
+                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bartholomeus van der Helst',
                              },
                 u'Q979534' : { u'artistname' : u'Israels, Isaac',
                              u'replacements' : [],
@@ -994,14 +1047,16 @@ def main(*args):
                       )
 
     else:
+        artistsstats = []
         for artistid in artists.keys():
-            processArtist(artistid,
-                          artists[artistid][u'artistname'],
-                          artists[artistid][u'replacements'],
-                          artists[artistid][u'pageTitle'],
-                          autoadd,
-                          )
-        workstatistics = []
+            artiststats = processArtist(artistid,
+                                        artists[artistid][u'artistname'],
+                                        artists[artistid][u'replacements'],
+                                        artists[artistid][u'pageTitle'],
+                                        autoadd,
+                                        )
+            artistsstats.append(artiststats)
+        collectionsstats = []
         for collectionid in sources.keys():
             collectionstats = processCollection(collectionid,
                                                 sources[collectionid][u'collectienaam'],
@@ -1009,8 +1064,8 @@ def main(*args):
                                                 sources[collectionid][u'pageTitle'],
                                                 autoadd,
                                                 )
-        workstatistics.append(collectionstats)
-        publishStatistics(workstatistics)
+            collectionsstats.append(collectionstats)
+        publishStatistics(artistsstats, collectionsstats)
 
 if __name__ == "__main__":
     main()
