@@ -16,11 +16,24 @@ def wikidataCategoryGenerator(repo, qid, project):
     '''
     categoryitem = pywikibot.ItemPage(repo, title=qid)
     for categorypage in categoryitem.iterlinks(family=project):
-        gen = petscanGenerator(repo, categorypage.site.lang, u'wikipedia', 8, categorypage.title(withNamespace=False))
-        for item in gen:
+        gennostatements = petscanGenerator(repo,
+                                           categorypage.site.lang,
+                                           u'wikipedia',
+                                           8,
+                                           categorypage.title(withNamespace=False),
+                                           typequery='nostatements')
+        for item in gennostatements:
+            yield item
+        genwithoutitem = petscanGenerator(repo,
+                                          categorypage.site.lang,
+                                          u'wikipedia',
+                                          8,
+                                          categorypage.title(withNamespace=False),
+                                          typequery='withoutitem')
+        for item in genwithoutitem:
             yield item
 
-def petscanGenerator(repo, lang, project, depth, categories):
+def petscanGenerator(repo, lang, project, depth, categories, typequery='nostatements'):
     '''
     * Language
     * Project
@@ -30,12 +43,22 @@ def petscanGenerator(repo, lang, project, depth, categories):
     * Pages with items
     * Has no statements
     '''
-    query = u'https://petscan.wmflabs.org/?language=%(lang)s&project=%(project)s&depth=%(depth)s' \
-            u'&categories=%(categories)s&combination=subset&ns%%5B0%%5D=1&show_redirects=no&edits%%5Bbots%%5D=both' \
-            u'&edits%%5Banons%%5D=both&edits%%5Bflagged%%5D=both&subpage_filter=either&common_wiki=auto' \
-            u'&wikidata_item=with&wpiu=any&wpiu_no_statements=1&cb_labels_yes_l=1&cb_labels_any_l=1&cb_labels_no_l=1' \
-            u'&format=json&output_compatability=catscan&sortby=none&sortorder=ascending&min_redlink_count=1' \
-            u'&doit=Do%%20it%%21&interface_language=en&active_tab=tab_output'
+    if typequery=='nostatements':
+        query = u'https://petscan.wmflabs.org/?language=%(lang)s&project=%(project)s&depth=%(depth)s' \
+                u'&categories=%(categories)s&combination=subset&ns%%5B0%%5D=1&show_redirects=no&edits%%5Bbots%%5D=both' \
+                u'&edits%%5Banons%%5D=both&edits%%5Bflagged%%5D=both&subpage_filter=either&common_wiki=auto' \
+                u'&wikidata_item=with&wpiu=any&wpiu_no_statements=1&cb_labels_yes_l=1&cb_labels_any_l=1&cb_labels_no_l=1' \
+                u'&format=json&output_compatability=catscan&sortby=none&sortorder=ascending&min_redlink_count=1' \
+                u'&doit=Do%%20it%%21&interface_language=en&active_tab=tab_output'
+    elif typequery=='withoutitem':
+        query = u'https://petscan.wmflabs.org/?language=%(lang)s&project=%(project)s&depth=%(depth)s' \
+                u'&categories=%(categories)s&combination=subset&ns%%5B0%%5D=1&show_redirects=no&edits%%5Bbots%%5D=both' \
+                u'&edits%%5Banons%%5D=both&edits%%5Bflagged%%5D=both&subpage_filter=either&common_wiki=auto' \
+                u'&wikidata_item=without' \
+                u'&format=json&output_compatability=catscan&sortby=none&sortorder=ascending&min_redlink_count=1' \
+                u'&doit=Do%%20it%%21&interface_language=en&active_tab=tab_output'
+    else:
+        return
     url = query % { u'lang' : lang,
                     u'project' : project,
                     u'depth' : depth,
@@ -61,7 +84,10 @@ def main():
     i = 0
     langstats = {}
     for iteminfo in gen:
-        text = text + u'| [[%(q)s]] || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]\n|-\n' % iteminfo
+        if iteminfo.get(u'q'):
+            text = text + u'| [[%(q)s]] || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]\n|-\n' % iteminfo
+        else:
+            text = text + u'| None <small>(<span class="plainlinks">[//www.wikidata.org/w/index.php?title=Special:NewItem&site=%(lang)swiki&page={{urlencode:%(title)s}} c]</span>)</small> || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]\n|-\n' % iteminfo
         i = i + 1
         if iteminfo.get(u'lang') not in langstats:
             langstats[iteminfo.get(u'lang')]=1
