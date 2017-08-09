@@ -1,13 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import Rijksmonumenten to Wikidata.
+Bot to import heritage images from the Monuments database to Wikidata.
 The data is coming from the monuments database, see https://commons.wikimedia.org/wiki/Commons:Monuments_database
 
-Code is quite messy, but should be easy to reuse it for other countries.
-
-* Get all the items that don't have an image, but do have an id
-* Get all the heritage sites that have an id and have an image from the Monuments database
+Configure sources to work on at https://www.wikidata.org/wiki/User:BotMultichillT/heritage_images.js
 
 """
 import json
@@ -20,7 +17,7 @@ class MonumentsImageBot:
     """
     A bot to enrich and create monuments on Wikidata
     """
-    def __init__(self, generator):
+    def __init__(self, generator, country=u'nl', lang=u'nl', wdproperty=u'P359'):
         """
         Arguments:
             * generator    - A generator that yields Wikidata items objects.
@@ -28,7 +25,8 @@ class MonumentsImageBot:
         """
         self.generator = generator
         self.repo = pywikibot.Site().data_repository()
-        self.monumentImages = self.imagesMonumentsDatabase()
+        self.monumentImages = self.imagesMonumentsDatabase(country=country, lang=lang)
+        self.wdproperty = wdproperty
         
     def imagesMonumentsDatabase(self, country=u'nl', lang=u'nl'):
 
@@ -65,8 +63,8 @@ class MonumentsImageBot:
             data = item.get()
             claims = data.get('claims')
 
-            if u'P359' in claims:
-                heritageid = claims.get(u'P359')[0].getTarget()
+            if self.wdproperty in claims:
+                heritageid = claims.get(self.wdproperty)[0].getTarget()
 
             # Hardcoded to Rijksmonument. Could do something with SPARQL query
             if u'P18' not in claims and heritageid in self.monumentImages:
@@ -88,18 +86,30 @@ class MonumentsImageBot:
                     pywikibot.output('Adding %s --> %s based on %s' % (newclaim.getID(), newclaim.getTarget(), sourceurl))
                     summary = 'based on usage in list https%s' % (sourceurl,)
                     item.addClaim(newclaim, summary=summary)
+
+
                 
 def main():
-    query = u"""SELECT ?item WHERE {
-  ?item wdt:P1435 wd:Q916333 .
-  MINUS { ?item wdt:P18 ?image.} .
-}"""
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
-
-    monumentsImageBot = MonumentsImageBot(generator)
-    monumentsImageBot.run()
+    configpage = pywikibot.Page(repo, title=u'User:BotMultichillT/heritage images.js')
+    (comments, sep, jsondata) = configpage.get().partition(u'[')
+    jsondata = u'[' + jsondata
+    configjson = json.loads(jsondata)
+    for workitem in configjson:
+        print workitem
     
+        query = u"""SELECT ?item WHERE {
+  ?item wdt:P1435 wd:%s .
+  MINUS { ?item wdt:P18 ?image.} .
+}""" % (workitem.get('item'),)
+        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+
+        monumentsImageBot = MonumentsImageBot(generator,
+                                              lang=workitem.get('lang'),
+                                              country=workitem.get('country'),
+                                              wdproperty=workitem.get('property'),
+                                              )
+        monumentsImageBot.run()
 
 if __name__ == "__main__":
     main()
