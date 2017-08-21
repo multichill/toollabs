@@ -204,21 +204,30 @@ class RKDArtistsImporterBot:
 
         if claim:
             date = claim.getTarget()
-            if not date.precision==newdate.precision:
-                pywikibot.output(u'Different precision, skipping')
-                return
-            if not date.year==newdate.year:
-                pywikibot.output(u'Different year, skipping')
-                return
-            if not (date.precision==9 or date.month==newdate.month):
-                pywikibot.output(u'Different month and precision is not set to 9 (year), skipping')
-                return
-            if not (date.precision==9 or date.precision==10 or date.day==newdate.day):
-                pywikibot.output(u'Different day and precision is not set to 9 (year) or 10 (month), skipping')
-                return
-            if not (date.timezone==newdate.timezone or date.calendarmodel==newdate.calendarmodel):
-                pywikibot.output(u'Different timezone or calendarmodel, skipping')
-                return
+            if date.precision==newdate.precision:
+                if not date.year==newdate.year:
+                    pywikibot.output(u'Different year, skipping')
+                    return
+                if not (date.precision==9 or date.month==newdate.month):
+                    pywikibot.output(u'Different month and precision is not set to 9 (year), skipping')
+                    return
+                if not (date.precision==9 or date.precision==10 or date.day==newdate.day):
+                    pywikibot.output(u'Different day and precision is not set to 9 (year) or 10 (month), skipping')
+                    return
+                if not (date.timezone==newdate.timezone or date.calendarmodel==newdate.calendarmodel):
+                    pywikibot.output(u'Different timezone or calendarmodel, skipping')
+                    return
+            else:
+                if not date.year==newdate.year:
+                    pywikibot.output(u'Different precision and year, skipping')
+                    return
+                if not (date.precision==9 and (newdate.precision==10 or newdate.precision==11)):
+                    # FIXME: Add better message
+                    pywikibot.output(u'Current precision is not 9 (year) or new precision is not 10 or 11, skipping')
+                    return
+                summary = u'Replacing date with more precise date sourced from RKDartists'
+                pywikibot.output(summary)
+                claim.changeTarget(newdate, summary=summary)
             self.addReference(itempage, claim, refurl)
         else:
 
