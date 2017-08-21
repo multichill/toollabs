@@ -69,8 +69,12 @@ class RKDArtistsImporterBot:
                 self.addOccupation(itempage, rkdartistsdocs, refurl)
             if u'P569' not in claims:
                 self.addDateOfBirth(itempage, rkdartistsdocs, refurl)
+            elif len(claims.get(u'P569'))==1:
+                self.addDateOfBirth(itempage, rkdartistsdocs, refurl, claim=claims.get(u'P569')[0])
             if u'P570' not in claims:
                 self.addDateOfDeath(itempage, rkdartistsdocs, refurl)
+            elif len(claims.get(u'P570'))==1:
+                self.addDateOfDeath(itempage, rkdartistsdocs, refurl, claim=claims.get(u'P570')[0])
             if u'P19' not in claims:
                 self.addPlaceOfBirth(itempage, rkdartistsdocs, refurl)
             if u'P20' not in claims:
@@ -125,35 +129,50 @@ class RKDArtistsImporterBot:
                 newclaim = self.addItemStatement(itempage, u'P106', occupations.get(occupationid))
                 self.addReference(itempage, newclaim, refurl)
 
-    def addDateOfBirth(self, itempage, rkdartistsdocs, refurl):
+    def addDateOfBirth(self, itempage, rkdartistsdocs, refurl, claim=None):
         '''
         Will add the date of birth if the data is available and not a range
         :param itempage: The ItemPage to update
         :param rkdartistsdocs: The json with the RKD information
         :param refurl: The url to add as reference
+        :param clams: Existing claim to update (more precise and/or source it)
         :return:
         '''
         if rkdartistsdocs.get('geboortedatum_begin') and \
-           rkdartistsdocs.get('geboortedatum_eind') and \
-           rkdartistsdocs.get('geboortedatum_begin')==rkdartistsdocs.get('geboortedatum_eind'):
+                rkdartistsdocs.get('geboortedatum_eind') and \
+                        rkdartistsdocs.get('geboortedatum_begin')==rkdartistsdocs.get('geboortedatum_eind'):
             datestring = rkdartistsdocs.get('geboortedatum_begin')
-            self.addDateProperty(itempage, datestring, u'P569', refurl)
+            if claim:
+                if len(claim.getSources())==0:
+                    self.addDateProperty(itempage, datestring, u'P569', refurl, claim=claim)
+                #else:
+                # Already has a source, not implemented, yet
+            else:
+                self.addDateProperty(itempage, datestring, u'P569', refurl)
 
-    def addDateOfDeath(self, itempage, rkdartistsdocs, refurl):
+
+    def addDateOfDeath(self, itempage, rkdartistsdocs, refurl, claim=None):
         '''
         Will add the date of death if the data is available and not a range
         :param itempage: The ItemPage to update
         :param rkdartistsdocs: The json with the RKD information
         :param refurl: The url to add as reference
+        :param clams: Existing claim to update (more precise and/or source it)
         :return:
         '''
         if rkdartistsdocs.get('sterfdatum_begin') and \
                 rkdartistsdocs.get('sterfdatum_eind') and \
                         rkdartistsdocs.get('sterfdatum_begin')==rkdartistsdocs.get('sterfdatum_eind'):
             datestring = rkdartistsdocs.get('sterfdatum_begin')
-            self.addDateProperty(itempage, datestring, u'P570', refurl)
+            if claim:
+                if len(claim.getSources())==0:
+                    self.addDateProperty(itempage, datestring, u'P570', refurl, claim=claim)
+                    #else:
+                    # Already has a source, not implemented, yet
+            else:
+                self.addDateProperty(itempage, datestring, u'P570', refurl)
 
-    def addDateProperty(self, itempage, datestring, property, refurl):
+    def addDateProperty(self, itempage, datestring, property, refurl, claim=None):
         '''
         Try to find a valid date and add it to the itempage using property
         :param itempage: The ItemPage to update
@@ -183,10 +202,30 @@ class RKDArtistsImporterBot:
         else:
             return False
 
-        newclaim = pywikibot.Claim(self.repo, property)
-        newclaim.setTarget(newdate)
-        itempage.addClaim(newclaim)
-        self.addReference(itempage, newclaim, refurl)
+        if claim:
+            date = claim.getTarget()
+            if not date.precision==newdate.precision:
+                pywikibot.output(u'Different precision, skipping')
+                return
+            if not date.year==newdate.year:
+                pywikibot.output(u'Different year, skipping')
+                return
+            if not (date.precision==9 or date.month==newdate.month):
+                pywikibot.output(u'Different month and precision is not set to 9 (year), skipping')
+                return
+            if not (date.precision==9 or date.precision==10 or date.day==newdate.day):
+                pywikibot.output(u'Different day and precision is not set to 9 (year) or 10 (month), skipping')
+                return
+            if not (date.timezone==newdate.timezone or date.calendarmodel==newdate.calendarmodel):
+                pywikibot.output(u'Different timezone or calendarmodel, skipping')
+                return
+            self.addReference(itempage, claim, refurl)
+        else:
+
+            newclaim = pywikibot.Claim(self.repo, property)
+            newclaim.setTarget(newdate)
+            itempage.addClaim(newclaim)
+            self.addReference(itempage, newclaim, refurl)
 
     def addPlaceOfBirth(self, itempage, rkdartistsdocs, refurl):
         '''
@@ -706,6 +745,37 @@ def main(*args):
           FILTER(?birth < "+1900-00-15T00:00:00Z"^^xsd:dateTime)
         }
         }"""
+
+        # To clean out the unsourced date of birth backlog
+        query = u"""SELECT ?item ?birthvalue ?birth WHERE {
+  ?item wdt:P650 [] .
+  ?item p:P569 ?birthclaim .
+  ?birthclaim psv:P569 ?birthvalue .
+  { ?birthvalue wikibase:timePrecision "9"^^xsd:integer } UNION {
+    ?birthvalue wikibase:timePrecision "10"^^xsd:integer } UNION {
+    ?birthvalue wikibase:timePrecision "11"^^xsd:integer }
+  ?birthvalue wikibase:timeValue ?birth .
+  MINUS { ?birthclaim prov:wasDerivedFrom ?provenance . }
+} ORDER BY DESC(?birth) LIMIT 10000"""
+
+        # This will also give the onces with the fake imported from source
+        # First need to clean out the backlog
+        # Also need to do this for date of death
+        '''
+        SELECT ?item ?birthvalue ?birth WHERE {
+  ?item wdt:P650 [] .
+  ?item p:P569 ?birthclaim .
+  ?birthclaim psv:P569 ?birthvalue .
+  { ?birthvalue wikibase:timePrecision "9"^^xsd:integer } UNION {
+    ?birthvalue wikibase:timePrecision "10"^^xsd:integer } UNION {
+    ?birthvalue wikibase:timePrecision "11"^^xsd:integer }
+  ?birthvalue wikibase:timeValue ?birth .
+  MINUS { ?birthclaim prov:wasDerivedFrom ?provenance .
+      MINUS { ?provenance pr:P143 [] }
+         }
+} ORDER BY DESC(?birth) LIMIT 40000
+       '''
+
         repo = pywikibot.Site().data_repository()
         generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
