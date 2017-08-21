@@ -113,8 +113,12 @@ class RKDArtistsImporterBot:
                         597 : u'Q10862983', # etcher
                         1784 : u'Q20857490', # pastelist
                         3115 : u'Q5322166', # designer
+                        31823 : u'Q10732476', # kunstverzamelaar / art collector
+                        31824 : u'Q3243461', # verzamelaar / collector
+                        44385 : u'Q15472169', # mecenas / patron of the arts
                         45116 : u'Q3391743', # artist -> visual artist
                         45297 : u'Q2519376', # jewelry designer
+                        57965 : u'Q16887133', # hoogwaardigheidsbekleder / dignitary
                         }
         for occupationid in rkdartistsdocs.get('kwalificatie_lref'):
             if occupationid in occupations:
