@@ -145,8 +145,15 @@ class RKDArtistsImporterBot:
             if claim:
                 if len(claim.getSources())==0:
                     self.addDateProperty(itempage, datestring, u'P569', refurl, claim=claim)
-                #else:
-                # Already has a source, not implemented, yet
+                if len(claim.getSources())==1:
+                    removesource = self.isRemovableSource(claim.getSources()[0])
+                    if removesource:
+                        self.addDateProperty(itempage,
+                                             datestring,
+                                             u'P569',
+                                             refurl,
+                                             claim=claim,
+                                             removesource=removesource)
             else:
                 self.addDateProperty(itempage, datestring, u'P569', refurl)
 
@@ -167,12 +174,31 @@ class RKDArtistsImporterBot:
             if claim:
                 if len(claim.getSources())==0:
                     self.addDateProperty(itempage, datestring, u'P570', refurl, claim=claim)
-                    #else:
-                    # Already has a source, not implemented, yet
+                if len(claim.getSources())==1:
+                    removesource = self.isRemovableSource(claim.getSources()[0])
+                    if removesource:
+                        self.addDateProperty(itempage,
+                                             datestring,
+                                             u'P570',
+                                             refurl,
+                                             claim=claim,
+                                             removesource=removesource)
             else:
                 self.addDateProperty(itempage, datestring, u'P570', refurl)
 
-    def addDateProperty(self, itempage, datestring, property, refurl, claim=None):
+    def isRemovableSource(self, source):
+        '''
+        Will return the source claim if the source is imported from and nothing else
+        :param source: The source
+        :return:
+        '''
+        if not len(source)==1:
+            return False
+        if not u'P143' in source:
+            return False
+        return source.get('P143')[0]
+
+    def addDateProperty(self, itempage, datestring, property, refurl, claim=None, removesource=False):
         '''
         Try to find a valid date and add it to the itempage using property
         :param itempage: The ItemPage to update
@@ -228,6 +254,8 @@ class RKDArtistsImporterBot:
                 summary = u'Replacing date with more precise date sourced from RKDartists'
                 pywikibot.output(summary)
                 claim.changeTarget(newdate, summary=summary)
+            if removesource:
+                claim.removeSource(removesource, summary=u'Removing to add better source')
             self.addReference(itempage, claim, refurl)
         else:
 
@@ -755,17 +783,31 @@ def main(*args):
         }
         }"""
 
-        # To clean out the unsourced date of birth backlog
-        query = u"""SELECT ?item ?birthvalue ?birth WHERE {
+        # To clean out the unsourced date of birth/death backlog
+        query = u"""SELECT DISTINCT ?item WHERE {
   ?item wdt:P650 [] .
-  ?item p:P569 ?birthclaim .
-  ?birthclaim psv:P569 ?birthvalue .
+  {
+    ?item p:P569 ?birthclaim .
+    ?birthclaim psv:P569 ?birthvalue .
   { ?birthvalue wikibase:timePrecision "9"^^xsd:integer } UNION {
     ?birthvalue wikibase:timePrecision "10"^^xsd:integer } UNION {
     ?birthvalue wikibase:timePrecision "11"^^xsd:integer }
   ?birthvalue wikibase:timeValue ?birth .
-  MINUS { ?birthclaim prov:wasDerivedFrom ?provenance . }
-} ORDER BY DESC(?birth) LIMIT 10000"""
+  MINUS { ?birthclaim prov:wasDerivedFrom ?provenance .
+      MINUS { ?provenance pr:P143 [] }
+         }
+  } UNION {
+  ?item p:P570 ?deathclaim .
+    ?deathclaim psv:P569 ?deathvalue .
+  { ?deathvalue wikibase:timePrecision "9"^^xsd:integer } UNION {
+    ?deathvalue wikibase:timePrecision "10"^^xsd:integer } UNION {
+    ?deathvalue wikibase:timePrecision "11"^^xsd:integer }
+  ?deathvalue wikibase:timeValue ?death .
+  MINUS { ?deathclaim prov:wasDerivedFrom ?provenance .
+      MINUS { ?provenance pr:P143 [] }
+         }
+  }
+}  LIMIT 40000"""
 
         # This will also give the onces with the fake imported from source
         # First need to clean out the backlog
