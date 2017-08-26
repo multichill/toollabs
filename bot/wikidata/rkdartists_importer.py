@@ -92,6 +92,9 @@ class RKDArtistsImporterBot:
         claimid = None
         removesource = False
         if claim:
+            if not claim.getTarget():
+                pywikibot.output(u'Current claim doesn\'t seem to contain a gender, skipping')
+                return
             claimid = claim.getTarget().title()
             if len(claim.getSources())==0:
                 removesource = False
