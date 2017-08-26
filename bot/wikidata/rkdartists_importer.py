@@ -65,6 +65,8 @@ class RKDArtistsImporterBot:
 
             if u'P21' not in claims:
                 self.addGender(itempage, rkdartistsdocs, refurl)
+            elif len(claims.get(u'P21'))==1:
+                self.addGender(itempage, rkdartistsdocs, refurl, claim=claims.get(u'P21')[0])
             if u'P106' not in claims:
                 self.addOccupation(itempage, rkdartistsdocs, refurl)
             if u'P569' not in claims:
@@ -85,15 +87,45 @@ class RKDArtistsImporterBot:
             #    self.addCountry(itempage, rkdartistsdocs, refurl)
 
 
-    def addGender(self, itempage, rkdartistsdocs, refurl):
+    def addGender(self, itempage, rkdartistsdocs, refurl, claim=None):
         newclaim = None
+        claimid = None
+        removesource = False
+        if claim:
+            claimid = claim.getTarget().title()
+            if len(claim.getSources())==0:
+                removesource = False
+            elif len(claim.getSources())==1:
+                removesource = self.isRemovableSource(claim.getSources()[0])
+                if not removesource:
+                    pywikibot.output(u'Not a source I can replace for gender, skipping')
+                    return
+            else:
+                pywikibot.output(u'More sources than I can handle, skipping')
+                return
         if rkdartistsdocs.get('geslacht'):
             if rkdartistsdocs.get('geslacht')==u'm':
-                newclaim = self.addItemStatement(itempage, u'P21', u'Q6581097')
-                self.addReference(itempage, newclaim, refurl)
+                if claim:
+                    if not claimid==u'Q6581097':
+                        pywikibot.output(u'Current claim is not male, skipping')
+                        return
+                    if removesource:
+                        claim.removeSource(removesource, summary=u'Removing to add better source')
+                    self.addReference(itempage, claim, refurl)
+                else:
+                    newclaim = self.addItemStatement(itempage, u'P21', u'Q6581097')
+                    self.addReference(itempage, newclaim, refurl)
             elif rkdartistsdocs.get('geslacht')==u'v':
-                newclaim = self.addItemStatement(itempage, u'P21', u'Q6581072')
-                self.addReference(itempage, newclaim, refurl)
+                if claim:
+                    if not claimid==u'Q6581072':
+                        pywikibot.output(u'Current claim is not female, skipping')
+                        return
+                    if removesource:
+                        claim.removeSource(removesource, summary=u'Removing to add better source')
+                    self.addReference(itempage, claim, refurl)
+                else:
+                    newclaim = self.addItemStatement(itempage, u'P21', u'Q6581072')
+                    self.addReference(itempage, newclaim, refurl)
             else:
                 pywikibot.output(u'Found weird RKD  gender: %s' % (rkdartistsdocs.get('geslacht'),))
 
@@ -755,14 +787,57 @@ def main(*args):
     Main function. Grab a generator and pass it to the bot to work on
     """
     create = False
+    source = True
     for arg in pywikibot.handle_args(args):
         if arg=='-create':
             create = True
+        elif arg=='-source':
+            source = True
 
+    repo = pywikibot.Site().data_repository()
     if create:
         pywikibot.output(u'Going to create new artists!')
         rkdArtistsCreatorBot = RKDArtistsCreatorBot()
         generator = rkdArtistsCreatorBot.run()
+    if source:
+        pywikibot.output(u'Going to try to expand and source existing artists')
+
+        query = u"""SELECT DISTINCT ?item {
+        {
+            ?item wdt:P650 [].
+            ?item wdt:P31 wd:Q5 . # Needs to be human
+          MINUS {
+            # Has sourced gender
+            ?item p:P21 ?genderclaim .
+            ?genderclaim prov:wasDerivedFrom ?provenance .
+            MINUS { ?provenance pr:P143 [] }
+            # Has occupation
+            ?item wdt:P106 [] .
+            # Has sourced date of birth
+            ?item p:P569 ?birthclaim .
+            ?birthclaim prov:wasDerivedFrom ?provenance .
+            MINUS { ?provenance pr:P143 [] }
+          }
+        } UNION {
+          ?item wdt:P650 [] .
+          ?item p:P569 ?birthclaim .
+          MINUS { ?item p:P27 [] } # No country of citizenship
+          ?birthclaim ps:P569 ?birth .
+          FILTER(?birth > "+1900-00-00T00:00:00Z"^^xsd:dateTime) .
+        } UNION {
+          ?item wdt:P650 [] .
+          ?item p:P569 ?birthclaim .
+          # Has sourced date of death
+          MINUS {
+            ?item p:P570 ?deathclaim .
+            ?deathclaim prov:wasDerivedFrom ?provenance .
+            MINUS { ?provenance pr:P143 [] }
+          }
+          ?birthclaim ps:P569 ?birth .
+          FILTER(?birth < "+1900-00-15T00:00:00Z"^^xsd:dateTime)
+        }
+        }"""
+        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     else:
         pywikibot.output(u'Going to try to expand existing artists')
 
@@ -788,52 +863,6 @@ def main(*args):
           FILTER(?birth < "+1900-00-15T00:00:00Z"^^xsd:dateTime)
         }
         }"""
-
-        # To clean out the unsourced date of birth/death backlog
-        query = u"""SELECT DISTINCT ?item WHERE {
-  ?item wdt:P650 [] .
-  {
-    ?item p:P569 ?birthclaim .
-    ?birthclaim psv:P569 ?birthvalue .
-  { ?birthvalue wikibase:timePrecision "9"^^xsd:integer } UNION {
-    ?birthvalue wikibase:timePrecision "10"^^xsd:integer } UNION {
-    ?birthvalue wikibase:timePrecision "11"^^xsd:integer }
-  ?birthvalue wikibase:timeValue ?birth .
-  MINUS { ?birthclaim prov:wasDerivedFrom ?provenance .
-      MINUS { ?provenance pr:P143 [] }
-         }
-  } UNION {
-  ?item p:P570 ?deathclaim .
-    ?deathclaim psv:P569 ?deathvalue .
-  { ?deathvalue wikibase:timePrecision "9"^^xsd:integer } UNION {
-    ?deathvalue wikibase:timePrecision "10"^^xsd:integer } UNION {
-    ?deathvalue wikibase:timePrecision "11"^^xsd:integer }
-  ?deathvalue wikibase:timeValue ?death .
-  MINUS { ?deathclaim prov:wasDerivedFrom ?provenance .
-      MINUS { ?provenance pr:P143 [] }
-         }
-  }
-}  LIMIT 40000"""
-
-        # This will also give the onces with the fake imported from source
-        # First need to clean out the backlog
-        # Also need to do this for date of death
-        '''
-        SELECT ?item ?birthvalue ?birth WHERE {
-  ?item wdt:P650 [] .
-  ?item p:P569 ?birthclaim .
-  ?birthclaim psv:P569 ?birthvalue .
-  { ?birthvalue wikibase:timePrecision "9"^^xsd:integer } UNION {
-    ?birthvalue wikibase:timePrecision "10"^^xsd:integer } UNION {
-    ?birthvalue wikibase:timePrecision "11"^^xsd:integer }
-  ?birthvalue wikibase:timeValue ?birth .
-  MINUS { ?birthclaim prov:wasDerivedFrom ?provenance .
-      MINUS { ?provenance pr:P143 [] }
-         }
-} ORDER BY DESC(?birth) LIMIT 40000
-       '''
-
-        repo = pywikibot.Site().data_repository()
         generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     rkdArtistsImporterBot = RKDArtistsImporterBot(generator)
