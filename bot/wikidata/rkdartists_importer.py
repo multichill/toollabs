@@ -230,33 +230,35 @@ class RKDArtistsImporterBot:
 
         if claim:
             date = claim.getTarget()
-            if date.precision==newdate.precision:
-                if not date.year==newdate.year:
-                    pywikibot.output(u'Different year, skipping')
-                    return
-                if not (date.precision==9 or date.month==newdate.month):
-                    pywikibot.output(u'Different month and precision is not set to 9 (year), skipping')
-                    return
-                if not (date.precision==9 or date.precision==10 or date.day==newdate.day):
-                    pywikibot.output(u'Different day and precision is not set to 9 (year) or 10 (month), skipping')
-                    return
-                if not (date.timezone==newdate.timezone or date.calendarmodel==newdate.calendarmodel):
-                    pywikibot.output(u'Different timezone or calendarmodel, skipping')
-                    return
-            else:
-                if not date.year==newdate.year:
-                    pywikibot.output(u'Different precision and year, skipping')
-                    return
-                if not (date.precision==9 and (newdate.precision==10 or newdate.precision==11)):
-                    # FIXME: Add better message
-                    pywikibot.output(u'Current precision is not 9 (year) or new precision is not 10 or 11, skipping')
-                    return
-                summary = u'Replacing date with more precise date sourced from RKDartists'
-                pywikibot.output(summary)
-                claim.changeTarget(newdate, summary=summary)
-            if removesource:
-                claim.removeSource(removesource, summary=u'Removing to add better source')
-            self.addReference(itempage, claim, refurl)
+            # If date is set to unknown, date will be None
+            if date:
+                if date.precision==newdate.precision:
+                    if not date.year==newdate.year:
+                        pywikibot.output(u'Different year, skipping')
+                        return
+                    if not (date.precision==9 or date.month==newdate.month):
+                        pywikibot.output(u'Different month and precision is not set to 9 (year), skipping')
+                        return
+                    if not (date.precision==9 or date.precision==10 or date.day==newdate.day):
+                        pywikibot.output(u'Different day and precision is not set to 9 (year) or 10 (month), skipping')
+                        return
+                    if not (date.timezone==newdate.timezone or date.calendarmodel==newdate.calendarmodel):
+                        pywikibot.output(u'Different timezone or calendarmodel, skipping')
+                        return
+                else:
+                    if not date.year==newdate.year:
+                        pywikibot.output(u'Different precision and year, skipping')
+                        return
+                    if not (date.precision==9 and (newdate.precision==10 or newdate.precision==11)):
+                        # FIXME: Add better message
+                        pywikibot.output(u'Current precision is not 9 (year) or new precision is not 10 or 11, skipping')
+                        return
+                    summary = u'Replacing date with more precise date sourced from RKDartists'
+                    pywikibot.output(summary)
+                    claim.changeTarget(newdate, summary=summary)
+                if removesource:
+                    claim.removeSource(removesource, summary=u'Removing to add better source')
+                self.addReference(itempage, claim, refurl)
         else:
 
             newclaim = pywikibot.Claim(self.repo, property)
@@ -539,13 +541,17 @@ class RKDArtistsImporterBot:
         Add a reference with a retrieval url and todays date
         """
         pywikibot.output('Adding new reference claim to %s' % item)
+        statedin = pywikibot.Claim(self.repo, u'P248')
+        rkdartistsitem = pywikibot.ItemPage(self.repo,u'Q17299517')
+        statedin.setTarget(rkdartistsitem)
         refurl = pywikibot.Claim(self.repo, u'P854') # Add url, isReference=True
         refurl.setTarget(url)
         refdate = pywikibot.Claim(self.repo, u'P813')
         today = datetime.datetime.today()
         date = pywikibot.WbTime(year=today.year, month=today.month, day=today.day)
         refdate.setTarget(date)
-        newclaim.addSources([refurl, refdate])
+
+        newclaim.addSources([statedin, refurl, refdate])
 
 
 class RKDArtistsCreatorBot:
