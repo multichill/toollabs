@@ -116,6 +116,7 @@ class ArtDataBot:
                 try:
                     result = self.repo.editEntity(identification, data, summary=summary)
                 except pywikibot.data.api.APIError:
+                    # TODO: Check if this is pywikibot.OtherPageSaveError too
                     # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
                     pywikibot.output(u'Oops, already had that one. Trying again')
                     for lang, description in metadata['description'].items():
@@ -227,7 +228,7 @@ class ArtDataBot:
                         summary = u'Adding missing label(s) from %s' % (metadata.get(u'refurl'),)
                         try:
                             artworkItem.editLabels(labels, summary=summary)
-                        except pywikibot.data.api.APIError:
+                        except pywikibot.OtherPageSaveError:
                             # Just skip it for no
                             pywikibot.output(u'Oops, already had that label/description combination. Skipping')
                             pass
@@ -284,10 +285,17 @@ class ArtDataBot:
                     collectionclaim = claims.get(u'P195')[0]
                     # Would like to use collectionclaim.has_qualifier(u'P580')
                     if collectionclaim.getTarget()==self.collectionitem and not collectionclaim.qualifiers.get(u'P580'):
+                        dateregex = u'^(\d\d\d\d)-(\d\d)-(\d\d)'
+                        datematch = re.match(dateregex, str(metadata[u'acquisitiondate']))
                         acdate = None
                         if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
                                 metadata[u'acquisitiondate'].isnumeric()): # It's a year
                             acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
+                        elif datematch:
+                            print metadata[u'acquisitiondate']
+                            acdate = pywikibot.WbTime(year=int(datematch.group(1)),
+                                                      month=int(datematch.group(2)),
+                                                      day=int(datematch.group(3)))
                         else:
                             try:
                                 acdate = pywikibot.WbTime.fromTimestr(metadata[u'acquisitiondate'])
@@ -302,7 +310,7 @@ class ArtDataBot:
                             pywikibot.output('Update collection claim with start time on %s' % artworkItem)
                             collectionclaim.addQualifier(colqualifier)
                             # This might give multiple similar references
-                            self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
+                            #self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
 
                 # material used
                 # FIXME: This does not scale at all.
