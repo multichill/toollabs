@@ -55,6 +55,22 @@ def currentCommonsFiles():
         result.append(page.title(withNamespace=False,))
     return result
 
+
+def currentCommonsIds():
+    '''
+    Get the list of current Commons filenames with spaces, not underscores:
+    u'Diptyc MET ep1975.1.22.r.bw.R.jpg'
+    '''
+    resultFiles = []
+    resultids = []
+    urlpage = requests.get(u'https://tools.wmflabs.org/multichill/queries/commons/met_urls.txt', verify=False)
+    regex =u'^\* File\:(.+) - http\:\/\/www\.metmuseum\.org\/art\/collection\/search\/(\d+)$'
+    for match in re.finditer(regex, urlpage.text, re.M):
+        # Might crash on non-integer
+        resultFiles.append(match.group(1).replace(u'_', u' '))
+        resultids.append(match.group(2))
+    return (resultFiles,resultids)
+
 def getImageUrls(metid, title):
 
     meturl = u'http://www.metmuseum.org/api/Collection/additionalImages?crdId=%s' % (metid,)
@@ -119,8 +135,8 @@ def getMETGenerator(csvlocation, metworks, ):
     #print imageurls
     '''
 
-    xmlBase = '/home/mdammers/metmuseum/MetObjectsRemaining_%s.xml'
-    xmlcounter = 258
+    xmlBase = '/home/mdammers/metmuseum/MetObjectsMissing_%s.xml'
+    xmlcounter = 1
 
     xmlFile = xmlBase % (xmlcounter, )
     xmlData = codecs.open(xmlFile, "w", "utf-8")
@@ -130,7 +146,10 @@ def getMETGenerator(csvlocation, metworks, ):
     xmlentries = 0
     maxentries = 10000
 
-    currentcommons = currentCommonsFiles()
+    (currentcommons,currentIds) = currentCommonsIds()
+
+    #currentcommons = currentCommonsFiles()
+    #currentcommons = []
     #print currentcommons
 
     foundit = False
@@ -158,6 +177,10 @@ def getMETGenerator(csvlocation, metworks, ):
             metadata['collectionqid'] = u'Q160236'
             metadata['collectionshort'] = u'MET'
             metadata['locationqid'] = u'Q160236'
+
+            if cleanedrow.get('Object ID') in currentIds:
+                #print u'Already have %s' % (cleanedrow.get('Object ID'),)
+                continue
 
             metadata['idpid'] = u'P217'
             metadata['id'] = cleanedrow.get('Object Number')
@@ -235,14 +258,16 @@ def getMETGenerator(csvlocation, metworks, ):
             #                                         metadata['id'],
             #                                         u'somefilename.jpg')
 
-            if cleanedrow.get('Object ID')==u'742255':
-                foundit = True
+            #if cleanedrow.get('Object ID')==u'742255':
+            #    foundit = True
 
-            if cleanedrow.get('Classification')!=u'Paintings'and cleanedrow.get('Classification')!=u'Sculpture' \
-                    and cleanedrow.get('Classification')!=u'Miniatures'and \
-                            cleanedrow.get('Classification')!=u'Paintings-Panels' and foundit:
+            if True:
+
+            #if cleanedrow.get('Classification')!=u'Paintings'and cleanedrow.get('Classification')!=u'Sculpture' \
+            #        and cleanedrow.get('Classification')!=u'Miniatures'and \
+            #                cleanedrow.get('Classification')!=u'Paintings-Panels' and foundit:
                 #metadata['instanceofqid'] = u'Q3305213'
-                if cleanedrow.get('Is Public Domain')==u'True' and cleanedrow.get('Is Highlight')!=u'True': # and cleanedrow.get('Object ID') in imageurls:
+                if cleanedrow.get('Is Public Domain')==u'True': # and cleanedrow.get('Is Highlight')!=u'True': # and cleanedrow.get('Object ID') in imageurls:
                     for (imageurl, filename) in getImageUrls(cleanedrow.get('Object ID'), cleanedrow.get('Title')):
                     #pubpaintingcount = pubpaintingcount + 1
                         fullfilename = u'%s.jpg' % (filename,)
