@@ -392,22 +392,30 @@ class ArtDataBot:
 
                     self.addReference(artworkItem, newclaim, metadata[u'refurl'])
 
-                # Described at url 
-                if u'P973' not in claims:
-                    newclaim = pywikibot.Claim(self.repo, u'P973')
-                    newclaim.setTarget(metadata[u'describedbyurl'])
-                    pywikibot.output('Adding described at claim to %s' % artworkItem)
-                    artworkItem.addClaim(newclaim)
+                # Quite a few collections have custom id's these days.
+                if metadata.get(u'artworkidpid'):
+                    if metadata.get(u'artworkidpid') not in claims:
+                        newclaim = pywikibot.Claim(self.repo, metadata.get(u'artworkidpid') )
+                        newclaim.setTarget(metadata[u'artworkid'])
+                        pywikibot.output('Adding artwork id claim to %s' % artworkItem)
+                        artworkItem.addClaim(newclaim)
+                # Described at url
                 else:
-                    foundurl = False
-                    for claim in claims.get(u'P973'):
-                        if claim.getTarget()==metadata[u'describedbyurl']:
-                            foundurl=True
-                    if not foundurl:
+                    if u'P973' not in claims:
                         newclaim = pywikibot.Claim(self.repo, u'P973')
                         newclaim.setTarget(metadata[u'describedbyurl'])
-                        pywikibot.output('Adding additional described at claim to %s' % artworkItem)
+                        pywikibot.output('Adding described at claim to %s' % artworkItem)
                         artworkItem.addClaim(newclaim)
+                    else:
+                        foundurl = False
+                        for claim in claims.get(u'P973'):
+                            if claim.getTarget()==metadata[u'describedbyurl']:
+                                foundurl=True
+                        if not foundurl:
+                            newclaim = pywikibot.Claim(self.repo, u'P973')
+                            newclaim.setTarget(metadata[u'describedbyurl'])
+                            pywikibot.output('Adding additional described at claim to %s' % artworkItem)
+                            artworkItem.addClaim(newclaim)
 
     def addItemStatement(self, item, pid, qid, url):
         '''
