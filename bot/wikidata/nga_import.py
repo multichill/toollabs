@@ -75,8 +75,8 @@ def getNGAGenerator(query=u''):
 
             # Get the dimensions
             if record.get('dimensions1'):
-                regex_2d = u'overall\: (?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) cm \([^\)]+\)$'
-                regex_3d = u'overall\: (?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) cm x (?P<depth>\d+(\.\d+)?) cm \([^\)]+\)$'
+                regex_2d = u'overall\: (?P<height>\d+(\.\d+)?) (x|×) (?P<width>\d+(\.\d+)?) cm \([^\)]+\)$'
+                regex_3d = u'overall\: (?P<height>\d+(\.\d+)?) (x|×) (?P<width>\d+(\.\d+)?) cm (x|×) (?P<depth>\d+(\.\d+)?) cm \([^\)]+\)$'
                 match_2d = re.match(regex_2d, record.get('dimensions1'))
                 match_3d = re.match(regex_3d, record.get('dimensions1'))
                 if match_2d:
