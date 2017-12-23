@@ -27,6 +27,7 @@ def getRijksmuseumGenerator():
 
     for i in range(1,49):
         searchurl = basesearchurl % (apikey, limit, i,)
+        print searchurl
         searchPage = requests.get(searchurl)
         searchJson = searchPage.json()
 
@@ -98,7 +99,7 @@ def getRijksmuseumGenerator():
                     metadata[u'acquisitiondate'] = u'+%s' % (record.get('acquisition').get('date'),)
                 if record.get('acquisition').get('creditLine'):
                     if record.get('acquisition').get('creditLine')==u'Bruikleen van de gemeente Amsterdam (legaat A. van der Hoop)':
-                        metadata['extracollectionqid'] = u'Q28097342'
+                        metadata['extracollectionqid'] = u'Q19750488'
 
             # Get the dimensions
             if record.get('dimensions'):
