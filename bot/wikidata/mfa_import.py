@@ -117,9 +117,9 @@ def getMFAGenerator():
                 if datematch:
                     metadata['date'] = htmlparser.unescape(datematch.group(1))
 
-                accessionDateRegex = u'\(Accession Date\:\s*(?P<month>(January|February|March|April|May|June|July|August|September|October|November|December))\s*(?P<day>\d+),\s*(?P<year>\d+\d+\d+\d+)\s*\)'
+                accessionDateRegex = u'\(Accession [dD]ate\:\s*(?P<month>(January|February|March|April|May|June|July|August|September|October|November|December))\s*(?P<day>\d+),\s*(?P<year>\d+\d+\d+\d+)\s*\)'
                 accessionDateMatch = re.search(accessionDateRegex, itemData)
-                accessionDateRegex2 = u'\<h3\>\s*Provenance\s*\<\/h3\>\s*<p>[^<]+to MFA,\s*(\d\d\d\d)\s*,[^<]+\<\/p\>'
+                accessionDateRegex2 = u'\<h3\>\s*Provenance\s*\<\/h3\>\s*<p>[^<]+to MFA,\s*(Boston,)?\s*(?P<year>\d\d\d\d)(\s*,)?[^<]*\<\/p\>'
                 accessionDateMatch2 = re.search(accessionDateRegex2, itemData, flags=re.M)
                 if accessionDateMatch:
                     months = { u'January' : 1,
@@ -140,7 +140,7 @@ def getMFAGenerator():
                                                                            months.get(accessionDateMatch.group(u'month')),
                                                                            int(accessionDateMatch.group(u'day')),)
                 elif accessionDateMatch2:
-                    metadata[u'acquisitiondate'] = accessionDateMatch2.group(1)
+                    metadata[u'acquisitiondate'] = accessionDateMatch2.group(u'year')
 
 
                 dimensionregex = u'<h4>Dimensions</h4>\s*<p>([^<]+)</p>'
@@ -169,7 +169,7 @@ def main():
     #for painting in dictGen:
     #    print painting
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
     artDataBot.run()
 
 if __name__ == "__main__":
