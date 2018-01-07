@@ -309,7 +309,7 @@ class PaintingsMatchBot:
         * Wikidata id -> url table(?)
         * Filename -> wikidata id
         '''
-        query = u"""SELECT ?item ?image ?creator ?institution ?invnum ?location ?url WHERE {
+        query = u"""SELECT ?item ?image ?creator ?institution ?invnum ?location ?url ?idurl WHERE {
         ?item wdt:P31/wdt:P279* wd:Q3305213 .
         OPTIONAL { ?item wdt:P18 ?image } .
         OPTIONAL { ?item wdt:P170 ?creator } .
@@ -317,6 +317,12 @@ class PaintingsMatchBot:
         OPTIONAL { ?item wdt:P217 ?invnum } .
         OPTIONAL { ?item wdt:P276 ?location } .
         OPTIONAL { ?item wdt:P973 ?url } .
+        OPTIONAL { ?item ?identifierproperty ?identifier .
+                   ?property wikibase:directClaim ?identifierproperty .
+                   ?property wikibase:propertyType wikibase:ExternalId .
+                   ?property wdt:P1630 ?formatterurl .
+                   BIND(IRI(REPLACE(?identifier, '^(.+)$', ?formatterurl)) AS ?idurl).
+                    }
 }"""
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
@@ -343,6 +349,8 @@ class PaintingsMatchBot:
                 paintingdict['location'] = resultitem.get('location').replace(u'http://www.wikidata.org/entity/', u'')
             if resultitem.get('url'):
                 paintingdict['url'] = resultitem.get('url')
+            elif resultitem.get('idurl'):
+                paintingdict['url'] = resultitem.get('idurl')
 
             ciakey = None
             clakey = None
