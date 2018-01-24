@@ -25,6 +25,11 @@ def getBavarianGenerator():
     """
     #
     basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei"}'
+    basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"yearRange":{"min":1750,"max":9999},"genre":"malerei"}'
+    #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"publicDomain":true,"genre":"malerei"}'
+    basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"onDisplay":true,"genre":"malerei"}'
+    # For the image upload
+    basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei","publicDomain":true}'
     origin = u'https://www.sammlung.pinakothek.de'
     referer = u'https://www.sammlung.pinakothek.de/de/genre/malerei'
 
@@ -41,7 +46,7 @@ def getBavarianGenerator():
     session = requests.Session()
 
     # Just loop over the pages
-    for i in range(1, 368):
+    for i in range(1, 185):
         print i
         searchurl = basesearchurl % (i,)
         print searchurl
@@ -71,7 +76,9 @@ def getBavarianGenerator():
             #    if record.get(u'image').get(u'url'):
             #        metadata['imageurl'] = record.get(u'image').get(u'url')
 
-            title = record.get('title')
+            titleregex = u'\<h1 class\=\"artwork__title\"\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/h1\>'
+            titlematch = re.search(titleregex, itempage.text)
+            title = htmlparser.unescape(titlematch.group(1).strip()) # This didn't work and included attributed to junk: record.get('title')
 
             # Chop chop, several very long titles
             if title > 220:
@@ -79,7 +86,11 @@ def getBavarianGenerator():
 
             metadata['title'] = { u'de' : title,
                                   }
-            metadata['creatorname'] = record.get('artistInfo').get('fullName')
+
+            #  record.get('artistInfo').get('fullName') didn't include the attribution part
+            creatorregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Artist[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<a href\=\"[^\"]+\"\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/a\>[\s\t\r\n]*\<\/div\>'
+            creatormatch = re.search(creatorregex, itempage.text)
+            metadata['creatorname'] = htmlparser.unescape(creatormatch.group(1).strip())
 
             metadata['description'] = { u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'),),
                                         u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
@@ -108,6 +119,23 @@ def getBavarianGenerator():
             if acquisitiondatematch:
                 metadata['acquisitiondate'] = acquisitiondatematch.group(1)
 
+            # Figure out the location
+            locationregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Stock[\s\t\r\n]*\<\/div\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/div\>'
+            locationmatch = re.search(locationregex, itempage.text)
+            if locationmatch:
+                location = locationmatch.group(1).strip()
+                if location ==u'Bayerische Staatsgemäldesammlungen - Alte Pinakothek München':
+                    metadata[u'locationqid']=u'Q154568'
+                elif location ==u'Bayerische Staatsgemäldesammlungen - Neue Pinakothek München':
+                    metadata[u'locationqid']=u'Q170152'
+                elif location ==u'Bayerische Staatsgemäldesammlungen - Sammlung Moderne Kunst in der Pinakothek der Moderne München':
+                    metadata[u'locationqid']=u'Q250195'
+                #elif location ==u'Bayerische Staatsgemäldesammlungen - Staatsgalerie in der Katharinenkirche Augsburg':
+                #    metadata[u'locationqid']=u''
+                #elif location ==u'Bayerische Staatsgemäldesammlungen - Staatsgalerie Neuburg':
+                #    metadata[u'locationqid']=u''
+
+
             mediumregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Material / Technology / Carrier[\s\t\r\n]*\<\/div\>[\s\t\r\n]*Öl auf Leinwand[\s\t\r\n]*\<\/div\>'
             mediummatch = re.search(mediumregex, itempage.text)
             if mediummatch:
@@ -134,6 +162,14 @@ def getBavarianGenerator():
             if permalinkmatch:
                 metadata[u'describedbyurl'] = permalinkmatch.group(1)
 
+            # Find an image we can download
+            imageregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Dimensions of the object[\s\t\r\n]*\<\/div\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/div\>'
+            imageregex = u'\<a class\=\"artwork__action action--download\" target\=\"_blank\" href\=\"(https\:\/\/media\.static\.onlinesammlung\.thenetexperts\.info[^\"]+\.jpg)\" download\>'
+            imagematch = re.search(imageregex, itempage.text)
+            if imagematch and u'https://creativecommons.org/licenses/by-sa/4.0/' in itempage.text:
+                metadata[u'imageurl'] = imagematch.group(1)
+                metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa.40
             yield metadata
 
 def main(*args):
