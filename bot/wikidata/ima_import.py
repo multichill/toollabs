@@ -22,8 +22,8 @@ def getIMAGenerator():
     """
     searchurls = []
     #
-    # paintings 0 - 49
-    for i in range(0, 49):
+    # paintings 0 - 61
+    for i in range(0, 61):
         searchurls.append(u'http://dagwood.imalab.us/api/v1/search/?&query=&type=paintings&page=%s' % (i,))
     # oil paintings 0 - 120
     for i in range(0, 120):
@@ -60,6 +60,8 @@ def getIMAGenerator():
             metadata['id'] = record.get('metadata')[u'accession_num']
             metadata['idpid'] = u'P217'
 
+            metadata['artworkidpid'] = u'P4674'
+            metadata['artworkid'] = u'%s' % (record.get(u'object_id'),)
 
             title = record.get('metadata')[u'title']
 
@@ -88,9 +90,27 @@ def getIMAGenerator():
                 metadata['creatorqid'] = u'Q4233718'
 
             metadata['medium'] = record.get('metadata').get('medium_support')
+
+            # Different ways to get the right date
             if record.get('metadata').get('date_created') == record.get('metadata').get('date_earliest') and \
                             record.get('metadata').get('date_created') == record.get('metadata').get('date_latest'):
                 metadata['inception'] = record.get('metadata').get('date_created')
+            elif record.get('metadata').get('date_created') and record.get('metadata').get('date_earliest') == None and \
+                    record.get('metadata').get('date_latest') == None:
+                metadata['inception'] = record.get('metadata').get('date_created')
+            elif record.get('metadata').get('date_earliest') and \
+                            record.get('metadata').get('date_earliest') == record.get('metadata').get('date_latest'):
+                metadata['inception'] = record.get('metadata').get('date_earliest')
+
+            # Find an image we can download
+            if record.get('metadata').get(u'can_download') and record.get(u'has_image'):
+                if record.get('metadata').get(u'rights') and record.get('metadata').get(u'rights')[0]==u'Public Domain':
+                    for image in record.get(u'images'):
+                        if image.get(u'image_type')==u'original':
+                            metadata[u'imageurl'] = image.get(u'url')
+                            metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                            # Only one image
+                            break
 
             # Scary inches!
             #if record.get('dimensions'):
@@ -116,7 +136,7 @@ def main():
     #for painting in dictGen:
     #    print painting
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
     artDataBot.run()
 
 if __name__ == "__main__":
