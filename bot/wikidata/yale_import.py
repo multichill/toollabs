@@ -141,14 +141,17 @@ def getYaleGenerator():
                     metadata['depthcm'] = match_3d.group(u'depth')
 
             if u'"public domain"' in itemPageData:
-                manifesturl = u'https://manifests.britishart.yale.edu/manifest/%s' % (objectid,)
-                print(manifesturl)
-                manifestPage = session.get(manifesturl)
-                manifestPageJson = manifestPage.json()
-                imageinfo = manifestPageJson.get(u'sequences')[0].get(u'canvases')[0].get(u'images')[0].get(u'resource')
-                if imageinfo.get(u'format') == u'image/jpeg':
-                    metadata[u'imageurl'] = imageinfo.get(u'@id')
-                    metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                try:
+                    manifesturl = u'https://manifests.britishart.yale.edu/manifest/%s' % (objectid,)
+                    print(manifesturl)
+                    manifestPage = session.get(manifesturl)
+                    manifestPageJson = manifestPage.json()
+                    imageinfo = manifestPageJson.get(u'sequences')[0].get(u'canvases')[0].get(u'images')[0].get(u'resource')
+                    if imageinfo.get(u'format') == u'image/jpeg':
+                        metadata[u'imageurl'] = imageinfo.get(u'@id')
+                        metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                except ValueError:
+                    print (u'Something went wrong, no valid json, skipping')
             yield metadata
 
 
