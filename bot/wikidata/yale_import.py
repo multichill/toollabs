@@ -13,7 +13,10 @@ import artdatabot
 import pywikibot
 import requests
 import re
-import HTMLParser
+try:
+    from html.parser import HTMLParser
+except ImportError:
+    import HTMLParser
 
 def getYaleGenerator():
     """
@@ -24,7 +27,7 @@ def getYaleGenerator():
     # 1 - 22
     #searchBaseUrl = u'http://collections.britishart.yale.edu/vufind/Search/Results?join=AND&bool0[]=AND&lookfor0[]=%%22Paintings+and+Sculpture%%22&type0[]=collection&bool1[]=AND&lookfor1[]=Painting&type1[]=type_facet&page=%s&view=grid'
     searchBaseUrl = u'http://collections.britishart.yale.edu/vufind/Search/Results?lookfor=&type=AllFields&filter[]=object_name_facet%%3A%%22painting%%22&page=%s&view=grid'
-    htmlparser = HTMLParser.HTMLParser()
+    htmlparser = HTMLParser()
 
     session = requests.Session()
 
@@ -32,7 +35,7 @@ def getYaleGenerator():
 
     for i in range(1, 22):
         searchUrl = searchBaseUrl % (i,)
-        print searchUrl
+        print (searchUrl)
         searchPage = session.get(searchUrl)
         searchPageData = searchPage.text
 
@@ -47,11 +50,11 @@ def getYaleGenerator():
         #print len(urlset)
 
         for url in urlset:
-            print url
-            if url==u'http://collections.britishart.yale.edu/vufind/Record/1668520':
-                foundit=True
-            if not foundit:
-                continue
+            print (url)
+            #if url==u'http://collections.britishart.yale.edu/vufind/Record/1668520':
+            #    foundit=True
+            #if not foundit:
+            #    continue
             metadata = {}
 
             metadata['collectionqid'] = u'Q6352575'
@@ -61,7 +64,7 @@ def getYaleGenerator():
             
             metadata['url'] = url
 
-            itemPage = session.get(url)
+            itemPage = session.get(url, verify=False)
             itemPageData = itemPage.text # unicode(itemPage.read(), u'utf-8')
             
             #print itemPageEnData
@@ -91,15 +94,19 @@ def getYaleGenerator():
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
                                         }
 
-            invRegex = u'<th id=\"titleHeaders\">Accession Number[\r\n\t\s]+</th>[\r\n\t\s]+<td id=\"dataField\">[\r\n\t\s]+<span title="Object ID:[\r\n\t\s]+\d+">[\r\n\t\s]+([^\r\n\t\s]+)[\r\n\t\s]+</span>[\r\n\t\s]+</td>'
+            invRegex = u'<th id=\"titleHeaders\">Accession Number[\r\n\t\s]+</th>[\r\n\t\s]+<td id=\"dataField\">[\r\n\t\s]+<span title="Object ID:[\r\n\t\s]+(\d+)">[\r\n\t\s]+([^\r\n\t\s]+)[\r\n\t\s]+</span>[\r\n\t\s]+</td>'
             invMatch = re.search(invRegex, itemPageData)
 
             if not invMatch:
                 pywikibot.output(u'No inventory number found! Skipping')
                 continue
-            
-            metadata['id'] = invMatch.group(1)
+
+            objectid = invMatch.group(1) # Need this later for the image
+            metadata['id'] = invMatch.group(2)
             metadata['idpid'] = u'P217'
+
+            metadata['artworkidpid'] = u'P4738'
+            metadata['artworkid'] = url.replace(u'http://collections.britishart.yale.edu/vufind/Record/', u'')
 
             dateRegex = u'<th id=\"titleHeaders\">Date[\r\n\t\s]+</th>[\r\n\t\s]+<td id=\"dataField\">[\r\n\t\s]+([^<]+)<br>[\r\n\t\s]+</td>'
             dateMatch = re.search(dateRegex, itemPageData)
@@ -132,6 +139,16 @@ def getYaleGenerator():
                     metadata['heightcm'] = match_3d.group(u'height')
                     metadata['widthcm'] = match_3d.group(u'width')
                     metadata['depthcm'] = match_3d.group(u'depth')
+
+            if u'"public domain"' in itemPageData:
+                manifesturl = u'https://manifests.britishart.yale.edu/manifest/%s' % (objectid,)
+                print(manifesturl)
+                manifestPage = session.get(manifesturl)
+                manifestPageJson = manifestPage.json()
+                imageinfo = manifestPageJson.get(u'sequences')[0].get(u'canvases')[0].get(u'images')[0].get(u'resource')
+                if imageinfo.get(u'format') == u'image/jpeg':
+                    metadata[u'imageurl'] = imageinfo.get(u'@id')
+                    metadata[u'imageurlformat'] = u'Q2195' #JPEG
             yield metadata
 
 
@@ -139,7 +156,7 @@ def main():
     dictGen = getYaleGenerator()
 
     #for painting in dictGen:
-    #    print painting
+    #    print (painting)
 
     artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
