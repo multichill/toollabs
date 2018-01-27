@@ -22,14 +22,16 @@ def getBavarianGenerator():
 
     https://www.sammlung.pinakothek.de/de/genre/malerei#filters={%22genre%22:%22malerei%22}
 
+    Problem is that over 200 pages will return server errors. So have to work on different subsets.
+
     """
     #
     basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei"}'
-    basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"yearRange":{"min":1750,"max":9999},"genre":"malerei"}'
+    #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"yearRange":{"min":1750,"max":9999},"genre":"malerei"}'
     #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"publicDomain":true,"genre":"malerei"}'
-    basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"onDisplay":true,"genre":"malerei"}'
+    #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"onDisplay":true,"genre":"malerei"}'
     # For the image upload
-    basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei","publicDomain":true}'
+    #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei","publicDomain":true}' # 1- 185
     origin = u'https://www.sammlung.pinakothek.de'
     referer = u'https://www.sammlung.pinakothek.de/de/genre/malerei'
 
@@ -46,7 +48,7 @@ def getBavarianGenerator():
     session = requests.Session()
 
     # Just loop over the pages
-    for i in range(1, 185):
+    for i in range(1, 200):
         print i
         searchurl = basesearchurl % (i,)
         print searchurl
