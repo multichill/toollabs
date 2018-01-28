@@ -10,6 +10,7 @@ import json
 import artdatabot
 import pywikibot
 import re
+import requests
 
 def getFNGPaintingGenerator(jsonlocation):
     '''
@@ -17,6 +18,7 @@ def getFNGPaintingGenerator(jsonlocation):
 
     Yield the dict items suitable for artdatabot
     '''
+    session = requests.Session()
 
     jsonfile = open(jsonlocation, u'r')
     #for line in jsonfile:
@@ -117,6 +119,20 @@ def getFNGPaintingGenerator(jsonlocation):
                             metadata['heightcm'] = heightmatch.group(1).replace(u',', u'.')
                 if foundoil and foundcanvas:
                     metadata['medium'] = u'oil on canvas'
+
+            # So we don't have to pull each page
+            if metadata.get('inception') and metadata.get('inception').isnumeric() and int(metadata.get('inception')) > 1923:
+                pass
+            else:
+                itempage = session.get(metadata[u'url'])
+                if u'https://creativecommons.org/publicdomain/zero/1.0/deed.fi' in itempage.text:
+                    imageurlregex = u'\<div class\=\"bigurl\"\>\?action\=image\&amp\;iid\=([^\&]+)\&amp\;profile\=CC0full'
+                    imageurlMatch = re.search(imageurlregex, itempage.text)
+                    imageurl = u'http://kokoelmat.fng.fi/app?action=image&iid=%s&profile=CC0full' % (imageurlMatch.group(1))
+                    metadata[u'imageurl'] = imageurl
+                    metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                    metadata[u'imageurllicense'] = u'Q6938433' # cc-zero
+
             yield metadata
 
 
