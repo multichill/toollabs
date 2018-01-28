@@ -622,12 +622,12 @@ class RKDArtistsCreatorBot:
         '''
         Generate a bunch of artists from RKD.
         '''
-        start = 0 # 60000
-        end = 1800 # 2608 # 361707
+        start = 0 # 20000 # 60000
+        end = 101232 # 101232 # 2608 # 361707
         limit = 2
-        #baseurl = u'https://api.rkd.nl/api/search/artists?filters[kwalificatie]=painter&fieldset=detail&format=json&rows=%s&start=%s'
+        baseurl = u'https://api.rkd.nl/api/search/artists?filters[kwalificatie]=schilder&fieldset=detail&format=json&rows=%s&start=%s'
         #baseurl = u'https://api.rkd.nl/api/search/artists?fieldset=detail&format=json&rows=%s&start=%s'
-        baseurl = u'https://api.rkd.nl/api/search/artists?filters[winnaar_van_prijs]=*&fieldset=detail&format=json&rows=%s&start=%s'
+        #baseurl = u'https://api.rkd.nl/api/search/artists?filters[winnaar_van_prijs]=*&fieldset=detail&format=json&rows=%s&start=%s'
 
         for i in range(start, end, limit):
 
@@ -651,6 +651,9 @@ class RKDArtistsCreatorBot:
             if rkdartistsdocs.get('priref') in self.currentrkd:
                 pywikibot.output(u'Already got %s on %s' % (rkdartistsdocs.get('priref'),
                                                             self.currentrkd.get(rkdartistsdocs.get('priref'))))
+                continue
+            if rkdartistsdocs.get('priref')==452514:
+                pywikibot.output(u'Skipping favorite test item at https://rkd.nl/explore/artists/452514')
                 continue
             if rkdartistsdocs.get(u'results_in_other_databases') and \
                 rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar'):
@@ -676,8 +679,8 @@ class RKDArtistsCreatorBot:
         if rkdartistsdocs.get(u'results_in_other_databases') and \
                 rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar').get('count'):
             number = rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar').get('count')
-        if number > 25:
-            summary = u'Creating artist based on RKD: Artist has more than 25 works in RKDimages'
+        if number > 10:
+            summary = u'Creating artist based on RKD: Artist has more than 10 works in RKDimages'
             return self.createartist(rkdartistsdocs, summary)
         # Focus on painters here
         if 'schilder' in rkdartistsdocs.get('kwalificatie'):
@@ -685,8 +688,8 @@ class RKDArtistsCreatorBot:
                 summary = u'Creating artist based on RKD: Painter won the Royal Prize for Painting'
                 return self.createartist(rkdartistsdocs, summary)
             # Could add more prizes here
-            if number > 5:
-                summary = u'Creating artist based on RKD: Painter has more than 5 works in RKDimages'
+            if number > 2:
+                summary = u'Creating artist based on RKD: Painter has more than 2 works in RKDimages'
                 return self.createartist(rkdartistsdocs, summary)
             if number > 0 and rkdartistsdocs.get('geboortedatum_begin') and rkdartistsdocs.get('geboorteplaats'):
                 summary = u'Creating artist based on RKD: Painter with works in RKDimages and date and place of birth known'
@@ -802,7 +805,7 @@ def main(*args):
         pywikibot.output(u'Going to create new artists!')
         rkdArtistsCreatorBot = RKDArtistsCreatorBot()
         generator = rkdArtistsCreatorBot.run()
-    if source:
+    elif source:
         pywikibot.output(u'Going to try to expand and source existing artists')
 
         query = u"""SELECT DISTINCT ?item {
