@@ -684,7 +684,7 @@ class PaintingsMatchBot:
                             line = line + 1
 
         text = text + u'|}\n'
-        text = text + u'\n[[Category:User:Multichill]]\n'
+        text = text + u'\n[[Category:WikiProject sum of all paintings]]\n'
 
         summary = u'Updating image suggestions. %s key matches out a total of %s key combinations that matched' % (len(publishKeys), len(filteredKeys))
         pywikibot.output(summary)
@@ -723,7 +723,7 @@ class PaintingsMatchBot:
                     ine = line + 1
 
         text = text + u'|}\n'
-        text = text + u'\n[[Category:User:Multichill]]\n'
+        text = text + u'\n[[Category:WikiProject sum of all paintings]]\n'
 
         summary = u'Updating image suggestions. %s key matches out a total of %s key combinations that matched' % (len(worksuggestions), len(self.categorysuggestions))
         pywikibot.output(summary)
@@ -748,7 +748,7 @@ class PaintingsMatchBot:
                 text = text + u'* [[:File:%s]] - <nowiki>|</nowiki> wikidata = %s\n' % (filename, wikidataitem)
 
 
-        text = text + u'\n[[Category:User:Multichill]]\n'
+        text = text + u'\n[[Category:WikiProject sum of all paintings]]\n'
 
         summary = u'Updating list of images to which to bot was unable to add a link'
         pywikibot.output(summary)
@@ -804,7 +804,7 @@ class PaintingsMatchBot:
         text = u'{{/header}}\n'
         for filename in nottracked:
             text = text + u'* [[:File:%s]]\n' % filename
-        text = text + u'\n[[Category:User:Multichill]]\n'
+        text = text + u'\n[[Category:WikiProject sum of all paintings]]\n'
 
         summary = u'Updating list of %s painting images with no artwork template' % (len(nottracked),)
         pywikibot.output(summary)
