@@ -112,11 +112,11 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         :param metadata:
         :return:
         """
-        print (metadata)
+        pywikibot.output(metadata)
         description = self.getDescription(metadata)
         title = self.cleanUpTitle(self.getTitle(metadata))
-        print (title)
-        print (description)
+        pywikibot.output(title)
+        pywikibot.output(description)
         response = requests.get(metadata.get(u'downloadurl'), verify=False) # Museums and valid SSL.....
         if response.status_code == 200:
             hashObject = hashlib.sha1()
