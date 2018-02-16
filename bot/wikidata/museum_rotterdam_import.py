@@ -4,10 +4,12 @@
 Bot to import paintings from the Museum Rotterdam to Wikidata.
 
 Using the v2 Europeana api, see
-http://www.europeana.eu/portal/en/search?q=what%3A%22schilderij%22&f[DATA_PROVIDER][]=Museum+Rotterdam
-http://www.europeana.eu/api/v2/search.json?wskey=1hfhGH67Jhs&profile=minimal&rows=100&start=1&query=DATA_PROVIDER%3A%22Museum+Rotterdam%22&qf=what:schilderij%27
+http://www.europeana.eu/portal/en/search?q=what%3A%22schilderij%22&f[DATA_PROVIDER][]=Museum+Rotterdam (broken now)
+https://www.europeana.eu/api/v2/search.json?wskey=1hfhGH67Jhs&query=DATA_PROVIDER%3A(%22Museum%20Rotterdam%22)%20AND%20what%3A(*schilderij*)
 
 This bot uses artdatabot to upload it to Wikidata
+
+Europeana doesn't seem to contain all the works so might have to redo this based on the museum website.
 
 """
 import artdatabot
@@ -17,22 +19,25 @@ import re
 
 def getRotterdamGenerator():
     """
-    Generator to return Groninger Museum paintings
-
+    Generator to return Museum Rotterdam paintings
     
     """
-    basesearchurl = u'http://www.europeana.eu/api/v2/search.json?wskey=1hfhGH67Jhs&profile=minimal&start=%s&rows=%s&query=DATA_PROVIDER%%3A%%22Museum+Rotterdam%%22&qf=what:schilderij%%27'
+    basesearchurl = u'http://www.europeana.eu/api/v2/search.json?wskey=1hfhGH67Jhs&profile=minimal&start=%s&rows=%s&query=DATA_PROVIDER%%3A(%%22Museum%%20Rotterdam%%22)%%20AND%%20what%%3A(*schilderij*)'
     start = 1
     end = 902
     rows = 50
 
+    isfreetext = u'<strong>Beeldrechten:</strong> <a href="https://creativecommons.org/publicdomain/mark/1.0/deed.nl"'
+
     for i in range (start, end, rows):
         searchUrl = basesearchurl % (i, rows)
+        print (searchUrl)
         searchPage = requests.get(searchUrl)
         searchJson = searchPage.json()
 
         for item in searchJson.get(u'items'):
             itemurl = item.get('link')
+            print (itemurl)
 
             itemPage = requests.get(itemurl)
             itemJson = itemPage.json()
@@ -48,10 +53,22 @@ def getRotterdamGenerator():
             metadata['refurl'] = itemJson.get('object').get('europeanaAggregation').get(u'edmLandingPage')
             metadata['url'] = itemJson.get('object').get('aggregations')[0].get(u'webResources')[0].get('about')
 
-
             # Get the ID. This needs to burn if it's not available
-            metadata['id'] = itemJson.get('object').get('aggregations')[0].get('about').replace(u'/aggregation/provider/2021609/objecten_',u'')
+            metadata['id'] = itemJson.get('object').get('aggregations')[0].get('about').replace(u'/aggregation/provider/2021609/objecten_',u'').replace(u'_', u'-')
             metadata['idpid'] = u'P217'
+
+            museumpage = requests.get(metadata['url'])
+            if u'-' in metadata['id'] and u'Pagina niet gevonden' in museumpage.text:
+                print u'Pagina niet gevonden'
+                newurl = metadata['url'] + u'-B'
+                newid =  metadata['id'] + u'-B'
+                print newurl
+                print newid
+                museumpage = requests.get(newurl)
+                if u'content="Museum Rotterdam - van de stad">' in museumpage.text:
+                    print u'Gevonden'
+                    metadata['url'] = newurl
+                    metadata['id'] = newid
 
             title = itemJson.get('object').get('proxies')[0].get(u'dcTitle').get('def')[0]
             metadata['title'] = { u'nl' : title,
@@ -82,6 +99,11 @@ def getRotterdamGenerator():
                itemJson.get('object').get('proxies')[0].get(u'dctermsMedium').get('def')[0] == u'olieverf, linnen':
                 # FIXME : This will only catch oil on canvas
                 metadata['medium'] = u'oil on canvas'
+            if itemJson.get('object').get('aggregations')[0].get('edmIsShownBy'):
+                if isfreetext in museumpage.text:
+                    metadata[u'imageurl'] = itemJson.get('object').get('aggregations')[0].get('edmIsShownBy')
+                    metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                    metadata[u'imageurllicense'] = u'Q6938433' # cc-zero
 
             yield metadata
 
@@ -90,10 +112,10 @@ def getRotterdamGenerator():
 def main():
     dictGen = getRotterdamGenerator()
 
-    # for painting in dictGen:
+    #for painting in dictGen:
     #     print painting
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
     artDataBot.run()
 
 if __name__ == "__main__":
