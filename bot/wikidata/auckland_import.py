@@ -109,6 +109,10 @@ def getAucklandArtGenerator():
                     metadata['widthcm'] = unicode(float(match_3d.group(u'width'))/10)
                     metadata['depthcm'] = unicode(float(match_3d.group(u'depth'))/10)
 
+            if record.get('has_copyright')==False and record.get('images'):
+                metadata[u'imageurl'] = record.get('images').get(u'files')[0].get(u'zoom')
+                metadata[u'imageurlformat'] = u'Q2195' #JPEG
+
             yield metadata
 
     return
