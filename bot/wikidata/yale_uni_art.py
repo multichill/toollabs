@@ -74,7 +74,7 @@ def getYaleGenerator():
                                   }
             #pywikibot.output(metadata.get('title'))
 
-            creatorRegex = u'\"field field-name-object-artists field-type-ds field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>\<div class\=\"field\"\>\<span class\=\"field-label\"\>Artist( attributed)?\<\/span\>\:[\r\n\t\s]*(?P<creator>[^,\<]+)[^\<]+\<'
+            creatorRegex = u'\"field field-name-object-artists field-type-ds field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>\<div class\=\"field\"\>\<span class\=\"field-label\"\>Artist( attributed)?\<\/span\>\:[\r\n\t\s]*(?P<creator>[^,\<]+)[^\<]*\<'
 
             creatorMatch = re.search(creatorRegex, itemPageData)
             if creatorMatch:
