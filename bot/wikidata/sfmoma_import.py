@@ -24,12 +24,13 @@ def getSFMOMAGenerator():
     
     """
     htmlparser = HTMLParser()
+    session = requests.session()
 
     baseSearchUrl = u'https://www.sfmoma.org/search/?type=artwork&q=&page=%s&classification=painting'
     for i in range(1, 64):
         searchUrl = baseSearchUrl % (i,)
         print(searchUrl)
-        searchPage = requests.get(searchUrl)
+        searchPage = session.get(searchUrl)
         searchPageData = searchPage.text
         searchRegex = u'\<a href\=\"\/artwork\/([^\"]+)\"'
 
