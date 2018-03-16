@@ -3,435 +3,53 @@
 """
 Bot to scrape paintings from the National Gallery of Victoria website.
 
-http://www.ngv.vic.gov.au/explore/collection/collection-areas/?area=international+painting
-http://www.ngv.vic.gov.au/explore/collection/collection-areas/?area=australian+painting
+https://www.ngv.vic.gov.au/explore/collection/collection-areas/?area=painting
 
 """
-import json
+import artdatabot
 import pywikibot
-from pywikibot import pagegenerators
-import urllib2
 import re
-import pywikibot.data.wikidataquery as wdquery
-import datetime
 import HTMLParser
-import posixpath
-from urlparse import urlparse
-from urllib import urlopen
-import hashlib
-import io
-import base64
-import upload
-import tempfile
-import os
-
-class PaintingsBot:
-    """
-    A bot to enrich and create paintings on Wikidata
-    """
-    def __init__(self, dictGenerator, paintingIdProperty, collectionid):
-        """
-        Arguments:
-            * generator    - A generator that yields Dict objects.
-
-        """
-        self.generator = dictGenerator
-        self.repo = pywikibot.Site().data_repository()
-        
-        self.paintingIdProperty = paintingIdProperty
-        self.collectionid = collectionid
-        self.collectionitem = pywikibot.ItemPage(self.repo, u'Q%s' % (self.collectionid,))
-        self.paintingIds = self.fillCache(self.collectionid, self.paintingIdProperty)
-
-        #self.paintingIds[u'1910.1.72']=u'17442480'
-        
-    def fillCache(self, collectionid, propertyId, queryoverride=u'', cacheMaxAge=0):
-        '''
-        Query Wikidata to fill the cache of monuments we already have an object for
-        '''
-        result = {}
-        if queryoverride:
-            query = queryoverride
-        else:
-            query = u'CLAIM[195:%s] AND CLAIM[%s]' % (collectionid, propertyId,)
-
-        wd_queryset = wdquery.QuerySet(query)
-
-        wd_query = wdquery.WikidataQuery(cacheMaxAge=cacheMaxAge)
-        data = wd_query.query(wd_queryset, props=[str(propertyId),])
-
-        if data.get('status').get('error')=='OK':
-            expectedItems = data.get('status').get('items')
-            props = data.get('props').get(str(propertyId))
-            for prop in props:
-                # FIXME: This will overwrite id's that are used more than once.
-                # Use with care and clean up your dataset first
-                result[prop[2]] = prop[0]
-
-            if expectedItems==len(result):
-                pywikibot.output('I now have %s items in cache' % expectedItems)
-            else:
-                pywikibot.output('I expected %s items, but I have %s items in cache' % (expectedItems, len(result),))
-
-        return result
-                        
-    def run(self):
-        """
-        Starts the robot.
-        """
-        for painting in self.generator:
-            # Buh, for this one I know for sure it's in there
-            
-            #print painting[u'id']
-            print painting[u'url']
-
-
-            
-            paintingItem = None
-            newclaims = []
-            if painting[u'id'] in self.paintingIds:
-                paintingItemTitle = u'Q%s' % (self.paintingIds.get(painting[u'id']),)
-                print paintingItemTitle
-                paintingItem = pywikibot.ItemPage(self.repo, title=paintingItemTitle)
-
-            else:
-                #Break for now
-                print u'Let us create stuff'
-                #continue
-                #print u'WTFTFTFTFT???'
-                
-                #print 'bla'
-
-
-                data = {'labels': {},
-                        'descriptions': {},
-                        }
-
-                data['labels']['en'] = {'language': 'en', 'value': painting[u'title']}
- 
-                data['descriptions']['en'] = {'language': u'en', 'value' : u'painting by %s' % (painting[u'creator'],)}
-                data['descriptions']['nl'] = {'language': u'nl', 'value' : u'schilderij van %s' % (painting[u'creator'],)}
-                
-                print data
-                
-                identification = {}
-                summary = u'Creating new item with data from %s ' % (painting[u'url'],)
-                pywikibot.output(summary)
-                #monumentItem.editEntity(data, summary=summary)
-                try:
-                    result = self.repo.editEntity(identification, data, summary=summary)
-                except pywikibot.data.api.APIError:
-                    # We got ourselves a duplicate label and description, let's correct that
-                    pywikibot.output(u'Oops, already had that one. Trying again')
-                    data['descriptions']['en'] = {'language': u'en', 'value' : u'painting by %s (%s, %s)' % (painting[u'creator'], painting[u'collectionshort'], painting[u'id'])}
-                    result = self.repo.editEntity(identification, data, summary=summary)
-                    pass
-                    
-                    
-                #print result
-                paintingItemTitle = result.get(u'entity').get('id')
-                paintingItem = pywikibot.ItemPage(self.repo, title=paintingItemTitle)
-
-                # Add to self.paintingIds so that we don't create dupes
-                self.paintingIds[painting[u'id']]=paintingItemTitle.replace(u'Q', u'')
-
-                newclaim = pywikibot.Claim(self.repo, u'P%s' % (self.paintingIdProperty,))
-                newclaim.setTarget(painting[u'id'])
-                pywikibot.output('Adding new id claim to %s' % paintingItem)
-                paintingItem.addClaim(newclaim)
-
-                self.addReference(paintingItem, newclaim, painting[u'url'])
-                
-                newqualifier = pywikibot.Claim(self.repo, u'P195') #Add collection, isQualifier=True
-                newqualifier.setTarget(self.collectionitem)
-                pywikibot.output('Adding new qualifier claim to %s' % paintingItem)
-                newclaim.addQualifier(newqualifier)
-
-                collectionclaim = pywikibot.Claim(self.repo, u'P195')
-                collectionclaim.setTarget(self.collectionitem)
-                pywikibot.output('Adding collection claim to %s' % paintingItem)
-                paintingItem.addClaim(collectionclaim)
-
-                # Add the date they got it as a qualifier to the collection
-                if painting.get(u'acquisitiondate'):
-                    colqualifier = pywikibot.Claim(self.repo, u'P580')
-                    acdate = None
-                    if len(painting[u'acquisitiondate'])==4 and painting[u'acquisitiondate'].isnumeric(): # It's a year
-                        acdate = pywikibot.WbTime(year=painting[u'acquisitiondate'])
-                    elif len(painting[u'acquisitiondate'].split(u'-', 2))==3:
-                        (acday, acmonth, acyear) = painting[u'acquisitiondate'].split(u'-', 2)
-                        acdate = pywikibot.WbTime(year=int(acyear), month=int(acmonth), day=int(acday))
-                    if acdate:
-                        colqualifier.setTarget(acdate)
-                        pywikibot.output('Adding new acquisition date qualifier claim to collection on %s' % paintingItem)
-                        collectionclaim.addQualifier(colqualifier)
-                
-                self.addReference(paintingItem, collectionclaim, painting[u'url'])
-                
-            
-            if paintingItem and paintingItem.exists():
-                painting['wikidata'] = paintingItem.title()
-                
-                data = paintingItem.get()
-                claims = data.get('claims')
-                #print claims
-
-                # located in
-                if u'P276' not in claims and painting.get(u'location'):
-                    newclaim = pywikibot.Claim(self.repo, u'P276')
-                    location = pywikibot.ItemPage(self.repo, painting.get(u'location'))
-                    newclaim.setTarget(location)
-                    pywikibot.output('Adding located in claim to %s' % paintingItem)
-                    paintingItem.addClaim(newclaim)
-
-                    self.addReference(paintingItem, newclaim, painting['url'])
-                    
-
-                # instance of always painting while working on the painting collection
-                if u'P31' not in claims:
-                    
-                    dcformatItem = pywikibot.ItemPage(self.repo, title='Q3305213')
-
-                    newclaim = pywikibot.Claim(self.repo, u'P31')
-                    newclaim.setTarget(dcformatItem)
-                    pywikibot.output('Adding instance claim to %s' % paintingItem)
-                    paintingItem.addClaim(newclaim)
-
-                    self.addReference(paintingItem, newclaim, painting['url'])
-
-                
-                # creator        
-                if u'P170' not in claims and painting.get(u'creator'):
-                    #print painting[u'creator']
-                    creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(painting[u'creator'], step=None, total=10, namespaces=[0], site=self.repo)))
-                    
-                    newcreator = None
-
-                    
-                    for creatoritem in creategen:
-                        print creatoritem.title()
-                        if creatoritem.get().get('labels').get('en') == painting[u'creator'] or creatoritem.get().get('labels').get('nl') == painting[u'creator']:
-                            #print creatoritem.get().get('labels').get('en')
-                            #print creatoritem.get().get('labels').get('nl')
-                            # Check occupation and country of citizinship
-                            if u'P106' in creatoritem.get().get('claims') and (u'P21' in creatoritem.get().get('claims') or u'P800' in creatoritem.get().get('claims')):
-                                newcreator = creatoritem
-                                continue
-                        elif (creatoritem.get().get('aliases').get('en') and painting[u'creator'] in creatoritem.get().get('aliases').get('en')) or (creatoritem.get().get('aliases').get('nl') and painting[u'creator'] in creatoritem.get().get('aliases').get('nl')):
-                            if u'P106' in creatoritem.get().get('claims') and (u'P21' in creatoritem.get().get('claims') or u'P800' in creatoritem.get().get('claims')):
-                                newcreator = creatoritem
-                                continue
-
-                    if newcreator:
-                        pywikibot.output(newcreator.title())
-
-                        newclaim = pywikibot.Claim(self.repo, u'P170')
-                        newclaim.setTarget(newcreator)
-                        pywikibot.output('Adding creator claim to %s' % paintingItem)
-                        paintingItem.addClaim(newclaim)
-
-                        self.addReference(paintingItem, newclaim, painting[u'url'])
-
-                        #print creatoritem.title()
-                        #print creatoritem.get()
-
-                    else:
-                        pywikibot.output('No item found for %s' % (painting[u'creator'], ))
-                    
-                else:
-                    print u'Already has a creator'
-                
-                
-                # date of creation
-                if u'P571' not in claims and painting.get(u'date'):
-                    if len(painting[u'date'])==4 and painting[u'date'].isnumeric(): # It's a year
-                        newdate = pywikibot.WbTime(year=painting[u'date'])
-                        newclaim = pywikibot.Claim(self.repo, u'P571')
-                        newclaim.setTarget(newdate)
-                        pywikibot.output('Adding date of creation claim to %s' % paintingItem)
-                        paintingItem.addClaim(newclaim)
-                
-                        self.addReference(paintingItem, newclaim, painting[u'url'])
-
-                
-                # material used
-                if u'P186' not in claims and painting.get(u'medium'):
-                    if painting.get(u'medium')==u'Oil on canvas':
-                        olieverf = pywikibot.ItemPage(self.repo, u'Q296955')
-                        doek = pywikibot.ItemPage(self.repo, u'Q4259259')
-                        oppervlak = pywikibot.ItemPage(self.repo, u'Q861259')
-                        
-                        newclaim = pywikibot.Claim(self.repo, u'P186')
-                        newclaim.setTarget(olieverf)
-                        pywikibot.output('Adding new oil paint claim to %s' % paintingItem)
-                        paintingItem.addClaim(newclaim)
-
-                        self.addReference(paintingItem, newclaim, painting[u'url'])
-
-                        newclaim = pywikibot.Claim(self.repo, u'P186')
-                        newclaim.setTarget(doek)
-                        pywikibot.output('Adding new canvas claim to %s' % paintingItem)
-                        paintingItem.addClaim(newclaim)
-
-                        self.addReference(paintingItem, newclaim, painting[u'url'])
-                
-                        newqualifier = pywikibot.Claim(self.repo, u'P518') #Applies to part
-                        newqualifier.setTarget(oppervlak)
-                        pywikibot.output('Adding new qualifier claim to %s' % paintingItem)
-                        newclaim.addQualifier(newqualifier)
-
-                
-                # Described at url 
-                if u'P973' not in claims:
-                    newclaim = pywikibot.Claim(self.repo, u'P973')
-                    newclaim.setTarget(painting[u'url'])
-                    pywikibot.output('Adding described at claim to %s' % paintingItem)
-                    paintingItem.addClaim(newclaim)
-                #    self.addReference(paintingItem, newclaim, uri)
-                
-
-    def addReference(self, paintingItem, newclaim, uri):
-        """
-        Add a reference with a retrieval url and todays date
-        """
-        pywikibot.output('Adding new reference claim to %s' % paintingItem)
-        refurl = pywikibot.Claim(self.repo, u'P854') # Add url, isReference=True
-        refurl.setTarget(uri)
-        refdate = pywikibot.Claim(self.repo, u'P813')
-        today = datetime.datetime.today()
-        date = pywikibot.WbTime(year=today.year, month=today.month, day=today.day)
-        refdate.setTarget(date)
-        newclaim.addSources([refurl, refdate])
-
-
-
-
-class Photo(pywikibot.FilePage):
-
-    """Represents a Photo (or other file), with metadata, to be uploaded."""
-
-    def __init__(self, URL, metadata, site=None):
-        """
-        Constructor.
-
-        @param URL: URL of photo
-        @type URL: str
-        @param metadata: metadata about the photo that can be referred to
-            from the title & template
-        @type metadata: dict
-        @param site: target site
-        @type site: APISite
-
-        """
-        self.URL = URL
-        self.metadata = metadata
-        self.metadata["_url"] = URL
-        self.metadata["_filename"] = filename = posixpath.split(
-            urlparse(URL)[2])[1]
-        self.metadata["_ext"] = ext = filename.split(".")[-1]
-        if ext == filename:
-            self.metadata["_ext"] = ext = None
-        self.contents = None
-
-        if not site:
-            site = pywikibot.Site(u'commons', u'commons')
-
-        # default title
-        super(Photo, self).__init__(site,
-                                    self.getTitle('%(_filename)s.%(_ext)s'))
-
-    def downloadPhoto(self):
-        """
-        Download the photo and store it in a io.BytesIO object.
-
-        TODO: Add exception handling
-        """
-        if not self.contents:
-            imageFile = urlopen(self.URL).read()
-            self.contents = io.BytesIO(imageFile)
-        return self.contents
-
-
-    def findDuplicateImages(self):
-        """
-        Find duplicates of the photo.
-
-        Calculates the SHA1 hash and asks the MediaWiki api
-        for a list of duplicates.
-
-        TODO: Add exception handling, fix site thing
-        """
-        hashObject = hashlib.sha1()
-        hashObject.update(self.downloadPhoto().getvalue())
-        return list(
-            page.title(withNamespace=False) for page in
-            self.site.allimages(sha1=base64.b16encode(hashObject.digest())))
-
-    def getTitle(self, fmt):
-        """
-        Populate format string with %(name)s entries using metadata.
-
-        Note: this does not clean the title, so it may be unusable as
-        a MediaWiki page title, and cause an API exception when used.
-
-        @param fmt: format string
-        @type fmt: unicode
-        @return: formatted string
-        @rtype: unicode
-        """
-        # FIXME: normalise the title so it is usable as a MediaWiki title.
-        return fmt % self.metadata
-
-    def getDescription(self, template, extraparams={}):
-        """Generate a description for a file."""
-        params = {}
-        params.update(self.metadata)
-        params.update(extraparams)
-        description = u'{{%s\n' % template
-        for key in sorted(params.keys()):
-            value = params[key]
-            if not key.startswith("_"):
-                description = description + (
-                    u'|%s=%s' % (key, self._safeTemplateValue(value))) + "\n"
-        description = description + u'}}'
-
-        return description
-
-    def _safeTemplateValue(self, value):
-        """Replace pipe (|) with {{!}}."""
-        return value.replace("|", "{{!}}")
-
-
-
-
-
-
-
-def getPaintingGenerator(query=u''):
+import requests
+
+def ngvArtistOnWikidata():
+    '''
+    Just return all the NGV people as a dict
+    :return: Dict
+    '''
+    result = {}
+    query = u'SELECT ?item ?id WHERE { ?item wdt:P2041 ?id . ?item wdt:P31 wd:Q5 } LIMIT 10000003'
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+        result[resultitem.get('id')] = qid
+    return result
+
+def getNGVGenerator():
     '''
 
     Doing a two step approach here. 
-    * Loop over http://www.ngv.vic.gov.au/explore/collection/collection-areas/?area=international+painting&from=1 - 32 and grab paintings
+    * Loop over https://www.ngv.vic.gov.au/explore/collection/collection-areas/?area=painting&from=1 - 202 and grab paintings
     * Grab data from paintings
     '''
 
-    baseurl = u'http://www.ngv.vic.gov.au/explore/collection/collection-areas/?area=international+painting&from=%s'
-    #baseurl = u'http://www.ngv.vic.gov.au/explore/collection/collection-areas/?area=australian+painting&from=%s'
+    baseurl = u'https://www.ngv.vic.gov.au/explore/collection/collection-areas/?area=painting&from=%s'
 
     htmlparser = HTMLParser.HTMLParser()
+    session = requests.session()
 
-    #total = 0
-    #success = 0
-    #fail = 0
-    #problems = []
+    ngvArtistIds = ngvArtistOnWikidata()
+    missedNgvIds = {}
 
-    # 0 - 32
+    # 0 - 202
 
-    for i in range(0,35):
+    for i in range(0, 203):
         searchurl = baseurl % (i,)
         pywikibot.output(searchurl)
-        searchPage = urllib2.urlopen(searchurl)
-        searchData = searchPage.read()
+        searchPage = session.get(searchurl)
+        searchData = searchPage.text
         # <span class="italic"><a href="/aic/collections/artwork/47149?search_no=
 
         itemregex = u'<li class="exploreListingTile">\s*<a href="//www.ngv.vic.gov.au/explore/collection/work/(?P<id>\d+)">\s*<div class="work-image[^>]+>\s*</div>\s*<h3 class="title">(?P<title>[^>]+)</h3>\s*<h4 class="artist">(?P<artist>[^>]+)</h4>\s*</a>\s*</li>'
@@ -439,11 +57,27 @@ def getPaintingGenerator(query=u''):
         for match in re.finditer(itemregex, searchData, flags=re.M):
             metadata = {}
             # No ssl, faster?
-            url = u'http://www.ngv.vic.gov.au/explore/collection/work/%s/' % (match.group('id'),)
-            metadata['url'] = u'https://www.ngv.vic.gov.au/explore/collection/work/%s/' % (match.group('id'),)
-            metadata['title'] = htmlparser.unescape(unicode(match.group('title'), "utf-8")) 
-            #FIXME: Do cleanup
-            artistparts = htmlparser.unescape(unicode(match.group('artist'), "utf-8")).split(u' ')
+            url = u'https://www.ngv.vic.gov.au/explore/collection/work/%s/' % (match.group('id'),)
+            metadata['url'] = url
+
+            metadata['artworkid'] = match.group('id')
+            metadata['artworkidpid'] = u'P4684'
+
+            metadata['collectionqid'] = u'Q1464509'
+            metadata['collectionshort'] = u'NGV'
+            metadata['locationqid'] = u'Q1464509'
+
+            # Search is for paintings
+            metadata['instanceofqid'] = u'Q3305213'
+
+            title = htmlparser.unescape(match.group('title'))
+            # Chop chop, several very long titles
+            if len(title) > 220:
+                title = title[0:200]
+
+            metadata['title'] = { u'en' : title,
+                                  }
+            artistparts = htmlparser.unescape(match.group('artist')).split(u' ')
 
             creator = u''
             for artistpart in artistparts:
@@ -451,208 +85,88 @@ def getPaintingGenerator(query=u''):
                     creator = artistpart.capitalize()
                 else:
                     creator = creator + u' ' + artistpart.capitalize()
-            metadata['creator'] = creator
 
-            itemPage = urllib2.urlopen(url)
-            itemData = itemPage.read()
+            # Chop chop, several very long creator lists
+            if len(creator) > 220:
+                creator = creator[0:200]
+
+            metadata['creatorname'] = creator
+
+            metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
+                                        u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+                                        }
+
+            itemPage = requests.get(url)
+            itemData = itemPage.text
+
+            metadata['idpid'] = u'P217'
+            idregex = u'<dt>Accession Number</dt>\s*<dd>([^<]+)</dd>'
+            idmatch = re.search(idregex, itemData, flags=re.M)
+            metadata[u'id']=htmlparser.unescape(idmatch.group(1))
+
+            # Get artist ID from url
+            artistidregex = u'\<ul class\=\"artist-list\"\>\s*\<li\>\s*\<a href\=\"\/explore\/collection\/artist\/(\d+)\"\>'
+            artistidmatch = re.search(artistidregex, itemData, flags=re.M)
+            artistid = artistidmatch.group(1)
+            if artistid in ngvArtistIds:
+                print u'Found NGV id %s on %s' % (artistid, ngvArtistIds.get(artistid))
+                metadata['creatorqid'] = ngvArtistIds.get(artistid)
+            else:
+                print u'Did not find id %s' % (artistid,)
+                if artistid not in missedNgvIds:
+                    missedNgvIds[artistid] = 0
+                missedNgvIds[artistid] = missedNgvIds[artistid] + 1
+
 
             mediumregex = u'<dt>Medium</dt>\s*<dd>([^<]+)</dd>'
-            idregex = u'<dt>Accession Number</dt>\s*<dd>([^<]+)</dd>'
-            creditregex = u'<dd>([^<]+)\s*<br/>([^<]+), (\d\d\d\d)\s*(<br/>&copy; Public Domain\s*)?</dd>'
-            dateregex = u'<h1>.+</em>\s*(\d\d\d\d)\s*</h1>'
-
             mediummatch = re.search(mediumregex, itemData, flags=re.M)
-            metadata[u'medium']=htmlparser.unescape(unicode(mediummatch.group(1), "utf-8"))
 
-            idmatch = re.search(idregex, itemData, flags=re.M)
-            metadata[u'id']=htmlparser.unescape(unicode(idmatch.group(1), "utf-8"))
+            if mediummatch and mediummatch.group(1).strip().lower()==u'oil on canvas':
+                metadata['medium'] = u'oil on canvas'
 
+            dateregex = u'<h1>.+</em>\s*(\d\d\d\d)\s*</h1>'
+            datematch = re.search(dateregex, itemData, flags=re.M|re.S)
+            # Only matches on exact years
+            if datematch:
+                metadata[u'inception']=datematch.group(1)
+
+            creditregex = u'<dd>([^<]+)\s*<br/>([^<]+), (\d\d\d\d)\s*(<br/>&copy; Public Domain\s*)?</dd>'
             creditmatch = re.search(creditregex, itemData, flags=re.M)
 
             # Matches most of the time, but not on things like http://www.ngv.vic.gov.au/explore/collection/work/4178/ (187l -> 1871)
             if creditmatch:
-                metadata[u'credit'] = htmlparser.unescape(unicode(creditmatch.group(1), "utf-8")).strip() + u' ' + htmlparser.unescape(unicode(creditmatch.group(2), "utf-8")).strip() + u', ' + htmlparser.unescape(unicode(creditmatch.group(3), "utf-8"))
-                metadata[u'acquisitiondate'] = htmlparser.unescape(unicode(creditmatch.group(3), "utf-8"))
+                #metadata[u'credit'] = htmlparser.unescape(unicode(creditmatch.group(1), "utf-8")).strip() + u' ' + htmlparser.unescape(unicode(creditmatch.group(2), "utf-8")).strip() + u', ' + htmlparser.unescape(unicode(creditmatch.group(3), "utf-8"))
+                metadata[u'acquisitiondate'] = htmlparser.unescape(creditmatch.group(3))
 
-            datematch = re.search(dateregex, itemData, flags=re.M|re.S)
-            # Only matches on exact years
-            if datematch:
-                metadata[u'date']=htmlparser.unescape(unicode(datematch.group(1), "utf-8"))
+            dimensionRegex = u'\<dt\>Measurements\<\/dt\>\s*<dd>([^\<]+)\<\/dd\>'
+            dimensionMatch = re.search(dimensionRegex, itemData, flags=re.M)
 
-            metadata[u'location'] = u'Q1464509'
-            metadata[u'collectionshort'] = u'NGV'
-            
+            if dimensionMatch:
+                dimensiontext = dimensionMatch.group(1).strip()
+                regex_2d = u'^(?P<height>\d+(\.\d+)?)\s*\&times\;\s*(?P<width>\d+(\.\d+)?)\s*cm$'
+                #regex_3d = u'^.+\((?P<height>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<width>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<depth>\d+(\.\d+)?)\s*cm\)$'
+                match_2d = re.match(regex_2d, dimensiontext)
+                #match_3d = re.match(regex_3d, dimensiontext)
+                if match_2d:
+                    metadata['heightcm'] = match_2d.group(u'height')
+                    metadata['widthcm'] = match_2d.group(u'width')
+                #if match_3d:
+                #    metadata['heightcm'] = match_3d.group(u'height')
+                #    metadata['widthcm'] = match_3d.group(u'width')
+                #    metadata['depthcm'] = match_3d.group(u'depth')
             yield metadata
-
-        """
-            total = total + 1
-
-            #pywikibot.output(url)
-            
-            itemPage = urllib2.urlopen(url)
-            itemData = itemPage.read()
-
-            metadata = {}
-            metadata['url'] = url
-
-            # "object_artist_culture_display": "Albert Besnard\x3cbr /\x3e\nFrench, 1849-1934", "object_title": "Woman\'s Head", "object_date_display": "c. 1890", "object_id": "81525"
-
-            #Horrible encoding problems
-            #creatorregex = u'"object_artist_culture_display"\s*:\s"([^"]+)"'
-            creator2regex = u'<p><a href="/aic/collections/artwork/artist/[^"]+">([^<]+)<'
-            #titleregex = u'"object_title"\s*:\s"([^"]+)"'
-            #Horrible encoding problems
-            title2regex = u'<img src="http://www.artic.edu/aic/collections/citi/images/standard/WebMedium/[^"]+" alt="([^"]+)"'
-            title3regex = u'<title>([^\|]+) \| The Art Institute of Chicago</title>'
-            #dateregex = u'"object_date_display"\s*:\s"([^"]+)"'
-            #This is a PITA
-            # idregex = u'<br/>[^<]+, (\d+\.\d+)</p>\s*<p id="dept-gallery">'
-            idregex = u'<br\s*/>[^<]+, (\d\d\d\d\.\d+(\.[\d\-a-g]+)?)</p>'
-            id2regex = u'<br\s*/>[^<]+, (RofO\d+\.\d+(\.[\d\-a-g]+)?)</p>'
-            id3regex = u'<br\s*/>[^<]+, (\d+\.\d+)</p>'
-
-            #creatormatch = re.search(creatorregex, itemData, flags=re.M)
-            creator2match = re.search(creator2regex, itemData)
-            #if creatormatch:
-            #    metadata[u'creator']=htmlparser.unescape(unicode(creatormatch.group(1), "ascii"))
-            if creator2match:
-                metadata[u'creator']=htmlparser.unescape(unicode(creator2match.group(1), "utf-8"))
-            else:
-                print u'No creator found'
-                fail = fail + 1
-                problems.append(url)
-                continue
-                
-            #else:
-            #    # Creator not always available
-            #    metadata[u'creator']=u'anonymous'
-
-            #titlematch = re.search(titleregex, itemData)
-            title2match = re.search(title2regex, itemData)
-            title3match = re.search(title3regex, itemData)
-            #if titlematch:
-            #    metadata[u'title']=htmlparser.unescape(unicode(titlematch.group(1), "ascii"))
-            if title2match:
-                metadata[u'title']=htmlparser.unescape(unicode(title2match.group(1), "utf-8"))
-            else:
-                metadata[u'title']=htmlparser.unescape(unicode(title3match.group(1), "utf-8"))
-            
-
-
-                
-            #datematch = re.search(dateregex, itemData)
-            ## Not always available
-            #if datematch:
-            #    metadata[u'date']=htmlparser.unescape(unicode(datematch.group(1), "ascii"))
-
-            #PITA, maybe later
-            #mediummatch = re.search(mediumregex, itemData)
-            ## Not always available
-            #if mediummatch:
-            #    metadata[u'medium']=htmlparser.unescape(unicode(mediummatch.group(1), "utf-8"))
-
-            idmatch = re.search(idregex, itemData) #, flags=re.M)
-            id2match = re.search(id2regex, itemData) 
-            id3match = re.search(id3regex, itemData)
-            if idmatch:
-                metadata[u'id']=htmlparser.unescape(unicode(idmatch.group(1), "utf-8"))
-            elif id2match:
-                metadata[u'id']=htmlparser.unescape(unicode(id2match.group(1), "utf-8"))
-            elif id3match:
-                metadata[u'id']=htmlparser.unescape(unicode(id3match.group(1), "utf-8"))
-            else:
-                print u'No id found'
-                fail = fail + 1
-                problems.append(url)
-                continue                
-            #if u'?' in metadata[u'id']:
-            #    continue
-
-            success = success + 1
-            yield metadata
-
-        pywikibot.output(u'Current score after %s items: %s failed & %s success' % (total, fail, success))
-        pywikibot.output(problems)  
-
-            
-        """
-    '''
-        
-        objectidmatch = re.search(objectidregex, metData, flags=re.DOTALL)        
-        # Get the urls here
-        searchDataObject = json.loads(searchData)
-
-        for item in searchDataObject.get('collection').get('items'):
-            metadata = {}
-            metadata['metid'] = item.get('id')
-            metadata['scrapiurl'] = item.get('href')
-            metadata['url'] = item.get('website_href')
-            # We have other fields, but these seem to be broken in the search
-            print metadata['url']
-
-            itemPage = urllib2.urlopen(metadata['scrapiurl'])
-            itemData = itemPage.read()
-            itemDataObject = json.loads(itemData)
-
-            if itemDataObject.get('head'):
-                # Cached problem
-                print u'Ran into a cached problem, skipping. Should do this one later'
-                continue
-
-            metPage = urllib2.urlopen(metadata['url'])
-            metData = metPage.read()
-            
-            # Not the inv number
-            objectidregex = u'<div><strong>Accession Number:</strong>\s*([^<]+)</div>'
-            objectidmatch = re.search(objectidregex, metData, flags=re.DOTALL)
-            
-            if not objectidmatch:
-                # See for example http://www.metmuseum.org/collection/the-collection-online/search/435614
-                print u'No id found, something fishy going on!!!! Skipping it'
-                continue
-
-            metadata['id'] = unicode(objectidmatch.group(1), "utf-8")
-
-            # Always need this
-            if itemDataObject.get('primaryArtistNameOnly'):
-                metadata['creator'] = htmlparser.unescape(itemDataObject.get('primaryArtistNameOnly'))
-            else:
-                metadata['creator'] = u'anonymous'
-                
-            metadata['title'] = htmlparser.unescape(itemDataObject.get('title'))
-            
-            #Might have this
-            metadata['medium'] = itemDataObject.get('medium')
-            if itemDataObject.get('dateText'):
-                if type(itemDataObject.get('dateText')) is int:
-                    metadata['datetext'] = unicode(itemDataObject.get('dateText'))
-                else:
-                    metadata['datetext'] = itemDataObject.get('dateText')
-            
-            yield metadata
-
-        # Done with this search page. Set the next page or break
-        if searchDataObject.get('_links').get('next'):
-            searchurl = searchDataObject.get('_links').get('next').get('href')
-        else:
-            searchurl = None
-            break
-
-        '''
-        
-            
-        
+    print u'The top 50 NGV artists id\'s that are missing in this run:'
+    for identifier in sorted(missedNgvIds, key=missedNgvIds.get, reverse=True)[:50]:
+        print u'* https://www.ngv.vic.gov.au/explore/collection/artist/%s/ - %s'  % (identifier, missedNgvIds[identifier])
 
 def main():
-    paintingGen = getPaintingGenerator()
+    dictGen = getNGVGenerator()
 
-    #for painting in paintingGen:
+    #for painting in dictGen:
     #    print painting
 
-    paintingsBot = PaintingsBot(paintingGen, 217, u'1464509')
-    paintingsBot.run()
-    
-    
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot.run()
 
 if __name__ == "__main__":
     main()
