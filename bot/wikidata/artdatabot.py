@@ -50,8 +50,12 @@ class ArtDataBot:
         sq = pywikibot.data.sparql.SparqlQuery()
 
         # FIXME: Do something with the collection qualifier
-        query = u'SELECT ?item ?id WHERE { ?item wdt:P195 wd:%s . ?item wdt:%s ?id }' % (collectionqid,
-                                                                                                idProperty)
+        #query = u'SELECT ?item ?id WHERE { ?item wdt:P195 wd:%s . ?item wdt:%s ?id }' % (collectionqid, idProperty)
+        query = u"""SELECT ?item ?id WHERE {
+        ?item wdt:P195 wd:%s .
+        ?item p:%s ?idstatement .
+        ?idstatement pq:P195 wd:%s .
+        ?idstatement ps:%s ?id }""" % (collectionqid, idProperty, collectionqid, idProperty)
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
@@ -279,6 +283,7 @@ class ArtDataBot:
                         artworkItem.addClaim(newclaim)
                 
                         self.addReference(artworkItem, newclaim, metadata[u'refurl'])
+                        # TODO: Implement circa
 
                 # Try to add the acquisitiondate to the existing collection claim
                 if u'P195' in claims:
@@ -414,7 +419,7 @@ class ArtDataBot:
                         if metadata.get('title').get(u'en'):
                             title = pywikibot.WbMonolingualText(metadata.get('title').get(u'en'), u'en')
                         else:
-                            lang = metadata.get('title').keys()[0]
+                            lang = list(metadata.get('title').keys())[0]
                             title = pywikibot.WbMonolingualText(metadata.get('title').get(lang), lang)
                         newqualifier = pywikibot.Claim(self.repo, u'P1476')
                         newqualifier.setTarget(title)
@@ -424,6 +429,12 @@ class ArtDataBot:
                     if metadata.get('creatorname'):
                         newqualifier = pywikibot.Claim(self.repo, u'P2093')
                         newqualifier.setTarget(metadata.get('creatorname'))
+                        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
+                        newclaim.addQualifier(newqualifier)
+
+                    if metadata.get(u'imageurllicense'):
+                        newqualifier = pywikibot.Claim(self.repo, u'P275')
+                        newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get(u'imageurllicense')))
                         pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
                         newclaim.addQualifier(newqualifier)
 
