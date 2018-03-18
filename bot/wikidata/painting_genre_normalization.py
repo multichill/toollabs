@@ -23,6 +23,7 @@ class PaintingGenreBot(WikidataBot):
                         u'Q214127' : u'Q1047337', # genre painting -> genre art
                         u'Q107425' : u'Q191163', # landscape -> landscape art
                         u'Q333357' : u'Q128115', # abstract painting -> abstract art
+                        u'Q18535' : u'Q2839016', # allegory (figure of speech) -> allegory (art genre)
                         }
         self.generator = self.getGenerator()
 
