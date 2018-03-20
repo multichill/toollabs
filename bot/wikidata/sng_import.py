@@ -21,16 +21,15 @@ def getSNGGenerator():
     Generator to return Slovak National Gallery paintings
     
     """
-    basesearchurl = u'https://www.europeana.eu/api/v2/search.json?wskey=1hfhGH67Jhs&profile=minimal&start=%s&rows=%s&query=europeana_collectionName%%3A07101*%%20AND%%20what%%3APainting'
-    start = 1
-    end = 2050
-    rows = 50
+    basesearchurl = u'https://www.europeana.eu/api/v2/search.json?wskey=1hfhGH67Jhs&profile=minimal&cursor=%s&rows=50&query=europeana_collectionName%%3A07101*%%20AND%%20what%%3APainting'
+    cursor = u'*'
 
-    for i in range (start, end, rows):
-        searchUrl = basesearchurl % (i, rows)
+    while cursor:
+        searchUrl = basesearchurl % (cursor)
         print (searchUrl)
         searchPage = requests.get(searchUrl)
         searchJson = searchPage.json()
+        cursor = searchJson.get(u'nextCursor')
 
         for item in searchJson.get(u'items'):
             itemurl = item.get('link')
