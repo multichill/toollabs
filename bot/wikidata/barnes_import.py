@@ -3,7 +3,7 @@
 """
 Bot to import paintings from the Barnes Foundation (Q808462) to Wikidata.
 
-Just loop over pages like http://www.barnesfoundation.org/collections/art-collection/collection-search?classID=19&submit=submit&page=43
+Just loop over all results at https://collection.barnesfoundation.org/api/search?body={%22from%22:0}
 
 This bot does use artdatabot to upload it to Wikidata.
 
@@ -13,108 +13,100 @@ import pywikibot
 import requests
 import re
 import time
-import HTMLParser
+try:
+    from html.parser import HTMLParser
+except ImportError:
+    import HTMLParser
 
 def getBarnesGenerator():
     """
     Generator to return Barnes Foundation paintings
     """
-    basesearchurl = u'https://www.barnesfoundation.org/collections/art-collection/collection-search?classID=19&submit=submit&page=%s'
-    htmlparser = HTMLParser.HTMLParser()
+    size = 100
+    basesearchurl = u'https://collection.barnesfoundation.org/api/search?body={%%22from%%22:%s,%%22size%%22:%s}'
+    htmlparser = HTMLParser()
 
     # 963 results, 20 per page (starting at 0)
-    for i in range(0, 49):
-        searchurl = basesearchurl % (i,)
+    for i in range(0, 2700, size):
+        searchurl = basesearchurl % (i,size)
 
         pywikibot.output(searchurl)
         searchPage = requests.get(searchurl)
+        searchJson = searchPage.json()
 
-        urlregex = u'\<a class\=\"collections-result\" href\=\"(\/collections\/art-collection\/object\/[^\?]+)\?[^\"]+\"\>'
-        matches = re.finditer(urlregex, searchPage.text)
-        for match in matches:
+        for object in searchJson.get(u'hits').get(u'hits'):
+            item = object.get(u'_source')
+            #print (item)
             metadata = {}
-            url = u'https://www.barnesfoundation.org%s' % (match.group(1),)
+            #print (item.get('classification'))
+            if not item.get('classification')==u'Paintings':
+                continue
+            #We checked, it's a painting
+            metadata['instanceofqid'] = u'Q3305213'
+
+            #print (itemurl)
+
+            url = u'https://collection.barnesfoundation.org/objects/%s/details' % (item.get('id'),)
 
             # Museum site probably doesn't like it when we go fast
             # time.sleep(5)
 
             pywikibot.output(url)
 
-
-            itempage = requests.get(url)
+            #itempage = requests.get(url)
             metadata['url'] = url
 
             metadata['collectionqid'] = u'Q808462'
             metadata['collectionshort'] = u'Barnes'
             metadata['locationqid'] = u'Q808462'
 
-            #No need to check, I'm actually searching for paintings.
-            metadata['instanceofqid'] = u'Q3305213'
-
-            # Data is structured in an akward way. First the painter, than an info block without much structure
-
-            creatorregex = u'\<h2 class\=\'artist\'\>(?P<anonymous>[^\<]+)?(\<a href\=\'[^\']+\'\s*\>(?P<name>[^\<]+)\<\/a\>)?\<\/h2\>'
-            creatormatch = re.search(creatorregex, itempage.text)
-
-            if not creatormatch.group(u'name'):
-                metadata['creatorqid'] = u'Q4233718'
-                metadata['description'] = { u'en' : u'painting by anonymous painter',
-                                            u'nl' : u'schilderij van anonieme schilder',
-                                            }
-            else:
-                name = htmlparser.unescape(creatormatch.group(u'name').strip())
-                if creatormatch.group(u'anonymous'):
-                    anonymous = htmlparser.unescape(creatormatch.group(u'anonymous').strip())
-                    metadata['creatorqid'] = u'Q4233718'
-                    metadata['description'] = { u'en' : u'painting %s %s' % (anonymous, name,),
-                                                }
-                else:
-                    metadata['creatorname'] = name
-                    metadata['description'] = { u'en' : u'painting by %s' % (name, ),
-                                                u'nl' : u'schilderij van %s' % (name, ),
-                                                }
-
-            # Fix inventory numbers like 2001.25.50a,b,c
-            bigregex = u'\<div class\=\'info-block\'\>(\<h1 class\=\'obj-title\'\>(?P<title>[^\<]+)\<\/h1\>)?(\<span\>(?P<date>[^\<]+)\<\/span\>)?(\<span\>(?P<medium>[^\<]+)\<\/span\>)?(\<span\>(?P<dimensions>[^\<]+in[^\<]+cm[^\<]+)\<\/span\>)?\<span\>(?P<id>(BF[^\<]+|2001\.[^\<]+))\<\/span\>\<\/div\>'
-            bigmatch = re.search(bigregex, itempage.text)
-
-            #print u'Title: %s ' % (bigmatch.group(u'title'),)
-            #print u'date: %s ' % (bigmatch.group(u'date'),)
-            #print u'medium: %s ' % (bigmatch.group(u'medium'),)
-            #print u'dimensions: %s ' % (bigmatch.group(u'dimensions'),)
-            #print u'id: %s ' % (bigmatch.group(u'id'),)
-
-            # If no id is found the bot will crash here
+            # Get the ID. This needs to burn if it's not available
+            metadata['id'] = item.get('invno')
             metadata['idpid'] = u'P217'
-            metadata['id'] = bigmatch.group(u'id').strip()
 
-            if bigmatch.group(u'title'):
-                title = htmlparser.unescape(bigmatch.group(u'title').strip())
-                # Chop chop, in case we have very long titles
-                if title > 220:
-                    title = title[0:200]
-                metadata['title'] = { u'en' : title,
-                                    }
+            metadata['artworkidpid'] = u'P4709'
+            metadata['artworkid'] = u'%s' % (item.get('id'),)
 
-            # Small chance that this contains something weird. Artdata bot checks before adding so that should be enough
-            if bigmatch.group(u'date'):
-                metadata['inception'] = htmlparser.unescape(bigmatch.group(u'date').strip())
-            if bigmatch.group(u'medium') and bigmatch.group(u'medium').strip()==u'Oil on canvas':
+            if item.get('title'):
+                title = htmlparser.unescape(item.get('title'))
+            else:
+                title = u'(without title)'
+            metadata['title'] = { u'en' : title,
+                                  }
+
+            name =  htmlparser.unescape(item.get('people'))
+            #if u',' in name:
+            #    (surname, sep, firstname) = name.partition(u',')
+            #    name = u'%s %s' % (firstname.strip(), surname.strip(),)
+            metadata['creatorname'] = name
+
+            metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
+                                        u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+                                        }
+
+            metadata['inception'] = item.get('displayDate')
+            if item.get('medium') and item.get('medium').strip()==u'Oil on canvas':
                 metadata['medium'] = u'oil on canvas'
-            if bigmatch.group(u'dimensions'):
-                dimensiontext = bigmatch.group(u'dimensions').strip()
-                regex_2d = u'.+\((?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) cm\)$'
-                regex_3d = u'.+\((?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) x (?P<depth>\d+(\.\d+)?) cm\)$'
-                match_2d = re.match(regex_2d, dimensiontext)
-                match_3d = re.match(regex_3d, dimensiontext)
-                if match_2d:
-                    metadata['heightcm'] = match_2d.group(u'height')
-                    metadata['widthcm'] = match_2d.group(u'width')
-                elif match_3d:
-                    metadata['heightcm'] = match_3d.group(u'height')
-                    metadata['widthcm'] = match_3d.group(u'width')
-                    metadata['depthcm'] = match_3d.group(u'depth')
 
+            # Could implement this later again
+            #if bigmatch.group(u'dimensions'):
+            #    dimensiontext = bigmatch.group(u'dimensions').strip()
+            #    regex_2d = u'.+\((?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) cm\)$'
+            #    regex_3d = u'.+\((?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) x (?P<depth>\d+(\.\d+)?) cm\)$'
+            #    match_2d = re.match(regex_2d, dimensiontext)
+            #    match_3d = re.match(regex_3d, dimensiontext)
+            #    if match_2d:
+            #        metadata['heightcm'] = match_2d.group(u'height')
+            #        metadata['widthcm'] = match_2d.group(u'width')
+            #    elif match_3d:
+            #        metadata['heightcm'] = match_3d.group(u'height')
+            #        metadata['widthcm'] = match_3d.group(u'width')
+            #        metadata['depthcm'] = match_3d.group(u'depth')
+
+            if not item.get('copyright') and item.get('objRightsTypeId')==u'8':
+                if item.get('imageOriginalSecret'):
+                    metadata[u'imageurl'] = u'http://s3.amazonaws.com/barnes-image-repository/images/%s_%s_o.jpg' % (item.get('id'), item.get('imageOriginalSecret'))
+                    metadata[u'imageurlformat'] = u'Q2195' #JPEG
             yield metadata
 
 
@@ -122,7 +114,7 @@ def main():
     dictGen = getBarnesGenerator()
 
     #for painting in dictGen:
-    #    print painting
+    #    print (painting)
 
     artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
