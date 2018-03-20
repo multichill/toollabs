@@ -162,6 +162,14 @@ def getTwentePaintingGenerator():
                     if match_2d:
                         metadata['heightcm'] = match_2d.group(u'height').replace(',', '.')
                         metadata['widthcm'] = match_2d.group(u'width').replace(',', '.')
+
+                downloadregex = u'data-media-download\=\"(http\:\/\/images\.memorix\.nl\/rmt\/download\/default\/[^\"]+\.jpg)\"'
+                downloadmatch = re.search(downloadregex, itempage.text)
+
+                if downloadmatch:
+                    metadata[u'imageurl'] = downloadmatch.group(1)
+                    metadata[u'imageurlformat'] = u'Q2195' #JPEG
+
                 yield metadata
 
 
@@ -173,8 +181,6 @@ def main(*args):
 
     artDataBot = artdatabot.ArtDataBot(paintingGen, create=True)
     artDataBot.run()
-    
-    
 
 if __name__ == "__main__":
     main()
