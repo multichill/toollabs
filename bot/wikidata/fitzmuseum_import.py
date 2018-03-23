@@ -57,6 +57,8 @@ def getFWGenerator():
                 title = htmlparser.unescape(item.get('Title'))
             else:
                 title = u'(without title)'
+            if len(title) > 220:
+                title = title[0:200]
             metadata['title'] = { u'en' : title,
                                 }
 
