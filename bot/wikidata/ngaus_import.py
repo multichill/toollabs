@@ -37,11 +37,14 @@ def getNGAGenerator():
         #print(searchUrl)
     j = 0
 
+    # Mate, you don't like my default agent? I can just send you another one
+    funnyheaders = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.75 Safari/537.36'}
+
     for i in range(1, 7000, perpage):
         searchUrl = baseSearchUrl % (i,i,perpage)
         print (searchUrl)
-        # Mate, you don't like my default agent? I can just send you another one
-        searchPage = requests.get(searchUrl, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.75 Safari/537.36'})
+
+        searchPage = requests.get(searchUrl, headers=funnyheaders)
         searchPageData = searchPage.text
         searchRegex = u'\<a href\=\"detail\.cfm\?irn\=(?P<irn>\d+)\" title\=\"[^\"]+\"\>[\r\n\t\s]*\<ul id\=\"LISTC\"\>[\r\n\t\s]*\<li class\=\"(?P<hasimage>[^\"]+)\"\>\&nbsp\;\<\/li\>[\r\n\t\s]*\<li class\=\"ARTIST\"\>[\r\n\t\s]*(?P<artist>[^\r\n]+)(?P<artistmeuk>[^\<])*\<\/li\>[\r\n\t\s]*\<li class\=\"WTITLE\"\>(?P<title>[^\<]+)\<\/li\>[\r\n\t\s]*\<li class\=\"EDITION\"\>(?P<edition>[^\<]*)\<\/li\>[\r\n\t\s]*\<li class\=\"CREDATE\"\>(?P<inception>[^\<]*)\<\/li\>[\r\n\t\s]*\<li class\=\"MEDIA\"\>(?P<media>[^\<]*)\<\/li\>[\r\n\t\s]*\<li class\=\"COLLECT\"\>(?P<culture>[^\<]*)\<\/li\>[\r\n\t\s]*\<li class\=\"ACCN\"\>(?P<inv>[^\<]+)\<\/li\>[\r\n\t\s]*\<\/ul\>'
 
@@ -98,55 +101,44 @@ def getNGAGenerator():
             if match.group(u'inception'):
                 metadata['inception'] = htmlparser.unescape(match.group(u'inception'))
 
+            # This was enough basic info. Grab the item for more extended info
+            itemPage = requests.get(url, headers=funnyheaders)
+            itemPageData = itemPage.text
 
-        # This was enough basic info. In the second pass I can grab more data
-
-        #itemPage = requests.get(url)
-        #itemPageData = itemPage.text
-            """
-
-
-
-
-            dateRegex = u'\<dt\>Date created\<\/dt\>[\r\n\t\s]*\<dd class\=\"no-fractions\"\>(\d\d\d\d)\<\/dd\>'
-            dateMatch = re.search(dateRegex, itemPageData)
-            if dateMatch:
-
-
-            acquisitiondateRegex = u'\<dt\>Date acquired\<\/dt\>[\r\n\t\s]*\<dd\>(\d\d\d\d)\<\/dd\>'
+            acquisitiondateRegex = u'\<em\>Acknowledgement\<\/em\>\:\s*.+(\d\d\d\d)[\r\n\t\s]*\<br\>'
             acquisitiondateMatch = re.search(acquisitiondateRegex, itemPageData)
             if acquisitiondateMatch:
                 metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
 
-            mediumRegex = u'\<dt\>Medium\<\/dt\>[\r\n\t\s]*\<dd\>([^\<]+)\<\/dd\>'
+            mediumRegex = u'\<em\>Materials \& Technique\<\/em\>\:\s*paintings\,[\r\n\t\s]*oil on canvas[\r\n\t\s]*\<br\>'
             mediumMatch = re.search(mediumRegex, itemPageData)
 
-            if mediumMatch and mediumMatch.group(1).strip().lower()==u'oil on canvas':
+            if mediumMatch:
                 metadata['medium'] = u'oil on canvas'
 
-            dimensionRegex = u'\<dt\>Dimensions\<\/dt\>[\r\n\t\s]*\<dd\>([^\<]+)\<\/dd\>'
-            dimensionMatch = re.search(dimensionRegex, itemPageData)
+            dimensionRegex = u'\<em\>Dimensions\<\/em\>\:([^\<]+)\<\/div\>'
+            dimensionMatch = re.search(dimensionRegex, itemPageData, flags=re.DOTALL)
 
             if dimensionMatch:
                 dimensiontext = dimensionMatch.group(1).strip()
-                regex_2d = u'^.+\((?P<height>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<width>\d+(\.\d+)?)\s*cm\)$'
-                regex_3d = u'^.+\((?P<height>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<width>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<depth>\d+(\.\d+)?)\s*cm\)$'
-                match_2d = re.match(regex_2d, dimensiontext)
-                match_3d = re.match(regex_3d, dimensiontext)
+                regex_2d = u'^\s*(?P<height>\d+(\.\d+)?)\s*h\s*(x|×)\s*(?P<width>\d+(\.\d+)?)\s*w\s*cm\s*$'
+                #regex_3d = u'^.+\((?P<height>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<width>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<depth>\d+(\.\d+)?)\s*cm\)$'
+                match_2d = re.match(regex_2d, dimensiontext, re.DOTALL)
+                #match_3d = re.match(regex_3d, dimensiontext)
                 if match_2d:
                     metadata['heightcm'] = match_2d.group(u'height')
                     metadata['widthcm'] = match_2d.group(u'width')
-                if match_3d:
-                    metadata['heightcm'] = match_3d.group(u'height')
-                    metadata['widthcm'] = match_3d.group(u'width')
-                    metadata['depthcm'] = match_3d.group(u'depth')
+                #if match_3d:
+                #    metadata['heightcm'] = match_3d.group(u'height')
+                #    metadata['widthcm'] = match_3d.group(u'width')
+                #    metadata['depthcm'] = match_3d.group(u'depth')
 
             # Image use policy unclear and most (if not all) in copyright
             #imageMatch = re.search(imageregex, itemPageData)
             #if imageMatch:
             #    metadata[u'imageurl'] = imageMatch.group(1)
             #    metadata[u'imageurlformat'] = u'Q2195' #JPEG
-            """
+
             yield metadata
     print (j)
 
