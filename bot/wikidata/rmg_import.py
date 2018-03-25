@@ -25,16 +25,20 @@ def getRMGGenerator():
     """
     htmlparser = HTMLParser()
     # Drop the object later or NOT
-    basesearchurl = u'http://collections.rmg.co.uk/solr?q=collectionReference:subject-90248%%20AND%%20type:(object)&start=%s&rows=%s&wt=json'
+    #basesearchurl = u'http://collections.rmg.co.uk/solr?q=collectionReference:subject-90248%%20AND%%20type:(object)&start=%s&rows=%s&wt=json'
+    basesearchurl = u'http://collections.rmg.co.uk/solr?q=collectionReference:subject-90248&start=%s&rows=%s&wt=json'
     size = 100
-    for i in range(0, 3800, size):
-        searchUrl = basesearchurl % (size, i)
+    for i in range(0, 4100, size):
+        searchUrl = basesearchurl % (i, size)
         print (searchUrl)
         searchPage = requests.get(searchUrl)
         searchJson = searchPage.json()
 
         for item in searchJson.get(u'response').get('docs'):
-            url = item.get('uri')
+            if item.get('uri'):
+                url = item.get('uri')
+            else:
+                url = item.get('dataUri')
             print (url)
 
             #itemPage = requests.get(itemurl)
