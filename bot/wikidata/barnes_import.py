@@ -45,8 +45,15 @@ def getBarnesGenerator():
             metadata['instanceofqid'] = u'Q3305213'
 
             #print (itemurl)
+            metadata['artworkidpid'] = u'P4709'
+            # Something weird going on with the id's
+            if item.get('id'):
+                metadata['artworkid'] = u'%s' % (item.get('id'),)
+            elif object.get(u'_id'):
+                metadata['artworkid'] = u'%s' % (object.get('_id'),)
 
-            url = u'https://collection.barnesfoundation.org/objects/%s/details' % (item.get('id'),)
+            # This will crash the bot if no valid id was found
+            url = u'https://collection.barnesfoundation.org/objects/%s/details' % (metadata['artworkid'],)
 
             # Museum site probably doesn't like it when we go fast
             # time.sleep(5)
@@ -63,9 +70,6 @@ def getBarnesGenerator():
             # Get the ID. This needs to burn if it's not available
             metadata['id'] = item.get('invno')
             metadata['idpid'] = u'P217'
-
-            metadata['artworkidpid'] = u'P4709'
-            metadata['artworkid'] = u'%s' % (item.get('id'),)
 
             if item.get('title'):
                 title = htmlparser.unescape(item.get('title'))
@@ -105,7 +109,7 @@ def getBarnesGenerator():
 
             if not item.get('copyright') and item.get('objRightsTypeId')==u'8':
                 if item.get('imageOriginalSecret'):
-                    metadata[u'imageurl'] = u'http://s3.amazonaws.com/barnes-image-repository/images/%s_%s_o.jpg' % (item.get('id'), item.get('imageOriginalSecret'))
+                    metadata[u'imageurl'] = u'http://s3.amazonaws.com/barnes-image-repository/images/%s_%s_o.jpg' % (metadata['artworkid'], item.get('imageOriginalSecret'))
                     metadata[u'imageurlformat'] = u'Q2195' #JPEG
             yield metadata
 
