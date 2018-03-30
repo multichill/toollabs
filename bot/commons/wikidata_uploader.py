@@ -48,7 +48,6 @@ class WikidataUploaderBot:
         query = u"""
 SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license ?institutiontemplate ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
   ?item p:P4765 ?image .
-  MINUS { ?item wdt:P18 [] } .
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
   ?item wdt:P217 ?inv .
@@ -125,14 +124,16 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         if response.status_code == 200:
             hashObject = hashlib.sha1()
             hashObject.update(response.content)
-            duplicates = list(page.title(withNamespace=False) for page in self.site.allimages(sha1=base64.b16encode(hashObject.digest())))
+            duplicates = list(self.site.allimages(sha1=base64.b16encode(hashObject.digest())))
             if duplicates:
-                pywikibot.output(u'Found a duplicate, skipping')
+                pywikibot.output(u'Found a duplicate, trying to add it')
+                imagefile = duplicates[0]
+                self.addImageToWikidata(metadata, imagefile, summary = u'Adding already uploaded image')
                 duplicate = { u'title' : title,
                               u'qid' : metadata.get(u'item'),
                               u'downloadurl' : metadata.get(u'downloadurl'),
                               u'sourceurl' : metadata.get(u'sourceurl'),
-                              u'duplicate' : duplicates[0],
+                              u'duplicate' : imagefile.title(withNamespace=False),
                               u'description' : description,
                               }
                 self.duplicates.append(duplicate)
@@ -156,19 +157,35 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
             if uploadsuccess:
                 pywikibot.output('Uploaded a file, sleeping a bit so I don\'t run into lagging databases')
                 time.sleep(15)
-                artworkItem = pywikibot.ItemPage(self.repo, title=metadata.get(u'item'))
-                data = artworkItem.get()
-                claims = data.get('claims')
-                if u'P18' not in claims:
-                    newclaim = pywikibot.Claim(self.repo, u'P18')
-                    newclaim.setTarget(imagefile)
-                    pywikibot.output('Adding %s --> %s' % (newclaim.getID(), newclaim.getTarget()))
-                    artworkItem.addClaim(newclaim)
-                    if u'P4765' in claims and len(claims.get(u'P4765'))==1:
-                        summary = u'Uploaded the image'
-                        artworkItem.removeClaims(claims.get(u'P4765')[0], summary=summary)
-                    imagefile.touch()
+                self.addImageToWikidata(metadata, imagefile, summary = u'Uploaded the image')
+                imagefile.touch()
 
+    def addImageToWikidata(self, metadata, imagefile, summary=u'Added the image'):
+        """
+        Add the image to the Wikidata item. This might add an extra image if the item already has one
+        :param metadata:
+        :param imagefile:
+        :return:
+        """
+        artworkItem = pywikibot.ItemPage(self.repo, title=metadata.get(u'item'))
+        data = artworkItem.get()
+        claims = data.get('claims')
+
+        newclaim = pywikibot.Claim(self.repo, u'P18')
+        newclaim.setTarget(imagefile)
+
+        foundimage = False
+        if u'P18' in claims:
+            for claim in claims.get(u'P18'):
+                if claim.getTarget().title()==newclaim.getTarget().title():
+                    pywikibot.output(u'The image is already on the item')
+                    foundimage = True
+        if not foundimage:
+            pywikibot.output('Adding %s --> %s' % (newclaim.getID(), newclaim.getTarget()))
+            artworkItem.addClaim(newclaim, summary=summary)
+        # Only remove if we had one suggestion. Might improve the logic in the future here
+        if u'P4765' in claims and len(claims.get(u'P4765'))==1:
+            artworkItem.removeClaims(claims.get(u'P4765')[0], summary=summary)
 
     def getDescription(self, metadata):
         """
