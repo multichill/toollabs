@@ -64,7 +64,7 @@ def getMFABudapestGenerator():
             invMatch = re.search(invRegex, itemPageData)
             metadata['id'] = invMatch.group(1).strip()
 
-            titleRegex = u'\<td colspan\=\"2\"\>[\r\n\t\s]*\<h1\>([^\<]+)\<\/h1\>'
+            titleRegex = u'\<td colspan\=\"2\"\>[\r\n\t\s]*\<h1\>([^\<]+)\<'
 
             titleMatch = re.search(titleRegex, itemPageData)
             titleHuMatch = re.search(titleRegex, itemPageHuData)
@@ -80,11 +80,13 @@ def getMFABudapestGenerator():
                                   u'hu' : title_hu,
                               }
 
-            artistRegex = u'\<td\>[\r\n\t\s]*Artist\:[\r\n\t\s]*\<\/td\>[\r\n\t\s]*\<td\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<br \/\>'
+            artistRegex = u'\<td\>[\r\n\t\s]*Artist[s]?\:[\r\n\t\s]*\<\/td\>[\r\n\t\s]*\<td\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<br \/\>'
             artistMatch = re.search(artistRegex, itemPageData)
 
-            name = htmlparser.unescape(artistMatch.group(1)).strip()
-
+            if artistMatch:
+                name = htmlparser.unescape(artistMatch.group(1)).strip()
+            else:
+                name = u'anonymous'
             metadata['creatorname'] = name
             metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
@@ -108,10 +110,10 @@ def getMFABudapestGenerator():
             if mediumMatch:
                 metadata['medium'] = u'oil on canvas'
 
-
-            dimensionRegex = u'\<td\>Dimensions\:\<\/td\>[\r\n\t\s]*\<td\>([^\<]+)\<\/td\>'
+            dimensionRegex = u'\<td\>Dimensions\:\<\/td\>[\r\n\t\s]*\<td\>([^\<]+)\<'
             dimensionMatch = re.search(dimensionRegex, itemPageData)
 
+            # TODO: Check http://www.szepmuveszeti.hu/adatlap_eng/madonna_and_child_with_10006
             if dimensionMatch:
                 dimensiontext = dimensionMatch.group(1).strip()
                 regex_2d = u'^(?P<height>\d+(\.\d+)?)\s*(x|×)\s*(?P<width>\d+(\.\d+)?)\s*cm.*$'
