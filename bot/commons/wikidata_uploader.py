@@ -24,6 +24,7 @@ import tempfile
 import os
 import time
 import requests
+import json
 
 class WikidataUploaderBot:
     """
@@ -38,6 +39,7 @@ class WikidataUploaderBot:
         self.generator = self.getGenerator()
         self.repo = pywikibot.Site().data_repository()
         self.site = pywikibot.Site(u'commons', u'commons')
+        self.duplicates = []
 
     def getGenerator(self):
         """
@@ -65,7 +67,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
   ?creator schema:dateModified ?creatordate .
   OPTIONAL { ?creator wdt:P1472 ?creatortemplate } .
   OPTIONAL { ?creator wdt:P373 ?creatorcategory } .
-  } LIMIT 15000"""
+  } ORDER BY DESC(?itemdate)
+  LIMIT 15000"""
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
@@ -84,6 +87,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         for metadata in self.generator:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
+        self.reportDuplicates()
 
     def isReadyToUpload(self, metadata):
         """
@@ -95,8 +99,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         itemdelta = now - datetime.datetime.strptime(metadata.get(u'itemdate'), format)
         creatordelta = now - datetime.datetime.strptime(metadata.get(u'creatordate'), format)
 
-        # Both item and creator should at least be 7 days old
-        if itemdelta.days > 7 and metadata.get(u'creatortemplate') and metadata.get(u'creatorcategory') and creatordelta.days > 7:
+        # Both item and creator should at least be 2 days old
+        if metadata.get(u'creatortemplate') and metadata.get(u'creatorcategory') and (itemdelta.days > 2 or creatordelta.days > 2):
             return True
         # If no creator template at least 14 days old
         if itemdelta.days > 14 and not metadata.get(u'creatortemplate') and metadata.get(u'creatorcategory') and creatordelta.days > 14:
@@ -124,6 +128,14 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
             duplicates = list(page.title(withNamespace=False) for page in self.site.allimages(sha1=base64.b16encode(hashObject.digest())))
             if duplicates:
                 pywikibot.output(u'Found a duplicate, skipping')
+                duplicate = { u'title' : title,
+                              u'qid' : metadata.get(u'item'),
+                              u'downloadurl' : metadata.get(u'downloadurl'),
+                              u'sourceurl' : metadata.get(u'sourceurl'),
+                              u'duplicate' : duplicates[0],
+                              u'description' : description,
+                              }
+                self.duplicates.append(duplicate)
                 return
             handle, tempname = tempfile.mkstemp()
             with os.fdopen(handle, "wb") as t:
@@ -217,9 +229,9 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         :param metadata:
         :return:
         """
-        result = u'{{subst:#ifexist:Category:Paintings in the %(collectioncategory)s]]|[[Category:Paintings in the %(collectioncategory)s]]|[[Category:%(collectioncategory)s]]}}\n' % metadata
+        result = u'{{subst:#ifexist:Category:Paintings in the %(collectioncategory)s|[[Category:Paintings in the %(collectioncategory)s]]|[[Category:%(collectioncategory)s]]}}\n' % metadata
         if metadata.get(u'creatorcategory'):
-            result = result + u'{{subst:#ifexist:Category:Paintings by %(creatorcategory)s]]|[[Category:Paintings by %(creatorcategory)s]]|[[Category:%(creatorcategory)s]]}}' % metadata
+            result = result + u'{{subst:#ifexist:Category:Paintings by %(creatorcategory)s|[[Category:Paintings by %(creatorcategory)s]]|[[Category:%(creatorcategory)s]]}}' % metadata
         return result
 
     def getTitle(self, metadata):
@@ -229,7 +241,14 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         :return:
         """
         fmt = u'%(creatorname)s - %(title)s - %(inv)s - %(collectionLabel)s.jpg'
-        return fmt % metadata
+        title = fmt % metadata
+        if len(title) < 200:
+            return title
+        else:
+            title = u'%(creatorname)s - ' % metadata
+            title = title + metadata.get(u'title')[0:100].strip()
+            title = title + u' - %(inv)s - %(collectionLabel)s.jpg' % metadata
+            return title
 
     def cleanUpTitle(self, title):
         '''
@@ -256,6 +275,36 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         title = re.sub(u"^- ", u"", title)
         title = title.replace(u" ", u"_")
         return title
+
+    def reportDuplicates(self):
+        """
+        We might have encountered some duplicates. Publish these so they can be sorted out
+
+        https://commons.wikimedia.org/wiki/Commons:WikiProject_sum_of_all_paintings/To_upload/Duplicates
+
+        :return:
+        """
+        print (u'Duplicates:')
+        print (json.dumps(self.duplicates, indent=4, sort_keys=True))
+
+        pageTitle = u'Commons:WikiProject sum of all paintings/To upload/Duplicates'
+        page = pywikibot.Page(self.site, title=pageTitle)
+
+        text = u'{{Commons:WikiProject sum of all paintings/To upload/Duplicates/header}}\n'
+        text = text + u'{| class="wikitable sortable"\n'
+        text = text + u'! Existing file !! Wikidata item !! Url !! Description\n'
+        for duplicate in self.duplicates:
+            text = text + u'|-\n'
+            text = text + u'| [[File:%(duplicate)s|150px]]\n' % duplicate
+            text = text + u'| [[:d:%(qid)s|%(qid)s]]\n' % duplicate
+            text = text + u'| [%(sourceurl)s]\n' % duplicate
+            text = text + u'|\n<small><nowiki>\n%(description)s\n</nowiki></small>\n' % duplicate
+        text = text + u'|}\n'
+
+        summary = u'Found %s duplicates in this bot run' % (len(self.duplicates), )
+        pywikibot.output(summary)
+        page.put(text, summary)
+
         """
 
                 if painting.get(u'imageurl'):
