@@ -18,6 +18,7 @@ import os
 import time
 import itertools
 import copy
+import requests
 
 class ArtDataBot:
     """
@@ -397,46 +398,7 @@ class ArtDataBot:
 
                     self.addReference(artworkItem, newclaim, metadata[u'refurl'])
 
-                # Add an image that can be uploaded to Commons
-                if metadata.get(u'imageurl') and u'P18' not in claims and u'P4765' not in claims:
-                    newclaim = pywikibot.Claim(self.repo, u'P4765')
-                    newclaim.setTarget(metadata[u'imageurl'])
-                    pywikibot.output('Adding commons compatible image available at URL claim to %s' % artworkItem)
-                    artworkItem.addClaim(newclaim)
-
-                    if metadata.get(u'imageurlformat'):
-                        newqualifier = pywikibot.Claim(self.repo, u'P2701')
-                        newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get(u'imageurlformat')))
-                        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
-                        newclaim.addQualifier(newqualifier)
-
-                    newqualifier = pywikibot.Claim(self.repo, u'P2699')
-                    newqualifier.setTarget(metadata[u'describedbyurl'])
-                    pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
-                    newclaim.addQualifier(newqualifier)
-
-                    if metadata.get('title'):
-                        if metadata.get('title').get(u'en'):
-                            title = pywikibot.WbMonolingualText(metadata.get('title').get(u'en'), u'en')
-                        else:
-                            lang = list(metadata.get('title').keys())[0]
-                            title = pywikibot.WbMonolingualText(metadata.get('title').get(lang), lang)
-                        newqualifier = pywikibot.Claim(self.repo, u'P1476')
-                        newqualifier.setTarget(title)
-                        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
-                        newclaim.addQualifier(newqualifier)
-
-                    if metadata.get('creatorname'):
-                        newqualifier = pywikibot.Claim(self.repo, u'P2093')
-                        newqualifier.setTarget(metadata.get('creatorname'))
-                        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
-                        newclaim.addQualifier(newqualifier)
-
-                    if metadata.get(u'imageurllicense'):
-                        newqualifier = pywikibot.Claim(self.repo, u'P275')
-                        newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get(u'imageurllicense')))
-                        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
-                        newclaim.addQualifier(newqualifier)
+                self.addImageSuggestion(artworkItem, metadata)
 
                 # Quite a few collections have custom id's these days.
                 if metadata.get(u'artworkidpid'):
@@ -462,6 +424,83 @@ class ArtDataBot:
                             newclaim.setTarget(metadata[u'describedbyurl'])
                             pywikibot.output('Adding additional described at claim to %s' % artworkItem)
                             artworkItem.addClaim(newclaim)
+
+    def addImageSuggestion(self, item, metadata):
+        """
+        Add an image that can be uploaded to Commons
+
+        It will also add the suggestion if the item already has an image, but new one is of much better quality
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the imageurl field
+        :return:
+        """
+        claims = item.get().get('claims')
+
+        if not metadata.get(u'imageurl'):
+            # Nothing to add
+            return
+        if u'P4765' in claims:
+            # Already has a suggestion
+            return
+
+        if u'P18' in claims:
+            newimage = requests.get(metadata.get(u'imageurl'), stream=True)
+            if not newimage.headers.get('Content-length'):
+                return
+            if not newimage.headers.get('Content-length').isnumeric():
+                return
+            newimagesize = int(newimage.headers['Content-length'])
+            #print (u'Size of the new image is %s according to the headers' % (newimagesize,))
+            if newimagesize < 500000:
+                # Smaller than 500KB is just too small to bother check to replace
+                return
+
+            for imageclaim in claims.get(u'P18'):
+                currentsize = imageclaim.getTarget().latest_file_info.size
+                #print (u'Size of the current image is %s' % (currentsize,))
+                # New image should at least be 4 times larger
+                if currentsize * 4 > newimagesize:
+                    return
+
+        newclaim = pywikibot.Claim(self.repo, u'P4765')
+        newclaim.setTarget(metadata[u'imageurl'])
+        pywikibot.output('Adding commons compatible image available at URL claim to %s' % item)
+        item.addClaim(newclaim)
+
+        if metadata.get(u'imageurlformat'):
+            newqualifier = pywikibot.Claim(self.repo, u'P2701')
+            newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get(u'imageurlformat')))
+            pywikibot.output('Adding new qualifier claim to %s' % item)
+            newclaim.addQualifier(newqualifier)
+
+        newqualifier = pywikibot.Claim(self.repo, u'P2699')
+        newqualifier.setTarget(metadata[u'describedbyurl'])
+        pywikibot.output('Adding new qualifier claim to %s' % item)
+        newclaim.addQualifier(newqualifier)
+
+        if metadata.get('title'):
+            if metadata.get('title').get(u'en'):
+                title = pywikibot.WbMonolingualText(metadata.get('title').get(u'en'), u'en')
+            else:
+                lang = list(metadata.get('title').keys())[0]
+                title = pywikibot.WbMonolingualText(metadata.get('title').get(lang), lang)
+            newqualifier = pywikibot.Claim(self.repo, u'P1476')
+            newqualifier.setTarget(title)
+            pywikibot.output('Adding new qualifier claim to %s' % item)
+            newclaim.addQualifier(newqualifier)
+
+        if metadata.get('creatorname'):
+            newqualifier = pywikibot.Claim(self.repo, u'P2093')
+            newqualifier.setTarget(metadata.get('creatorname'))
+            pywikibot.output('Adding new qualifier claim to %s' % item)
+            newclaim.addQualifier(newqualifier)
+
+        if metadata.get(u'imageurllicense'):
+            newqualifier = pywikibot.Claim(self.repo, u'P275')
+            newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get(u'imageurllicense')))
+            pywikibot.output('Adding new qualifier claim to %s' % item)
+            newclaim.addQualifier(newqualifier)
 
     def addItemStatement(self, item, pid, qid, url):
         '''
