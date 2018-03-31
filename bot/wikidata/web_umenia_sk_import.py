@@ -38,7 +38,7 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
 
     for i in range(1, pages):
         searchUrl = baseSearchUrl % (collectioninfo.get(u'gallery'), i,)
-        print (searchUrl)
+        pywikibot.output (searchUrl)
 
         idlist = []
 
@@ -55,7 +55,7 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             url = u'https://www.webumenia.sk/dielo/%s' % (workid,)
             itemurl = u'https://www.webumenia.sk/en/dielo/%s' % (workid,)
 
-            print (itemurl)
+            pywikibot.output (itemurl)
             itemPage = requests.get(itemurl)
             itemPageData = itemPage.text
 
@@ -94,10 +94,10 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
                 artistid = htmlparser.unescape(artistlinkMatch.group(1)).strip()
 
                 if artistid in webumeniaArtists:
-                    print (u'Found Webumenia id %s on %s' % (artistid, webumeniaArtists.get(artistid)))
+                    pywikibot.output (u'Found Webumenia id %s on %s' % (artistid, webumeniaArtists.get(artistid)))
                     metadata['creatorqid'] = webumeniaArtists.get(artistid)
                 else:
-                    print (u'Did not find id %s' % (artistid,))
+                    pywikibot.output (u'Did not find id %s' % (artistid,))
                 name = htmlparser.unescape(artistlinkMatch.group(2)).strip()
             else:
                 artistRegex = u'\<a class\=\"underline\" href\=\"https\:\/\/www\.webumenia\.sk\/katalog\?author\=[^\"]+\"\>([^\<]+)\<\/a\>'
