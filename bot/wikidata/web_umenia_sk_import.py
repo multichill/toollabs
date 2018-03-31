@@ -90,6 +90,12 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             artistlinkRegex = u'\<span itemprop\=\"creator\" itemscope itemtype\=\"http\:\/\/schema\.org\/Person\"\>\<a class\=\"underline\" href\=\"https\:\/\/www\.webumenia\.sk\/autor\/(\d+)\" itemprop\=\"sameAs\"\>\<span itemprop\=\"name\"\>([^\<]+)\<\/span\>\<\/a\>\<\/span\>'
             artistlinkMatch = re.search(artistlinkRegex, itemPageData)
 
+            artistRegex = u'\<a class\=\"underline\" href\=\"https\:\/\/www\.webumenia\.sk\/katalog\?author\=[^\"]+\"\>([^\<]+)\<\/a\>'
+            artistMatch = re.search(artistRegex, itemPageData)
+
+            artistDoubtRegex = u'\<a class\=\"underline\" href\=\"https\:\/\/www\.webumenia\.sk\/autor\/(\d+)\"\>([^\<]+)\<\/a\>([^\<]+)[\r\n\t\s]*\<'
+            artistDoubtMatch = re.search(artistDoubtRegex, itemPageData)
+
             if artistlinkMatch:
                 artistid = htmlparser.unescape(artistlinkMatch.group(1)).strip()
 
@@ -99,10 +105,14 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
                 else:
                     pywikibot.output (u'Did not find id %s' % (artistid,))
                 name = htmlparser.unescape(artistlinkMatch.group(2)).strip()
-            else:
-                artistRegex = u'\<a class\=\"underline\" href\=\"https\:\/\/www\.webumenia\.sk\/katalog\?author\=[^\"]+\"\>([^\<]+)\<\/a\>'
-                artistMatch = re.search(artistRegex, itemPageData)
+            elif artistMatch:
                 name = htmlparser.unescape(artistMatch.group(1)).strip()
+            else:
+                # Crash if this doesn't work
+                name = u'%s %s' % (htmlparser.unescape(artistDoubtMatch.group(2)).strip(),
+                                   htmlparser.unescape(artistDoubtMatch.group(3)).strip(),
+                                   )
+
             metadata['creatorname'] = name
             metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
