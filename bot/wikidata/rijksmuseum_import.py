@@ -27,7 +27,7 @@ def getRijksmuseumGenerator():
 
     for i in range(1,49):
         searchurl = basesearchurl % (apikey, limit, i,)
-        print searchurl
+        print (searchurl)
         searchPage = requests.get(searchurl)
         searchJson = searchPage.json()
 
@@ -55,13 +55,13 @@ def getRijksmuseumGenerator():
 
             if record.get('title'):
                 # Chop chop, several very long titles
-                if record.get('title') > 220:
+                if len(record.get('title')) > 220:
                     title = record.get('title')[0:200]
                 else:
                     title = record.get('title')
                 metadata['title'] = { u'nl' : title,
                                     }
-            print itemurl
+            print (itemurl)
             if record.get('principalOrFirstMaker')==u'anoniem':
                 metadata['creatorname'] = u'anonymous'
                 metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
@@ -89,7 +89,6 @@ def getRijksmuseumGenerator():
                 proddate = record.get('dating').get('year')
                 if proddate == record.get('dating').get('yearEarly') == record.get('dating').get('yearLate'):
                     metadata['inception'] = proddate
-
 
             # Provenance.
             # TODO: Test and update artdatabot to actually use it.
@@ -119,15 +118,18 @@ def getRijksmuseumGenerator():
                         metadata['heightcm'] = height.get('value').replace(u',', u'.')
                     if width.get('unit') == u'cm' and width.get('type') == u'breedte' and width.get('part') == None:
                         metadata['widthcm'] = width.get('value').replace(u',', u'.')
+            if record.get(u'hasImage') and not record.get(u'copyrightHolder') and record.get(u'webImage'):
+                imageurl = record.get(u'webImage').get(u'url')
+                metadata[u'imageurl'] = imageurl
+                metadata[u'imageurlformat'] = u'Q2195' #JPEG
             yield metadata
-
     return
     
 def main():
     dictGen = getRijksmuseumGenerator()
 
     #for painting in dictGen:
-    #    print painting
+    #    print (painting)
 
     artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
