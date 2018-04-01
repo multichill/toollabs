@@ -99,7 +99,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         creatordelta = now - datetime.datetime.strptime(metadata.get(u'creatordate'), format)
 
         # Both item and creator should at least be 2 days old
-        if metadata.get(u'creatortemplate') and metadata.get(u'creatorcategory') and (itemdelta.days > 2 or creatordelta.days > 2):
+        if metadata.get(u'creatortemplate') and metadata.get(u'creatorcategory') and (itemdelta.days > 2 and creatordelta.days > 2):
             return True
         # If no creator template at least 14 days old
         if itemdelta.days > 14 and not metadata.get(u'creatortemplate') and metadata.get(u'creatorcategory') and creatordelta.days > 14:
@@ -143,7 +143,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
                 t.write(response.content)
                 t.close()
 
-
             imagefile = pywikibot.FilePage(self.site, title=title)
             imagefile.text=description
 
@@ -175,12 +174,23 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         newclaim.setTarget(imagefile)
 
         foundimage = False
+        replacedimage = False
         if u'P18' in claims:
             for claim in claims.get(u'P18'):
                 if claim.getTarget().title()==newclaim.getTarget().title():
                     pywikibot.output(u'The image is already on the item')
                     foundimage = True
-        if not foundimage:
+            if not foundimage and len(claims.get(u'P18'))==1:
+                claim = claims.get(u'P18')[0]
+                newimagesize = imagefile.latest_file_info.size
+                currentsize = claim.getTarget().latest_file_info.size
+                # Only replace if new one is at least 4 times larger
+                if currentsize * 4 < newimagesize:
+                    summary = u'replacing with much larger image'
+                    claim.changeTarget(imagefile, summary=summary)
+                    replacedimage = True
+
+        if not foundimage and not replacedimage:
             pywikibot.output('Adding %s --> %s' % (newclaim.getID(), newclaim.getTarget()))
             artworkItem.addClaim(newclaim, summary=summary)
         # Only remove if we had one suggestion. Might improve the logic in the future here
