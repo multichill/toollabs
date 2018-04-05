@@ -66,6 +66,8 @@ class ViafImportBot:
                 viafPage = requests.get(viafurljson)
             except requests.HTTPError as e:
                 pywikibot.output('On %s the VIAF link %s returned this HTTPError %s: %s' % (item.title(), viafurljson, e.errno, e.strerror))
+            except requests.exceptions.ConnectionError as e:
+                pywikibot.output('On %s the VIAF link %s returned this HTTPError %s: %s' % (item.title(), viafurljson, e.errno, e.strerror))
 
             #viafPageData = viafPage.json
 
@@ -91,7 +93,7 @@ class ViafImportBot:
                 ntaurl = u'http://opc4.kb.nl/DB=1/XMLPRS=Y/PPN?PPN=%s' % (ntaid,)
                 ntapage = requests.get(ntaurl)
                 if u'TITEL NIET IN DATABASE AANWEZIG' in ntapage.text:
-                    pywikibot.output(u'Viaf points to broken NTA url: %s' % (ntaurl,))
+                    pywikibot.output(u'Viaf %s points to broken NTA url: %s' % (viafurljson, ntaurl,))
                     brokenlinks = brokenlinks + 1
                     continue
 
@@ -129,7 +131,7 @@ def main():
   ?item wdt:P214 ?viafid .
   ?item wdt:P31 wd:Q5 .
   MINUS { ?item wdt:P1006 [] } .
-  } LIMIT 500000"""
+  } LIMIT 700000"""
     generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     viafImportBot = ViafImportBot(generator)
