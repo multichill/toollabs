@@ -3,20 +3,16 @@
 """
 Bot to import paintngs from https://www.webumenia.sk
 * This will loop over a bunch of collections and for each collection
-* Loop over https://www.webumenia.sk/en/katalog?work_type=maliarstvo&gallery=Slovensk%C3%A1+n%C3%A1rodn%C3%A1+gal%C3%A9ria%2C+SNG
-* Grab individual paintings like https://www.webumenia.sk/en/dielo/SVK:SNG.O_184
+* Old system: Loop over https://www.webumenia.sk/en/katalog?work_type=maliarstvo&gallery=Slovensk%C3%A1+n%C3%A1rodn%C3%A1+gal%C3%A9ria%2C+SNG
+* New system: Ask the api at http://api.webumenia.sk ( https://github.com/SlovakNationalGallery/web-umenia-2/wiki/ElasticSearch-Public-API )
+* Grab individual paintings like https://www.webumenia.sk/en/dielo/SVK:SNG.O_184 as items in the API
 Use artdatabot to upload it to Wikidata
 
 """
 import artdatabot
 import pywikibot
 import requests
-import re
-
-try:
-    from html.parser import HTMLParser
-except ImportError:
-    import HTMLParser
+import json
 
 def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
     """
@@ -24,40 +20,33 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
 
     Collectioninfo should be a dict with:
     * name - The English name (not actually used)
-    * gallery - Urlencoded name of the gallery for query
+    * gallery - (not urlencoded) name of the gallery for query
     * artworks - Number of artworks so we can calculate the paging
     * collectionqid - qid of the collection to fill the dict
     * collectionshort - Abbreviation of the collection to fill the dict
     * locationqid - qid of the location (usually same as collection) to fill the dict
-    
     """
-    htmlparser = HTMLParser()
-    baseSearchUrl = u'https://www.webumenia.sk/en/katalog?work_type=maliarstvo&gallery=%s&page=%s'
 
-    pages = (collectioninfo.get(u'artworks') // 18) + 2
+    baseSearchUrl = u'http://api.webumenia.sk/items/_search'
+    size = 100
+    session = requests.Session()
+    #session.auth = ('', '') set in your .netrc file, see https://www.labkey.org/Documentation/wiki-page.view?name=netrc
 
-    for i in range(1, pages):
-        searchUrl = baseSearchUrl % (collectioninfo.get(u'gallery'), i,)
-        pywikibot.output (searchUrl)
+    for i in range(0, collectioninfo.get(u'artworks'), size):
+        searchdata = { u'size' : size,
+                       u'from' : i,
+                       u'query': { u'bool': { u'must': [
+                           { u'match': { u'gallery': collectioninfo.get(u'gallery') }},
+                           { u'match': { u'work_type': u'maliarstvo' }},
+                       ] } },}
+        data = json.dumps(searchdata)
+        page = session.get(baseSearchUrl, data=data)
+        for bigitem in page.json().get(u'hits').get(u'hits'):
+            item = bigitem.get(u'_source')
 
-        idlist = []
-
-        searchPage = requests.get(searchUrl)
-        searchPageData = searchPage.text
-        searchRegex = u'\<a href\=\"https\:\/\/www\.webumenia\.sk\/dielo\/([^\"]+)"\s*\>'
-        #\<div class\=\"gallery-item col-result\" data-url\=\"\/collection\/([^\"]+)\"'
-
-        for match in re.finditer(searchRegex, searchPageData):
-            idlist.append(match.group(1))
-
-        for workid in list(set(idlist)):
-            # Use the generic url for links, the itemurl to force download of English
-            url = u'https://www.webumenia.sk/dielo/%s' % (workid,)
-            itemurl = u'https://www.webumenia.sk/en/dielo/%s' % (workid,)
-
-            pywikibot.output (itemurl)
-            itemPage = requests.get(itemurl)
-            itemPageData = itemPage.text
+            # Use the generic url for links, this will resolve to English for most of us
+            url = u'https://www.webumenia.sk/dielo/%s' % (item.get('id'),)
+            pywikibot.output (url)
 
             metadata = {}
             metadata['url'] = url
@@ -69,60 +58,35 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             # Search is for paintings
             metadata['instanceofqid'] = u'Q3305213'
 
-            titleRegex = u'\<h1 class\=\"nadpis-dielo\" itemprop\=\"name\"\>([^\<]+)\<\/h1\>'
-            titleMatch = re.search(titleRegex, itemPageData)
-
-
-            title = htmlparser.unescape(titleMatch.group(1)).strip()
-            #else:
-            #    title = u'(without title)'
+            title = item.get(u'title')
 
             if len(title) > 220:
                 title = title[0:200]
             metadata['title'] = { u'sk' : title,
-                              }
+                                  }
 
+            # I had one item with missing identifier, wonder if it shows up here too
             metadata['idpid'] = u'P217'
-            invRegex = u'\<td class\=\"atribut\"\>inventory number\:\<\/td\>[\r\n\t\s]*\<td\>([^\<]+)\<\/td\>'
-            invMatch = re.search(invRegex, itemPageData)
-            metadata['id'] = invMatch.group(1).strip()
+            metadata['id'] = item.get('identifier')
 
-            artistlinkRegex = u'\<span itemprop\=\"creator\" itemscope itemtype\=\"http\:\/\/schema\.org\/Person\"\>\<a class\=\"underline\" href\=\"https\:\/\/www\.webumenia\.sk\/autor\/(\d+)\" itemprop\=\"sameAs\"\>\<span itemprop\=\"name\"\>([^\<]+)\<\/span\>\<\/a\>\<\/span\>'
-            artistlinkMatch = re.search(artistlinkRegex, itemPageData)
-
-            artistRegex = u'\<a class\=\"underline\" href\=\"https\:\/\/www\.webumenia\.sk\/katalog\?author\=[^\"]+\"\>([^\<]+)\<\/a\>'
-            artistMatch = re.search(artistRegex, itemPageData)
-
-            artistDoubtRegex = u'\<a class\=\"underline\" href\=\"https\:\/\/www\.webumenia\.sk\/autor\/(\d+)\"\>([^\<]+)\<\/a\>([^\<]+)[\r\n\t\s]*\<'
-            artistDoubtMatch = re.search(artistDoubtRegex, itemPageData)
-
-            if artistlinkMatch:
-                artistid = htmlparser.unescape(artistlinkMatch.group(1)).strip()
-
-                if artistid in webumeniaArtists:
-                    pywikibot.output (u'Found Webumenia id %s on %s' % (artistid, webumeniaArtists.get(artistid)))
-                    metadata['creatorqid'] = webumeniaArtists.get(artistid)
-                else:
-                    pywikibot.output (u'Did not find id %s' % (artistid,))
-                name = htmlparser.unescape(artistlinkMatch.group(2)).strip()
-            elif artistMatch:
-                name = htmlparser.unescape(artistMatch.group(1)).strip()
-            else:
-                # Crash if this doesn't work
-                name = u'%s %s' % (htmlparser.unescape(artistDoubtMatch.group(2)).strip(),
-                                   htmlparser.unescape(artistDoubtMatch.group(3)).strip(),
-                                   )
+            name = item.get('author')[0]
+            if u',' in name:
+                (surname, sep, firstname) = name.partition(u',')
+                name = u'%s %s' % (firstname.strip(), surname.strip(),)
+            metadata['creatorname'] = name
 
             metadata['creatorname'] = name
             metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
                                         }
+            if item.get('authority_id') and item.get('authority_id')[0]:
+                artistid = item.get('authority_id')[0]
+                if artistid in webumeniaArtists:
+                    pywikibot.output (u'Found Webumenia id %s on %s' % (artistid, webumeniaArtists.get(artistid)))
+                    metadata['creatorqid'] = webumeniaArtists.get(artistid)
 
-            # Only match on years
-            dateRegex = u'\<td class\=\"atribut\"\>date\:\<\/td\>[\r\n\t\s]*\<td\>\<time itemprop\=\"dateCreated\" datetime\=\"(\d\d\d\d)\"\>'
-            dateMatch = re.search(dateRegex, itemPageData)
-            if dateMatch:
-                metadata['inception'] = htmlparser.unescape(dateMatch.group(1))
+            if item.get(u'date_earliest') and item.get(u'date_earliest')==item.get(u'date_latest'):
+                metadata['inception'] = item.get(u'date_earliest')
 
             # acquisitiondate not available
             # acquisitiondateRegex = u'\<em\>Acknowledgement\<\/em\>\:\s*.+(\d\d\d\d)[\r\n\t\s]*\<br\>'
@@ -130,34 +94,25 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             #if acquisitiondateMatch:
             #    metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
 
-            canvasRegex = u'\<span itemprop\=\"artMedium\"\>plátno<\/\span\>'
-            canvasMatch = re.search(canvasRegex, itemPageData)
 
-            oilRegex = u'\<a href\=\"https\:\/\/www\.webumenia\.sk\/katalog\?technique\=olej\"\>olej\<\/a\>'
-            oilMatch = re.search(oilRegex, itemPageData)
-
-            if canvasMatch and oilMatch:
+            if item.get(u'medium') and item.get(u'medium')==u'plátno' and item.get(u'technique') and \
+                item.get(u'technique')[0] and item.get(u'technique')[0]==u'olej':
                 metadata['medium'] = u'oil on canvas'
 
-            dimensionRegex = u'\<td class\=\"atribut\"\>measurements\:\<\/td\>[\r\n\t\s]*\<td\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<'
-            dimensionMatch = re.search(dimensionRegex, itemPageData)
+            # The search API returns null for measurement
+            # Already indexed it in the previous run so leaving it for now
+            #dimensionRegex = u'\<td class\=\"atribut\"\>measurements\:\<\/td\>[\r\n\t\s]*\<td\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<'
+            #dimensionMatch = re.search(dimensionRegex, itemPageData)
+            #if dimensionMatch:
+            #    dimensions = htmlparser.unescape(dimensionMatch.group(1)).strip()
+            #    regex_2d = u'^výška (?P<height>\d+(\.\d+)?)\s*cm,\s*šírka\s*(?P<width>\d+(\.\d+)?)\s*cm$'
+            #    match_2d = re.match(regex_2d, dimensions)
+            #    if match_2d:
+            #        metadata['heightcm'] = match_2d.group(u'height')
+            #        metadata['widthcm'] = match_2d.group(u'width')
 
-            if dimensionMatch:
-                dimensions = htmlparser.unescape(dimensionMatch.group(1)).strip()
-                regex_2d = u'^výška (?P<height>\d+(\.\d+)?)\s*cm,\s*šírka\s*(?P<width>\d+(\.\d+)?)\s*cm$'
-                match_2d = re.match(regex_2d, dimensions)
-                if match_2d:
-                    metadata['heightcm'] = match_2d.group(u'height')
-                    metadata['widthcm'] = match_2d.group(u'width')
-
-            isfreeRegex = u'\<a rel\=\"license\" href\=\"https\:\/\/www\.webumenia\.sk\/katalog\?is_free\=1\"'
-            isfreeMatch = re.search(isfreeRegex, itemPageData)
-
-            downloadRegex = u'\<a href\=\"(https\:\/\/www\.webumenia\.sk\/dielo\/[^\"]+\/stiahnut)\" class\=\"btn btn-default btn-outline\s*sans\" id\=\"download\"\>\<i class\=\"fa fa-download\"\>\<\/i\>\s*download\s*\<\/a\>'
-            downloadMatch = re.search(downloadRegex, itemPageData)
-
-            if isfreeMatch and downloadMatch:
-                metadata[u'imageurl'] = downloadMatch.group(1)
+            if item.get(u'has_image') and item.get(u'is_free') and item.get(u'has_iip'):
+                metadata[u'imageurl'] = u'https://www.webumenia.sk/dielo/%s/stiahnut' % (item.get('id'),)
                 metadata[u'imageurlformat'] = u'Q2195' #JPEG
 
             yield metadata
@@ -177,76 +132,76 @@ def webumeniaArtistsOnWikidata():
         result[resultitem.get('id')] = qid
     return result
 
-def processCollection(collectioninfo, webumeniaArtists):
+def processCollection(collectioninfo, webumeniaArtists, create=False):
 
     dictGen = getWebUmeniaGenerator(collectioninfo, webumeniaArtists)
 
     #for painting in dictGen:
     #    print (painting)
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
     artDataBot.run()
 
 
 def main(*args):
     collections = { u'Q1744024': { u'name' : u'Slovak National Gallery',
-                                   u'gallery' : u'Slovenská+národná+galéria%2C+SNG',
+                                   u'gallery' : u'Slovenská národná galéria, SNG',
                                    u'artworks' : 7021,
                                    u'collectionqid' : u'Q1744024',
                                    u'collectionshort' : u'SNG',
                                    u'locationqid' : u'Q1744024',
                                    },
                     u'Q50751848': { u'name' : u'Orava Gallery',
-                                    u'gallery' : u'Oravská+galéria%2C+OGD',
+                                    u'gallery' : u'Oravská galéria, OGD',
                                     u'artworks' : 2231,
                                     u'collectionqid' : u'Q50751848',
                                     u'collectionshort' : u'Orava',
                                     u'locationqid' : u'Q50751848',
                                     },
                     u'Q30676307': { u'name' : u'Ernest Zmeták Art Gallery',
-                                    u'gallery' : u'Galéria+umenia+Ernesta+Zmetáka%2C+GNZ',
+                                    u'gallery' : u'Galéria umenia Ernesta Zmetáka, GNZ',
                                     u'artworks' : 728,
                                     u'collectionqid' : u'Q30676307',
                                     u'collectionshort' : u'GNZ',
                                     u'locationqid' : u'Q30676307',
                                     },
                     u'Q50762402': { u'name' : u'Liptov Gallery of Peter Michal Bohúň',
-                                    u'gallery' : u'Liptovská+galéria+Petra+Michala+Bohúňa%2C+GPB',
+                                    u'gallery' : u'Liptovská galéria Petra Michala Bohúňa, GPB',
                                     u'artworks' : 1392,
                                     u'collectionqid' : u'Q50762402',
                                     u'collectionshort' : u'GPB',
                                     u'locationqid' : u'Q50762402',
                                     },
                     u'Q913415': { u'name' : u'Bratislava City Gallery',
-                                    u'gallery' : u'Galéria+mesta+Bratislavy%2C+GMB',
+                                    u'gallery' : u'Galéria mesta Bratislavy, GMB',
                                     u'artworks' : 1510,
                                     u'collectionqid' : u'Q913415',
                                     u'collectionshort' : u'GMB',
                                     u'locationqid' : u'Q913415',
                                     },
                     u'Q12766245': { u'name' : u'Miloš Alexander Bazovský Gallery',
-                                    u'gallery' : u'Galéria+Miloša+Alexandra+Bazovského%2C+GBT',
+                                    u'gallery' : u'Galéria Miloša Alexandra Bazovského, GBT',
                                     u'artworks' : 193,
                                     u'collectionqid' : u'Q12766245',
                                     u'collectionshort' : u'MABG',
                                     u'locationqid' : u'Q12766245',
                                     },
                     u'Q50800751': { u'name' : u'Nitra Gallery',
-                                    u'gallery' : u'Nitrianska+galéria%2C+NGN',
+                                    u'gallery' : u'Nitrianska galéria, NGN',
                                     u'artworks' : 12,
                                     u'collectionqid' : u'Q50800751',
                                     u'collectionshort' : u'NGN',
                                     u'locationqid' : u'Q50800751',
                                     },
                     u'Q16517556': { u'name' : u'Central Slovakian Gallery',
-                                    u'gallery' : u'Stredoslovenská+galéria%2C+SGB',
+                                    u'gallery' : u'Stredoslovenská galéria, SGB',
                                     u'artworks' : 1561,
                                     u'collectionqid' : u'Q16517556',
                                     u'collectionshort' : u'SGB',
                                     u'locationqid' : u'Q16517556',
                                     },
                     u'Q50797802': { u'name' : u'Gallery of Spiš Artists ',
-                                    u'gallery' : u'Galéria+umelcov+Spiša%2C+GUS',
+                                    u'gallery' : u'Galéria umelcov Spiša, GUS',
                                     u'artworks' : 452,
                                     u'collectionqid' : u'Q50797802',
                                     u'collectionshort' : u'GUS',
@@ -254,6 +209,7 @@ def main(*args):
                                     },
                  }
     collectionid = None
+    create = False
 
     for arg in pywikibot.handle_args(args):
         if arg.startswith('-collectionid:'):
@@ -262,6 +218,8 @@ def main(*args):
                         u'Please enter the collectionid you want to work on:')
             else:
                 collectionid = arg[14:]
+        elif arg.startswith('-create:'):
+            create = True
 
     webumeniaArtists = webumeniaArtistsOnWikidata()
 
@@ -269,10 +227,10 @@ def main(*args):
         if collectionid not in collections.keys():
             pywikibot.output(u'%s is not a valid collectionid!' % (collectionid,))
             return
-        processCollection(collections[collectionid], webumeniaArtists)
+        processCollection(collections[collectionid], webumeniaArtists, create=create)
     else:
         for collectionid in collections.keys():
-            processCollection(collections[collectionid], webumeniaArtists)
+            processCollection(collections[collectionid], webumeniaArtists, create=create)
 
 if __name__ == "__main__":
     main()
