@@ -60,8 +60,8 @@ class ViafImportBot:
                 print u'Viaf is set to novalue, skipping'
                 continue
             
-            viafurl = u'http://www.viaf.org/viaf/%s/' % (viafid,)
-            viafurljson = u'%sjustlinks.json' % (viafurl,)
+            viafurl = u'http://viaf.org/viaf/%s' % (viafid,)
+            viafurljson = u'%s/justlinks.json' % (viafurl,)
             try:
                 viafPage = requests.get(viafurljson)
             except requests.HTTPError as e:
@@ -90,20 +90,25 @@ class ViafImportBot:
                 ntaid = viafPageDataDataObject.get(u'NTA')[0]
                 #print u'I found ulanid %s for item %s' % (ulanid, item.title())
 
-                ntaurl = u'http://opc4.kb.nl/DB=1/XMLPRS=Y/PPN?PPN=%s' % (ntaid,)
+                ntaurl = u'http://data.bibliotheken.nl/id/thes/p%s' % (ntaid,)
                 ntapage = requests.get(ntaurl)
-                if u'TITEL NIET IN DATABASE AANWEZIG' in ntapage.text:
+                if not ntapage.status_code==200:
+                #if u'TITEL NIET IN DATABASE AANWEZIG' in ntapage.text:
                     pywikibot.output(u'Viaf %s points to broken NTA url: %s' % (viafurljson, ntaurl,))
                     brokenlinks = brokenlinks + 1
                     continue
 
+                if not viafurl in ntapage.text:
+                    pywikibot.output(u'No backlink found on %s to viaf %s' % (ntaurl, viafurl, ))
+                    continue
+
                 newclaim = pywikibot.Claim(self.repo, u'P1006')
                 newclaim.setTarget(ntaid)
-                pywikibot.output('Adding National Thesaurus for Author Names ID %s claim to %s' % (ntaid, item.title(),) )
+                pywikibot.output('Adding National Thesaurus for Author Names ID %s claim to %s (based on bidirectional viaf<->nta links)' % (ntaid, item.title(),) )
 
                 #Default text is "‎Created claim: ULAN identifier (P245): 500204732, "
 
-                summary = u'based on VIAF %s' % (viafid,)
+                summary = u'based on VIAF %s (with bidirectional viaf<->nta links)' % (viafid,)
                 
                 item.addClaim(newclaim, summary=summary)
 
@@ -131,7 +136,7 @@ def main():
   ?item wdt:P214 ?viafid .
   ?item wdt:P31 wd:Q5 .
   MINUS { ?item wdt:P1006 [] } .
-  } LIMIT 700000"""
+  } LIMIT 500000"""
     generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     viafImportBot = ViafImportBot(generator)
