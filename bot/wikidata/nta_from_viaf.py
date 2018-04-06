@@ -1,11 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import  National Thesaurus for Author Names ID (P1006)  statements from viaf.
+Bot to import  National Thesaurus for Author Names ID (P1006) statements from viaf.
 
 See https://www.wikidata.org/wiki/Property:P1006
 
-Viaf contains a ton of broken links so filter for that.
+Viaf contains some broken links so check that the entry at http://data.bibliotheken.nl/ actually exists
+and links back to the same viaf item.
 
 """
 import pywikibot
@@ -15,19 +16,16 @@ import datetime
 
 class ViafImportBot:
     """
-    
+    Bot to import NTA links from VIAF
     """
     def __init__(self, generator):
         """
         Arguments:
             * generator    - A generator that yields wikidata item objects.
-
         """
-        
         self.repo = pywikibot.Site().data_repository()
         self.generator = pagegenerators.PreloadingItemGenerator(generator)
         self.viafitem = pywikibot.ItemPage(self.repo, u'Q54919')
-
     
     def run (self):
         '''
@@ -47,7 +45,7 @@ class ViafImportBot:
             claims = data.get('claims')
 
             if not u'P214' in claims:
-                print u'No viaf found, skipping'
+                pywikibot.output(u'No viaf found, skipping')
                 continue
 
             if u'P1006' in claims:
@@ -57,7 +55,7 @@ class ViafImportBot:
             viafid = claims.get(u'P214')[0].getTarget()
 
             if not viafid:
-                print u'Viaf is set to novalue, skipping'
+                pywikibot.output(u'Viaf is set to novalue, skipping')
                 continue
             
             viafurl = u'http://viaf.org/viaf/%s' % (viafid,)
@@ -69,31 +67,22 @@ class ViafImportBot:
             except requests.exceptions.ConnectionError as e:
                 pywikibot.output('On %s the VIAF link %s returned this HTTPError %s: %s' % (item.title(), viafurljson, e.errno, e.strerror))
 
-            #viafPageData = viafPage.json
-
-            # That didn't work. Stupid viaf api always returns 200
-            #if not viafPage.getcode()==200:
-            #    pywikibot.output('On %s the VIAF link %s gave a %s http code, skipping it' % (item.title(), viafurl, viafPage.getcode()))
-            #    continue
-
-            # viaf json api might return junk if it's a redirect
             try:
                 viafPageDataDataObject = viafPage.json()
             except ValueError:
                 pywikibot.output('On %s the VIAF link %s returned this junk:\n %s' % (item.title(), viafurljson, viafPage.text))
                 continue
+
             if not isinstance(viafPageDataDataObject, dict):
-                pywikibot.output('On %s the VIAF link %s did not return a dictk:\n %s' % (item.title(), viafurljson, viafPage.text))
+                pywikibot.output('On %s the VIAF link %s did not return a dict:\n %s' % (item.title(), viafurljson, viafPage.text))
                 continue
 
             if viafPageDataDataObject.get(u'NTA'):
                 ntaid = viafPageDataDataObject.get(u'NTA')[0]
-                #print u'I found ulanid %s for item %s' % (ulanid, item.title())
 
                 ntaurl = u'http://data.bibliotheken.nl/id/thes/p%s' % (ntaid,)
                 ntapage = requests.get(ntaurl)
                 if not ntapage.status_code==200:
-                #if u'TITEL NIET IN DATABASE AANWEZIG' in ntapage.text:
                     pywikibot.output(u'Viaf %s points to broken NTA url: %s' % (viafurljson, ntaurl,))
                     brokenlinks = brokenlinks + 1
                     continue
@@ -105,8 +94,6 @@ class ViafImportBot:
                 newclaim = pywikibot.Claim(self.repo, u'P1006')
                 newclaim.setTarget(ntaid)
                 pywikibot.output('Adding National Thesaurus for Author Names ID %s claim to %s (based on bidirectional viaf<->nta links)' % (ntaid, item.title(),) )
-
-                #Default text is "‎Created claim: ULAN identifier (P245): 500204732, "
 
                 summary = u'based on VIAF %s (with bidirectional viaf<->nta links)' % (viafid,)
                 
@@ -127,6 +114,7 @@ class ViafImportBot:
                 
                 newclaim.addSources([refurl, refsource, refdate])
                 validlinks = validlinks + 1
+
         pywikibot.output(u'I found %s valid links and %s broken links' % (brokenlinks, validlinks,))
 
 
