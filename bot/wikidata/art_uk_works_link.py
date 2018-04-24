@@ -52,7 +52,7 @@ def getArtUKWorkGenerator(collectionVenueId, artukcache):
         i = i + 1
         searchtext = searchjson.get('html')
 
-        idregex = u'\"http\:\/\/artuk\.org\/discover\/artworks\/([^\/]+)/search\/(collection|venue):[^\"]+/page/\d+\"'
+        idregex = u'\"https\:\/\/artuk\.org\/discover\/artworks\/([^\/]+)/search\/(collection|venue):[^\"]+/page/\d+\"'
         for match in re.finditer(idregex, searchtext):
             artukid = match.group(1)
             # Only load the page if we don't already have it.
