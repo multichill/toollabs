@@ -94,7 +94,6 @@ class GenderBot:
                     pywikibot.output('On %s I got a json error while working on %s, skipping it' % (itempage.title(), ulanapiurl))
                     ulangender = None
 
-
             rkdid = None
             rkdurl = None
             rkdapiurl = None
@@ -141,6 +140,8 @@ class GenderBot:
 
             biogender = None
             aucklandgender = None
+            benezitgender = None
+
             newclaim = None
 
             if not gender:
@@ -175,7 +176,21 @@ class GenderBot:
                             newclaim = self.addItemStatement(itempage, u'P21', u'Q6581097')
                         elif aucklandgendermatch.group(1) == u'Female':
                             newclaim = self.addItemStatement(itempage, u'P21', u'Q6581072')
+                elif u'P2843' in claims:
+                    benezitid = claims.get('P2843')[0].getTarget()
+                    print benezitid
+                    beneziturl = u'http://oxfordindex.oup.com/view/10.1093/benz/9780199773787.article.%s' % (benezitid,)
+                    benezitPage = requests.get(beneziturl)
 
+                    benezitgenderregex = u'\<abstract\>\<p\>[^\<]+, (male|female)\.\<\/p\>'
+
+                    benezitgendermatch = re.search(benezitgenderregex, benezitPage.text)
+                    if benezitgendermatch:
+                        benezitgender = True
+                        if benezitgendermatch.group(1) == u'male':
+                            newclaim = self.addItemStatement(itempage, u'P21', u'Q6581097')
+                        elif benezitgendermatch.group(1) == u'female':
+                            newclaim = self.addItemStatement(itempage, u'P21', u'Q6581072')
 
 
             elif gender==u'm':
@@ -192,6 +207,8 @@ class GenderBot:
                     self.addReference(itempage, newclaim, biourl)
                 if aucklandgender:
                     self.addReference(itempage, newclaim, aucklandurl)
+                if benezitgender:
+                    self.addReference(itempage, newclaim, beneziturl)
 
     def addItemStatement(self, item, pid, qid):
         '''
@@ -227,12 +244,14 @@ class GenderBot:
 
 def main():
     query = u"""SELECT DISTINCT ?item WHERE {
-  { ?item wdt:P245 [] } UNION
-  { ?item wdt:P650 [] } UNION
-  { ?item wdt:P651 [] } UNION
-  { ?item wdt:P3372 [] } .
+  { ?item wdt:P245 [] } UNION # ULAN ID (P245)
+  { ?item wdt:P650 [] } UNION # RKDartists ID (P650)
+  { ?item wdt:P651 [] } UNION # Biografisch Portaal number (P651)
+  { ?item wdt:P1707 [] } UNION # DAAO ID (P1707)
+  { ?item wdt:P3372 [] } UNION  # Auckland Art Gallery artist ID (P3372)
+  { ?item wdt:P2843 [] } . # Benezit ID (P2843)
   ?item wdt:P31 wd:Q5 .
-  MINUS { ?item wdt:P21 [] } .
+  MINUS { ?item p:P21 [] } .
 }"""
 
     repo = pywikibot.Site().data_repository()
