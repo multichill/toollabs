@@ -126,7 +126,7 @@ class UlanImportBot:
         data = item.get()
         wdlabels = data.get('labels')
         # The item doesn't have a label in my languages. Let's fix that!
-        mylangs = [u'de', u'en', u'es', u'fr', u'nl']
+        mylangs = [u'ca', u'da', u'de', u'en', u'es', u'fr', u'it', u'nl', u'pt', u'sv']
         if wdlabels:
             currentlabel = wdlabels.get(u'en')
         else:
