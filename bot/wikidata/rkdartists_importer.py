@@ -29,6 +29,218 @@ class RKDArtistsImporterBot:
         """
         self.generator = generator
         self.repo = pywikibot.Site().data_repository()
+        self.places = { 1 : u'Q55', # Dutch -> Netherlands
+                        3 : u'Q36600', # The Hague
+                        11 : u'Q43631', # Leiden
+                        29 : u'Q727', # Amsterdam
+                        30 : u'Q34370', # Rotterdam
+                        35 : u'Q749', # Groningen (stad)
+                        36 : u'Q2766547', # Den Bosch
+                        46 : u'Q1309', # Maastricht
+                        52 : u'Q365', # Keulen
+                        80 : u'Q803', # Utrecht
+                        90 : u'Q10002', # Enschede
+                        92 : u'Q52101', # Middelburg
+                        100 : u'Q40844', # Breda
+                        103 : u'Q9898', # Amstelveen
+                        112 : u'Q9920', # Haarlem
+                        117 : u'Q101918', # Apeldoorn
+                        118 : u'Q26421', # Dordrecht
+                        120 : u'Q1199713', # Batavia
+                        123 : u'Q1310', # Arnhem
+                        134 : u'Q9832', # Eindhoven
+                        149 : u'Q9871', # Tilburg
+                        129 : u'Q90', # Parijs
+                        182 : u'Q495', # Turin
+                        193 : u'Q220', # Rome
+                        195 : u'Q239', # Brussel
+                        204 : u'Q279', # Modena
+                        208 : u'Q1891', # Bologna
+                        219 : u'Q2634', # Naples
+                        220 : u'Q641', # Venice
+                        221 : u'Q2044', # Florence
+                        225 : u'Q992', # Amersfoort
+                        223 : u'Q12892', # Antwerpen
+                        236 : u'Q84', # London
+                        245 : u'Q490', # Milaan
+                        248 : u'Q16977290', # Alkmaar
+                        250 : u'Q211260', # Zaandam (Zaanstad)
+                        257 : u'Q9799', # Heerlen
+                        266 : u'Q134672', # Exeter
+                        286 : u'Q1490', # Tokyo
+                        287 : u'Q38', # Italië
+                        293 : u'Q9783', # Roermond
+                        299 : u'Q23482', # Marseille
+                        304 : u'Q1741', # Vienna
+                        310 : u'Q621', # Versailles
+                        312 : u'Q10014', # Kampen (Overijssel)
+                        334 : u'Q26296883', # Deventer
+                        343 : u'Q1297', # Chicago
+                        344 : u'Q23436', # Edinburgh
+                        347 : u'Q1726', # München
+                        352 : u'Q9938', # Hoorn (Noord-Holland)
+                        355 : u'Q70', # Bern
+                        362 : u'Q23070', # Sneek
+                        380 : u'Q25390', # Leeuwarden
+                        385 : u'Q55', # Nederland
+                        386 : u'Q29', # Spanje
+                        387 : u'Q1085', # Praag
+                        392 : u'Q60', # New York City
+                        395 : u'Q33959', # Nice
+                        405 : u'Q1899', # Kiev
+                        407 : u'Q649', # Moskou
+                        411 : u'Q656', # Sint-Petersburg
+                        424 : u'Q47887', # Nijmegen
+                        425 : u'Q8818', # Valencia
+                        450 : u'Q8717', # Sevilla
+                        454 : u'Q159', # Rusland
+                        455 : u'Q142', # Frankrijk
+                        456 : u'Q183', # Duitsland
+                        457 : u'Q21', # Engeland
+                        462 : u'Q2865', # Kassel
+                        463 : u'Q837211', # Scheveningen (Den Haag)
+                        466 : u'Q208764', # Gemeente Katwijk
+                        475 : u'Q1718', # Düsseldorf
+                        480 : u'Q1296', # Gent
+                        485 : u'Q78', # Basel
+                        490 : u'Q64', # Berlin
+                        505 : u'Q1720', # Mainz
+                        520 : u'Q1781', # Boedapest
+                        533 : u'Q1731', # Dresden
+                        541 : u'Q4093', # Glasgow
+                        544 : u'Q40898', # Nancy
+                        557 : u'Q270', # Warsaw
+                        573 : u'Q39121', # Leeds
+                        588 : u'Q34217', # Oxford (Engeland)
+                        599 : u'Q690', # Delft
+                        601 : u'Q10056', # Zeist
+                        614 : u'Q30974', # Rouen
+                        650 : u'Q506745', # Rijswijk
+                        659 : u'Q72', # Zürich
+                        664 : u'Q9844', # Helmond
+                        684 : u'Q1022', # Stuttgart
+                        697 : u'Q6247', # Mantua
+                        698 : u'Q1055', # Hamburg
+                        705 : u'Q6602', # Straatsburg
+                        714 : u'Q456', # Lyon
+                        724 : u'Q3322237', # Venlo
+                        750 : u'Q118958', # Leuven
+                        754 : u'Q244327', # Gorinchem
+                        762 : u'Q12994', # Brugge
+                        764 : u'Q162022', # Mechelen
+                        786 : u'Q71', # Genève
+                        794 : u'Q109535', # Zutphen
+                        795 : u'Q7880', # Toulouse
+                        808 : u'Q1486', # Buenos Aires
+                        820 : u'Q628', # Bergamo
+                        831 : u'Q6231', # Cremona
+                        835 : u'Q203312', # Ukkel
+                        843 : u'Q3437', # Perugia
+                        847 : u'Q2751', # Siena
+                        873 : u'Q12130', # Bretagne (regio)
+                        877 : u'Q2807', # Madrid
+                        883 : u'Q33935', # Tel Aviv
+                        887 : u'Q1715', # Hannover
+                        889 : u'Q3955', # Weimar (Thüringen)
+                        900 : u'Q36405', # Aberdeen
+                        911 : u'Q22', # Schotland
+                        914 : u'Q204709', # Schiedam
+                        915 : u'Q62', # San Francisco
+                        969 : u'Q9945', # Laren
+                        974 : u'Q809821', # Voorburg
+                        986 : u'Q9934', # Hilversum
+                        997 : u'Q10041', # Soest (Utrecht)
+                        1014 : u'Q6537', # Vicenza
+                        1019 : u'Q13362', # Ferrara
+                        1032 : u'Q9909', # Bussum
+                        1039 : u'Q807', # Lausanne
+                        1041 : u'Q18419', # Brooklyn
+                        1048 : u'Q2973', # Darmstadt
+                        1053 : u'Q1449', # Genua
+                        1059 : u'Q2683', # Parma
+                        1076 : u'Q2226170', # Nieuwer-Amstel (Amstelveen)
+                        1084 : u'Q2090', # Nuremberg
+                        1090 : u'Q2119', # Mannheim
+                        1127 : u'Q2028', # Verona
+                        1168 : u'Q131491', # Brighton
+                        1173 : u'Q65', # Los Angeles
+                        1174 : u'Q505601', # Wassenaar
+                        1236 : u'Q173219', # Doornik
+                        1242 : u'Q3130', # Sydney
+                        1276 : u'Q743535', # Chelsea
+                        1330 : u'Q13298', # Graz
+                        1349 : u'Q1794', # Frankfurt am Main
+                        1367 : u'Q1735', # Innsbruck
+                        1426 : u'Q1492', # Barcelona
+                        1445 : u'Q2749', # Augsburg
+                        1498 : u'Q617', # Padua
+                        1506 : u'Q10027', # Baarn
+                        1544 : u'Q6842', # Kleef
+                        1597 : u'Q9908', # Bloemendaal
+                        1605 : u'Q9928', # Heemstede (Noord-Holland)
+                        1634 : u'Q30', # Verenigde Staten van Amerika
+                        1636 : u'Q9906', # Blaricum
+                        1650 : u'Q1754', # Stockholm
+                        1708 : u'Q13329', # Piacenza
+                        1729 : u'Q10006', # Hengelo
+                        1763 : u'Q24826', # Liverpool
+                        1774 : u'Q3992', # Luik
+                        1785 : u'Q84125', # Gouda
+                        1791 : u'Q192508', # Bergen op Zoom
+                        1806 : u'Q18125', # Manchester
+                        1901 : u'Q128147', # Hull
+                        1915 : u'Q36', # Polen
+                        1993 : u'Q24879', # Bremen
+                        2032 : u'Q1761', # Dublin
+                        2055 : u'Q77056', # Edam (Edam-Volendam)
+                        2076 : u'Q2218481', # Oosterbeek (Renkum)
+                        2095 : u'Q12996', # Oostende
+                        2102 : u'Q1345', # Philadelphia
+                        2124 : u'Q12995', # Kortrijk
+                        2138 : u'Q766353', # Hampton
+                        2140 : u'Q41262', # Nottingham
+                        2154 : u'Q60475', # Harlingen
+                        2284 : u'Q40', # Oostenrijk
+                        2431 : u'Q100', # Boston
+                        2533 : u'Q211037', # Roeselare
+                        2549 : u'Q208713', # Elsene
+                        2606 : u'Q1040', # Karlsruhe
+                        2637 : u'Q2256', # Birmingham
+                        2774 : u'Q12887', # Schaarbeek
+                        2812 : u'Q9901', # Bergen (Noord-Holland)
+                        2959 : u'Q22889', # Bath
+                        2976 : u'Q23154', # Bristol
+                        3018 : u'Q130191', # Norwich
+                        3399 : u'Q2079', # Leipzig
+                        3539 : u'Q39', # Zwitserland
+                        3754 : u'Q585', # Oslo
+                        3902 : u'Q5092', # Baltimore
+                        3910 : u'Q99', # Californië
+                        3995 : u'Q31', # België
+                        4745 : u'Q34713', # Salzburg
+                        4946 : u'Q41', # Griekenland
+                        5080 : u'Q3141', # Melbourne
+                        5583 : u'Q288781', # Kensington
+                        5671 : u'Q1757',# Helsinki
+                        6699 : u'Q34', # Zweden
+                        6943 : u'Q79', # Egypte
+                        8112 : u'Q25287', # Göteborg
+                        14643 : u'Q23666', # Groot-Brittannië
+                        17138 : u'Q903595', # Volendam (Edam-Volendam)
+                        25475 : u'Q46', # Europa
+                        26052 : u'Q188161', # Nederlands Indië (hist.)
+                        26066 : u'Q31487', # Krakau
+                        29960 : u'Q27996474', # Noordelijke Nederlanden (historische regio)
+                        30234 : u'Q2773', # Braunschweig
+                        30433 : u'Q1425428', # Newcastle upon Tyne
+                        32465 : u'Q30096', # Frederiksberg
+                        39673 : u'Q1792', # Danzig (hist.)
+                        41540 : u'Q1748', # Copenhagen
+                        41733 : u'Q713124', # Artis (Amsterdam)
+                        76789 : u'Q793', # Zwolle
+                        78789 : u'Q13127', # Sint-Niklaas
+                        }
+        self.missingPlaces = {}
 
     def run(self):
         """
@@ -77,15 +289,19 @@ class RKDArtistsImporterBot:
                 self.addDateOfDeath(itempage, rkdartistsdocs, refurl)
             elif len(claims.get(u'P570'))==1:
                 self.addDateOfDeath(itempage, rkdartistsdocs, refurl, claim=claims.get(u'P570')[0])
+            # TODO: Add work period start
+            # TODO: Add work period end
             if u'P19' not in claims:
                 self.addPlaceOfBirth(itempage, rkdartistsdocs, refurl)
             if u'P20' not in claims:
                 self.addPlaceOfDeath(itempage, rkdartistsdocs, refurl)
+            if u'P937' not in claims:
+                self.addWorklocation(itempage, rkdartistsdocs, refurl)
             # Disabled for now. WbTime comparison seems to contain bugs
             # Can be enabled when https://phabricator.wikimedia.org/T148280 is fixed
             #if u'P27' not in claims and (u'P569' in claims or u'P570' in claims):
             #    self.addCountry(itempage, rkdartistsdocs, refurl)
-
+        self.reportMissingPlaces()
 
     def addGender(self, itempage, rkdartistsdocs, refurl, claim=None):
         newclaim = None
@@ -138,6 +354,7 @@ class RKDArtistsImporterBot:
                         7 : u'Q15296811', # draftsman -> draughtsperson
                         12 : u'Q1281618', # sculptor
                         31 : u'Q644687', # illustrator
+                        33 : u'Q627325', # grafisch ontwerper
                         40 : u'Q329439', # engraver (printmaker) -> engraver
                         43 : u'Q42973', # architect
                         48 : u'Q1925963', # graphic artist
@@ -151,13 +368,17 @@ class RKDArtistsImporterBot:
                         496 : u'Q7541856', # ceramicist
                         597 : u'Q10862983', # etcher
                         1784 : u'Q20857490', # pastelist
+                        2909 : u'Q2519376', # edelsmid
                         3115 : u'Q5322166', # designer
+                        3342 : u'Q173950', # kunsthandelaar
+                        28583 : u'Q2216340', # zilversmid
                         31823 : u'Q10732476', # kunstverzamelaar / art collector
                         31824 : u'Q3243461', # verzamelaar / collector
                         44385 : u'Q15472169', # mecenas / patron of the arts
                         45116 : u'Q3391743', # artist -> visual artist
                         45297 : u'Q2519376', # jewelry designer
                         57965 : u'Q16887133', # hoogwaardigheidsbekleder / dignitary
+                        63714 : u'Q211423', # goudsmid
                         }
         for occupationid in rkdartistsdocs.get('kwalificatie_lref'):
             if occupationid in occupations:
@@ -242,25 +463,8 @@ class RKDArtistsImporterBot:
         :param refurl: The url to add as reference
         :return:
         '''
-        dateregex = u'^(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)$'
-        monthregex = u'^(?P<year>\d\d\d\d)-(?P<month>\d\d)$'
-        yearregex = u'^(?P<year>\d\d\d\d)$'
-
-        datematch = re.match(dateregex, datestring)
-        monthmatch = re.match(monthregex, datestring)
-        yearmatch = re.match(yearregex, datestring)
-
-        newdate = None
-        if datematch:
-            newdate = pywikibot.WbTime( year=int(datematch.group(u'year')),
-                                        month=int(datematch.group(u'month')),
-                                        day=int(datematch.group(u'day')))
-        elif monthmatch:
-            newdate = pywikibot.WbTime( year=int(monthmatch.group(u'year')),
-                                        month=int(monthmatch.group(u'month')))
-        elif yearmatch:
-            newdate = pywikibot.WbTime( year=int(yearmatch.group(u'year')))
-        else:
+        newdate = self.parseDatestring(datestring)
+        if not newdate:
             return False
 
         if claim:
@@ -301,6 +505,32 @@ class RKDArtistsImporterBot:
             itempage.addClaim(newclaim)
             self.addReference(itempage, newclaim, refurl)
 
+    def parseDatestring(self, datestring):
+        '''
+        Try to parse the date string. Returns
+        :param datestring: String that might be a date
+        :return:  pywikibot.WbTime
+        '''
+        dateregex = u'^(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)$'
+        monthregex = u'^(?P<year>\d\d\d\d)-(?P<month>\d\d)$'
+        yearregex = u'^(?P<year>\d\d\d\d)$'
+
+        datematch = re.match(dateregex, datestring)
+        monthmatch = re.match(monthregex, datestring)
+        yearmatch = re.match(yearregex, datestring)
+
+        newdate = None
+        if datematch:
+            newdate = pywikibot.WbTime( year=int(datematch.group(u'year')),
+                                        month=int(datematch.group(u'month')),
+                                        day=int(datematch.group(u'day')))
+        elif monthmatch:
+            newdate = pywikibot.WbTime( year=int(monthmatch.group(u'year')),
+                                        month=int(monthmatch.group(u'month')))
+        elif yearmatch:
+            newdate = pywikibot.WbTime( year=int(yearmatch.group(u'year')))
+        return newdate
+
     def addPlaceOfBirth(self, itempage, rkdartistsdocs, refurl):
         '''
         Add the place of birth to the itempage
@@ -327,6 +557,57 @@ class RKDArtistsImporterBot:
             plaats_lref = rkdartistsdocs.get('sterfplaats_lref')[0]
             self.addPlaceProperty(itempage, plaats_lref, u'P20', refurl)
 
+    def addWorklocation(self, itempage, rkdartistsdocs, refurl):
+        '''
+        Add the worklocation(s) to the itempage.
+        Only work on items for which all the locations can be added
+        :param itempage: The ItemPage to update
+        :param rkdartistsdocs: The json with the RKD information
+        :param refurl: The url to add as reference
+        :return: Nothing, update the itempage in place
+        '''
+        if rkdartistsdocs.get('werkzaamheid'):
+            for worklocation in rkdartistsdocs.get('werkzaamheid'):
+                plaats_lref = worklocation.get('plaats_van_werkzaamheid_linkref')
+                if not plaats_lref:
+                    return False
+                elif int(plaats_lref) not in self.places:
+                    pywikibot.output(u'The work location "%s" with name "%s" is unknown' % (worklocation.get('plaats_van_werkzaamheid_linkref'),
+                                                                                            worklocation.get('plaats_van_werkzaamheid')))
+                    plaats_lref = int(plaats_lref)
+                    if plaats_lref not in self.missingPlaces:
+                        self.missingPlaces[plaats_lref] = 0
+                    self.missingPlaces[plaats_lref] = self.missingPlaces[plaats_lref] + 1
+                    return False
+            # All the work locations were found so now we can actually add them.
+            for worklocation in rkdartistsdocs.get('werkzaamheid'):
+                placeitemtitle = self.places.get(int(worklocation.get('plaats_van_werkzaamheid_linkref')))
+                newclaim = self.addItemStatement(itempage, u'P937', placeitemtitle)
+
+                beginDate = None
+                if worklocation.get('plaats_v_werkzh_begindatum'):
+                    beginDate = self.parseDatestring(worklocation.get('plaats_v_werkzh_begindatum'))
+
+                endDate = None
+                if worklocation.get('plaats_v_werkzh_einddatum'):
+                    endDate = self.parseDatestring(worklocation.get('plaats_v_werkzh_einddatum'))
+
+                # Point in time
+                if beginDate and endDate and beginDate==endDate:
+                    newqualifier = pywikibot.Claim(self.repo, u'P585')
+                    newqualifier.setTarget(beginDate)
+                    newclaim.addQualifier(newqualifier)
+                else:
+                    if beginDate:
+                        newqualifier = pywikibot.Claim(self.repo, u'P580')
+                        newqualifier.setTarget(beginDate)
+                        newclaim.addQualifier(newqualifier)
+                    if endDate:
+                        newqualifier = pywikibot.Claim(self.repo, u'P582')
+                        newqualifier.setTarget(endDate)
+                        newclaim.addQualifier(newqualifier)
+                self.addReference(itempage, newclaim, refurl)
+
     def addPlaceProperty(self, itempage, plaats_lref, property, refurl):
         '''
         Add the place using property to the itempage
@@ -336,157 +617,12 @@ class RKDArtistsImporterBot:
         :param refurl: The url to add as reference
         :return: Nothing, update the itempage in place
         '''
-        places = { 1 : u'Q55', # Dutch -> Netherlands
-                   3 : u'Q36600', # The Hague
-                   11 : u'Q43631', # Leiden
-                   29 : u'Q727', # Amsterdam
-                   30 : u'Q34370', # Rotterdam
-                   35 : u'Q749', # Groningen (stad)
-                   36 : u'Q2766547', # Den Bosch
-                   46 : u'Q1309', # Maastricht
-                   52 : u'Q365', # Keulen
-                   80 : u'Q803', # Utrecht
-                   90 : u'Q10002', # Enschede
-                   92 : u'Q52101', # Middelburg
-                   100 : u'Q40844', # Breda
-                   103 : u'Q9898', # Amstelveen
-                   112 : u'Q9920', # Haarlem
-                   118 : u'Q26421', # Dordrecht
-                   120 : u'Q1199713', # Batavia
-                   123 : u'Q1310', # Arnhem
-                   134 : u'Q9832', # Eindhoven
-                   149 : u'Q9871', # Tilburg
-                   129 : u'Q90', # Parijs
-                   182 : u'Q495', # Turin
-                   193 : u'Q220', # Rome
-                   195 : u'Q239', # Brussel
-                   204 : u'Q279', # Modena
-                   208 : u'Q1891', # Bologna
-                   219 : u'Q2634', # Naples
-                   220 : u'Q641', # Venice
-                   221 : u'Q2044', # Florence
-                   225 : u'Q992', # Amersfoort
-                   223 : u'Q12892', # Antwerpen
-                   236 : u'Q84', # London
-                   245 : u'Q490', # Milaan
-                   248 : u'Q16977290', # Alkmaar
-                   257 : u'Q9799', # Heerlen
-                   266 : u'Q134672', # Exeter
-                   286 : u'Q1490', # Tokyo
-                   287 : u'Q38', # Italië
-                   293 : u'Q9783', # Roermond
-                   304 : u'Q1741', # Vienna
-                   334 : u'Q26296883', # Deventer
-                   343 : u'Q1297', # Chicago
-                   344 : u'Q23436', # Edinburgh
-                   347 : u'Q1726', # München
-                   355 : u'Q70', # Bern
-                   380 : u'Q25390', # Leeuwarden
-                   387 : u'Q1085', # Praag
-                   392 : u'Q60', # New York City
-                   411 : u'Q656', # Sint-Petersburg
-                   424 : u'Q47887', # Nijmegen
-                   425 : u'Q8818', # Valencia
-                   450 : u'Q8717', # Sevilla
-                   454 : u'Q159', # Rusland
-                   455 : u'Q142', # Frankrijk
-                   462 : u'Q2865', # Kassel
-                   475 : u'Q1718', # Düsseldorf
-                   480 : u'Q1296', # Gent
-                   485 : u'Q78', # Basel
-                   490 : u'Q64', # Berlin
-                   520 : u'Q1781', # Boedapest
-                   533 : u'Q1731', # Dresden
-                   541 : u'Q4093', # Glasgow
-                   557 : u'Q270', # Warsaw
-                   573 : u'Q39121', # Leeds
-                   599 : u'Q690', # Delft
-                   601 : u'Q10056', # Zeist
-                   650 : u'Q506745', # Rijswijk
-                   659 : u'Q72', # Zürich
-                   684 : u'Q1022', # Stuttgart
-                   698 : u'Q1055', # Hamburg
-                   714 : u'Q456', # Lyon
-                   724 : u'Q3322237', # Venlo
-                   750 : u'Q118958', # Leuven
-                   754 : u'Q244327', # Gorinchem
-                   762 : u'Q12994', # Brugge
-                   764 : u'Q162022', # Mechelen
-                   786 : u'Q71', # Genève
-                   808 : u'Q1486', # Buenos Aires
-                   835 : u'Q203312', # Ukkel
-                   877 : u'Q2807', # Madrid
-                   883 : u'Q33935', # Tel Aviv
-                   887 : u'Q1715', # Hannover
-                   900 : u'Q36405', # Aberdeen
-                   914 : u'Q204709', # Schiedam
-                   915 : u'Q62', # San Francisco
-                   969 : u'Q9945', # Laren
-                   974 : u'Q809821', # Voorburg
-                   986 : u'Q9934', # Hilversum
-                   1032 : u'Q9909', # Bussum
-                   1041 : u'Q18419', # Brooklyn
-                   1048 : u'Q2973', # Darmstadt
-                   1053 : u'Q1449', # Genua
-                   1084 : u'Q2090', # Nuremberg
-                   1127 : u'Q2028', # Verona
-                   1168 : u'Q131491', # Brighton
-                   1173 : u'Q65', # Los Angeles
-                   1174 : u'Q505601', # Wassenaar
-                   1242 : u'Q3130', # Sydney
-                   1276 : u'Q743535', # Chelsea
-                   1330 : u'Q13298', # Graz
-                   1349 : u'Q1794', # Frankfurt am Main
-                   1367 : u'Q1735', # Innsbruck
-                   1426 : u'Q1492', # Barcelona
-                   1445 : u'Q2749', # Augsburg
-                   1506 : u'Q10027', # Baarn
-                   1597 : u'Q9908', # Bloemendaal
-                   1636 : u'Q9906', # Blaricum
-                   1650 : u'Q1754', # Stockholm
-                   1729 : u'Q10006', # Hengelo
-                   1763 : u'Q24826', # Liverpool
-                   1774 : u'Q3992', # Luik
-                   1785 : u'Q84125', # Gouda
-                   1791 : u'Q192508', # Bergen op Zoom
-                   1806 : u'Q18125', # Manchester
-                   1901 : u'Q128147', # Hull
-                   1993 : u'Q24879', # Bremen
-                   2032 : u'Q1761', # Dublin
-                   2095 : u'Q12996', # Oostende
-                   2102 : u'Q1345', # Philadelphia
-                   2124 : u'Q12995', # Kortrijk
-                   2138 : u'Q766353', # Hampton
-                   2140 : u'Q41262', # Nottingham
-                   2431 : u'Q100', # Boston
-                   2533 : u'Q211037', # Roeselare
-                   2549 : u'Q208713', # Elsene
-                   2606 : u'Q1040', # Karlsruhe
-                   2637 : u'Q2256', # Birmingham
-                   2774 : u'Q12887', # Schaarbeek
-                   2812 : u'Q9901', # Bergen (Noord-Holland)
-                   2959 : u'Q22889', # Bath
-                   2976 : u'Q23154', # Bristol
-                   3018 : u'Q130191', # Norwich
-                   3399 : u'Q2079', # Leipzig
-                   3754 : u'Q585', # Oslo
-                   3902 : u'Q5092', # Baltimore
-                   3910 : u'Q99', # Californië
-                   5080 : u'Q3141', # Melbourne
-                   5583 : u'Q288781', # Kensington
-                   5671 : u'Q1757',# Helsinki
-                   8112 : u'Q25287', # Göteborg
-                   14643 : u'Q23666', # Groot-Brittannië
-                   30433 : u'Q1425428', # Newcastle upon Tyne
-                   32465 : u'Q30096', # Frederiksberg
-                   41540 : u'Q1748', # Copenhagen
-                   76789 : u'Q793', # Zwolle
-                   78789 : u'Q13127', # Sint-Niklaas
-                   }
-
-        if not plaats_lref in places:
+        if not plaats_lref in self.places:
+            if plaats_lref not in self.missingPlaces:
+                self.missingPlaces[plaats_lref] = 0
+            self.missingPlaces[plaats_lref] = self.missingPlaces[plaats_lref] + 1
             return False
-        placeitemtitle = places.get(plaats_lref)
+        placeitemtitle = self.places.get(plaats_lref)
         newclaim = self.addItemStatement(itempage, property, placeitemtitle)
         self.addReference(itempage, newclaim, refurl)
 
@@ -551,6 +687,14 @@ class RKDArtistsImporterBot:
         newclaim = self.addItemStatement(itempage, u'P27', countryitemtitle)
         self.addReference(itempage, newclaim, refurl)
 
+    def reportMissingPlaces(self):
+        """
+
+        :return:
+        """
+        print u'The top 50 places that are missing in this run:'
+        for identifier in sorted(self.missingPlaces, key=self.missingPlaces.get, reverse=True)[:50]:
+            print u'* https://rkd.nl/en/explore/thesaurus?term=%s - %s'  % (identifier, self.missingPlaces[identifier])
 
     def addItemStatement(self, item, pid, qid):
         '''
@@ -793,7 +937,7 @@ def main(*args):
     Main function. Grab a generator and pass it to the bot to work on
     """
     create = False
-    source = True
+    source = False
     for arg in pywikibot.handle_args(args):
         if arg=='-create':
             create = True
@@ -815,14 +959,18 @@ def main(*args):
           MINUS {
             # Has sourced gender
             ?item p:P21 ?genderclaim .
-            ?genderclaim prov:wasDerivedFrom ?provenance .
-            MINUS { ?provenance pr:P143 [] }
+            FILTER EXISTS {
+              ?genderclaim prov:wasDerivedFrom ?provenance .
+              MINUS { ?provenance pr:P143 [] }
+              }
             # Has occupation
             ?item wdt:P106 [] .
             # Has sourced date of birth
             ?item p:P569 ?birthclaim .
-            ?birthclaim prov:wasDerivedFrom ?provenance .
-            MINUS { ?provenance pr:P143 [] }
+            FILTER EXISTS {
+              ?birthclaim prov:wasDerivedFrom ?provenance .
+              MINUS { ?provenance pr:P143 [] }
+              }
           }
         } UNION {
           ?item wdt:P650 [] .
@@ -836,8 +984,10 @@ def main(*args):
           # Has sourced date of death
           MINUS {
             ?item p:P570 ?deathclaim .
-            ?deathclaim prov:wasDerivedFrom ?provenance .
-            MINUS { ?provenance pr:P143 [] }
+            FILTER EXISTS {
+              ?deathclaim prov:wasDerivedFrom ?provenance .
+              MINUS { ?provenance pr:P143 [] }
+              }
           }
           ?birthclaim ps:P569 ?birth .
           FILTER(?birth < "+1900-00-15T00:00:00Z"^^xsd:dateTime)
@@ -855,12 +1005,12 @@ def main(*args):
                     ?item wdt:P106 [] . # No occupation
                     ?item wdt:P569 [] . # No date of birth
                    } .
-        } UNION {
-          ?item wdt:P650 [] .
-          ?item p:P569 ?birthclaim .
-          MINUS { ?item p:P27 [] } # No country of citizenship
-          ?birthclaim ps:P569 ?birth .
-          FILTER(?birth > "+1900-00-00T00:00:00Z"^^xsd:dateTime) .
+        #} UNION {
+        #  ?item wdt:P650 [] .
+        #  ?item p:P569 ?birthclaim .
+        #  MINUS { ?item p:P27 [] } # No country of citizenship
+        #  ?birthclaim ps:P569 ?birth .
+        #  FILTER(?birth > "+1900-00-00T00:00:00Z"^^xsd:dateTime) .
         } UNION {
           ?item wdt:P650 [] .
           ?item p:P569 ?birthclaim .
