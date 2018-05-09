@@ -275,6 +275,7 @@ class RKDArtistsImporterBot:
 
             rkdartistsdocs = rkdartistsJson.get(u'response').get(u'docs')[0]
 
+            self.addLabels(itempage, rkdartistsdocs, refurl)
             if u'P21' not in claims:
                 self.addGender(itempage, rkdartistsdocs, refurl)
             elif len(claims.get(u'P21'))==1:
@@ -302,6 +303,31 @@ class RKDArtistsImporterBot:
             #if u'P27' not in claims and (u'P569' in claims or u'P570' in claims):
             #    self.addCountry(itempage, rkdartistsdocs, refurl)
         self.reportMissingPlaces()
+
+    def addLabels(self, itempage, rkdartistsdocs, refurl):
+        """
+        Add any missing labels in one of the key languages
+        """
+        mylangs = [u'ca', u'da', u'de', u'en', u'es', u'fr', u'it', u'nl', u'pt', u'sv']
+        kunstenaarsnaam = rkdartistsdocs.get('virtualFields').get('hoofdTitel').get('kunstenaarsnaam')
+        if kunstenaarsnaam.get('label') == u'Voorkeursnaam':
+            data = itempage.get()
+            wdlabels = data.get('labels')
+            prefLabel = kunstenaarsnaam.get('contents')
+            labelschanged = 0
+            for mylang in mylangs:
+                if not wdlabels.get(mylang):
+                    wdlabels[mylang] = prefLabel
+                    labelschanged = labelschanged + 1
+
+            if labelschanged:
+                summary = u'Added missing labels in %s languages based on RKDartists %s' % (labelschanged, refurl)
+                pywikibot.output(summary)
+                try:
+                    pywikibot.output(summary)
+                    itempage.editLabels(wdlabels, summary=summary)
+                except pywikibot.data.api.APIError:
+                    pywikibot.output(u'Couldn\'t update the labels, conflicts with another item')
 
     def addGender(self, itempage, rkdartistsdocs, refurl, claim=None):
         newclaim = None
@@ -862,7 +888,7 @@ class RKDArtistsCreatorBot:
         :return:
         """
 
-        langs = [u'de', u'en', u'es', u'fr', u'nl']
+        langs = [u'ca', u'da', u'de', u'en', u'es', u'fr', u'it', u'nl', u'pt', u'sv']
 
         data = {'labels': {},
                 'aliases': {},
@@ -999,7 +1025,7 @@ def main(*args):
 
         query = u"""SELECT DISTINCT ?item {
         {
-            ?item wdt:P650 ?value .
+            ?item wdt:P650 [] .
             ?item wdt:P31 wd:Q5 . # Needs to be human
             MINUS { ?item wdt:P21 [] . # No gender
                     ?item wdt:P106 [] . # No occupation
@@ -1017,6 +1043,18 @@ def main(*args):
           MINUS { ?item p:P570 [] } # No date of death
           ?birthclaim ps:P569 ?birth .
           FILTER(?birth < "+1900-00-15T00:00:00Z"^^xsd:dateTime)
+        } UNION {
+          ?item wdt:P650 [] .
+          FILTER NOT EXISTS {
+              ?item rdfs:label ?delabel .
+              FILTER( LANG( ?delabel ) = "de" ) .
+              ?item rdfs:label ?enlabel .
+              FILTER( LANG( ?enlabel ) = "en" ) .
+              ?item rdfs:label ?frlabel .
+              FILTER( LANG( ?frlabel ) = "fr" ) .
+              ?item rdfs:label ?nllabel .
+              FILTER( LANG( ?nllabel ) = "nl" ) .
+          }
         }
         }"""
         generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
