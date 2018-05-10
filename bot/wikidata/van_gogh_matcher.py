@@ -22,7 +22,8 @@ def createCatalogTables():
     result = {}
     # Need to use the long version here to get all ranks
     query = u"""SELECT DISTINCT ?item ?fcat ?jhcat WHERE {
-  ?item wdt:P170 wd:Q5582 .
+  ?item p:P170 ?creatorstatement .
+  ?creatorstatement ps:P170 wd:Q5582 .
   MINUS { ?item wdt:P31 wd:Q15727816 }
   OPTIONAL { ?item p:P528 ?fcatstatement .
             ?fcatstatement ps:P528 ?fcat .
