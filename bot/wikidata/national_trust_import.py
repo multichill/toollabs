@@ -103,7 +103,7 @@ def getNTGenerator():
                                         }
 
             # Only match on years
-            dateRegex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*(\d\d\d\d)\s*\<\/p\>'
+            dateRegex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*(\d\d\d\d)\s*(\(signed and dated\))?\<\/p\>'
             dateMatch = re.search(dateRegex, itemPageData)
             if dateMatch:
                 metadata['inception'] = htmlparser.unescape(dateMatch.group(1))
