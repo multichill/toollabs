@@ -67,6 +67,9 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
 
             # I had one item with missing identifier, wonder if it shows up here too
             metadata['idpid'] = u'P217'
+            if not item.get('identifier'):
+                # Few rare items without an inventory number, just skip them
+                continue
             metadata['id'] = item.get('identifier')
 
             name = item.get('author')[0]
@@ -218,7 +221,7 @@ def main(*args):
                         u'Please enter the collectionid you want to work on:')
             else:
                 collectionid = arg[14:]
-        elif arg.startswith('-create:'):
+        elif arg.startswith('-create'):
             create = True
 
     webumeniaArtists = webumeniaArtistsOnWikidata()
