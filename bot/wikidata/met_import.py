@@ -20,6 +20,74 @@ import time
 import HTMLParser
 import os
 import csv
+import codecs
+from xml.sax.saxutils import escape
+
+
+def metWorksOnWikidata():
+    '''
+    Just return all the RKD images as a dict
+    :return: Dict
+    '''
+    result = {}
+    sq = pywikibot.data.sparql.SparqlQuery()
+    query = u'SELECT ?item ?id WHERE { ?item wdt:P3634 ?id  } LIMIT 10000009'
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+        result[resultitem.get('id')] = qid
+    print len(result)
+    return result
+
+def currentCommonsFiles():
+    '''
+    Get the list of current Commons filenames with spaces, not underscores:
+    u'Diptyc MET ep1975.1.22.r.bw.R.jpg'
+    '''
+    result = []
+    site = pywikibot.Site(u'commons', u'commons')
+    pagetitle = u'Template:TheMet'
+    templatepage = pywikibot.Page(site, title=pagetitle)
+    references =templatepage.getReferences(onlyTemplateInclusion=True, namespaces=[6,])
+    for page in references:
+        result.append(page.title(withNamespace=False,))
+    return result
+
+def getImageUrls(metid, title):
+
+    meturl = u'http://www.metmuseum.org/api/Collection/additionalImages?crdId=%s' % (metid,)
+
+    searchPage = requests.get(meturl, verify=False)
+    searchJson = searchPage.json()
+
+    print searchJson
+
+    regex =u'^http\:\/\/images\.metmuseum\.org\/CRDImages\/[^\/]+\/original\/(.+).jpe?g\s*$'
+
+    result = []
+    notallowedchars = [u':', u'[', u']', u'#', u'|']
+
+    if searchJson.get(u'results'):
+        for fileinfo in searchJson.get(u'results'):
+            if fileinfo.get(u'isOasc'):
+                fileurl = fileinfo.get(u'originalImageUrl')
+                print fileurl
+                match = re.match(regex,fileurl, re.I)
+                if match:
+                    title = title.strip().replace(u'  ', u' ')
+                    for toreplace in notallowedchars:
+                        title = title.replace(toreplace, u'-')
+                    metfilename = match.group(1).strip().replace(u'_', u' ')
+                    if title:
+                        filename = u'%s MET %s' % (title, metfilename)
+                    else:
+                        filename = u'MET %s' % (metfilename,)
+
+                    result.append((fileurl, filename))
+
+    return result
 
 def getMETGenerator(csvlocation):
     """
@@ -30,6 +98,74 @@ def getMETGenerator(csvlocation):
     pubpaintingcount = 0
     i = 0
     #htmlparser = HTMLParser.HTMLParser()
+
+    classifications = {}
+
+    mappings = {u'' : u'Q29382606',
+                u'Ceramics-Pottery': u'Q17379525',
+                u'Photographs': u'Q125191',
+                u'Glass': u'Q11469',
+                u'Metalwork-Sculpture': u'Q860861',
+                u'Furniture': u'Q14745',
+                u'Wood-Sculpture': u'Q860861',
+                u'|': u'Q29382606',
+                u'Paintings': u'Q3305213',
+                u'Stone-Sculpture': u'Q860861',
+                u'Gold and Silver': u'Q29382731',
+                u'Vases': u'Q191851',
+                u'Bronzes': u'Q928357',
+                u'Textiles-Tapestries': u'Q184296',
+                u'Woodwork-Furniture': u'Q14745',
+                u'Textiles-Rugs': u'Q163446',
+                u'Swords': u'Q12791',
+                u'Manuscripts and Illuminations': u'Q48498',
+                u'Sculpture-Bronze': u'Q928357',
+                u'Stone Sculpture': u'Q860861',
+                u'Chordophone-Lute-plucked-fretted': u'Q180733',
+                u'Glass-Stained': u'Q1473346',
+                u'Metalwork-Silver': u'Q29382731',
+                u'Sculpture-Stone': u'Q860861',
+                u'Sculpture': u'Q860861',
+                u'Prints': u'Q11060274',
+                u'Ivories': u'Q351853',
+                u'Drawings': u'Q93184',
+                u'Codices': u'Q213924',
+                u'Helmets': u'Q173603',
+                u'Textiles-Woven': u'Q5295538',
+                u'Ceramics-Sculpture': u'Q860861',
+                }
+
+    '''
+
+
+    xmlreadFile = '/home/mdammers/metmuseum/MetObjects_ContentHighlightSets-wFILENAMES.xml'
+
+    xmlReadData = codecs.open(xmlreadFile, "r", "utf-8")
+
+    idimageurlregex = u'\<Object_ID\>(?P<id>\d+)\<\/Object_ID\>((?!row).)*\<Image_Url\>(?P<url>http\:\/\/images[^\<]+)\</Image_Url\>\s*\n\s*<Filename\>(?P<filename>[^\<]+)\</Filename\>'
+
+    imageurls = {}
+
+    for idimagematch in re.finditer(idimageurlregex, xmlReadData.read(),flags=re.S):
+        imageid = u'%s' % idimagematch.group(u'id')
+        fileurl = idimagematch.group(u'url')
+        filename = idimagematch.group(u'filename')
+        if not imageid in imageurls:
+            imageurls[imageid] = []
+        imageurls[imageid].append((fileurl, filename))
+    #print imageurls
+    '''
+
+    #xmlFile = '/home/mdammers/metmuseum/MetObjectsSculpture.xml'
+    #xmlData = codecs.open(xmlFile, "w", "utf-8")
+    #xmlData.write('<?xml version="1.0"?>' + "\n")
+    #xmlData.write('<csv_data>' + "\n")
+
+    #currentcommons = currentCommonsFiles()
+    #print currentcommons
+
+    foundit = True
+
     with open(csvlocation, 'rb') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
@@ -57,6 +193,16 @@ def getMETGenerator(csvlocation):
             metadata['idpid'] = u'P217'
             metadata['id'] = cleanedrow.get('Object Number')
 
+            metadata['instanceofqid'] = u'Q3305213'
+
+            #wikidata = u''
+            #if cleanedrow.get('Object ID') in metworks:
+            #    wikidata = metworks[cleanedrow.get('Object ID')]
+
+            #print metworks
+
+                #time.sleep(5)
+
             # 'Is Public Domain' can be used later for uploading
             if cleanedrow.get('Is Public Domain')==u'True':
                 pubcount = pubcount + 1
@@ -74,16 +220,77 @@ def getMETGenerator(csvlocation):
 
             metadata['creatorname'] = cleanedrow.get('Artist Display Name')
 
-            if metadata['creatorname']==u'Unidentified Artist':
-                metadata['creatorqid'] = u'Q4233718'
-                metadata['creatorname'] = u'anonymous'
-                metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
-                                            u'en' : u'painting by anonymous painter',
-                                            }
+            if cleanedrow.get('Classification')==u'Paintings':
+                metadata['instanceofqid'] = u'Q3305213'
+                if metadata['creatorname']==u'Unidentified Artist':
+                    metadata['creatorqid'] = u'Q4233718'
+                    metadata['creatorname'] = u'anonymous'
+                    metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
+                                                u'en' : u'painting by anonymous painter',
+                                                }
+                else:
+                    metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
+                                                u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+                                                }
+            elif cleanedrow.get('Classification') in [u'Metalwork-Sculpture',
+                                                    u'Wood-Sculpture',
+                                                    u'Stone-Sculpture',
+                                                    u'Sculpture-Bronze',
+                                                    u'Sculpture-Stone',
+                                                    u'Sculpture']:
+                metadata['instanceofqid'] = mappings[cleanedrow.get('Classification')]
+                if metadata['creatorname']==u'Unidentified Artist':
+                    metadata['creatorqid'] = u'Q4233718'
+                    metadata['creatorname'] = u'anonymous'
+                    metadata['description'] = { u'en' : u'sculpture by anonymous sculptor',
+                                                }
+                else:
+                    metadata['description'] = { u'en' : u'%s by %s' % (u'sculpture', metadata.get('creatorname'),),
+                                                }
+            elif cleanedrow.get('Classification')==u'Drawings':
+                metadata['instanceofqid'] = mappings[cleanedrow.get('Classification')]
+                if metadata['creatorname']==u'Unidentified Artist':
+                    metadata['creatorqid'] = u'Q4233718'
+                    metadata['creatorname'] = u'anonymous'
+                    metadata['description'] = { u'en' : u'drawing by anonymous artist',
+                                                }
+                else:
+                    metadata['description'] = { u'en' : u'%s by %s' % (u'drawing', metadata.get('creatorname'),),
+                                                }
+            elif cleanedrow.get('Classification')==u'Prints':
+                metadata['instanceofqid'] = mappings[cleanedrow.get('Classification')]
+                if metadata['creatorname']==u'Unidentified Artist':
+                    metadata['creatorqid'] = u'Q4233718'
+                    metadata['creatorname'] = u'anonymous'
+                    metadata['description'] = { u'en' : u'print by anonymous artist',
+                                                }
+                else:
+                    metadata['description'] = { u'en' : u'%s by %s' % (u'print', metadata.get('creatorname'),),
+                                                }
+            elif (cleanedrow.get('Classification')==u'' or cleanedrow.get('Classification')==u'|') and cleanedrow.get('Department')==u'The Libraries':
+                metadata['instanceofqid'] = u'Q571' # Book
+                if metadata['creatorname']==u'Unidentified Artist':
+                    metadata['creatorqid'] = u'Q4233718'
+                    metadata['creatorname'] = u'anonymous'
+                    metadata['description'] = { u'en' : u'book by anonymous writer',
+                                                }
+                else:
+                    bookdescription = u'%s by %s' % (u'book', metadata.get('creatorname').replace(u'|', u', '),)
+                    if bookdescription > 220:
+                        bookdescription = bookdescription[0:200]
+                    metadata['description'] = { u'en' : bookdescription,
+                                                }
+
             else:
-                metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
-                                            u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
-                                            }
+                if cleanedrow.get('Classification') in mappings:
+                    metadata['instanceofqid'] = mappings[cleanedrow.get('Classification')]
+                else:
+                    metadata['instanceofqid'] = mappings[u'']
+                whatisit = cleanedrow.get('Classification').lower().replace(u'|', u' ').strip()
+                if not whatisit:
+                    whatisit = u'object'
+                metadata['description'] = { u'en' : u'%s highlighted in The MET collection' % (whatisit,),
+                                                }
 
             if cleanedrow.get('Object Date')==cleanedrow.get(u'Object Begin Date') \
                     and cleanedrow.get('Object Date')==cleanedrow.get(u'Object End Date'):
@@ -117,17 +324,57 @@ def getMETGenerator(csvlocation):
 
             metadata['url'] = cleanedrow.get('Link Resource')
 
-            if cleanedrow.get('Classification')==u'Paintings':
-                metadata['instanceofqid'] = u'Q3305213'
-                if cleanedrow.get('Is Public Domain')==u'True':
-                    pubpaintingcount = pubpaintingcount + 1
+            #filename = u'%s - %s - MET - %s - %s' % (metadata['creatorname'],
+            #                                         title,
+            #                                         metadata['id'],
+            #                                         u'somefilename.jpg')
+
+            #if cleanedrow.get('Object ID')==u'438032':
+            #    foundit = True
+
+            if cleanedrow.get('Is Public Domain')==u'True' and cleanedrow.get('Is Highlight')==u'True':
+                if cleanedrow.get('Classification') not in classifications:
+                    classifications[cleanedrow.get('Classification')] = 1
+                else:
+                    classifications[cleanedrow.get('Classification')] = classifications[cleanedrow.get('Classification')] + 1
+                yield metadata
+            '''
+
+            if cleanedrow.get('Classification')!=u'Paintings'and cleanedrow.get('Classification')==u'Sculpture':
+                #metadata['instanceofqid'] = u'Q3305213'
+                if cleanedrow.get('Is Public Domain')==u'True' and cleanedrow.get('Is Highlight')!=u'True': # and cleanedrow.get('Object ID') in imageurls:
+                    for (imageurl, filename) in getImageUrls(cleanedrow.get('Object ID'), cleanedrow.get('Title')):
+                    #pubpaintingcount = pubpaintingcount + 1
+                        fullfilename = u'%s.jpg' % (filename,)
+                        fullfilenamee = u'%s.jpeg' % (filename,)
+                        # FIXED: Underscores probably mess things up here, and strip too
+                        if fullfilename not in currentcommons and fullfilenamee not in currentcommons:
+                            xmlData.write('<row>' + "\n")
+                            for key, value in cleanedrow.iteritems():
+                                xmlkey = key.replace(u' ', u'_')
+                                xmlData.write('    ' + '<' + xmlkey + '>' \
+                                              + escape(value) + '</' + xmlkey + '>' + "\n")
+                            xmlData.write('    ' + '<Image_Url>' \
+                                      + escape(imageurl) + '</Image_Url>' + "\n")
+                            xmlData.write('    ' + '<wikidata>' \
+                                          + wikidata + '</wikidata>' + "\n")
+                            xmlData.write('    ' + '<Filename>' \
+                                          + escape(filename) + '</Filename>' + "\n")
+                            xmlData.write('</row>' + "\n")
+                        else:
+                            print u'The file %s is already on commons' % (filename,)
+
                 paintingcount = paintingcount + 1
                 #for key, value in cleanedrow.iteritems():
                 #    #if key in [u'Object Number',]:
                 #    print u'%s : %s' % (key, value)
                 yield metadata
-    pywikibot.output(u'Processed %s items and %s are marked as public domain' % (i, pubcount))
-    pywikibot.output(u'Processed %s paintings and %s are marked as public domain' % (paintingcount, pubpaintingcount))
+            '''
+
+    #xmlData.write('</csv_data>' + "\n")
+    #pywikibot.output(u'Processed %s items and %s are marked as public domain' % (i, pubcount))
+    #pywikibot.output(u'Processed %s paintings and %s are marked as public domain' % (paintingcount, pubpaintingcount))
+    print classifications
 
 
 def main(*args):
@@ -136,13 +383,16 @@ def main(*args):
         csvlocation = arg
 
     print csvlocation
-    dictGen = getMETGenerator(csvlocation)
+    #metworks = {}
+    #metworks = metWorksOnWikidata()
+    dictGen = getMETGenerator(csvlocation) #, metworks)
 
-    for painting in dictGen:
-        print painting
+    #for painting in dictGen:
+    #    #pass
+    #    print painting
 
-    #artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
-    #artDataBot.run()
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot.run()
 
 if __name__ == "__main__":
     main()
