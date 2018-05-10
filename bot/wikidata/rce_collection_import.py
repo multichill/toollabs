@@ -147,13 +147,15 @@ def getRCEGenerator():
             #print itemfields
             metadata = {}
 
-            if itemfields.get('legacy').get('delving_collection')==u'Kunstcollectie van het rijk beheerd door de Rijksdienst voor het Cultureel Erfgoed':
+            collectionid = itemfields.get('delving_spec')[0].get('value')
+            if collectionid==u'rce-kunstcollectie':
                 metadata['collectionqid'] = u'Q18600731'
                 metadata['collectionshort'] = u'RCE'
                 # It's a meta collection, leaving out the location
                 #metadata['locationqid'] = u'Q18600731'
             else:
                 #Another collection, skip
+                print u'Found other collection %s' % (collectionid,)
                 continue
 
             #No need to check, I'm actually searching for paintings.
@@ -175,7 +177,7 @@ def getRCEGenerator():
                 metadata['title'] = { u'nl' : title,
                                     }
 
-            metadata['url'] = itemfields.get('foaf_primaryTopic')[0].get('value')
+            metadata['url'] = itemfields.get('system').get('about_uri')
 
             ## Is this enough or do we need to use requests to see if all urls point somewhere?
             #metadata['url'] = metadata['refurl'].replace(u'http://data.collectienederland.nl/resource/aggregation/dordrechts-museum/', u'https://www.dordrechtsmuseum.nl/objecten/id/')
@@ -183,6 +185,7 @@ def getRCEGenerator():
             if itemfields.get('dc_creator'):
                 name = itemfields.get('dc_creator')[0].get('value')
             else:
+                name = u'onbekend'
                 metadata['creatorname'] = u'onbekend'
 
             if u',' in name:
@@ -203,13 +206,19 @@ def getRCEGenerator():
                                             u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
                                           }
 
-            if itemfields.get('nave_material') and \
-                itemfields.get('nave_material')[0].get('value') == u'doek, olieverf':
-                metadata['medium'] = u'oil on canvas'
+            if itemfields.get('dcterms_medium'):
+                if itemfields.get('dcterms_medium')[0].get('value') == u'doek, olieverf':
+                    metadata['medium'] = u'oil on canvas'
+                elif len(itemfields.get('dcterms_medium')) > 1:
+                    if itemfields.get('dcterms_medium')[0].get('value') == u'doek' and \
+                       itemfields.get('dcterms_medium')[1].get('value') == u'olieverf':
+                        metadata['medium'] = u'oil on canvas'
 
-            if itemfields.get('dc_date'):
-                metadata['inception'] = itemfields.get('dc_date')[0].get('value')
 
+            if itemfields.get('dcterms_created'):
+                metadata['inception'] = itemfields.get('dcterms_created')[0].get('value')
+
+            # TODO: Check if this still works
             # Where did it come from????
             if itemfields.get('dcterms_provenance'):
                 provenance = itemfields.get('dcterms_provenance')[0].get('value')
@@ -222,6 +231,7 @@ def getRCEGenerator():
                     if provenance == u'Stichting Nederlands Kunstbezit':
                         metadata['extraid'] = metadata['id']
 
+            # TODO: Check if this still works
             # And where is it hiding now?
             if itemfields.get('nave_location'):
                 location = itemfields.get('nave_location')[0].get('value')
@@ -235,6 +245,21 @@ def getRCEGenerator():
                         metadata['locationqid'] = locationtarget
                         if location!=u'Depot ICN':
                             metadata['extracollectionqid2'] = locations[location]
+
+            dcformatregex = u'^(breedte|diepte \/ diameter|hoogte)\:\s*([\d\.]+)\s*cm$'
+            if itemfields.get('dc_format'):
+                for dcformat in itemfields.get('dc_format'):
+                    dcvalue = dcformat.get(u'value')
+                    dcformatmatch = re.match(dcformatregex, dcvalue)
+                    if dcformatmatch:
+                        if dcformatmatch.group(1)==u'breedte':
+                            metadata['widthcm'] = dcformatmatch.group(2)
+                        elif dcformatmatch.group(1)==u'diepte / diameter':
+                            metadata['depthcm'] = dcformatmatch.group(2)
+                        elif dcformatmatch.group(1)==u'hoogte':
+                            metadata['heightcm'] = dcformatmatch.group(2)
+                        else:
+                            print u'Found weird type: %s' % (dcvalue,)
 
             # For now only the SNK collection
             # if metadata.get('extracollectionqid') and metadata.get('extracollectionqid')==u'Q28045665':
