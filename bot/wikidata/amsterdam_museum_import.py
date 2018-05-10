@@ -65,7 +65,7 @@ def getAmsterdamGenerator():
             metadata['idpid'] = u'P217'
 
             if record.get('title'):
-                metadata['title'] = { u'nl' : record.get('title')[0],
+                metadata['title'] = { u'nl' : record.get('title')[0].strip(),
                                       }
 
             if record.get('maker') and record.get('maker')[0].get('creator')[0] and record.get('maker')[0].get('creator')[0].get('name')[0]:
@@ -123,7 +123,17 @@ def getAmsterdamGenerator():
                     metadata['inception'] = proddate
                 elif proddate == record.get('production.date.end')[0]:
                     metadata['inception'] = proddate
-
+            # Get the image!
+            if record.get('copyright') and record.get('copyright')[0]==u'Public Domain':
+                print u'public domain'
+                if record.get('reproduction') and type(record.get('reproduction')[0])==dict:
+                    repro = record.get('reproduction')[0].get(u'reproduction.identifier_URL')[0].lower()
+                    print repro
+                    if repro.startswith(u'..\\..\\dat\\collectie\\images\\'):
+                        filename = repro.replace(u'..\\..\\dat\\collectie\\images\\', u'')
+                        imageurl = u'https://am-web.adlibhosting.com/wwwopacx_images/wwwopac.ashx?command=getcontent&server=images&value=%s' % (filename)
+                        metadata[u'imageurl'] = imageurl
+                        metadata[u'imageurlformat'] = u'Q2195' #JPEG
             yield metadata
 
     return
