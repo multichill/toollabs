@@ -115,7 +115,7 @@ class ViafImportBot:
                 newclaim.addSources([refurl, refsource, refdate])
                 validlinks = validlinks + 1
 
-        pywikibot.output(u'I found %s valid links and %s broken links' % (brokenlinks, validlinks,))
+        pywikibot.output(u'I found %s valid links and %s broken links' % (validlinks, brokenlinks,))
 
 
 def main():
@@ -124,7 +124,7 @@ def main():
   ?item wdt:P214 ?viafid .
   ?item wdt:P31 wd:Q5 .
   MINUS { ?item wdt:P1006 [] } .
-  } LIMIT 500000"""
+  } LIMIT 400000"""
     generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     viafImportBot = ViafImportBot(generator)
