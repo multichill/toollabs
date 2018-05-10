@@ -79,8 +79,8 @@ def getSKDGenerator():
                             (u'^([^,]+) \([^\)]*\d+[^\)]\d+\)$', u'\\1'),
                             (u'^(.+), (.+) \(\d\d\d\d-\)$', u'\\2 \\1'),
                             (u'^(.+), (.+) \([^\)]*\d+[^\)]\d+\)$', u'\\2 \\1'),
-                            (u'^([^,]+) \([^\)]*\d+[^\)]\d+\)\s*(Kopie nach|Nachfolger|Schule|Werkstatt|zugeschrieben)$', u'\\2 \\1'),
-                            (u'^(.+), (.+) \([^\)]*\d+[^\)]\d+\)\s*(Kopie nach|Nachfolger|Schule|Werkstatt|zugeschrieben)$', u'\\3 \\2 \\1'),]
+                            (u'^([^,]+) \([^\)]*\d+[^\)]\d+\)\s*(Kopie nach|Nachfolger|Schule|Umkreis|Werkstatt|zugeschrieben)$', u'\\2 \\1'),
+                            (u'^(.+), (.+) \([^\)]*\d+[^\)]\d+\)\s*(Kopie nach|Nachfolger|Schule|Umkreis|Werkstatt|zugeschrieben)$', u'\\3 \\2 \\1'),]
 
                 for (regex, replace) in cregexes:
                     if re.match(regex, name):
@@ -95,6 +95,7 @@ def getSKDGenerator():
             if metadata['creatorname'] == u'anonymous' or metadata['creatorname'].startswith(u'Kopie nach ') or \
                     metadata['creatorname'].startswith(u'Nachfolger ') or \
                     metadata['creatorname'].startswith(u'Schule ') or \
+                    metadata['creatorname'].startswith(u'Umkreis ') or \
                     metadata['creatorname'].startswith(u'Werkstatt '):
                 metadata['creatorqid'] = u'Q4233718'
 
