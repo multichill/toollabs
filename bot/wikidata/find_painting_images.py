@@ -239,7 +239,7 @@ class PaintingsMatchBot:
         Download the file at the url and produce a list of images that could be replaced on Wikidata
         """
         url = u'https://tools.wmflabs.org/multichill/queries2/commons/wikidata_image_sizes.txt'
-        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] -  (?P<qidlink>Q\d+|None) - (?P<size>\d+) - (?P<width>\d+) - (?P<height>\d+) - (?P<qidused>Q\d+|None)$'
+        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] -\s*(?P<qidlink>Q\d+|None) - (?P<size>\d+) - (?P<width>\d+) - (?P<height>\d+) -\s*(?P<qidused>Q\d+|None)$'
         queryPage = requests.get(url)
 
         suggestions = []
