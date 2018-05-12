@@ -709,16 +709,16 @@ class PaintingsMatchBot:
         filebUrl = filePageB.get_file_url(url_width=600)
 
         imageFileA = requests.get(fileaUrl)
-        #handleA, tempnameA = tempfile.mkstemp()
-        #with os.fdopen(handleA, "wb") as tA:
-        #    tA.write(imageFileA.content)
-        #    tA.close()
-
         imageFileB = requests.get(filebUrl)
-        #handleB, tempnameB = tempfile.mkstemp()
-        #with os.fdopen(handleB, "wb") as tB:
-        #    tB.write(imageFileB.content)
-        #    tB.close()
+        handleA, tempnameA = tempfile.mkstemp()
+        with os.fdopen(handleA, "wb") as tA:
+            tA.write(imageFileA.content)
+            tA.close()
+
+        handleB, tempnameB = tempfile.mkstemp()
+        with os.fdopen(handleB, "wb") as tB:
+            tB.write(imageFileB.content)
+            tB.close()
 
         #HOG parameters
         winSize = (32,32)
@@ -738,8 +738,8 @@ class PaintingsMatchBot:
         hog = cv2.HOGDescriptor(winSize,blockSize,blockStride,cellSize,nbins,derivAperture,winSigma,
                                 histogramNormType,L2HysThreshold,gammaCorrection,nlevels)
         try:
-            img1 = cv2.imdecode(imageFileA.content, 0)
-            img2 = cv2.imread(imageFileB.content, 0)
+            img1 = cv2.imread(tempnameA, 0)
+            img2 = cv2.imread(tempnameB, 0)
         except:
             # If it fails, don't filter it
             return None
@@ -753,7 +753,7 @@ class PaintingsMatchBot:
         dist=pearsonr(hist1,hist2)
         correlation=0 if np.isnan(dist[0]) else dist[0]
         pywikibot.output(u'%s correlation for %s and %s' % (correlation, filea, fileb))
-        if correlation > 0.00:
+        if correlation > 0.20:
             return True
         else:
             return False
