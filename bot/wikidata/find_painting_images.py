@@ -755,7 +755,7 @@ class PaintingsMatchBot:
         dist=pearsonr(hist1,hist2)
         correlation=0 if np.isnan(dist[0]) else dist[0]
         pywikibot.output(u'%s correlation for %s and %s' % (correlation, filea, fileb))
-        if correlation > 0.20:
+        if correlation > 0.30:
             return True
         else:
             return False
