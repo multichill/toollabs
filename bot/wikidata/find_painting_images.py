@@ -21,6 +21,8 @@ from operator import itemgetter
 import cv2
 import numpy as np
 from scipy.stats import pearsonr
+import tempfile
+import os
 
 class PaintingsMatchBot:
     """
