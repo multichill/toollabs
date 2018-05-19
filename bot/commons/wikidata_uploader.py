@@ -1,22 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to scrape paintings from the Getty website
-http://www.getty.edu/art/collection/search/?view=grid&query=YToxOntzOjEzOiJkZXBhcnRtZW50LmlkIjthOjE6e2k6MDtpOjE7fX0%3D&options=YToxOntzOjk6ImJlaGF2aW91ciI7czo2OiJ2aXN1YWwiO30%3D
+Bot to upload public domain paintings.
 
+Bot uses files that have https://www.wikidata.org/wiki/Property:P4765
 
 """
-#import json
+
 import pywikibot
-#from pywikibot import pagegenerators
-#import urllib2
 import re
 import pywikibot.data.sparql
 import datetime
-#import HTMLParser
-#import posixpath
-#from urlparse import urlparse
-#from urllib import urlopen
 import hashlib
 import io
 import base64
@@ -90,8 +84,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
 
     def isReadyToUpload(self, metadata):
         """
-        :param metadata:
-        :return:
+        Just wait two days to spread it out a bit
         """
         format = u'%Y-%m-%dT%H:%M:%SZ'
         now = datetime.datetime.utcnow()
@@ -99,21 +92,13 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         creatordelta = now - datetime.datetime.strptime(metadata.get(u'creatordate'), format)
 
         # Both item and creator should at least be 2 days old
-        if metadata.get(u'creatortemplate') and metadata.get(u'creatorcategory') and (itemdelta.days > 2 and creatordelta.days > 2):
-            return True
-        # If no creator template at least 14 days old
-        if itemdelta.days > 14 and not metadata.get(u'creatortemplate') and metadata.get(u'creatorcategory') and creatordelta.days > 14:
-            return True
-        # If no creator category at least 21 days old
-        if itemdelta.days > 21 and not metadata.get(u'creatortemplate') and metadata.get(u'creatorcategory') and creatordelta.days > 21:
+        if itemdelta.days > 2 and creatordelta.days > 2:
             return True
         return False
 
     def uploadPainting(self, metadata):
         """
         Process the metadata and if suitable, upload the painting
-        :param metadata:
-        :return:
         """
         pywikibot.output(metadata)
         description = self.getDescription(metadata)
@@ -162,9 +147,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
     def addImageToWikidata(self, metadata, imagefile, summary=u'Added the image'):
         """
         Add the image to the Wikidata item. This might add an extra image if the item already has one
-        :param metadata:
-        :param imagefile:
-        :return:
         """
         artworkItem = pywikibot.ItemPage(self.repo, title=metadata.get(u'item'))
         data = artworkItem.get()
@@ -199,9 +181,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
 
     def getDescription(self, metadata):
         """
-
-        :param metadata:
-        :return:
+        Construct the description for the file to be uploaded
         """
         artworkinfo = self.getArtworkTemplate(metadata)
         licenseinfo = self.getLicenseTemplate(metadata)
@@ -215,18 +195,10 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
 
     def getArtworkTemplate(self, metadata):
         """
-
-        :param metadata:
-        :return:
+        Construct the artwork template.
+        Just do a minimal one because it grabs the rest from Wikidata
         """
-        result = u'{{subst:Artwork/subst|subst=subst:\n'
-        if metadata.get(u'creatortemplate'):
-            result = result + u'|artist={{Creator:%(creatortemplate)s}}\n' % metadata
-        else:
-            result = result + u'|artist=%(creatorname)s\n' % metadata
-        result = result + u'|title=%(title)s\n' % metadata
-        result = result + u'|institution={{Institution:%(institutiontemplate)s}}\n' % metadata
-        result = result + u'|accession number=%(inv)s\n' % metadata
+        result = u'{{Artwork\n'
         result = result + u'|source=%(sourceurl)s\n' % metadata
         result = result + u'|wikidata=%(item)s\n' % metadata
         result = result + u'}}\n' % metadata
@@ -234,9 +206,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
 
     def getLicenseTemplate(self, metadata):
         """
-
-        :param metadata:
-        :return:
+        Construct the license template to be used
         """
         # FIXME: Add more or different implementation
         licenses = {u'Q6938433' : u'Cc-zero',
@@ -252,9 +222,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
 
     def getCategories(self, metadata):
         """
-
-        :param metadata:
-        :return:
+        Add categories for the collection and creator if available
         """
         result = u'{{subst:#ifexist:Category:Paintings in the %(collectioncategory)s|[[Category:Paintings in the %(collectioncategory)s]]|[[Category:%(collectioncategory)s]]}}\n' % metadata
         if metadata.get(u'creatorcategory'):
@@ -263,9 +231,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
 
     def getTitle(self, metadata):
         """
-
-        :param metadata:
-        :return:
+        Construct the title to be used for the upload
         """
         fmt = u'%(creatorname)s - %(title)s - %(inv)s - %(collectionLabel)s.jpg'
         title = fmt % metadata
@@ -278,11 +244,10 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
             return title
 
     def cleanUpTitle(self, title):
-        '''
+        """
         Clean up the title of a potential mediawiki page. Otherwise the title of
         the page might not be allowed by the software.
-
-        '''
+        """
         title = title.strip()
         title = re.sub(u"[<{\\[]", u"(", title)
         title = re.sub(u"[>}\\]]", u")", title)
@@ -332,202 +297,14 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         pywikibot.output(summary)
         page.put(text, summary)
 
-        """
-
-                if painting.get(u'imageurl'):
-                    #A free file is available, let's see how big the current file is
-                    if u'P18' in claims:
-                        imagefile = claims.get('P18')[0].getTarget()
-                        size = imagefile.latest_file_info.size
-                    if u'P18' not in claims or size < 1000000:
-                        commonssite = pywikibot.Site("commons", "commons")
-                        photo = Photo(painting[u'imageurl'], painting)
-                        titlefmt = u'%(creator)s - %(title)s - %(id)s - J. Paul Getty Museum.%(_ext)s'
-                        pagefmt = u'User:Multichill/J. Paul Getty Museum'
-                        
-                        duplicates = photo.findDuplicateImages()
-                        if duplicates:
-                            pywikibot.output(u"Skipping duplicate of %r" % duplicates)
-                            imagetitle=duplicates[0]
-                            #return duplicates[0]
-                        else:
-
-                            imagetitle = self.cleanUpTitle(photo.getTitle(titlefmt))
-                            imagefile = pywikibot.FilePage(commonssite, title=imagetitle)
-                            imagetitle = imagefile.title()
-                            pywikibot.output(imagetitle)
-                            description = photo.getDescription(pagefmt)
-                            pywikibot.output(description)
-                            imagefile.text=description
-
-
-                            handle, tempname = tempfile.mkstemp()
-                            with os.fdopen(handle, "wb") as t:
-                                t.write(photo.downloadPhoto().getvalue())
-                                t.close()
-                            #tempname
-                            commonssite.upload(imagefile,
-                                               source_filename=tempname,
-                                               ignore_warnings=True,
-                                               chunk_size=1000000)
-
-                            #bot = upload.UploadRobot(url=tempname,
-                            #                         description=description,
-                            #                         useFilename=imagetitle,
-                            #                         keepFilename=True,
-                            #                         verifyDescription=False,
-                            #                         uploadByUrl=False,
-                            #                         targetSite=commonssite)
-                            #bot._contents = photo.downloadPhoto().getvalue()
-                            pywikibot.output('Uploaded a file, sleeping a bit so I don\it run into lagging databases')
-                            time.sleep(15)
-
-                            #bot._retrieved = True
-                            #bot.run()
-                    
-                
-                if u'P18' not in claims and imagetitle:
-                    newclaim = pywikibot.Claim(self.repo, u'P18')
-                    imagelink = pywikibot.Link(imagetitle, source=commonssite, defaultNamespace=6)
-                    image = pywikibot.ImagePage(imagelink)
-                    if image.isRedirectPage():
-                        image = pywikibot.ImagePage(image.getRedirectTarget())
-                    newclaim.setTarget(image)
-                    pywikibot.output('Adding %s --> %s' % (newclaim.getID(), newclaim.getTarget()))
-                    paintingItem.addClaim(newclaim)
-        """
-    def addReference(self, paintingItem, newclaim, uri):
-        """
-        Add a reference with a retrieval url and todays date
-        """
-        pywikibot.output('Adding new reference claim to %s' % paintingItem)
-        refurl = pywikibot.Claim(self.repo, u'P854') # Add url, isReference=True
-        refurl.setTarget(uri)
-        refdate = pywikibot.Claim(self.repo, u'P813')
-        today = datetime.datetime.today()
-        date = pywikibot.WbTime(year=today.year, month=today.month, day=today.day)
-        refdate.setTarget(date)
-        newclaim.addSources([refurl, refdate])
-
-
-
-
-
-
-class Photo(pywikibot.FilePage):
-
-    """Represents a Photo (or other file), with metadata, to be uploaded."""
-
-    def __init__(self, URL, metadata, site=None):
-        """
-        Constructor.
-
-        @param URL: URL of photo
-        @type URL: str
-        @param metadata: metadata about the photo that can be referred to
-            from the title & template
-        @type metadata: dict
-        @param site: target site
-        @type site: APISite
-
-        """
-        self.URL = URL
-        self.metadata = metadata
-        self.metadata["_url"] = URL
-        self.metadata["_filename"] = filename = posixpath.split(
-            urlparse(URL)[2])[1]
-        self.metadata["_ext"] = ext = filename.split(".")[-1]
-        if ext == filename:
-            self.metadata["_ext"] = ext = None
-        self.contents = None
-
-        if not site:
-            site = pywikibot.Site(u'commons', u'commons')
-
-        # default title
-        super(Photo, self).__init__(site,
-                                    self.getTitle('%(_filename)s.%(_ext)s'))
-
-    def downloadPhoto(self):
-        """
-        Download the photo and store it in a io.BytesIO object.
-
-        TODO: Add exception handling
-        """
-        if not self.contents:
-            imageFile = urlopen(self.URL).read()
-            self.contents = io.BytesIO(imageFile)
-        return self.contents
-
-
-    def findDuplicateImages(self):
-        """
-        Find duplicates of the photo.
-
-        Calculates the SHA1 hash and asks the MediaWiki api
-        for a list of duplicates.
-
-        TODO: Add exception handling, fix site thing
-        """
-        hashObject = hashlib.sha1()
-        hashObject.update(self.downloadPhoto().getvalue())
-        return list(
-            page.title(withNamespace=False) for page in
-            self.site.allimages(sha1=base64.b16encode(hashObject.digest())))
-
-    def getTitle(self, fmt):
-        """
-        Populate format string with %(name)s entries using metadata.
-
-        Note: this does not clean the title, so it may be unusable as
-        a MediaWiki page title, and cause an API exception when used.
-
-        @param fmt: format string
-        @type fmt: unicode
-        @return: formatted string
-        @rtype: unicode
-        """
-        # FIXME: normalise the title so it is usable as a MediaWiki title.
-        return fmt % self.metadata
-
-    def getDescription(self, template, extraparams={}):
-        """Generate a description for a file."""
-        params = {}
-        params.update(self.metadata)
-        params.update(extraparams)
-        description = u'{{%s\n' % template
-        for key in sorted(params.keys()):
-            value = params[key]
-            if not key.startswith("_"):
-                description = description + (
-                    u'|%s=%s' % (key, self._safeTemplateValue(value))) + "\n"
-        description = description + u'}}'
-
-        return description
-
-    def _safeTemplateValue(self, value):
-        """Replace pipe (|) with {{!}}."""
-        return value.replace("|", "{{!}}")
-
-
-
-
-
-
-
-
-        
 
 def main():
     #paintingGen = getPaintingGenerator()
 
     #for painting in paintingGen:
     #    print painting
-
     wikidataUploaderBot = WikidataUploaderBot()
     wikidataUploaderBot.run()
-    
-    
 
 if __name__ == "__main__":
     main()
