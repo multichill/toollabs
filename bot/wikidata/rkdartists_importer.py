@@ -398,12 +398,17 @@ class RKDArtistsImporterBot:
                         3115 : u'Q5322166', # designer
                         3342 : u'Q173950', # kunsthandelaar
                         28583 : u'Q2216340', # zilversmid
+                        28617 : u'Q11569986', # prentkunstenaar
                         31823 : u'Q10732476', # kunstverzamelaar / art collector
                         31824 : u'Q3243461', # verzamelaar / collector
                         44385 : u'Q15472169', # mecenas / patron of the arts
                         45116 : u'Q3391743', # artist -> visual artist
                         45297 : u'Q2519376', # jewelry designer
+                        46436 : u'Q1028181', # amateurschilder
+                        57618 : u'Q10732476', # schilderijenverzamelaar
                         57965 : u'Q16887133', # hoogwaardigheidsbekleder / dignitary
+                        60862 : u'Q10732476', # verzamelaar van Hollandse en Vlaamse schilderkunst
+                        63026 : u'Q43845', # koopman
                         63714 : u'Q211423', # goudsmid
                         }
         for occupationid in rkdartistsdocs.get('kwalificatie_lref'):
