@@ -134,11 +134,11 @@ def rkdImagesGenerator(currentimages, invnumbers, collection, replacements):
     basesearchurl = u'https://api.rkd.nl/api/search/images?filters[collectienaam]=%s&filters[objectcategorie][]=schilderij&format=json&start=%s&rows=%s'
     while True:
         searchUrl = basesearchurl % (collection.replace(u' ', u'+'), start, rows)
-        print searchUrl
+        #print searchUrl
         searchPage = requests.get(searchUrl, verify=False)
         searchJson = searchPage.json()
         numfound = searchJson.get('response').get('numFound')
-        print numfound
+        #print numfound
         if not start < numfound:
             return
         start = start + rows
@@ -203,12 +203,12 @@ def rkdImagesArtistGenerator(aristname):
     basesearchurl = u'https://api.rkd.nl/api/search/images?filters[naam]=%s&filters[objectcategorie][]=schilderij&format=json&start=%s&rows=%s'
     while True:
         searchUrl = basesearchurl % (aristname.replace(u' ', u'+'), start, rows)
-        print searchUrl
+        #print searchUrl
         searchPage = requests.get(searchUrl, verify=False)
         searchJson = searchPage.json()
         #print searchJson
         numfound = searchJson.get('response').get('numFound')
-        print numfound
+        #print numfound
         if not start < numfound:
             return
         start = start + rows
