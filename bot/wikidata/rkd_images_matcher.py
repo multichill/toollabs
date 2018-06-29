@@ -1113,10 +1113,10 @@ def main(*args):
                                 u'replacements' : [],
                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Österreichische Galerie Belvedere',
                                 },
-                #u'Q768717' : { u'collectienaam' : u'Private collection', # Probably still too big
-                #                u'replacements' : [],
-                #                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Private collection',
-                #                },
+                u'Q2362660' : { u'collectienaam' : u'M – Museum Leuven',
+                                u'replacements' : [],
+                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/M – Museum Leuven',
+                                },
                 #u'Q768717' : { u'collectienaam' : u'Private collection', # Probably still too big
                 #                u'replacements' : [],
                 #                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Private collection',
