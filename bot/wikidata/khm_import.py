@@ -27,7 +27,7 @@ def getKHMGenerator():
 
     session = requests.Session()
 
-    for i in range(1, 204):
+    for i in range(0, 206):
         searchurl = basesearchurl % (i,)
 
         print searchurl
@@ -37,11 +37,11 @@ def getKHMGenerator():
 
         urls = []
 
-        urlregex = u'href\=\"(https:\/\/www\.khm\.at\/objektdb\/detail\/\d+\/)\?[^\"]+\"\>'
+        urlregex = u'href\=\"https?:\/\/(www\.khm\.at\/objektdb\/detail\/\d+\/)\?[^\"]+\"\>'
         matches = re.finditer(urlregex, searchPage.text)
         for match in matches:
-            # To remove duplicates
-            url = match.group(1)
+            # To remove duplicates, they mixed http and https. So annoying
+            url = u'https://%s' % (match.group(1),)
             if url not in urls:
                 urls.append(url)
 
@@ -87,10 +87,11 @@ def getKHMGenerator():
                 pywikibot.output(u'Something went wrong, no inventory number found, skipping this one')
                 continue
 
-            permaregex = u'\<span class\=\"icon-permalink\"\>\<\/span\>\s*Permalink \(zitierbarer Link\) zu dieser Seite\: \<a target\=\"_top\" href\=\"(https\:\/\/www\.khm\.at\/de\/object\/[^\"]+\/)\"\>'
+            # Sometimes the permalink forgets https
+            permaregex = u'\<span class\=\"icon-permalink\"\>\<\/span\>\s*Permalink \(zitierbarer Link\) zu dieser Seite\: \<a target\=\"_top\" href\=\"https?\:\/\/(www\.khm\.at\/de\/object\/[^\"]+\/)\"\>'
             permamatch = re.search(permaregex, itempage.text)
 
-            metadata['describedbyurl'] = permamatch.group(1).strip()
+            metadata['describedbyurl'] = u'https://%s' % (permamatch.group(1).strip(),)
 
             titleregex = u'\<meta property\=\"og:title\" content\=\"([^\"]+)\"\s*\/\>'
             titlematch = re.search(titleregex, itempage.text)
@@ -99,7 +100,7 @@ def getKHMGenerator():
             #    pywikibot.output(u'No title match, something went wrong on %s' % (url,))
             #    continue
             ## Chop chop, several very long titles
-            if title > 220:
+            if len(title) > 220:
                 title = title[0:200]
             metadata['title'] = { u'de' : title,
                                   }
@@ -109,10 +110,10 @@ def getKHMGenerator():
             if not descriptionmatch:
                 pywikibot.output(u'Something went wrong, no description found, skipping this one')
                 continue
-            (rawdate, sep, rawcreator) = htmlparser.unescape(descriptionmatch.group(1).strip()).replace(u', Kunsthistorisches Museum Wien, Gemäldegalerie', u'').partition(u',')
+            (rawdate, sep, rawcreator) = htmlparser.unescape(descriptionmatch.group(1).strip()).replace(u', , Kunsthistorisches Museum Wien, Gemäldegalerie', u'').partition(u',')
 
-            # Don't worry about cleaning up here.
-            metadata['inception'] = rawdate.strip()
+            # Don't worry too much about cleaning up here, just remove the datiert
+            metadata['inception'] = rawdate.strip().replace(u' datiert', u'')
             (creatortype, sep, name) = rawcreator.strip().partition(u':')
 
             if creatortype==u'Künstler':
