@@ -322,12 +322,13 @@ class PaintingsMatchBot:
         OPTIONAL { ?item wdt:P217 ?invnum } .
         OPTIONAL { ?item wdt:P276 ?location } .
         OPTIONAL { ?item wdt:P973 ?url } .
-        OPTIONAL { ?item ?identifierproperty ?identifier .
-                   ?property wikibase:directClaim ?identifierproperty .
-                   ?property wikibase:propertyType wikibase:ExternalId .
-                   ?property wdt:P1630 ?formatterurl .
-                   BIND(IRI(REPLACE(?identifier, '^(.+)$', ?formatterurl)) AS ?idurl).
-                    }
+        #This seems to break the query. Disabled for now.
+        #OPTIONAL { ?item ?identifierproperty ?identifier .
+        #           ?property wikibase:directClaim ?identifierproperty .
+        #           ?property wikibase:propertyType wikibase:ExternalId .
+        #           ?property wdt:P1630 ?formatterurl .
+        #           BIND(IRI(REPLACE(?identifier, '^(.+)$', ?formatterurl)) AS ?idurl).
+        #            }
 }"""
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
