@@ -32,6 +32,8 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
     session = requests.Session()
     #session.auth = ('', '') set in your .netrc file, see https://www.labkey.org/Documentation/wiki-page.view?name=netrc
 
+    # TODO: Get number of artworks from API instead of hard coding
+
     for i in range(0, collectioninfo.get(u'artworks'), size):
         searchdata = { u'size' : size,
                        u'from' : i,
@@ -71,6 +73,10 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
                 # Few rare items without an inventory number, just skip them
                 continue
             metadata['id'] = item.get('identifier')
+
+            # Get the  Web umenia work ID (P5269)
+            metadata['artworkid'] = url.replace(u'https://www.webumenia.sk/dielo/', u'')
+            metadata['artworkidpid'] = u'P5269'
 
             name = item.get('author')[0]
             if u',' in name:
@@ -135,21 +141,22 @@ def webumeniaArtistsOnWikidata():
         result[resultitem.get('id')] = qid
     return result
 
-def processCollection(collectioninfo, webumeniaArtists, create=False):
+def processCollection(collectioninfo, webumeniaArtists, dryrun=False, create=False):
 
     dictGen = getWebUmeniaGenerator(collectioninfo, webumeniaArtists)
 
-    #for painting in dictGen:
-    #    print (painting)
-
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
-    artDataBot.run()
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 
 def main(*args):
     collections = { u'Q1744024': { u'name' : u'Slovak National Gallery',
                                    u'gallery' : u'Slovenská národná galéria, SNG',
-                                   u'artworks' : 7021,
+                                   u'artworks' : 7054,
                                    u'collectionqid' : u'Q1744024',
                                    u'collectionshort' : u'SNG',
                                    u'locationqid' : u'Q1744024',
@@ -191,7 +198,7 @@ def main(*args):
                                     },
                     u'Q50800751': { u'name' : u'Nitra Gallery',
                                     u'gallery' : u'Nitrianska galéria, NGN',
-                                    u'artworks' : 12,
+                                    u'artworks' : 44,
                                     u'collectionqid' : u'Q50800751',
                                     u'collectionshort' : u'NGN',
                                     u'locationqid' : u'Q50800751',
@@ -203,15 +210,37 @@ def main(*args):
                                     u'collectionshort' : u'SGB',
                                     u'locationqid' : u'Q16517556',
                                     },
-                    u'Q50797802': { u'name' : u'Gallery of Spiš Artists ',
+                    u'Q50797802': { u'name' : u'Gallery of Spiš Artists',
                                     u'gallery' : u'Galéria umelcov Spiša, GUS',
                                     u'artworks' : 452,
                                     u'collectionqid' : u'Q50797802',
                                     u'collectionshort' : u'GUS',
                                     u'locationqid' : u'Q50797802',
                                     },
+                    u'Q3094617': { u'name' : u'Moravian Gallery in Brno',
+                                    u'gallery' : u'Moravská galerie, MG',
+                                    u'artworks' : 944,
+                                    u'collectionqid' : u'Q3094617',
+                                    u'collectionshort' : u'MG',
+                                    u'locationqid' : u'Q3094617',
+                                    },
+                    u'Q24705922': { u'name' : u'Šariš Gallery',
+                                   u'gallery' : u'Šarišská galéria, SGP',
+                                   u'artworks' : 68,
+                                   u'collectionqid' : u'Q24705922',
+                                   u'collectionshort' : u'SGP',
+                                   u'locationqid' : u'Q24705922',
+                                   },
+                    u'Q4120060': { u'name' : u'Andy Warhol Museum of Modern Art',
+                                    u'gallery' : u'Múzeum moderného umenia A. Warhola, MAW',
+                                    u'artworks' : 43,
+                                    u'collectionqid' : u'Q4120060',
+                                    u'collectionshort' : u'MAW',
+                                    u'locationqid' : u'Q4120060',
+                                    },
                  }
     collectionid = None
+    dryrun = False
     create = False
 
     for arg in pywikibot.handle_args(args):
@@ -221,6 +250,8 @@ def main(*args):
                         u'Please enter the collectionid you want to work on:')
             else:
                 collectionid = arg[14:]
+        elif arg.startswith('-dry'):
+            dryrun = True
         elif arg.startswith('-create'):
             create = True
 
@@ -230,10 +261,10 @@ def main(*args):
         if collectionid not in collections.keys():
             pywikibot.output(u'%s is not a valid collectionid!' % (collectionid,))
             return
-        processCollection(collections[collectionid], webumeniaArtists, create=create)
+        processCollection(collections[collectionid], webumeniaArtists, dryrun=dryrun, create=create)
     else:
         for collectionid in collections.keys():
-            processCollection(collections[collectionid], webumeniaArtists, create=create)
+            processCollection(collections[collectionid], webumeniaArtists, dryrun=dryrun, create=create)
 
 if __name__ == "__main__":
     main()
