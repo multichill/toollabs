@@ -215,12 +215,16 @@ def rkdImagesArtistGenerator(aristname):
         for rkdimage in  searchJson.get('response').get('docs'):
             imageinfo = {}
             imageinfo[u'id'] = rkdimage.get(u'priref')
-            titlenl = rkdimage.get(u'benaming_kunstwerk')[0]
-            titleen = rkdimage.get(u'titel_engels')
-            if titlenl==titleen:
-                imageinfo[u'title'] = titlenl
+            imageinfo[u'id'] = rkdimage.get(u'priref')
+            if rkdimage.get(u'benaming_kunstwerk') and rkdimage.get(u'benaming_kunstwerk')[0]:
+                imageinfo[u'title_nl'] = rkdimage.get(u'benaming_kunstwerk')[0]
             else:
-                imageinfo[u'title'] = u'%s / %s' % (titlenl, titleen)
+                imageinfo[u'title_nl'] = u'(geen titel)'
+            imageinfo[u'title_en'] = rkdimage.get(u'titel_engels')
+            if imageinfo.get(u'title_nl')==imageinfo.get(u'title_en'):
+                imageinfo[u'title'] = imageinfo.get(u'title_nl')
+            else:
+                imageinfo[u'title'] = u'%s / %s' % (imageinfo.get(u'title_nl'), imageinfo.get(u'title_en'))
             if rkdimage.get(u'datering'):
                 datering = rkdimage.get(u'datering')[0]
                 if datering.startswith(u'ca.'):
@@ -334,7 +338,7 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
                         rkdimageid.get(u'qid') not in allimages.values():
                     if autoadd > 0:
                         summary = u'Based on [[%s]]' % (collectionid,)
-                        summary = summary + u' / %(invnum)s / [https://rkd.nl/explore/artists/%(id)s %(creator)s]' % rkdimageid
+                        summary = summary + u' / %(invnum)s / https://rkd.nl/explore/artists/%(rkdartistid)s (name: %(creator)s)' % rkdimageid
                         #summary = u'Based on [[%s]] / %s / [https://rkd.nl/explore/artists/%s %s]' % (collectionid,
                         #                                                                            rkdimageid.get(u'invnum'),
                         #                                                                            rkdimageid.get(u'rkdartistid'),
@@ -724,6 +728,7 @@ def main(*args):
                               u'replacements' : [(u'^(\d\d\d\d)$', u'P0\\1'),
                                                  (u'^(\d\d\d)$', u'P00\\1'),
                                                  (u'^PO? ?(\d\d\d\d)(\s*\(cat\. 2006\))?$', u'P0\\1'),
+                                                 (u'^00(\d\d\d\d)$', u'P0\\1'),
                                                  ],
                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Prado',
                               },
