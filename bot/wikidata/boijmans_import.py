@@ -63,6 +63,9 @@ def getPaintingGenerator(boijmansartists):
 
             metadata['idpid'] = u'P217'
 
+            metadata['artworkidpid'] = u'P5499'
+            metadata['artworkid'] = url.replace(u'http://collectie.boijmans.nl/nl/object/', u'')
+
             invregex = u'\<th scope\=\"heading\"\>Inventarisnummer\<\/th\>[\s\t\r\n]*\<td\>([^\<]+)\<\/td\>'
             invmatch = re.search(invregex, itempage.text)
 
