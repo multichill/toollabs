@@ -17,7 +17,7 @@ class RecentRKDimagesBot:
         self.repo = pywikibot.Site().data_repository()
         self.highestrkdimage = None
         self.lowestrkdimage = 0
-        self.maxlength = 500
+        self.maxlength = 700
         self.currentrkdimages = self.rkdImagesOnWikidata()
         self.currentcollections = self.rkdImagesCollectionsOnWikidata()
         self.currentrkdartists = self.rkdArtistsOnWikidata()
@@ -77,7 +77,8 @@ class RecentRKDimagesBot:
         return result
 
     def getRKDidgenerator(self):
-        for i in range(self.highestrkdimage, 1, -1):
+        # Take the highest image and go up 200
+        for i in range(self.highestrkdimage+200, 1, -1):
             print i
             if i not in self.currentrkdimages:
 
@@ -114,6 +115,10 @@ class RecentRKDimagesBot:
 
         if not rkdimage.get('objectcategorie')[0] == u'schilderij':
             return None
+
+        # We seem to have found a valid painting, let's bump the highest id if needed
+        if rkdimageid > self.highestrkdimage:
+            self.highestrkdimage = rkdimageid
 
         imageinfo[u'id'] = rkdimage.get(u'priref')
         if rkdimage.get(u'benaming_kunstwerk') and rkdimage.get(u'benaming_kunstwerk')[0]:
@@ -239,7 +244,7 @@ class RecentRKDimagesBot:
                                                                    self.highestrkdimage,
                                                                    self.lowestrkdimage)
         text += u'{| class="wikitable sortable"\n'
-        text += u'|-\n! RKDimage !! Title !! Creator !! Collection !! Query\n'
+        text += u'|-\n! RKDimage !! Title !! Creator !! Collection !! Query !! Create\n'
         for foundimage in foundimages:
             text += u'|-\n'
             text += u'| [%(url)s %(id)s]\n' % foundimage
@@ -267,7 +272,8 @@ class RecentRKDimagesBot:
   }|PATH}} query]\n''' % foundimage
             else:
                 text += u'| \n'
-
+            quickstatements = self.getQuickStatements(foundimage)
+            text += u'| [https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:%s}} Create]\n' % (quickstatements,)
 
         text += u'|}\n'
         text += u'\n[[Category:WikiProject sum of all paintings RKD to match| Recent additions]]'
@@ -279,6 +285,52 @@ class RecentRKDimagesBot:
                                                                                                self.lowestrkdimage)
         page.put(text, summary)
 
+    def getQuickStatements(self, foundimage):
+        """
+        Create output suitable to be used in QuickStatements
+        ( https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list=output )
+        :return:
+        """
+        # Sourcing in QuickStatements doesn't work.
+        # source = u'S248\tQ17299580\tS350\t"%(id)s"\tS813\t+2018-07-31T00:00:00Z/09' % foundimage # FIXME
+        result = u'CREATE\n'
+        # Label in Dutch
+        if foundimage.get('title_nl'):
+            result += u'LAST\tLnl\t"%(title_nl)s"\n' % foundimage
+        # Label in English
+        if foundimage.get('title_en'):
+            result += u'LAST\tLen\t"%(title_en)s"\n' % foundimage
+        # How to deal with collisions here?
+        # FIXME: How to handle anonymous linked with creator?
+        # Description in Dutch
+        result += u'LAST\tDnl\t"schilderij van %(creator)s"\n' % foundimage
+        # Description in English
+        result += u'LAST\tDen\t"painting by %(creator)s"\n' % foundimage
+        # It's a painting
+        result += u'LAST\tP31\tQ3305213\n'
+        # RKDimage id
+        result += u'LAST\tP350\t"%(id)s"\n' % foundimage
+        # Creator
+        if foundimage.get('artistqid'):
+            result += u'LAST\tP170\t%(artistqid)s\n' % foundimage
+            #result += u'\t' + source + u'\n'
+        # Collection
+        if foundimage.get('collectionqid'):
+            result += u'LAST\tP195\t%(collectionqid)s\n' % foundimage
+            #result += u'\t' + source + u'\n'
+            # Inventory number only do it with collection
+            if foundimage.get('invnum'):
+                result += u'LAST\tP217\t"%(invnum)s"\tP195\t%(collectionqid)s\n' % foundimage
+                #result += u'\t' + source + u'\n'
+        elif foundimage.get('invnum'):
+            # This will make it show up in some report so I hope the user adds the collection
+            result += u'LAST\tP217\t"%(invnum)s"\n' % foundimage
+        # TODO: Add oil on canvas
+        # TODO: Could add width and height
+        # TODO: Could add date (PITA with quickstatements)
+        # TODO: Could add iconclass code
+
+        return result
 
 
 def paintingsInvOnWikidata(collectionid):
