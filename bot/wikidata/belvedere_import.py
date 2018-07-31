@@ -19,16 +19,17 @@ def getBelvedereGenerator():
     """
     Generator to return Belvedere paintings
     """
-    basesearchurl = u'http://digital.belvedere.at/advancedsearch/objects/name:Gemälde/images?page=%s'
+    #basesearchurl = u'http://digital.belvedere.at/advancedsearch/objects/name:Gemälde/images?page=%s'
+    basesearchurl = u'https://digital.belvedere.at/advancedsearch/Objects/classifications%%3AMalerei/images?page=%s'
     htmlparser = HTMLParser.HTMLParser()
 
-    for i in range(1, 318):
+    for i in range(1, 339):
         searchurl = basesearchurl % (i,)
 
         pywikibot.output(searchurl)
         searchPage = requests.get(searchurl)
 
-        urlregex = u'data-a2a-url\=\"(http:\/\/digital\.belvedere\.at\/objects\/\d+\/[^\"]+)\;jsessionid\=[^\"]+\"'
+        urlregex = u'data-a2a-url\=\"(https?:\/\/digital\.belvedere\.at\/objects\/\d+\/[^\"]+)\;jsessionid\=[^\"]+\"'
         matches = re.finditer(urlregex, searchPage.text)
         for match in matches:
             metadata = {}
@@ -55,7 +56,7 @@ def getBelvedereGenerator():
             #    pywikibot.output(u'Something went wrong, no inventory number found, skipping this one')
             #    continue
 
-            titleregex = u'\<div class\=\"detailField titleField\"\>\<h2\>([^\<]+)\<\/h2\>'
+            titleregex = u'\<div class\=\"detailField titleField\"\>\<h2 property\=\"name\" itemprop\=\"name\"\>([^\<]+)\<\/h2\>'
             titlematch = re.search(titleregex, itempage.text)
             title = htmlparser.unescape(titlematch.group(1).strip())
             # Chop chop, several very long titles
@@ -63,7 +64,9 @@ def getBelvedereGenerator():
                 title = title[0:200]
             metadata['title'] = { u'de' : title,
                                   }
-            creatorregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:creator\" itemprop\=\"creator\"\>'
+            # This one is not complete, attributed works will be missed
+            # creatorregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:creator\" itemprop\=\"creator\"\>'
+            creatorregex = u'\<span class\=\"detailFieldLabel\"\>Künstler\/in\:\s*\<\/span\>\<span typeof\=\"schema\:Person\" itemtype\=\"\/\/schema\.org\/Person\" itemscope\=\"\" class\=\"detailFieldValue\"\>\<a property\=\"url\" itemprop\=\"url\" href\=\"\/people\/\d+\/[^\"]+\"\>\<span property\=\"name\" itemprop\=\"name\"\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<\/span\>'
             creatormatch = re.search(creatorregex, itempage.text)
             if creatormatch:
                 name = htmlparser.unescape(creatormatch.group(1).strip())
@@ -80,17 +83,27 @@ def getBelvedereGenerator():
                                         }
                 metadata['creatorqid'] = u'Q4233718'
 
-            dateregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
-            datematch = re.search(dateregex, itempage.text)
-            # Don't worry about cleaning up here.
-            metadata['inception'] = htmlparser.unescape(datematch.group(1).strip())
 
-            acquisitiondateregex = u'\<span class\=\"detailFieldLabel\"\>Inventarzugang:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>(\d\d\d\d)[^\<]+\<\/span\>'
+            # Was broken too
+            #dateregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
+            dateregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>(\d\d\d\d)\<\/span\>'
+            datematch = re.search(dateregex, itempage.text)
+            if datematch:
+                # Don't worry about cleaning up here.
+                metadata['inception'] = htmlparser.unescape(datematch.group(1).strip())
+
+            # Probably too
+
+            acquisitiondateregex = u'\<span class\=\"detailFieldLabel\"\>Inventarzugang:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>(\d\d\d\d)([^\<]+)\<\/span\>'
             acquisitiondatematch = re.search(acquisitiondateregex, itempage.text)
             if acquisitiondatematch:
                 metadata['acquisitiondate'] = acquisitiondatematch.group(1)
+                # Quite a few works seem to have been from the KHM
+                if u'Übernahme aus dem Kunsthistorischen Museum' in acquisitiondatematch.group(2):
+                    metadata['extracollectionqid'] = u'Q95569'
 
-            mediumregex = u'\<meta content\=\"Öl auf Leinwand\" property\=\"schema:artMedium\" itemprop\=\"artMedium\"\>'
+            #mediumregex = u'\<meta content\=\"Öl auf Leinwand\" property\=\"schema:artMedium\" itemprop\=\"artMedium\"\>'
+            mediumregex = u'\<span class\=\"detailFieldLabel\"\>Material\/Technik\: \<\/span\>\<span property\=\"artMedium\" itemprop\=\"artMedium\" class\=\"detailFieldValue\"\>Öl auf Leinwand\<\/span\>'
             mediummatch = match = re.search(mediumregex, itempage.text)
             if mediummatch:
                 metadata['medium'] = u'oil on canvas'
