@@ -11,8 +11,10 @@ and links back to the same viaf item.
 """
 import pywikibot
 from pywikibot import pagegenerators
+import pywikibot.data.sparql
 import requests
 import datetime
+import re
 
 class ViafImportBot:
     """
@@ -89,6 +91,7 @@ class ViafImportBot:
 
                 if not viafurl in ntapage.text:
                     pywikibot.output(u'No backlink found on %s to viaf %s' % (ntaurl, viafurl, ))
+                    # TODO: Extract other viaf link and follow redirect
                     continue
 
                 newclaim = pywikibot.Claim(self.repo, u'P1006')
@@ -117,15 +120,131 @@ class ViafImportBot:
 
         pywikibot.output(u'I found %s valid links and %s broken links' % (validlinks, brokenlinks,))
 
+def getCurrentNTA():
+    '''
+    Build a cache so we can easility skip Qid's
+    '''
+    result = {}
+
+    query = u'SELECT ?item ?id { ?item wdt:P1006 ?id }'
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+        if resultitem.get('artukid'):
+            result[qid] = resultitem.get('id')
+    pywikibot.output(u'The query "%s" returned %s items with a NTA links' % (query, len(result),))
+    return result
+
+def ntaBacklinksGenerator():
+    """
+    Do a SPARQL query at the NTA to get backlinks to Wikidata
+    :return:
+    """
+    basequery = u"""SELECT ?item ?person {
+      SERVICE <http://data.bibliotheken.nl/sparql> {
+  SELECT ?item ?person WHERE {
+  ?person rdf:type <http://schema.org/Person> .
+ ?person owl:sameAs ?item .
+ FILTER REGEX(STR(?item), "http://www.wikidata.org/entity/") .
+} OFFSET %s
+LIMIT %s
+      }
+  # The URI (wdtn) links don't seem to be fully populated
+  #MINUS { ?item wdtn:P1006 ?person } .
+  MINUS { ?item wdt:P1006 [] } .
+  #MINUS { ?item owl:sameAs ?item2 . ?item2 wdtn:P1006 ?person }
+  MINUS { ?item owl:sameAs ?item2 . ?item2 wdt:P1006 [] }
+}"""
+    repo = pywikibot.Site().data_repository()
+    step = 10000
+    limit = 122000
+    for i in range(0, limit, step):
+        query = basequery % (i, limit)
+        gen = pagegenerators.WikidataSPARQLPageGenerator(query, site=repo)
+        for item in gen:
+            # Add filtering
+            yield item
+
+def viafDumpGenerator(filename=u'../Downloads/viaf-20180807-links.txt'):
+    """
+    Use a viaf dump to find Wikidata items to check.
+    It will filter out the Wikidata items that already have a link
+    :return:
+    """
+    repo = pywikibot.Site().data_repository()
+    currentNTAitems = getCurrentNTA()
+    wdregex = re.compile(u'^http\:\/\/viaf\.org\/viaf\/(\d+)\tWKP\|(Q\d+)$')
+    ntaregex = re.compile(u'^http\:\/\/viaf\.org\/viaf\/(\d+)\tNTA\|([^\s]+)$')
+    currentviaf = None
+    currentwikidata = None
+    currentnta = None
+    with open(filename, 'rb') as f:
+        for line in f:
+            wdmatch = wdregex.match(line)
+            ntamatch = ntaregex.match(line)
+            if not (wdmatch or ntamatch):
+                continue
+            if not currentviaf:
+                if wdmatch:
+                    currentviaf = wdmatch.group(1)
+                    currentwikidata = wdmatch.group(2)
+                elif ntamatch:
+                    currentviaf = ntamatch.group(1)
+                    currentnta = ntamatch.group(2)
+            elif currentviaf:
+                if wdmatch and currentviaf!=wdmatch.group(1):
+                    currentviaf = wdmatch.group(1)
+                    currentwikidata = wdmatch.group(2)
+                    currentnta = None
+                elif ntamatch and currentviaf!=ntamatch.group(1):
+                    currentviaf = ntamatch.group(1)
+                    currentwikidata = None
+                    currentnta = ntamatch.group(2)
+                elif wdmatch and currentviaf==wdmatch.group(1) and currentnta:
+                    currentwikidata = wdmatch.group(2)
+                    print(u'Viaf: %s, Wikidata: %s, NTA: %s' % (currentviaf, currentwikidata, currentnta))
+                    if not currentwikidata in currentNTAitems:
+                        yield pywikibot.ItemPage(repo, title=currentwikidata)
+                    currentviaf = None
+                    currentwikidata = None
+                    currentnta = None
+                elif ntamatch and currentviaf==ntamatch.group(1) and currentwikidata:
+                    currentnta = ntamatch.group(2)
+                    print(u'Viaf: %s, Wikidata: %s, NTA: %s' % (currentviaf, currentwikidata, currentnta))
+                    if not currentwikidata in currentNTAitems:
+                        yield pywikibot.ItemPage(repo, title=currentwikidata)
+                    currentviaf = None
+                    currentwikidata = None
+                    currentnta = None
+
+
 
 def main():
     repo = pywikibot.Site().data_repository()
     query = u"""SELECT ?item WHERE {
   ?item wdt:P214 ?viafid .
+  { ?item wdt:P27 wd:Q31 } UNION { ?item wdt:P27 wd:Q29999 } .
   ?item wdt:P31 wd:Q5 .
   MINUS { ?item wdt:P1006 [] } .
   } LIMIT 400000"""
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+
+    query = u"""SELECT * {
+      SERVICE <http://data.bibliotheken.nl/sparql> {
+  SELECT ?item ?person WHERE {
+  ?person rdf:type <http://schema.org/Person> .
+ ?person owl:sameAs ?item .
+ FILTER REGEX(STR(?item), "http://www.wikidata.org/entity/") .
+} OFFSET 0
+LIMIT 10000
+      }
+}"""
+
+    generator = pagegenerators.PreloadingItemGenerator(viafDumpGenerator())
+
+    #generator = pagegenerators.PreloadingItemGenerator(ntaBacklinksGenerator())
+    #generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     viafImportBot = ViafImportBot(generator)
     viafImportBot.run()
