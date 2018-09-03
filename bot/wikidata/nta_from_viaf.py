@@ -89,17 +89,38 @@ class ViafImportBot:
                     brokenlinks = brokenlinks + 1
                     continue
 
-                if not viafurl in ntapage.text:
-                    pywikibot.output(u'No backlink found on %s to viaf %s' % (ntaurl, viafurl, ))
-                    # TODO: Extract other viaf link and follow redirect
+                validviaffound = False
+
+                if viafurl in ntapage.text:
+                    validviaffound = True
+                    pywikibot.output('Adding National Thesaurus for Author Names ID %s claim to %s (based on bidirectional viaf<->nta links)' % (ntaid, item.title(),) )
+                    summary = u'based on VIAF %s (with bidirectional viaf<->nta links)' % (viafid,)
+                else:
+                    pywikibot.output(u'No backlink found on %s to viaf %s. Will try to find another link and resolve redirect' % (ntaurl, viafurl, ))
+                    ntajsonpage = requests.get(ntaurl + u'.json')
+                    ntajson = ntajsonpage.json()
+
+                    ntaviafurl = None
+                    if ntajson.get(u'@graph')[1].get('sameAs'):
+                        for sameAs in ntajson.get(u'@graph')[1].get('sameAs'):
+                            if sameAs.startswith(u'http://viaf.org/viaf/'):
+                                ntaviafurl = sameAs
+                                break
+                    if ntaviafurl:
+                        pywikibot.output(u'The NTA item has a link to the viaf url %s' % (ntaviafurl,))
+                        ntaviafpage = requests.get(ntaviafurl)
+                        if ntaviafpage.url==u'https://viaf.org/viaf/%s/' % (viafid,):
+                            print ntaviafpage.url
+                            validviaffound = True
+                            pywikibot.output('Adding National Thesaurus for Author Names ID %s claim to %s (based on bidirectional viaf<->nta links, with a NTA redirect to viaf)' % (ntaid, item.title(),) )
+                            summary = u'based on VIAF %s (with bidirectional viaf<->nta links (NTA links to redirected viaf %s)' % (viafid, ntaviafurl)
+
+                if not validviaffound:
                     continue
 
                 newclaim = pywikibot.Claim(self.repo, u'P1006')
                 newclaim.setTarget(ntaid)
-                pywikibot.output('Adding National Thesaurus for Author Names ID %s claim to %s (based on bidirectional viaf<->nta links)' % (ntaid, item.title(),) )
 
-                summary = u'based on VIAF %s (with bidirectional viaf<->nta links)' % (viafid,)
-                
                 item.addClaim(newclaim, summary=summary)
 
                 pywikibot.output('Adding new reference claim to %s' % item)
@@ -230,20 +251,27 @@ def main():
   MINUS { ?item wdt:P1006 [] } .
   } LIMIT 400000"""
 
-    query = u"""SELECT * {
+    # This query will get all the Qid's for which NTA has a link, but the Qid doesn't have a link
+    # The commented out lines will also make mismatched links visible. Too much for this bot now.
+
+    query = u"""SELECT ?item ?person {
       SERVICE <http://data.bibliotheken.nl/sparql> {
   SELECT ?item ?person WHERE {
   ?person rdf:type <http://schema.org/Person> .
  ?person owl:sameAs ?item .
  FILTER REGEX(STR(?item), "http://www.wikidata.org/entity/") .
-} OFFSET 0
-LIMIT 10000
+}
       }
+  # The URI (wdtn) links don't seem to be fully populated
+  #MINUS { ?item wdtn:P1006 ?person } .
+  MINUS { ?item wdt:P1006 [] } .
+  #MINUS { ?item owl:sameAs ?item2 . ?item2 wdtn:P1006 ?person }
+  MINUS { ?item owl:sameAs ?item2 . ?item2 wdt:P1006 [] }
 }"""
 
-    generator = pagegenerators.PreloadingItemGenerator(viafDumpGenerator())
+    #generator = pagegenerators.PreloadingItemGenerator(viafDumpGenerator())
 
-    #generator = pagegenerators.PreloadingItemGenerator(ntaBacklinksGenerator())
+    generator = pagegenerators.PreloadingItemGenerator(ntaBacklinksGenerator())
     #generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     viafImportBot = ViafImportBot(generator)
