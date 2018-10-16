@@ -113,7 +113,7 @@ class RecentRKDimagesBot:
             return None
         rkdimage = searchJson.get('response').get('docs')[0]
 
-        if not rkdimage.get('objectcategorie')[0] == u'schilderij':
+        if not rkdimage.get('objectcategorie') or not rkdimage.get('objectcategorie')[0] == u'schilderij':
             return None
 
         # We seem to have found a valid painting, let's bump the highest id if needed
@@ -302,10 +302,11 @@ class RecentRKDimagesBot:
             result += u'LAST\tLen\t"%(title_en)s"\n' % foundimage
         # How to deal with collisions here?
         # FIXME: How to handle anonymous linked with creator?
-        # Description in Dutch
+        # Descriptions
         result += u'LAST\tDnl\t"schilderij van %(creator)s"\n' % foundimage
-        # Description in English
         result += u'LAST\tDen\t"painting by %(creator)s"\n' % foundimage
+        result += u'LAST\tDde\t"Gemälde von %(creator)s"\n' % foundimage
+        result += u'LAST\tDfr\t"re  tableau de %(creator)s"\n' % foundimage
         # It's a painting
         result += u'LAST\tP31\tQ3305213\n'
         # RKDimage id
