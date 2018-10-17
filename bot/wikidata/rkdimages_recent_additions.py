@@ -1,7 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Tool to show recent additions of paintings to RKDimages for easy matching
+Tool to show recent additions of paintings to RKDimages for easy matching.
+* https://www.wikidata.org/wiki/Wikidata:WikiProject_sum_of_all_paintings/RKD_to_match/Recent_additions
+While I'm at it I might as well create a list of the oldest ones.
+* https://www.wikidata.org/wiki/Wikidata:WikiProject_sum_of_all_paintings/RKD_to_match/Oldest_additions
 
 """
 import pywikibot
@@ -17,11 +20,11 @@ class RecentRKDimagesBot:
         self.repo = pywikibot.Site().data_repository()
         self.highestrkdimage = None
         self.lowestrkdimage = 0
-        self.maxlength = 700
+        self.highestolddimage = 0
+        self.maxlength = 1000
         self.currentrkdimages = self.rkdImagesOnWikidata()
         self.currentcollections = self.rkdImagesCollectionsOnWikidata()
         self.currentrkdartists = self.rkdArtistsOnWikidata()
-        self.rkdidgenerator = self.getRKDidgenerator()
 
     def rkdImagesOnWikidata(self):
         '''
@@ -76,27 +79,44 @@ class RecentRKDimagesBot:
             result[resultitem.get('id')] = qid
         return result
 
-    def getRKDidgenerator(self):
+    def getRKDrecentidgenerator(self):
         # Take the highest image and go up 200
         for i in range(self.highestrkdimage+200, 1, -1):
             print i
             if i not in self.currentrkdimages:
+                yield i
 
+    def getRKDoldestidgenerator(self):
+        # Take the highest image and go up 200
+        for i in range(1, self.lowestrkdimage, 1):
+            print i
+            if i not in self.currentrkdimages:
                 yield i
 
     def run(self):
-        foundimages = []
-        for rkdimageid in self.rkdidgenerator:
+        foundrecentimages = []
+        for rkdimageid in self.getRKDrecentidgenerator():
             rkdinfo = self.getRkdInfo(rkdimageid)
             if rkdinfo:
                 print rkdinfo
-                foundimages.append(rkdinfo)
-                if len(foundimages) >= self.maxlength:
+                foundrecentimages.append(rkdinfo)
+                if len(foundrecentimages) >= self.maxlength:
                     self.lowestrkdimage = rkdinfo.get('id')
                     break
-        print foundimages
+        print foundrecentimages
         print self.lowestrkdimage
-        self.outputReport(foundimages)
+        foundoldestimages = []
+        for rkdimageid in self.getRKDoldestidgenerator():
+            rkdinfo = self.getRkdInfo(rkdimageid)
+            if rkdinfo:
+                print rkdinfo
+                foundoldestimages.append(rkdinfo)
+                if len(foundoldestimages) >= self.maxlength:
+                    self.highestolddimage = rkdinfo.get('id')
+                    break
+        print foundoldestimages
+        self.outputReportRecent(foundrecentimages)
+        self.outputReportOldest(foundoldestimages)
 
     def getRkdInfo(self, rkdimageid):
         """
@@ -233,16 +253,17 @@ class RecentRKDimagesBot:
         return None
 
 
-    def outputReport(self, foundimages):
+    def outputReportRecent(self, foundimages):
         """
 
         :param foundimages:
         :return:
         """
-        text = u'This is an overview of recently added [https://rkd.nl/en/explore/images#filters%5Bobjectcategorie%5D%5B%5D=painting&start=0 paintings in RKDimages].\n'
-        text += u'This page lists %s suggestions from %s to %s\n\n' % (self.maxlength,
+        text = u'This is an overview of recently added [https://rkd.nl/en/explore/images#filters%5Bobjectcategorie%5D%5B%5D=painting&start=0 paintings in RKDimages] to [[Wikidata:WikiProject sum of all paintings/RKD to match|match]].\n'
+        text += u'This page lists %s suggestions from %s to %s.\n' % (self.maxlength,
                                                                    self.highestrkdimage,
                                                                    self.lowestrkdimage)
+        text += u'See also the [[Wikidata:WikiProject sum of all paintings/RKD to match/Oldest additions|oldest additions]].\n\n'
         text += u'{| class="wikitable sortable"\n'
         text += u'|-\n! RKDimage !! Title !! Creator !! Collection !! Query !! Create\n'
         for foundimage in foundimages:
@@ -283,6 +304,59 @@ class RecentRKDimagesBot:
         summary = u'Updating recent RKDimages suggestionswith %s suggestions from %s to %s' % (self.maxlength,
                                                                                                self.highestrkdimage,
                                                                                                self.lowestrkdimage)
+        page.put(text, summary)
+
+    def outputReportOldest(self, foundimages):
+        """
+
+        :param foundimages:
+        :return:
+        """
+        text = u'This is an overview of oldest added [https://rkd.nl/en/explore/images#filters%5Bobjectcategorie%5D%5B%5D=painting&start=0 paintings in RKDimages] to [[Wikidata:WikiProject sum of all paintings/RKD to match|match]].\n'
+        text += u'This page lists %s suggestions from %s to %s.\n' % (self.maxlength,
+                                                                      1,
+                                                                      self.highestolddimage)
+        text += u'See also the [[Wikidata:WikiProject sum of all paintings/RKD to match/Recent additions|recent additions]].\n\n'
+        text += u'{| class="wikitable sortable"\n'
+        text += u'|-\n! RKDimage !! Title !! Creator !! Collection !! Query !! Create\n'
+        for foundimage in foundimages:
+            text += u'|-\n'
+            text += u'| [%(url)s %(id)s]\n' % foundimage
+            text += u'| %(title_nl)s / %(title_en)s\n' % foundimage
+            if foundimage.get(u'artistqid'):
+                text += u'| {{Q|%(artistqid)s}} <small>([https://rkd.nl/explore/artists/%(rkdartistid)s %(creator)s])</small>\n' % foundimage
+            else:
+                text += u'| [https://rkd.nl/explore/artists/%(rkdartistid)s %(creator)s]\n' % foundimage
+
+            if foundimage.get(u'collectionqid'):
+                text += u'| {{Q|%(collectionqid)s}} <small>%(collectienaam)s</small>' % foundimage
+            else:
+                text += u'| %(collectienaam)s' % foundimage
+            if foundimage.get('invnum'):
+                text += u'  (%(invnum)s)\n' % foundimage
+            else:
+                text += u'\n'
+            if foundimage.get(u'artistqid') and foundimage.get(u'collectionqid'):
+                text += u'''| [https://query.wikidata.org/#{{urlencode:SELECT ?item ?itemLabel ?inv WHERE {
+  ?item wdt:P195 wd:%(collectionqid)s .
+  ?item wdt:P170 wd:%(artistqid)s .
+  ?item wdt:P31 wd:Q3305213 .
+  OPTIONAL { ?item wdt:P217 ?inv } .
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE]" }
+  }|PATH}} query]\n''' % foundimage
+            else:
+                text += u'| \n'
+            quickstatements = self.getQuickStatements(foundimage)
+            text += u'| [https://tools.wmflabs.org/wikidata-todo/quick_statements.php?list={{subst:urlencode:%s}} Create]\n' % (quickstatements,)
+
+        text += u'|}\n'
+        text += u'\n[[Category:WikiProject sum of all paintings RKD to match| Oldest additions]]'
+        pageTitle = u'Wikidata:WikiProject sum of all paintings/RKD to match/Oldest additions'
+
+        page = pywikibot.Page(self.repo, title=pageTitle)
+        summary = u'Updating oldest RKDimages suggestionswith %s suggestions from %s to %s' % (self.maxlength,
+                                                                                               1,
+                                                                                               self.highestolddimage)
         page.put(text, summary)
 
     def getQuickStatements(self, foundimage):
