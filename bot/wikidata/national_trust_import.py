@@ -29,15 +29,18 @@ def getNTGenerator():
     
     """
     htmlparser = HTMLParser()
+    locations = nationalTrustLocationsOnWikidata()
+    missedlocations = {}
     baseSearchUrl = u'http://www.nationaltrustcollections.org.uk/results?Categories=7456ee20fffffe0702132e04e5764fd3&Sort=collection&Page=%s'
 
     for i in range(1, 250):
+        print (missedlocations)
         searchUrl = baseSearchUrl % (i,)
         print (searchUrl)
 
         searchPage = requests.get(searchUrl)
         searchPageData = searchPage.text
-        searchRegex = u'\<a href\=\"\/object\/(\d+)\"\>'
+        searchRegex = u'\<a href\=\"\/object\/([\d+\.]+)\"\>'
 
         for match in re.finditer(searchRegex, searchPageData):
             url = u'http://www.nationaltrustcollections.org.uk/object/%s' % (match.group(1),)
@@ -52,8 +55,39 @@ def getNTGenerator():
 
             metadata['collectionqid'] = u'Q333515'
             metadata['collectionshort'] = u'NT'
-            # TODO: Add location logic
-            #metadata['locationqid'] = u'Q252071'
+
+            locationregex = u'\<h4\>Collection\<\/h4\>[\r\n\t\s]*\<p\>([^\<]+)\<\/p\>[\r\n\t\s]*\<h4\>On show at\<\/h4\>[\r\n\t\s]*\<p\>\<a href\=\"https?\:\/\/www\.nationaltrust\.org\.uk\/([^\"]+)\"'
+            locationMatch = re.search(locationregex, itemPageData)
+
+            location2regex = u'\<h4\>Collection\<\/h4\>[\r\n\t\s]*\<p\>([^\<]+)\<\/p\>[\r\n\t\s]*\<h4\>On show at\<\/h4\>'
+            location2Match = re.search(location2regex, itemPageData)
+
+            if locationMatch:
+                #print (locationMatch.group(1))
+                #print (locationMatch.group(2))
+                location = locationMatch.group(2).strip(u'/').lower()
+                if location in locations:
+                    metadata['locationqid'] = locations.get(location)
+                else:
+                    if location not in missedlocations:
+                        missedlocations[location]=0
+                    missedlocations[location] += 1
+
+                    metadata['locationqid'] = locations.get(location)
+            elif location2Match:
+                print (location2Match.group(1))
+                location = location2Match.group(1).split(u',')[0].lower().replace(u' ', u'-')
+                print (location)
+
+                if location in locations:
+                    print (u'Location found')
+                    metadata['locationqid'] = locations.get(location)
+                else:
+                    if location not in missedlocations:
+                        missedlocations[location]=0
+                    missedlocations[location] += 1
+
+                    metadata['locationqid'] = locations.get(location)
 
             # Search is for paintings
             metadata['instanceofqid'] = u'Q3305213'
@@ -143,7 +177,28 @@ def getNTGenerator():
             #    metadata[u'imageurl'] = imageMatch.group(1)
             #    metadata[u'imageurlformat'] = u'Q2195' #JPEG
             yield metadata
+    pywikibot.output(u'Final list of missed locations')
+    pywikibot.output(missedlocations)
 
+def nationalTrustLocationsOnWikidata():
+    '''
+    Just return all the National Trust locations as a dict
+    :return: Dict
+    '''
+    result = {}
+    query = u"""SELECT ?item ?url WHERE {
+  ?item wdt:P1602 ?artukid .
+  ?item wdt:P973 ?url .
+  FILTER regex (?artukid, "^national-trust") .
+  } LIMIT 1000"""
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+        identifier = resultitem.get('url').replace(u'https://www.nationaltrust.org.uk/', u'')
+        result[identifier] = qid
+    return result
 
 def main():
     dictGen = getNTGenerator()
