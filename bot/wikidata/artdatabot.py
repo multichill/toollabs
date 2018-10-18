@@ -282,11 +282,19 @@ class ArtDataBot:
                         newclaim.setTarget(newdate)
                         pywikibot.output('Adding date of creation claim to %s' % artworkItem)
                         artworkItem.addClaim(newclaim)
+
+                        # Handle circa dates
+                        if metadata.get(u'inceptioncirca'):
+                            newqualifier = pywikibot.Claim(self.repo, u'P1480')
+                            newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q5727902'))
+                            pywikibot.output('Adding new circa qualifier claim to %s' % artworkItem)
+                            newclaim.addQualifier(newqualifier)
                 
                         self.addReference(artworkItem, newclaim, metadata[u'refurl'])
                         # TODO: Implement circa
 
                 # Try to add the acquisitiondate to the existing collection claim
+                # TODO: Move to function and also work with multiple collection claims
                 if u'P195' in claims:
                     if len(claims.get(u'P195'))==1 and metadata.get(u'acquisitiondate'):
                         collectionclaim = claims.get(u'P195')[0]
