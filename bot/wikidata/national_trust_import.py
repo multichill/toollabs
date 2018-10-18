@@ -141,6 +141,13 @@ def getNTGenerator():
             dateMatch = re.search(dateRegex, itemPageData)
             if dateMatch:
                 metadata['inception'] = htmlparser.unescape(dateMatch.group(1))
+            else:
+                # Try to find a circa date
+                dateRegex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*circa (\d\d\d\d)\s*\<\/p\>'
+                dateMatch = re.search(dateRegex, itemPageData)
+                if dateMatch:
+                    metadata['inception'] = htmlparser.unescape(dateMatch.group(1))
+                    metadata['inceptioncirca'] = True
 
             # acquisitiondate not available
             # acquisitiondateRegex = u'\<em\>Acknowledgement\<\/em\>\:\s*.+(\d\d\d\d)[\r\n\t\s]*\<br\>'
