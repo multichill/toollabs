@@ -49,7 +49,8 @@ class ArtcenterArtistsImporterBot:
                 result[u'synopsis_eng'] = unicode(row.get('synopsis_eng'), u'utf-8')
                 # Could try to exctract stuff here
                 #pywikibot.output (result)
-                yield result
+                if int(result[u'itemnum']) > 0:
+                    yield result
 
     def israelArtcenterArtistsOnWikidata(self):
         '''
@@ -83,16 +84,47 @@ class ArtcenterArtistsImporterBot:
         if artistid in self.artcenterArtists:
             artistTitle = self.artcenterArtists.get(artistid)
             artistItem = pywikibot.ItemPage(self.repo, title=artistTitle)
-        # Add a filter about being notable
-        #elif self.create and artistinfo.get(u'items_count') > 0:
-        #    artistItem = self.createArtist(itemjson)
+        elif self.create:
+            pywikibot.output(u'Trying to establish notability for http://www.imj.org.il/artcenter/newsite/en/?artist=%s' % (artistid,))
+            notability = self.getNotability(artistinfo)
+            if notability:
+                artistItem = self.createArtist(artistinfo, notability)
 
         if artistItem:
             pywikibot.output(u'Working on %s based on http://www.imj.org.il/artcenter/newsite/en/?artist=%s' % (artistItem.title(),
                                                                                             artistid))
             self.expandArtist(artistItem, artistinfo)
 
-    def createArtist(self, artistinfo):
+    def getNotability(self, artistinfo):
+        """
+        See if this artist is notable enough to create
+        * If it's notable, return a reason that can be used as summary
+        ** It's linked from https://en.wikipedia.org/wiki/List_of_public_art_in_Israel
+        ** It has artwork links
+        * If it's not notable, return None
+        :param artistinfo:
+        :return:
+        """
+        artistid = artistinfo.get(u'itemnum')
+        artisturl = u'http://www.imj.org.il/artcenter/newsite/en/?artist=%s' % (artistid,)
+        site = pywikibot.Site(u'en', u'wikipedia')
+        page = pywikibot.Page(site, title=u'List of public art in Israel')
+
+        if artisturl in page.text:
+            return u'Link found on [[:en:List of public art in Israel]]'
+
+        regex = u'\<h5\>\<a href\=\'\/artcenter\/newsite\/en\/gallery\/\?artist\=[^\']+\'\>View artwork'
+        aristpage = requests.get(artisturl)
+        # Ok, this explains some content encoding issues!!!!!!
+        aristpage.encoding = u'utf-8'
+        match = re.search(regex, aristpage.text)
+
+        if match:
+            return u'Links found to artworks gallery'
+        return None
+
+
+    def createArtist(self, artistinfo, notability):
         """
 
         :param itemjson:
@@ -115,7 +147,8 @@ class ArtcenterArtistsImporterBot:
 
         print (data)
 
-        summary = u'Creating item based on http://www.imj.org.il/artcenter/newsite/en/?artist=%s' % (artistinfo.get(u'itemnum'),)
+        summary = u'Creating item based on http://www.imj.org.il/artcenter/newsite/en/?artist=%s . %s' % (artistinfo.get(u'itemnum'),
+                                                                                                          notability)
 
         identification = {}
         pywikibot.output(summary)
@@ -140,7 +173,7 @@ class ArtcenterArtistsImporterBot:
 
         # Add the id to the item so we can get back to it later
         newclaim = pywikibot.Claim(self.repo, u'P1736')
-        newclaim.setTarget(itemjson.get(u'identifier'))
+        newclaim.setTarget(artistinfo.get(u'itemnum'))
         pywikibot.output('Adding new Information Center for Israeli Art artist ID claim to %s' % artistItem)
         artistItem.addClaim(newclaim)
 
@@ -157,7 +190,7 @@ class ArtcenterArtistsImporterBot:
         """
         artistid = artistinfo.get(u'itemnum')
 
-        regex = u'\<h2\>\<strong\>([^\<]+)\<\/strong\>\<\/h2\>'
+        regex = u'\<h2\>\<strong\>([^\<]+)(\n\<br\>)?\<\/strong\>\<\/h2\>'
 
         enpage = requests.get(u'http://www.imj.org.il/artcenter/newsite/en/?artist=%s' % (artistid,))
         hepage = requests.get(u'http://www.imj.org.il/artcenter/newsite/he/?artist=%s' % (artistid,))
