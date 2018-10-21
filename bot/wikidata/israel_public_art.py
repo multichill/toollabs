@@ -19,6 +19,7 @@ import time
 import itertools
 import copy
 import requests
+import csv
 
 class ArtDataBot:
     """
@@ -197,7 +198,7 @@ class ArtDataBot:
                 data = artworkItem.get()
                 claims = data.get('claims')
 
-                """
+
                 # Add missing labels
                 # FIXME: Move to a function
                 # FIXME Do something with aliases too
@@ -217,6 +218,7 @@ class ArtDataBot:
                             pywikibot.output(u'Oops, already had that label/description combination. Skipping')
                             pass
 
+                """
                 # Add missing descriptions
                 # FIXME Move to a function
                 descriptions = copy.deepcopy(data.get('descriptions'))
@@ -309,6 +311,15 @@ class ArtDataBot:
                         newclaim.setTarget(commonscat.title(withNamespace=False))
                         pywikibot.output('Adding %s --> %s' % (newclaim.getID(), newclaim.getTarget()))
                         artworkItem.addClaim(newclaim)
+
+                if metadata.get('lat') and metadata.get('lon') and u'P625' not in claims:
+                    print u'no coordinates found'
+                    # Build coordinates and add them
+                    coordinate = pywikibot.Coordinate(metadata.get('lat'), metadata.get('lon'), dim=100)
+                    newclaim = pywikibot.Claim(self.repo, u'P625')
+                    newclaim.setTarget(coordinate)
+                    pywikibot.output(u'Adding %s, %s to %s' % (coordinate.lat, coordinate.lon, artworkItem.title()))
+                    artworkItem.addClaim(newclaim)
 
 
     def addImageSuggestion(self, item, metadata):
@@ -440,9 +451,9 @@ def israelArtistsOnWikidata():
         result[resultitem.get('id')] = qid
     return result
 
-def getWikipediaPublicArt():
+def getEnglishWikipediaPublicArt():
     """
-    Generator to
+    Generator to parse https://en.wikipedia.org/wiki/List_of_public_art_in_Israel
     """
 
     israelArtists = israelArtistsOnWikidata()
@@ -569,9 +580,11 @@ def getWikipediaPublicArt():
                         metadata[u'adminlocationqid'] = municipalities.get(value)
                     print u'bla'
                 elif field==u'lat':
-                    print u'bla'
+                    if value:
+                        metadata[u'lat'] = float(value)
                 elif field==u'long':
-                    print u'bla'
+                    if value:
+                        metadata[u'lon'] = float(value)
                 elif field==u'image':
                     metadata['image'] = value
                 elif field==u'placecat':
@@ -588,145 +601,308 @@ def getWikipediaPublicArt():
                     time.sleep(5)
             if metadata.get('id'):
                 yield metadata
-            """
-            #metadata['url'] = url
 
-            #metadata['collectionqid'] = u'Q1132918'
-            #metadata['collectionshort'] = u'Nasjonalmuseet'
-            #metadata['locationqid'] = u'Q1132918'
 
-            # Search is for sculptures
+def getHebrewWikipediaPublicArt():
+    """
+    Generator to parse https://he.wikipedia.org/wiki/%D7%95%D7%99%D7%A7%D7%99%D7%A4%D7%93%D7%99%D7%94:%D7%9E%D7%99%D7%96%D7%9E%D7%99_%D7%95%D7%99%D7%A7%D7%99%D7%A4%D7%93%D7%99%D7%94/Wiki_Loves_Monuments/%D7%99%D7%A6%D7%99%D7%A8%D7%95%D7%AA_%D7%90%D7%9E%D7%A0%D7%95%D7%AA_%D7%91%D7%9E%D7%A8%D7%97%D7%91_%D7%94%D7%A6%D7%99%D7%91%D7%95%D7%A8%D7%99
+    I don't understand any Hebrew so this is going to be fun.
+
+    Just managed to get some of the basic stuff out.
+    """
+
+    israelArtists = israelArtistsOnWikidata()
+
+    site = pywikibot.Site('he', 'wikipedia')
+    page = pywikibot.Page(site, u'ויקיפדיה:מיזמי_ויקיפדיה/Wiki_Loves_Monuments/יצירות_אמנות_במרחב_הציבורי')
+
+    templates = page.templatesWithParams()
+
+    # This is not going to fly
+
+    municipalities = { u'Jerusalem' : u'Q1218',
+                       u'Tel Aviv-Yafo' : u'Q33935',
+                       u'Jaffa' : u'Q33935',
+                       u'Givatayim' : u'Q152413',
+                       u'Ramat Gan' : u'Q192807',
+                       u'Haifa' : u'Q41621',
+                       u'Tefen Industrial Park' : u'Q4292724',
+                       u'Raanana' : u'Q309164',
+                       u'Herzliya' : u'Q152491',
+                       u'Netanya' : u'Q192225',
+                       u'Holon' : u'Q192213',
+                       u'Lod' : u'Q207540',
+                       u'Rehovot' : u'Q207350',
+                       u'Arad' : u'Q152473',
+                       u'Mitzpe Ramon' : u'Q741793',
+                       }
+
+    locations = { #u'Hebrew University' : u'',
+        u'Jerusalem Theater' : u'Q555919',
+        u'Sculptures in the Billy Rose Art Garden' : u'Q862975',
+        u'Yad Vashem' : u'Q156591',
+        u'Tel Aviv Museum of Art' : u'Q1267958',
+        u'Tel Aviv University' : u'Q319239',
+        u'Tefen Open Museum' : u'Q6642750',
+        u'Weizmann Institute of Science' : u'Q4182',
+    }
+
+
+    for (template, params) in templates:
+        if not template.title(with_ns=False)==u'יצירת אמנות במרחב הציבורי בישראל בשורה':
+            print template.title(with_ns=False)
+            print template.title(with_ns=False)
+            print template.title(with_ns=False)
+            print template.title(with_ns=False)
+            print template.title(with_ns=False)
+            print template.title(with_ns=False)
+            print template.title(with_ns=False)
+        else:
+            metadata = {}
             metadata['instanceofqid'] = u'Q860861'
-
-            #itempage = requests.get(url)
-            #metadataregex = u'td class\=\"term\"\>Metadata\:\<\/td\>\<td class\=\"value\"\>\<a href\=\"(http\:\/\/api\.dimu\.org\/artifact\/uuid\/[^\"]+)\"'
-
-            #metadataurl = re.search(metadataregex, itempage.text).group(1)
-
-            #print metadataurl
-
-            #metadatapage = requests.get(metadataurl)
-            #metadatapage.encoding = u'utf-8'
-            #item = metadatapage.json()
-            #print (item)
-
+            metadata['genreqid'] = u'Q557141'
+            metadata['countryqid'] = u'Q801'
             metadata['title'] = {}
 
-            if item.get(u'titles'):
-                for titledict in item.get(u'titles'):
-                    if titledict.get(u'title') and titledict.get(u'status') \
-                            and titledict.get(u'status')==u'anvendt' and titledict.get(u'language'):
-                        title = titledict.get(u'title')
-                        if len(title) > 220:
-                            title = title[0:200]
+            metadata['url'] = u'https://he.wikipedia.org/wiki/%D7%95%D7%99%D7%A7%D7%99%D7%A4%D7%93%D7%99%D7%94:%D7%9E%D7%99%D7%96%D7%9E%D7%99_%D7%95%D7%99%D7%A7%D7%99%D7%A4%D7%93%D7%99%D7%94/Wiki_Loves_Monuments/%D7%99%D7%A6%D7%99%D7%A8%D7%95%D7%AA_%D7%90%D7%9E%D7%A0%D7%95%D7%AA_%D7%91%D7%9E%D7%A8%D7%97%D7%91_%D7%94%D7%A6%D7%99%D7%91%D7%95%D7%A8%D7%99'
+            for param in params:
 
-                        if titledict.get(u'language')==u'NOR':
-                            metadata['title']['no'] = title
-                        elif titledict.get(u'language')==u'ENG':
-                            metadata['title']['en'] = title
+                (field, _, value) = param.partition(u'=')
+                # Remove leading or trailing spaces
+                field = field.strip()
+                print u'Everything: %s' % (param,)
+                print u'Field: %s' % (field,)
+                print u'Value: %s' % (value,)
+
+                if field==u'מספר מוזיאון ישראל':
+                    # The id field
+                    metadata['idpid'] = u'P5223'
+                    intregex = u'^(\d+).*$'
+                    idmatch = re.match(intregex, value)
+                    #if idmatch:
+                    print value
+                    print idmatch.group(1)
+                    metadata['id'] = idmatch.group(1)
+                elif field==u'מחוז':
+                    # No clue what this is
+                    continue
+                elif field==u'מספר אתר':
+                    # Site number, not using it
+                    continue
+                elif field==u'שם אתר':
+                    # Title in Hebrew
+                    metadata['title']['he'] = value
+                elif field==u'שם אתר באנגלית':
+                    # Title in English
+                    metadata['title']['en'] = value
+
+                    # I'm not able to
+                elif field==u'תיאור אתר':
+                    # Link to artist page (Hebrew)
+                    print value
+                elif field==u'תיאור אתר באנגלית':
+                    # Link to artist page (English)
+                    artistlinkregex = u'^\[http\:\/\/www\.imj\.org\.il\/artcenter\/default\.asp\?artist=(\d+).*$'
+                    artistlinkmatch = re.match(artistlinkregex, value)
+                    if artistlinkmatch:
+                        artistid = artistlinkmatch.group(1)
+                        if israelArtists.get(artistid):
+                            artistqid = israelArtists.get(artistid)
+                            if artistqid:
+                                if not metadata.get('creatorqid'):
+                                    metadata['creatorqid'] = artistqid
+                                elif metadata['creatorqid'] == artistqid:
+                                    print u'Both systems agree about the creator'
+                                else:
+                                    print u'PANIC PANIC PANIC'
+                                    print u'PANIC PANIC PANIC'
+                                    print u'PANIC PANIC PANIC'
+                                    print u'PANIC PANIC PANIC'
+                                    print u'Found conflicting Wikidata id\'s %s & %s' % (metadata.get('creatorqid'),
+                                                                                         artistqid,)
+                                    time.sleep(5)
+                elif field==u'אדריכל':
+                    # Artist name Hebrew
+                    print value
+                elif field==u'שם האמן באנגלית':
+                    # Artist name English
+                    print value
 
 
-            # TODO: Check multiple titles
-            if item.get(u'titles'):
-                title = None
-                if item.get(u'titles')[0].get(u'title'):
-                    title = item.get(u'titles')[0].get(u'title')
-                elif item.get(u'titles')[1].get(u'title'):
-                    title = item.get(u'titles')[1].get(u'title')
+                elif field==u'artist':
+                    # Extract the name of the artist
+                    artistregex = u'^\[\[([^\]]+)\]\]$'
+                    namematch = re.match(artistregex, value)
+                    if not namematch:
+                        name = value.replace(u'[', u'').replace(u']', u'')
+                    else:
+                        name = namematch.group(1)
+                    metadata['creatorname'] = name
+                    metadata['description'] = { u'en' : u'%s by %s' % (u'sculpture', metadata.get('creatorname'),),
+                                                }
+                    # Try to get a Qid based on Wikipedia link. Might have a collision here
+                    creatorpage = pywikibot.Page(site, name)
+                    if creatorpage.exists():
+                        if creatorpage.isRedirectPage():
+                            creatorpage = creatorpage.getRedirectTarget()
+                        creatoritem = creatorpage.data_item()
+                        if metadata.get('creatorqid'):
+                            crash
+                        metadata['creatorqid'] = creatoritem.title()
 
-                if title:
-                    if len(title) > 220:
-                        title = title[0:200]
-                    metadata['title'] = { u'no' : title,
-                                          }
+                elif field==u'extArtistLink':
+                    # Extract the id of the artist from the URL. Might have a collision here
+                    artistlinkregex = u'^\s*http\:\/\/www\.imj\.org\.il\/artcenter\/newsite\/en\/\?artist\=(\d+)\s*$'
+                    artistlinkmatch = re.match(artistlinkregex, value)
+                    if artistlinkmatch:
+                        artistid = artistlinkmatch.group(1)
+                        if israelArtists.get(artistid):
+                            artistqid = israelArtists.get(artistid)
+                            if artistqid:
+                                if not metadata.get('creatorqid'):
+                                    metadata['creatorqid'] = artistqid
+                                elif metadata['creatorqid'] == artistqid:
+                                    print u'Both systems agree about the creator'
+                                else:
+                                    print u'PANIC PANIC PANIC'
+                                    print u'PANIC PANIC PANIC'
+                                    print u'PANIC PANIC PANIC'
+                                    print u'PANIC PANIC PANIC'
+                                    print u'Found conflicting Wikidata id\'s %s & %s' % (metadata.get('creatorqid'),
+                                                                                         artistqid,)
+                                    time.sleep(5)
+
+
+                elif field==u'סוג אתר':
+                    # Description not useful for me
+                    continue
+                elif field==u'שנת הקמה':
+                    metadata['inception'] = value
+                elif field==u'type':
+                    # Always sculpture or empty
+                    continue
+                elif field==u'fop':
+                    # Awesome, you have FOP
+                    continue
+                    print u'bla'
+                elif field==u'כתובת':
+                    # Address
+                    if value in locations:
+                        metadata[u'locationqid'] = locations.get(value)
+                elif field==u'district':
+                    print u'bla'
+                elif field==u'region':
+                    print u'bla'
+                elif field==u'municipality':
+                    if value in municipalities:
+                        metadata[u'adminlocationqid'] = municipalities.get(value)
+                    print u'bla'
+                elif field==u'LAT':
+                    if value:
+                        metadata[u'lat'] = float(value)
+                elif field==u'LONG':
+                    if value:
+                        metadata[u'lon'] = float(value)
+                elif field==u'תמונה':
+                    # Image
+                    metadata['image'] = value
+                elif field==u'placecat':
+                    if value in locations:
+                        metadata[u'locationqid'] = locations.get(value)
+                elif field==u'קטגוריה בוויקישיתוף':
+                    metadata['commonscat'] = value
+                elif field==u'גוש':
+                    # No clue what this is
+                    print u'bla'
+                elif field==u'חלקה':
+                    # No clue what this is
+                    print u'bla'
                 else:
-                    metadata['title'] = {}
+                    print u'PANIC PANIC PANIC'
+                    print u'PANIC PANIC PANIC'
+                    print u'PANIC PANIC PANIC'
+                    print u'PANIC PANIC PANIC'
+                    print u'Found unkown field %s with contents %s' % (field, value)
+                    #time.sleep(5)
+            if metadata.get('id'):
+                print u'ID FOUND'
+                yield metadata
             else:
-                metadata['title'] = {}
+                print u'NO ID FOUND'
+                print u'NO ID FOUND'
+                print u'NO ID FOUND'
+                print u'NO ID FOUND'
 
 
-            ## I had one item with missing identifier, wonder if it shows up here too
-            metadata['idpid'] = u'P217'
-            #if not item.get('identifier'):
-            #    # Few rare items without an inventory number, just skip them
-            #    continue
-            metadata['id'] = item.get('identifier').get(u'id')
+def getCVSFilePublicArt(csvlocation=u'/home/mdammers/temp/artwork heb eng with artist code.csv'):
+    """
+    Generator to parse the CSV file I got
+    It's a mix of English and Hebrew.
 
-            if item.get('eventWrap').get(u'producers'):
-                name = item.get('eventWrap').get(u'producers')[0].get(u'name')
-                if u',' in name:
-                    (surname, sep, firstname) = name.partition(u',')
-                    name = u'%s %s' % (firstname.strip(), surname.strip(),)
-                metadata['creatorname'] = name
+    """
+    israelArtists = israelArtistsOnWikidata()
 
-                metadata['creatorname'] = name
-                metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
-                                            u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
-                                            }
-            else:
-                metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
-                                            u'en' : u'painting by anonymous paintiner',
-                                            }
-                metadata['creatorqid'] = u'Q4233718'
+    with open(csvlocation, 'rb') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            # Running into fun encoding problems!
+            cleanedrow = {}
+            for key, value in row.iteritems():
+                cleanedrow[key] = unicode(value, u'utf-8')
 
-            #if item.get('authority_id') and item.get('authority_id')[0]:
-            #    artistid = item.get('authority_id')[0]
-            #    if artistid in webumeniaArtists:
-            #        pywikibot.output (u'Found Webumenia id %s on %s' % (artistid, webumeniaArtists.get(artistid)))
-            #        metadata['creatorqid'] = webumeniaArtists.get(artistid)
+            metadata = {}
+            metadata['url'] = u'http://www.imj.org.il/artcenter/'
+            metadata['instanceofqid'] = u'Q860861'
+            metadata['genreqid'] = u'Q557141'
+            metadata['countryqid'] = u'Q801'
+            metadata['title'] = {}
 
-            if item.get('eventWrap').get(u'production') and item.get('eventWrap').get(u'production').get(u'timespan') and \
-                    item.get('eventWrap').get(u'production').get(u'timespan').get(u'fromYear') and \
-                            item.get('eventWrap').get(u'production').get(u'timespan').get(u'fromYear')==item.get('eventWrap').get(u'production').get(u'timespan').get(u'toYear'):
-                metadata['inception'] = item.get('eventWrap').get(u'production').get(u'timespan').get(u'fromYear')
+            metadata['idpid'] = u'P5223'
+            metadata['id'] = cleanedrow.get('public art heb_itemnume')
+            metadata['title']['he'] = cleanedrow.get('public art heb_titlee')
+            metadata['title']['en'] = cleanedrow.get('public art_titlee')
+            metadata['inception'] = cleanedrow.get('public art heb_yeare')
 
+            name = cleanedrow.get('public art_artistec')
 
-            if item.get('eventWrap').get(u'acquisition'):
-                acquisitiondateRegex = u'^.+(\d\d\d\d)$'
-                acquisitiondateMatch = re.match(acquisitiondateRegex, item.get('eventWrap').get(u'acquisition'))
-                if acquisitiondateMatch:
-                    metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
+            metadata['creatorname'] = name
+            metadata['description'] = { u'en' : u'%s by %s' % (u'sculpture', metadata.get('creatorname'),),
+                                        }
 
-            if item.get(u'material') and item.get(u'material').get(u'comment') and item.get(u'material').get(u'comment')==u'Olje på lerret':
-                metadata['medium'] = u'oil on canvas'
+            artistid = cleanedrow.get('artist code')
 
-            # measurement
-            if item.get(u'measures'):
-                for measure in item.get(u'measures'):
-                    if measure.get(u'unit')==u'cm':
-                        if measure.get(u'category') and (measure.get(u'category')==u'Rammemål' or not measure.get(u'category')==u'Hovedmål'):
-                            # We found something else than the painting size
-                            continue
-                        if measure.get(u'type')==u'Høyde':
-                            metadata['heightcm'] = u'%s' % (measure.get(u'measure'),)
-                        elif measure.get(u'type')==u'Bredde':
-                            metadata['widthcm'] = u'%s' % (measure.get(u'measure'),)
-                        elif measure.get(u'type')==u'Dybde':
-                            metadata['depthcm'] = u'%s' % (measure.get(u'measure'),)
+            if israelArtists.get(artistid):
+                metadata['creatorqid'] = israelArtists.get(artistid)
 
-            # Imageurl could easily be constructed here, but content is not free :-(
-            #if item.get(u'has_image') and item.get(u'is_free') and item.get(u'has_iip'):
-            #    metadata[u'imageurl'] = u'https://www.webumenia.sk/dielo/%s/stiahnut' % (item.get('id'),)
-            #    metadata[u'imageurlformat'] = u'Q2195' #JPEG
             yield metadata
-            """
 
 
 def main(*args):
     dryrun = False
     create = False
+    dictGen = None
 
     for arg in pywikibot.handle_args(args):
         if arg.startswith('-dry'):
             dryrun = True
-        if arg.startswith('-create'):
+        elif arg.startswith('-create'):
             create = True
-
-    dictGen = getWikipediaPublicArt()
+        elif arg.startswith('-enwp'):
+            dictGen = getEnglishWikipediaPublicArt()
+        elif arg.startswith('-hewp'):
+            dictGen = getHebrewWikipediaPublicArt()
+        elif arg.startswith('-cvsfile'):
+            dictGen = getCVSFilePublicArt()
+    if not dictGen:
+        pywikibot.output(u'No generator specified. You can use -enwp, -hewp and -cvsfile')
+        exit()
 
     if dryrun:
+        count = 0
         for sculpture in dictGen:
             print (sculpture)
+            count += 1
+        print(count)
     else:
         artDataBot = ArtDataBot(dictGen, create=create)
         artDataBot.run()
