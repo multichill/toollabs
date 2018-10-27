@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to get public art like the stuff at https://en.wikipedia.org/wiki/List_of_public_art_in_Israel to Wikidata.
+Oorlogsmonumenten ding.
 
 """
 import pywikibot
