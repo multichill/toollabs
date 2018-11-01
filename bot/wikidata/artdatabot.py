@@ -452,7 +452,7 @@ class ArtDataBot:
             # Already has a suggestion
             return
 
-        if u'P18' in claims:
+        if u'P18' in claims and not metadata.get(u'imageurlforce'):
             newimage = requests.get(metadata.get(u'imageurl'), stream=True)
             if not newimage.headers.get('Content-length'):
                 return
