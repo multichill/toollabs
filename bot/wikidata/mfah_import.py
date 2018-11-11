@@ -29,11 +29,11 @@ def getMFAHGenerator():
         pywikibot.output(searchurl)
         searchPage = requests.get(searchurl)
 
-        urlregex = u'\<a href\=\"(\/art\/detail\/\d+)\?returnUrl\=[^\"]+\"\>[^\<]+\<\/a\>'
+        urlregex = u'\<a href\=\"\/art\/detail\/(\d+)\?returnUrl\=[^\"]+\"\>[^\<]+\<\/a\>'
         matches = re.finditer(urlregex, searchPage.text)
         for match in matches:
             metadata = {}
-            url = u'https://www.mfah.org%s' % (match.group(1),)
+            url = u'https://www.mfah.org/art/detail/%s' % (match.group(1),)
 
             # Museum site doesn't seem to like it when we go fast
             #time.sleep(15)
@@ -42,6 +42,9 @@ def getMFAHGenerator():
 
             itempage = requests.get(url)
             metadata['url'] = url
+
+            metadata['artworkidpid'] = u'P4673'
+            metadata['artworkid'] = match.group(1)
 
             metadata['collectionqid'] = u'Q1565911'
             metadata['collectionshort'] = u'MFAH'
@@ -83,6 +86,7 @@ def getMFAHGenerator():
                                         u'en' : u'painting by %s' % (name, ),
                                         }
 
+            # TODO: Handle circa like https://www.mfah.org/art/detail/102501
             dateregex = u'\<dt\>Date\<\/dt\>[\s\t\r\n]+\<dd\>([^\<]+)\<\/dd\>'
             datematch = re.search(dateregex, itempage.text)
             # Don't worry about cleaning up here.
@@ -114,6 +118,19 @@ def getMFAHGenerator():
                     metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
                     metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
             """
+            imageidregex = u'\<img class\=\"img-responsive\" style\=\"display:inline-block\" src\=\"https\:\/\/static\.mfah\.com\/collection\/(\d+)\.jpg\?maxWidth\=550&maxHeight\=550&format\=jpg&quality\=90\" \/\>'
+            pubdomainregex = u'\<div class\=\"text-muted text-left\" style\=\"border-top:1px solid #e0e0e0;margin-top:1em\"\>\<small\>Public Domain\<\/small\>\<\/div\>'
+
+            imageidmatch = re.search(imageidregex, itempage.text)
+            pubdomaimatch = re.search(pubdomainregex, itempage.text)
+
+            if imageidmatch and pubdomaimatch:
+                # They limit the max size to 3200 x 3200 so i'll use that
+                metadata[u'imageurl'] = u'https://static.mfah.com/collection/%s.jpg?maxWidth=3200&maxHeight=3200&format=jpg' % (imageidmatch.group(1),)
+                metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                #No license, just something about educational use. Commons is very educational.
+                #metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa-4.0
+                metadata[u'imageurlforce'] = False
             yield metadata
 
 
