@@ -20,26 +20,37 @@ def getBelvedereGenerator():
     Generator to return Belvedere paintings
     """
     #basesearchurl = u'http://digital.belvedere.at/advancedsearch/objects/name:Gemälde/images?page=%s'
+    # This one is for all the paintings
     basesearchurl = u'https://digital.belvedere.at/advancedsearch/Objects/classifications%%3AMalerei/images?page=%s'
+    # Leftovers
+    #basesearchurl = u'https://digital.belvedere.at/advancedsearch/Objects/name%%3ATafelbild/images?page=%s'
     htmlparser = HTMLParser.HTMLParser()
 
-    for i in range(1, 339):
+    for i in range(1, 341): #12): # 341):
         searchurl = basesearchurl % (i,)
 
         pywikibot.output(searchurl)
         searchPage = requests.get(searchurl)
 
-        urlregex = u'data-a2a-url\=\"(https?:\/\/digital\.belvedere\.at\/objects\/\d+\/[^\"]+)\;jsessionid\=[^\"]+\"'
+        urlregex = u'data-a2a-url\=\"(https?:\/\/digital\.belvedere\.at\/objects\/(\d+)\/[^\"]+)\;jsessionid\=[^\"]+\"'
         matches = re.finditer(urlregex, searchPage.text)
         for match in matches:
             metadata = {}
             url = match.group(1)
 
+            metadata['artworkidpid'] = u'P5823'
+            metadata['artworkid'] = match.group(2)
+
             # Museum site doesn't seem to like it when we go fast
             time.sleep(15)
 
             pywikibot.output(url)
-            itempage = requests.get(url)
+            try:
+                itempage = requests.get(url)
+            except requests.exceptions.ConnectionError:
+                time.sleep(60)
+                itempage = requests.get(url)
+
             metadata['url'] = url
             metadata['collectionqid'] = u'Q303139'
             metadata['collectionshort'] = u'Belvedere'
@@ -51,10 +62,11 @@ def getBelvedereGenerator():
             metadata['idpid'] = u'P217'
             invregex = u'\<div class\=\"detailField invnoField\"\>\<span class\=\"detailFieldLabel\"\>Inventarnummer:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>\<\/div\>'
             invmatch = re.search(invregex, itempage.text)
-            metadata['id'] = invmatch.group(1).strip()
-            #else:
-            #    pywikibot.output(u'Something went wrong, no inventory number found, skipping this one')
-            #    continue
+            if invmatch:
+                metadata['id'] = invmatch.group(1).strip()
+            else:
+                pywikibot.output(u'Something went wrong, no inventory number found, skipping this one')
+                continue
 
             titleregex = u'\<div class\=\"detailField titleField\"\>\<h2 property\=\"name\" itemprop\=\"name\"\>([^\<]+)\<\/h2\>'
             titlematch = re.search(titleregex, itempage.text)
@@ -124,6 +136,13 @@ def getBelvedereGenerator():
                     metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
                     metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
 
+            imageidregex = u'\<div class\=\"media-download-content\"\>\<ul\>\<li\>\<a href\=\"\/objects\/details\.detail\.mediaoverlay\.primarymediaoverlay\.downloadbuttonprivate\/(\d+)'
+            imageidmatch = re.search(imageidregex, itempage.text)
+            if imageidmatch:
+                metadata[u'imageurl'] = u'https://digital.belvedere.at/internal/media/downloaddispatcher/%s' % (imageidmatch.group(1),)
+                metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa-4.0
+                metadata[u'imageurlforce'] = True
             yield metadata
 
 
