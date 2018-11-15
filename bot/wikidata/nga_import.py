@@ -87,6 +87,9 @@ def getNGAGenerator(query=u''):
                     metadata['widthcm'] = match_3d.group(u'width')
                     metadata['depthcm'] = match_3d.group(u'depth')
 
+            if record.get('iiifManifestURL'):
+                metadata['iiifmanifesturl'] = record.get('iiifManifestURL')
+
             yield metadata
 
 

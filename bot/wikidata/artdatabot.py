@@ -433,6 +433,14 @@ class ArtDataBot:
                             pywikibot.output('Adding additional described at claim to %s' % artworkItem)
                             artworkItem.addClaim(newclaim)
 
+                # iiif manifest url
+                if u'P6108' not in claims and metadata.get(u'iiifmanifesturl'):
+                    newclaim = pywikibot.Claim(self.repo, u'P6108')
+                    newclaim.setTarget(metadata[u'iiifmanifesturl'])
+                    pywikibot.output('Adding IIIF manifest url claim to %s' % artworkItem)
+                    artworkItem.addClaim(newclaim)
+                    self.addReference(artworkItem, newclaim, metadata[u'refurl'])
+
     def addImageSuggestion(self, item, metadata):
         """
         Add an image that can be uploaded to Commons
