@@ -72,7 +72,7 @@ def getBelvedereGenerator():
             titlematch = re.search(titleregex, itempage.text)
             title = htmlparser.unescape(titlematch.group(1).strip())
             # Chop chop, several very long titles
-            if title > 220:
+            if len(title) > 220:
                 title = title[0:200]
             metadata['title'] = { u'de' : title,
                                   }
@@ -103,6 +103,12 @@ def getBelvedereGenerator():
             if datematch:
                 # Don't worry about cleaning up here.
                 metadata['inception'] = htmlparser.unescape(datematch.group(1).strip())
+            else:
+                datecircaregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>um (\d\d\d\d)\<\/span\>'
+                datecircamatch = re.search(datecircaregex, itempage.text)
+                if datecircamatch:
+                    metadata['inception'] = htmlparser.unescape(datecircamatch.group(1).strip())
+                    metadata['inceptioncirca'] = True
 
             # Probably too
 
@@ -142,7 +148,15 @@ def getBelvedereGenerator():
                 metadata[u'imageurl'] = u'https://digital.belvedere.at/internal/media/downloaddispatcher/%s' % (imageidmatch.group(1),)
                 metadata[u'imageurlformat'] = u'Q2195' #JPEG
                 metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa-4.0
-                metadata[u'imageurlforce'] = True
+                # Could use this later to force
+                metadata[u'imageurlforce'] = False
+
+            # They insert a stupid Emuseum session id
+            iiifregex = u'\<a class\=\"iiifLink\" href\=\"https\:\/\/digital\.belvedere\.at\/apis\/iiif\/presentation\/v2\/objects-(\d+)'
+            iiifmatch = re.search(iiifregex, itempage.text)
+            if iiifmatch:
+                metadata['iiifmanifesturl'] = u'https://digital.belvedere.at/apis/iiif/presentation/v2/objects-%s/manifest' % (iiifmatch.group(1),)
+
             yield metadata
 
 
