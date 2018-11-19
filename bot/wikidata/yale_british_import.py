@@ -26,7 +26,7 @@ def getYaleGenerator():
 
     # 1 - 22
     #searchBaseUrl = u'http://collections.britishart.yale.edu/vufind/Search/Results?join=AND&bool0[]=AND&lookfor0[]=%%22Paintings+and+Sculpture%%22&type0[]=collection&bool1[]=AND&lookfor1[]=Painting&type1[]=type_facet&page=%s&view=grid'
-    searchBaseUrl = u'http://collections.britishart.yale.edu/vufind/Search/Results?lookfor=&type=AllFields&filter[]=object_name_facet%%3A%%22painting%%22&page=%s&view=grid'
+    searchBaseUrl = u'https://collections.britishart.yale.edu/vufind/Search/Results?lookfor=&type=AllFields&filter[]=object_name_facet%%3A%%22painting%%22&page=%s&view=grid'
     htmlparser = HTMLParser()
 
     session = requests.Session()
@@ -39,7 +39,7 @@ def getYaleGenerator():
         searchPage = session.get(searchUrl)
         searchPageData = searchPage.text
 
-        searchRegex = u'(http://collections.britishart.yale.edu/vufind/Record/\d+)'
+        searchRegex = u'(https://collections.britishart.yale.edu/vufind/Record/\d+)'
         matches = re.finditer(searchRegex, searchPageData)
         urllist = []
         for match in matches:
@@ -106,7 +106,7 @@ def getYaleGenerator():
             metadata['idpid'] = u'P217'
 
             metadata['artworkidpid'] = u'P4738'
-            metadata['artworkid'] = url.replace(u'http://collections.britishart.yale.edu/vufind/Record/', u'')
+            metadata['artworkid'] = url.replace(u'https://collections.britishart.yale.edu/vufind/Record/', u'')
 
             dateRegex = u'<th id=\"titleHeaders\">Date[\r\n\t\s]+</th>[\r\n\t\s]+<td id=\"dataField\">[\r\n\t\s]+([^<]+)<br>[\r\n\t\s]+</td>'
             dateMatch = re.search(dateRegex, itemPageData)
@@ -140,8 +140,10 @@ def getYaleGenerator():
                     metadata['widthcm'] = match_3d.group(u'width')
                     metadata['depthcm'] = match_3d.group(u'depth')
 
+
             if u'"public domain"' in itemPageData:
                 try:
+                    # Only seem to provide manifest for PD works.
                     manifesturl = u'https://manifests.britishart.yale.edu/manifest/%s' % (objectid,)
                     print(manifesturl)
                     manifestPage = session.get(manifesturl)
@@ -150,6 +152,8 @@ def getYaleGenerator():
                     if imageinfo.get(u'format') == u'image/jpeg':
                         metadata[u'imageurl'] = imageinfo.get(u'@id')
                         metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                    # If it didn't throw an exception, we can add it.
+                    metadata['iiifmanifesturl'] = manifesturl
                 except ValueError:
                     print (u'Something went wrong, no valid json, skipping')
             yield metadata
