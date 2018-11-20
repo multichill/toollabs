@@ -83,7 +83,7 @@ def getBavarianGenerator():
             title = htmlparser.unescape(titlematch.group(1).strip()) # This didn't work and included attributed to junk: record.get('title')
 
             # Chop chop, several very long titles
-            if title > 220:
+            if len(title) > 220:
                 title = title[0:200]
 
             metadata['title'] = { u'de' : title,

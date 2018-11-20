@@ -65,7 +65,7 @@ def getSNKGenerator():
             title = htmlparser.unescape(titlematch.group(1).strip())
 
             # Chop chop, several very long titles
-            if title > 220:
+            if len(title) > 220:
                 title = title[0:200]
             metadata['title'] = { u'nl' : title,
                                   }

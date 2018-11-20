@@ -66,7 +66,7 @@ def getIMAGenerator():
             title = record.get('metadata')[u'title']
 
             # Chop chop, several very long titles
-            if title > 220:
+            if len(title) > 220:
                 title = title[0:200]
 
             metadata['title'] = { u'en' : title,
