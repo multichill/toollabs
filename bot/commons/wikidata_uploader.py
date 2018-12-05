@@ -5,6 +5,11 @@ Bot to upload public domain paintings.
 
 Bot uses files that have https://www.wikidata.org/wiki/Property:P4765
 
+The bot will decide if it's publid domain because:
+* Painter is known and died before 1923
+* Painter is anonymous, but painting is dated before 1850
+That should be a safe enough margin.
+
 """
 
 import pywikibot
@@ -30,14 +35,15 @@ class WikidataUploaderBot:
             * generator    - A generator that yields Dict objects.
 
         """
-        self.generator = self.getGenerator()
+        self.generatorPre192Creators = self.getGeneratorPre1923Creators()
+        self.generatorPre1850Anonymous = self.getGeneratorPre1850Anonymous()
         self.repo = pywikibot.Site().data_repository()
         self.site = pywikibot.Site(u'commons', u'commons')
         self.duplicates = []
 
-    def getGenerator(self):
+    def getGeneratorPre1923Creators(self):
         """
-        Get the generator of items to consider
+        Get the generator of items with known painter died before 1923 to consider
         """
         query = u"""
 SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license ?institutiontemplate ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
@@ -72,12 +78,48 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
             resultitem['creator'] = resultitem.get('creator').replace(u'http://www.wikidata.org/entity/', u'')
             yield resultitem
 
+    def getGeneratorPre1850Anonymous(self):
+        """
+        Get the generator of items with anonymous painter made before 1850 to consider
+        """
+        query = u"""
+SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license ?institutiontemplate ?collectionLabel ?collectioncategory WHERE {
+  ?item p:P4765 ?image .
+  ?item schema:dateModified ?itemdate .
+  ?item wdt:P31 wd:Q3305213 .
+  ?item wdt:P217 ?inv .
+  ?image ps:P4765 ?downloadurl .
+  ?image pq:P2701 wd:Q2195 .
+  ?image pq:P2699 ?sourceurl .
+  ?image pq:P1476 ?title .
+  ?image pq:P2093 ?creatorname .
+  ?item wdt:P170 wd:Q4233718 .
+  OPTIONAL { ?image pq:P275 ?license } .
+  ?item wdt:P195 ?collection . ?collection wdt:P1612 ?institutiontemplate .
+  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
+  ?collection wdt:P373 ?collectioncategory .
+  ?item wdt:P571 ?inception . BIND(YEAR(?inception) AS ?inceptionyear)
+  FILTER(?inceptionyear < 1850) .
+  } ORDER BY DESC(?itemdate)
+  LIMIT 15000"""
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            resultitem['item'] = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            if resultitem.get('license'):
+                resultitem['license'] = resultitem.get('license').replace(u'http://www.wikidata.org/entity/', u'')
+            resultitem['creator'] = u'Q4233718' # Item for anonymous
+            yield resultitem
+
     def run(self):
         """
         Starts the robot.
         """
-
-        for metadata in self.generator:
+        for metadata in self.generatorPre192Creators:
+            if self.isReadyToUpload(metadata):
+                self.uploadPainting(metadata)
+        for metadata in self.generatorPre1850Anonymous:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
         self.reportDuplicates()
@@ -89,10 +131,12 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         format = u'%Y-%m-%dT%H:%M:%SZ'
         now = datetime.datetime.utcnow()
         itemdelta = now - datetime.datetime.strptime(metadata.get(u'itemdate'), format)
-        creatordelta = now - datetime.datetime.strptime(metadata.get(u'creatordate'), format)
+        creatordelta = 0
+        if metadata.get(u'creatordate'):
+            creatordelta = now - datetime.datetime.strptime(metadata.get(u'creatordate'), format)
 
         # Both item and creator should at least be 2 days old
-        if itemdelta.days > 2 and creatordelta.days > 2:
+        if itemdelta.days > 2 and (metadata.get(u'creator')==u'Q4233718' or creatordelta.days > 2):
             return True
         return False
 
@@ -105,7 +149,12 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
         title = self.cleanUpTitle(self.getTitle(metadata))
         pywikibot.output(title)
         pywikibot.output(description)
-        response = requests.get(metadata.get(u'downloadurl'), verify=False) # Museums and valid SSL.....
+        try:
+            response = requests.get(metadata.get(u'downloadurl'), verify=False) # Museums and valid SSL.....
+        except requests.exceptions.ConnectionError:
+            pywikibot.output(u'Got a connection error for Wikidata item [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
+            return False
+
         if response.status_code == 200:
             hashObject = hashlib.sha1()
             hashObject.update(response.content)
@@ -217,7 +266,11 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
                 return False
             licensetemplate = licenses.get(metadata.get(u'license'))
             deathyear = metadata.get(u'deathyear')
+            if metadata.get('creator')==u'Q4233718':
+                return u'{{Licensed-PD-Art|PD-old-100-1923|%s}}\n' % (licensetemplate, )
             return u'{{Licensed-PD-Art|PD-old-auto-1923|%s|deathyear=%s}}\n' % (licensetemplate, deathyear)
+        if metadata.get('creator')==u'Q4233718':
+            return u'{{PD-Art|PD-old-100-1923}}\n'
         return u'{{PD-Art|PD-old-auto-1923|deathyear=%(deathyear)s}}\n' % metadata
 
     def getCategories(self, metadata):
@@ -299,10 +352,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
 
 
 def main():
-    #paintingGen = getPaintingGenerator()
-
-    #for painting in paintingGen:
-    #    print painting
     wikidataUploaderBot = WikidataUploaderBot()
     wikidataUploaderBot.run()
 
