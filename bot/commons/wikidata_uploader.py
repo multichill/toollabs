@@ -275,9 +275,16 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
 
     def getCategories(self, metadata):
         """
-        Add categories for the collection and creator if available
+        Add categories for the collection and creator if available.
+
+        For the collection the fallback tree is:
+        1. Category:Paintings in the <collectioncategory>
+        2. Category:Paintings in <collectioncategory>
+        3. Category:<collectioncategory>
+
+        Only add a creatorcategory if it's available (not the case for anonymous works)
         """
-        result = u'{{subst:#ifexist:Category:Paintings in the %(collectioncategory)s|[[Category:Paintings in the %(collectioncategory)s]]|[[Category:%(collectioncategory)s]]}}\n' % metadata
+        result = u'{{subst:#ifexist:Category:Paintings in the %(collectioncategory)s|[[Category:Paintings in the %(collectioncategory)s]]|{{subst:#ifexist:Category:Paintings in %(collectioncategory)s|[[Category:Paintings in %(collectioncategory)s]]|[[Category:%(collectioncategory)s]]}}}}\n' % metadata
         if metadata.get(u'creatorcategory'):
             result = result + u'{{subst:#ifexist:Category:Paintings by %(creatorcategory)s|[[Category:Paintings by %(creatorcategory)s]]|[[Category:%(creatorcategory)s]]}}' % metadata
         return result
