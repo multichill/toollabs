@@ -165,22 +165,27 @@ class PaintingBot:
 
                 # Let's see if we can find a victim
                 creator = match.group(1)
-                creatorItem = self.getCreator(creator)
-                if not creatorItem:
-                    pywikibot.output(u'No creator found for "%s"' % (creator,))
-                    
-                    # The name is maybe like "surname, firstname"
-                    if u',' not in creator:
-                        # Just continue
-                        continue
-                    else:
-                        (surname, sep, firstname) = creator.partition(u',')
-                        creator = u'%s %s' % (firstname.strip(), surname.strip(),)
-                        creatorItem = self.getCreator(creator)
-                        if not creatorItem:
-                            pywikibot.output(u'No creator found for "%s" either' % (creator,))
+                # The search generator in getCreator() sometimes times out
+                try:
+                    creatorItem = self.getCreator(creator)
+
+                    if not creatorItem:
+                        pywikibot.output(u'No creator found for "%s"' % (creator,))
+
+                        # The name is maybe like "surname, firstname"
+                        if u',' not in creator:
+                            # Just continue
                             continue
-                    
+                        else:
+                            (surname, sep, firstname) = creator.partition(u',')
+                            creator = u'%s %s' % (firstname.strip(), surname.strip(),)
+                            creatorItem = self.getCreator(creator)
+                            if not creatorItem:
+                                pywikibot.output(u'No creator found for "%s" either' % (creator,))
+                                continue
+                except pywikibot.exceptions.TimeoutError:
+                    pywikibot.output(u'Looks like the search timed out while looking for %s' % (creator,))
+                    continue
 
                 # No occupation set yet
                 if not data.get('claims').get('P170'):
