@@ -5,7 +5,6 @@ Bot to import paintings from the  National Gallery of Canada (Musée des Beaux-A
 
 Just loop over pages like https://www.gallery.ca/collection/search-the-collection?f[0]=field_object_medium%3A4753&page=0
 
-
 """
 import artdatabot
 import pywikibot
@@ -45,15 +44,7 @@ def getGalleryCaGenerator():
             # No artwork pid here
             #metadata['artworkidpid'] = u'P5823'
             #metadata['artworkid'] = match.group(2)
-
-            ## Museum site doesn't seem to like it when we go fast
-            #time.sleep(15)
-            #pywikibot.output(url)
-            #try:
             itempage = requests.get(url)
-            #except requests.exceptions.ConnectionError:
-            #    time.sleep(60)
-            #    itempage = requests.get(url)
 
             metadata['url'] = url
             metadata['collectionqid'] = u'Q1068063'
@@ -66,12 +57,7 @@ def getGalleryCaGenerator():
             metadata['idpid'] = u'P217'
             invregex = u'\<div class\=\"artwork-field\"\>\<div class\=\"label-above\"\>Accession number\<\/div\>\<div\>([^\<]+)\<\/div\>'
             invmatch = re.search(invregex, itempage.text)
-            #if invmatch:
             metadata['id'] = invmatch.group(1).strip()
-            #else:
-            #    pywikibot.output(u'Something went wrong, no inventory number found, skipping this one')
-            #    continue
-
 
             titleregex = u'\<meta property\=\"og:title\" content\=\"([^\"]+)\" \/\>'
             titlematch = re.search(titleregex, itempage.text)
@@ -106,7 +92,6 @@ def getGalleryCaGenerator():
                 name = u'unknown'
 
             # Do artist lookup here
-            #metadata['creatorqid'] = u'Q4233718'
             if artistid in galleryCaArtists:
                 pywikibot.output (u'Found National Gallery of Canada artist ID %s on %s' % (artistid, galleryCaArtists.get(artistid)))
                 metadata['creatorqid'] = galleryCaArtists.get(artistid)
@@ -124,7 +109,6 @@ def getGalleryCaGenerator():
                                             u'de' : u'Gemälde von %s' % (name, ),
                                             u'fr' : u'peinture de %s' % (name, ),
                                             }
-
 
             dateregex = u'\<div class\=\"artwork-field\"\>\<div class\=\"label-above\"\>Date\<\/div\>\<div\>(\d\d\d\d)\<\/div\>'
             datematch = re.search(dateregex, itempage.text)
@@ -173,9 +157,7 @@ def getGalleryCaGenerator():
             #    #metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa-4.0
             #    # Could use this later to force
             #    metadata[u'imageurlforce'] = False
-
             # No IIIF
-
             yield metadata
 
 def getGalleryCaArtistsOnWikidata():
