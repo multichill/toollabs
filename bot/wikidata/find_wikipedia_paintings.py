@@ -15,6 +15,7 @@ def wikidataCategoryGenerator(repo, qid, project):
     Generator that takes a category item
     '''
     categoryitem = pywikibot.ItemPage(repo, title=qid)
+    # TODO: Sort this
     for categorypage in categoryitem.iterlinks(family=project):
         gennostatements = petscanGenerator(repo,
                                            categorypage.site.lang,
@@ -49,14 +50,14 @@ def petscanGenerator(repo, lang, project, depth, categories, typequery='nostatem
                 u'&edits%%5Banons%%5D=both&edits%%5Bflagged%%5D=both&subpage_filter=either&common_wiki=auto' \
                 u'&wikidata_item=with&wpiu=any&wpiu_no_statements=1&cb_labels_yes_l=1&cb_labels_any_l=1&cb_labels_no_l=1' \
                 u'&format=json&output_compatability=catscan&sortby=none&sortorder=ascending&min_redlink_count=1' \
-                u'&doit=Do%%20it%%21&interface_language=en&active_tab=tab_output'
+                u'&doit=Do%%20it%%21&interface_language=en&active_tab=tab_output&add_image=on'
     elif typequery=='withoutitem':
         query = u'https://petscan.wmflabs.org/?language=%(lang)s&project=%(project)s&depth=%(depth)s' \
                 u'&categories=%(categories)s&combination=subset&ns%%5B0%%5D=1&show_redirects=no&edits%%5Bbots%%5D=both' \
                 u'&edits%%5Banons%%5D=both&edits%%5Bflagged%%5D=both&subpage_filter=either&common_wiki=auto' \
                 u'&wikidata_item=without' \
                 u'&format=json&output_compatability=catscan&sortby=none&sortorder=ascending&min_redlink_count=1' \
-                u'&doit=Do%%20it%%21&interface_language=en&active_tab=tab_output'
+                u'&doit=Do%%20it%%21&interface_language=en&active_tab=tab_output&add_image=on'
     else:
         return
     url = query % { u'lang' : lang,
@@ -67,10 +68,15 @@ def petscanGenerator(repo, lang, project, depth, categories, typequery='nostatem
     try:
         petpage = requests.get(url)
         for pageinfo in petpage.json().get(u'*')[0].get(u'a').get('*'):
-            yield { u'title' : pageinfo.get(u'title').replace(u'_', u' '),
-                    u'q' : pageinfo.get(u'q'),
-                    u'lang' : lang,
-                    }
+            hitinfo = { u'title' : pageinfo.get(u'title').replace(u'_', u' '),
+                        u'q' : pageinfo.get(u'q'),
+                        u'lang' : lang,
+                        }
+            if pageinfo.get('metadata') and pageinfo.get('metadata').get('image') and \
+                    not pageinfo.get('metadata').get('image').endswith(u'.svg'):
+                # Get rid of placeholder images, paintings don't end in .svg
+                hitinfo['image'] = pageinfo.get('metadata').get('image')
+            yield hitinfo
     except ValueError:
         return
 
@@ -80,12 +86,15 @@ def main():
     gen = wikidataCategoryGenerator(repo, u'Q6009893', u'wikipedia')
     text = u'{{/header}}\n\n'
     text = text + u'{| class="wikitable sortable"\n'
-    text = text + u'! Item !! Language  !! Title\n|-'
+    text = text + u'! Item !! Language  !! Title !! Image\n|-'
     i = 0
     langstats = {}
     for iteminfo in gen:
         if iteminfo.get(u'q'):
-            text = text + u'| [[%(q)s]] || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]\n|-\n' % iteminfo
+            text = text + u'| [[%(q)s]] || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]' % iteminfo
+            if iteminfo.get('image'):
+                text = text + u'|| [[File:%(image)s|150px]]' % iteminfo
+            text = text + u'\n|-\n'
         else:
             text = text + u'| None <small>(<span class="plainlinks">[//www.wikidata.org/w/index.php?title=Special:NewItem&site=%(lang)swiki&page={{urlencode:%(title)s}} c]</span>)</small> || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]\n|-\n' % iteminfo
         i = i + 1
