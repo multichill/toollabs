@@ -3,7 +3,7 @@
 """
 Bot to scrape paintings from the Museum of Fine Arts, Boston website.
 
-http://www.mfa.org/collections/search?search_api_views_fulltext=&f%5B0%5D=field_classifications%3A16
+https://www.mfa.org/collections/search?search_api_views_fulltext=&f%5B0%5D=field_classifications%3A16
 
 """
 import pywikibot
@@ -18,7 +18,7 @@ def getMFAGenerator():
     Do Americas, Europe, Contemporary Art. Leave Asia for later
 
     Doing a two step approach here. 
-    * Loop over http://www.mfa.org/collections/search?search_api_views_fulltext&sort=search_api_aggregation_1&order=asc&f[0]=field_classifications%3A16&f[1]=field_collections%3A5=&page=4 - 66 and grab paintings
+    * Loop over https://www.mfa.org/collections/search?search_api_views_fulltext&sort=search_api_aggregation_1&order=asc&f[0]=field_classifications%3A16&f[1]=field_collections%3A5=&page=4 - 66 and grab paintings
     * Grab data from paintings
 
     Sorted by author name
@@ -34,9 +34,9 @@ def getMFAGenerator():
     
     """
     collectionurls = [
-        (u'http://www.mfa.org/collections/search?search_api_views_fulltext=&sort=search_api_aggregation_1&order=asc&f[0]=field_classifications%%3A16&f[1]=field_collections%%3A3&page=%s', 121),
-        (u'http://www.mfa.org/collections/search?search_api_views_fulltext=&sort=search_api_aggregation_1&order=asc&f[0]=field_classifications%%3A16&f[1]=field_collections%%3A4&page=%s', 39),
-        (u'http://www.mfa.org/collections/search?search_api_views_fulltext=&sort=search_api_aggregation_1&order=asc&f[0]=field_classifications%%3A16&f[1]=field_collections%%3A5&page=%s', 82),
+        (u'https://www.mfa.org/collections/search?search_api_views_fulltext=&sort=search_api_aggregation_1&order=asc&f[0]=field_classifications%%3A16&f[1]=field_collections%%3A3&page=%s', 121),
+        (u'https://www.mfa.org/collections/search?search_api_views_fulltext=&sort=search_api_aggregation_1&order=asc&f[0]=field_classifications%%3A16&f[1]=field_collections%%3A4&page=%s', 39),
+        (u'https://www.mfa.org/collections/search?search_api_views_fulltext=&sort=search_api_aggregation_1&order=asc&f[0]=field_classifications%%3A16&f[1]=field_collections%%3A5&page=%s', 82),
     ]
 
     htmlparser = HTMLParser.HTMLParser()
@@ -51,7 +51,7 @@ def getMFAGenerator():
             searchData = searchPage.text
             # <span class="italic"><a href="/aic/collections/artwork/47149?search_no=
 
-            itemregex = u'<div class="object">\s*<a href="(http://www.mfa.org/collections/object/[^"]+)">'
+            itemregex = u'<a href="(https://www.mfa.org/collections/object/[^"]+)">' # <div class="object">\s
 
             for match in re.finditer(itemregex, searchData, flags=re.M):
                 n = n + 1
@@ -63,7 +63,7 @@ def getMFAGenerator():
                 print url
 
                 metadata['artworkidpid'] = u'P4625'
-                metadata['artworkid'] = url.replace(u'http://www.mfa.org/collections/object/', u'')
+                metadata['artworkid'] = url.replace(u'https://www.mfa.org/collections/object/', u'')
 
                 metadata['collectionqid'] = u'Q49133'
                 metadata['collectionshort'] = u'MFA'
@@ -115,7 +115,13 @@ def getMFAGenerator():
                 dateregex = u'\<p\>\s*(\d\d\d\d)\s*\<br\>\s*\<a href=\"/collections/search\?f\[0\]=field_artists%253Afield_artist'
                 datematch = re.search(dateregex, itemData, flags=re.M)
                 if datematch:
-                    metadata['date'] = htmlparser.unescape(datematch.group(1))
+                    metadata['inception'] = htmlparser.unescape(datematch.group(1))
+                else:
+                    dateregex = u'\<p\>\s*about\s*(\d\d\d\d)\s*\<br\>\s*\<a href=\"/collections/search\?f\[0\]=field_artists%253Afield_artist'
+                    datematch = re.search(dateregex, itemData, flags=re.M)
+                    if datematch:
+                        metadata['inception'] = htmlparser.unescape(datematch.group(1))
+                        metadata['inceptioncirca'] = True
 
                 accessionDateRegex = u'\(Accession [dD]ate\:\s*(?P<month>(January|February|March|April|May|June|July|August|September|October|November|December))\s*(?P<day>\d+),\s*(?P<year>\d+\d+\d+\d+)\s*\)'
                 accessionDateMatch = re.search(accessionDateRegex, itemData)
