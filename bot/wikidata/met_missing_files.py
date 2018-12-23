@@ -6,7 +6,11 @@ https://commons.wikimedia.org/wiki/Category:Images_from_Metropolitan_Museum_of_A
 
 Turns out that the numbers don't add up. This piece of code is used to hunt down the missing files
 
-Clone https://github.com/tategallery/collection/tree/master/artworks . This bot works on those files.
+Make some lookup tables before we start.
+
+Loop over the id's at https://collectionapi.metmuseum.org/public/collection/v1/objects
+
+If it's in the public domain, check if we uploaded all the files
 
 """
 import artdatabot
@@ -21,65 +25,205 @@ import codecs
 from xml.sax.saxutils import escape
 
 
-def metWorksOnWikidata():
-    '''
-    Just return all the RKD images as a dict
-    :return: Dict
-    '''
-    result = {}
-    sq = pywikibot.data.sparql.SparqlQuery()
-    query = u'SELECT ?item ?id WHERE { ?item wdt:P3634 ?id  } LIMIT 10000009'
-    sq = pywikibot.data.sparql.SparqlQuery()
-    queryresult = sq.select(query)
+class MetFileUploadBot:
+    """
 
-    for resultitem in queryresult:
-        qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-        result[resultitem.get('id')] = qid
-    print len(result)
-    return result
+    """
+    def __init__(self, generator):
+        """
 
-def currentCommonsFiles():
-    '''
-    Get the list of current Commons filenames with spaces, not underscores:
-    u'Diptyc MET ep1975.1.22.r.bw.R.jpg'
-    '''
-    result = []
-    site = pywikibot.Site(u'commons', u'commons')
-    pagetitle = u'Template:TheMet'
-    templatepage = pywikibot.Page(site, title=pagetitle)
-    references =templatepage.getReferences(onlyTemplateInclusion=True, namespaces=[6,])
-    for page in references:
-        result.append(page.title(withNamespace=False,))
-    return result
+        """
+        self.generator = generator
+        self.metWorksOnWikidata = self.getMetWorksOnWikidata()
+        self.commonsFiles = self.getCurrentCommonsFiles()
+        self.commonsIds = self.getCurrentCommonsIds()
+        self.commonsShortFilenames = self.getCurrentCommonsShortFilenames()
+        self.xmldata=filesFound = {}
+        self.alreadyUploaded = []
+
+        #self.repo = pywikibot.Site().data_repository()
+
+    def getMetWorksOnWikidata(self):
+        '''
+        Just return all the MET id's as a dict
+        :return: Dict
+        '''
+        result = {}
+        query = u'SELECT ?item ?id WHERE { ?item wdt:P3634 ?id  } LIMIT 10000009'
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            result[resultitem.get('id')] = qid
+        print len(result)
+        return result
+
+    def getCurrentCommonsFilesTransclusion(self):
+        '''
+        Get the list of current Commons filenames with spaces, not underscores:
+        u'Diptyc MET ep1975.1.22.r.bw.R.jpg'
+        '''
+        result = []
+        site = pywikibot.Site(u'commons', u'commons')
+        pagetitle = u'Template:TheMet'
+        templatepage = pywikibot.Page(site, title=pagetitle)
+        references =templatepage.getReferences(onlyTemplateInclusion=True, namespaces=[6,])
+        for page in references:
+            result.append(page.title(withNamespace=False,))
+        return result
+
+    def getCurrentCommonsFiles(self):
+        '''
+        Get the list of current Commons filenames with spaces, not underscores:
+        u'Diptyc MET ep1975.1.22.r.bw.R.jpg'
+        '''
+        result = []
+        urlpage = requests.get(u'https://tools.wmflabs.org/multichill/queries/commons/met_files.txt', verify=False)
+        regex =u'^\* File\:(.+)$'
+        for match in re.finditer(regex, urlpage.text, re.M):
+            # Might crash on non-integer
+            result.append(match.group(1).replace(u'_', u' '))
+        return result
+
+    def getCurrentCommonsIds(self):
+        '''
+        Get the list of current Commons filenames with spaces, not underscores:
+        u'Diptyc MET ep1975.1.22.r.bw.R.jpg'
+        '''
+        resultFiles = []
+        resultids = []
+        urlpage = requests.get(u'https://tools.wmflabs.org/multichill/queries/commons/met_urls.txt', verify=False)
+        regex =u'^\* File\:(.+) - https\:\/\/www\.metmuseum\.org\/art\/collection\/search\/(\d+)$'
+        for match in re.finditer(regex, urlpage.text, re.M):
+            # Might crash on non-integer
+            resultFiles.append(match.group(1).replace(u'_', u' '))
+            resultids.append(match.group(2))
+        return (resultFiles,resultids)
+
+    def getCurrentCommonsShortFilenames(self):
+        '''
+        Get the list of current Commons filenames with spaces, not underscores:
+        u'Diptyc MET ep1975.1.22.r.bw.R.jpg'
+        '''
+        result= {}
+        urlpage = requests.get(u'https://tools.wmflabs.org/multichill/queries/commons/met_urls.txt', verify=False)
+        regex =u'^\* File\:.*[ _]?MET[ _](.+)\.(jpg|jpeg) - https\:\/\/www\.metmuseum\.org\/art\/collection\/search\/(\d+)$'
+        for match in re.finditer(regex, urlpage.text, re.M|re.I):
+            # Might crash on non-integer
+            result[(match.group(1).replace(u' ', u'_'))] = match.group(3)
+        return result
+
+    def run(self):
+        '''
+
+        :return:
+        '''
+        self.xmlBase = '/home/mdammers/metmuseum/MetObjectsMissingChristmas2018_%s.xml'
+        self.xmlcounter = 1
+        self.xmlentries = 0
+        self.maxentries = 10000
+
+        self.xmlFile = self.xmlBase % (self.xmlcounter, )
+        self.xmlData = codecs.open(self.xmlFile, "w", "utf-8")
+        self.xmlData.write('<?xml version="1.0"?>' + "\n")
+        self.xmlData.write('<csv_data>' + "\n")
+
+        for metObject in self.generator:
+            self.processMetObject(metObject)
+
+        self.xmlData.write('</csv_data>' + "\n")
+        self.xmlData.close()
+
+    def processMetObject(self, metobject):
+        '''
+
+        :return:
+        '''
+        if metobject.get('primaryImage'):
+            self.processMetImage(metobject.get('primaryImage'), metobject)
+
+        for image in metobject.get('additionalImages'):
+            self.processMetImage(image, metobject)
+
+    def processMetImage(self, image, metobject):
+        '''
+
+        :param image:
+        :return:
+        '''
+        title = self.generateCommonsTitle(image, metobject)
+        if not title:
+            return
+        fullfilename = u'%s.jpg' % (title, )
+        fullfilenamee = u'%s.jpeg' % (title, )
+        if fullfilename in self.commonsFiles:
+            self.alreadyUploaded.append(fullfilename)
+            pywikibot.output(u'Already uploaded %s' % (fullfilename,))
+            return
+        elif fullfilenamee in self.commonsFiles:
+            self.alreadyUploaded.append(fullfilenamee)
+            pywikibot.output(u'Already uploaded %s' % (fullfilenamee,))
+            return
+        pywikibot.output(u'Probably going to upload %s' % (fullfilenamee,))
+        self.outputXML(image, title, metobject)
+
+    def generateCommonsTitle(self, image, metobject):
+        regex =u'^https\:\/\/images\.metmuseum\.org\/CRDImages\/[^\/]+\/original\/(.+).jpe?g\s*$'
+
+        notallowedchars = [u':', u'[', u']', u'#', u'|']
+
+        match = re.match(regex, image, re.I)
+        if match:
+            title = metobject.get('title').strip().replace(u'  ', u' ')
+            for toreplace in notallowedchars:
+                title = title.replace(toreplace, u'-')
+            metfilename = match.group(1).strip().replace(u'_', u' ')
+            if title:
+                filename = u'%s MET %s' % (title, metfilename, )
+            else:
+                filename = u'MET %s' % (metfilename, )
+            return filename
+
+    def outputXML(self, imageurl, filename, metobject):
+        '''
+
+        :param filename:
+        :param metobject:
+        :return:
+        '''
+        toignore = [u'primaryImage',
+                    u'primaryImageSmall',
+                    u'additionalImages',
+                    u'constituents']
+        self.xmlData.write('<row>' + "\n")
+        for key, value in metobject.iteritems():
+            if key not in toignore:
+                xmlkey = key.replace(u' ', u'_')
+                self.xmlData.write('    ' + '<' + xmlkey + '>' \
+                                + escape(u'%s' % (value,)) + '</' + xmlkey + '>' + "\n")
+        self.xmlData.write('    ' + '<Image_Url>' \
+                        + escape(imageurl).replace(u' ', u'%20').replace(u'–', u'%E2%80%93') + '</Image_Url>' + "\n")
+        #self.xmlData.write('    ' + '<wikidata>' \
+        #                + wikidata + '</wikidata>' + "\n")
+        self.xmlData.write('    ' + '<Filename>' \
+                        + escape(filename) + '</Filename>' + "\n")
+        self.xmlData.write('</row>' + "\n")
+        self.xmlentries = self.xmlentries + 1
+        if self.xmlentries > self.maxentries:
+            # Time to close the file and start a new one
+            self.xmlData.write('</csv_data>' + "\n")
+            self.xmlData.close()
+            self.xmlcounter = self.xmlcounter + 1
+
+            self.xmlFile = self.xmlBase % (self.xmlcounter, )
+            self.xmlData = codecs.open(self.xmlFile, "w", "utf-8")
+            self.xmlData.write('<?xml version="1.0"?>' + "\n")
+            self.xmlData.write('<csv_data>' + "\n")
+
+            self.xmlentries = 0
 
 
-def currentCommonsIds():
-    '''
-    Get the list of current Commons filenames with spaces, not underscores:
-    u'Diptyc MET ep1975.1.22.r.bw.R.jpg'
-    '''
-    resultFiles = []
-    resultids = []
-    urlpage = requests.get(u'https://tools.wmflabs.org/multichill/queries/commons/met_urls.txt', verify=False)
-    regex =u'^\* File\:(.+) - http\:\/\/www\.metmuseum\.org\/art\/collection\/search\/(\d+)$'
-    for match in re.finditer(regex, urlpage.text, re.M):
-        # Might crash on non-integer
-        resultFiles.append(match.group(1).replace(u'_', u' '))
-        resultids.append(match.group(2))
-    return (resultFiles,resultids)
-
-def currentCommonsShortFilenames():
-    '''
-    Get the list of current Commons filenames with spaces, not underscores:
-    u'Diptyc MET ep1975.1.22.r.bw.R.jpg'
-    '''
-    result= {}
-    urlpage = requests.get(u'https://tools.wmflabs.org/multichill/queries/commons/met_urls.txt', verify=False)
-    regex =u'^\* File\:.*[ _]?MET[ _](.+)\.(jpg|jpeg) - http\:\/\/www\.metmuseum\.org\/art\/collection\/search\/(\d+)$'
-    for match in re.finditer(regex, urlpage.text, re.M|re.I):
-        # Might crash on non-integer
-        result[(match.group(1).replace(u' ', u'_'))] = match.group(3)
-    return result
 
 def currentMetShortFilenamesGenerator():
     '''
@@ -140,7 +284,7 @@ def getImageUrls(metid, title):
 
         return result
 
-def getMETGenerator(csvlocation, metworks, missingids):
+def getMETGenerator2(csvlocation, metworks, missingids):
     """
     Generator to return Museum of New Zealand Te Papa Tongarewa paintings
     """
@@ -395,7 +539,45 @@ def findMissingIdentifiers():
 
     return missingids.keys()
 
+
+def getMETGenerator(isPublicDomain=None, objectName=None, metadataDate=None):
+    '''
+    Use the API at https://metmuseum.github.io/ to get works
+    :param isPublicDomain - If this is set, works will be filtered so that only public domain works are returned
+    :param objectName - If this is set, works will be filtered so for example only paintings are returned
+    :param metadataDate: - If it's set, only return recently updated objects
+    :return: Yields dictionaries with the metadata per work
+    '''
+    if metadataDate:
+        idurl = u'https://collectionapi.metmuseum.org/public/collection/v1/objects?metadataDate=%s' % (metadataDate,)
+    else:
+        idurl = u'https://collectionapi.metmuseum.org/public/collection/v1/objects'
+
+    idpage = requests.get(idurl)
+
+    pywikibot.output(u'The MET query returned %s works' % (idpage.json().get('total')))
+
+    session = requests.Session()
+
+    for metid in idpage.json().get('objectIDs'):
+        meturl = u'https://collectionapi.metmuseum.org/public/collection/v1/objects/%s' % (metid,)
+        metpage = session.get(meturl)
+        # Only work on public domain works if that is set
+        if isPublicDomain and metpage.json().get(u'isPublicDomain')!=isPublicDomain:
+            continue
+        # Only work on certain type of objects if that is set
+        if objectName and metpage.json().get(u'objectName')!=objectName:
+            continue
+        yield metpage.json()
+
 def main(*args):
+
+    generator = getMETGenerator(metadataDate='2018-12-13')
+
+    metFileUploadBot = MetFileUploadBot(generator)
+    metFileUploadBot.run()
+
+    """
     missingids = findMissingIdentifiers()
 
     csvlocation = u'/home/mdammers/metmuseum/MetObjects_20171226.csv'
@@ -412,6 +594,6 @@ def main(*args):
 
     #artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
     #artDataBot.run()
-
+    """
 if __name__ == "__main__":
     main()
