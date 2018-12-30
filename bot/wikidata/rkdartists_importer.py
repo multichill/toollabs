@@ -800,7 +800,11 @@ class RKDArtistsCreatorBot:
         start = 0 # 20000 # 60000
         end = 101232 # 101232 # 2608 # 361707
         limit = 2
-        baseurl = u'https://api.rkd.nl/api/search/artists?filters[kwalificatie]=schilder&fieldset=detail&format=json&rows=%s&start=%s'
+
+        start = 0
+        end = 3246
+        baseurl = u'https://api.rkd.nl/api/search/artists?query=+Wachlin&fieldset=detail&format=json&rows=%s&start=%s'
+        #baseurl = u'https://api.rkd.nl/api/search/artists?filters[kwalificatie]=schilder&fieldset=detail&format=json&rows=%s&start=%s'
         #baseurl = u'https://api.rkd.nl/api/search/artists?fieldset=detail&format=json&rows=%s&start=%s'
         #baseurl = u'https://api.rkd.nl/api/search/artists?filters[winnaar_van_prijs]=*&fieldset=detail&format=json&rows=%s&start=%s'
 
@@ -820,7 +824,7 @@ class RKDArtistsCreatorBot:
 
     def filterArtists(self, generator):
         """
-        Starts the robot.
+        Unused function I think
         """
         for rkdartistsdocs in generator:
             if rkdartistsdocs.get('priref') in self.currentrkd:
@@ -883,6 +887,15 @@ class RKDArtistsCreatorBot:
                                                                                                          rkdartistsdocs.get('winnaar_van_prijs')[0],
                                                                                                          rkdartistsdocs.get('winnaar_van_prijs')[1],)
             return self.createartist(rkdartistsdocs, summary)
+        # Wachlin 2011 photographers for Hanno
+        if 'fotograaf' in rkdartistsdocs.get('kwalificatie'):
+            wachlinfound = False
+            for bron in rkdartistsdocs.get('bronnen'):
+                if bron.get('bron_literatuur')=='Wachlin 2011' and bron.get('bron_literatuur_linkref')=='211864':
+                    wachlinfound = True
+            if wachlinfound:
+                summary = u'Creating artist based on RKD: Photographer documented in [[Q15880691]]'
+                return self.createartist(rkdartistsdocs, summary)
         return None
 
     def createartist(self, rkdartistsdocs, summary):
