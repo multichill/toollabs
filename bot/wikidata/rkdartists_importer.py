@@ -241,6 +241,24 @@ class RKDArtistsImporterBot:
                         78789 : u'Q13127', # Sint-Niklaas
                         }
         self.missingPlaces = {}
+        self.rkdLibrary = self.rkdLibraryOnWikidata()
+        self.missingRkdLibrary = {}
+
+    def rkdLibraryOnWikidata(self):
+        '''
+        Just return all the RKD library books as a dict
+        :return: Dict
+        '''
+        result = {}
+        query = u'SELECT ?item ?id WHERE { ?item wdt:P4989 ?id }'
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            result[int(resultitem.get('id'))] = qid
+        return result
+
 
     def run(self):
         """
@@ -302,7 +320,11 @@ class RKDArtistsImporterBot:
             # Can be enabled when https://phabricator.wikimedia.org/T148280 is fixed
             #if u'P27' not in claims and (u'P569' in claims or u'P570' in claims):
             #    self.addCountry(itempage, rkdartistsdocs, refurl)
+            if u'P1343' not in claims:
+                self.addDescribedBySource(itempage, rkdartistsdocs, refurl)
+
         self.reportMissingPlaces()
+        self.reportMissingBooks()
 
     def addLabels(self, itempage, rkdartistsdocs, refurl):
         """
@@ -718,6 +740,72 @@ class RKDArtistsImporterBot:
         newclaim = self.addItemStatement(itempage, u'P27', countryitemtitle)
         self.addReference(itempage, newclaim, refurl)
 
+    def addDescribedBySource(self, itempage, rkdartistsdocs, refurl):
+        '''
+        Add the described by source(s) to the itempage based on RKDlibrary books being used.
+        Only work on items for which all the books can be added
+        :param itempage: The ItemPage to update
+        :param rkdartistsdocs: The json with the RKD information
+        :param refurl: The url to add as reference
+        :return: Nothing, update the itempage in place
+        '''
+        if not rkdartistsdocs.get('bronnen'):
+            return False
+
+        for bron in rkdartistsdocs.get('bronnen'):
+            bron_literatuur_linkref = bron.get('bron_literatuur_linkref')
+            if not bron_literatuur_linkref:
+                return False
+            elif int(bron_literatuur_linkref) not in self.rkdLibrary:
+                pywikibot.output(u'The book "%s" with name "%s" is unknown' % (bron.get('bron_literatuur_linkref'),
+                                                                               bron.get('bron_literatuur')))
+                bron_literatuur_linkref = int(bron_literatuur_linkref)
+                if bron_literatuur_linkref not in self.missingRkdLibrary:
+                    self.missingRkdLibrary[bron_literatuur_linkref] = 0
+                self.missingRkdLibrary[bron_literatuur_linkref] += 1
+                return False
+        # All the books were found so now we can actually add them.
+        for bron in rkdartistsdocs.get('bronnen'):
+            bookitemtitle = self.rkdLibrary.get((int(bron.get('bron_literatuur_linkref'))))
+            newclaim = self.addItemStatement(itempage, u'P1343', bookitemtitle)
+
+            volume = None
+            page = None
+            if bron.get('bron_deel_pag'):
+                volumePageRegex = u'^vol\.\s*(\d+)\s*,?\s*p\.\s*(.+)$'
+                pageRegex = u'^p\.\s*(.+)$'
+                volumePageRegexMatch = re.match(volumePageRegex, bron.get('bron_deel_pag'))
+                pageMatch = re.match(pageRegex, bron.get('bron_deel_pag'))
+                if volumePageRegexMatch:
+                    volume = volumePageRegexMatch.group(1)
+                    page = volumePageRegexMatch.group(2)
+                elif pageMatch:
+                    page = pageMatch.group(1)
+                else:
+                    page = bron.get('bron_deel_pag')
+
+            namedas = None
+            if bron.get('bron_opmerking'):
+                asregex = u'^as\:\s*(.+)$'
+                asmatch = re.match(asregex, bron.get('bron_opmerking'))
+                if asmatch:
+                    namedas = asmatch.group(1)
+
+            # Add the qualifiers for the things we found
+            if volume:
+                newqualifier = pywikibot.Claim(self.repo, u'P478')
+                newqualifier.setTarget(volume)
+                newclaim.addQualifier(newqualifier)
+            if page:
+                newqualifier = pywikibot.Claim(self.repo, u'P304')
+                newqualifier.setTarget(page)
+                newclaim.addQualifier(newqualifier)
+            if namedas:
+                newqualifier = pywikibot.Claim(self.repo, u'P1810')
+                newqualifier.setTarget(namedas)
+                newclaim.addQualifier(newqualifier)
+            self.addReference(itempage, newclaim, refurl)
+
     def reportMissingPlaces(self):
         """
 
@@ -726,6 +814,16 @@ class RKDArtistsImporterBot:
         print u'The top 50 places that are missing in this run:'
         for identifier in sorted(self.missingPlaces, key=self.missingPlaces.get, reverse=True)[:50]:
             print u'* https://rkd.nl/en/explore/thesaurus?term=%s - %s'  % (identifier, self.missingPlaces[identifier])
+
+    def reportMissingBooks(self):
+        """
+
+        :return:
+        """
+        print u'The top 50 books that are missing in this run:'
+        for identifier in sorted(self.missingRkdLibrary, key=self.missingRkdLibrary.get, reverse=True)[:50]:
+            print u'* https://rkd.nl/explore/library/%s - %s'  % (identifier, self.missingRkdLibrary[identifier])
+
 
     def addItemStatement(self, item, pid, qid):
         '''
@@ -779,11 +877,10 @@ class RKDArtistsCreatorBot:
 
     def rkdArtistsOnWikidata(self):
         '''
-        Just return all the RKD images as a dict
+        Just return all the RKD artists as a dict
         :return: Dict
         '''
         result = {}
-        sq = pywikibot.data.sparql.SparqlQuery()
         query = u'SELECT ?item ?id WHERE { ?item wdt:P650 ?id }'
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
@@ -982,11 +1079,14 @@ def main(*args):
     """
     create = False
     source = False
+    newest = True
     for arg in pywikibot.handle_args(args):
         if arg=='-create':
             create = True
         elif arg=='-source':
             source = True
+        elif arg=='-newest':
+            newest = True
 
     repo = pywikibot.Site().data_repository()
     if create:
@@ -1038,6 +1138,16 @@ def main(*args):
         }
         }"""
         generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    elif newest:
+        pywikibot.output(u'Going to work on the newest 1000 artists')
+
+        # Query to get the newest 1000 items with RKDartists.
+        query = u"""SELECT DISTINCT ?item WHERE {
+        ?item wdt:P650 ?id .
+        BIND(xsd:integer(REPLACE(STR(?item), "http://www.wikidata.org/entity/Q", "")) AS ?itemid)
+        } ORDER BY DESC(?itemid)
+        LIMIT 1000"""
+        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     else:
         pywikibot.output(u'Going to try to expand existing artists')
 
@@ -1075,6 +1185,7 @@ def main(*args):
           }
         }
         }"""
+
         generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     rkdArtistsImporterBot = RKDArtistsImporterBot(generator)
