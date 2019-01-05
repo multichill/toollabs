@@ -15,8 +15,8 @@ def wikidataCategoryGenerator(repo, qid, project):
     Generator that takes a category item
     '''
     categoryitem = pywikibot.ItemPage(repo, title=qid)
-    # TODO: Sort this
-    for categorypage in categoryitem.iterlinks(family=project):
+    # TODO: Figure out simple (also language code en)
+    for categorypage in sorted(categoryitem.iterlinks(family=project), key=lambda page: page.site.lang):
         gennostatements = petscanGenerator(repo,
                                            categorypage.site.lang,
                                            u'wikipedia',
@@ -90,13 +90,18 @@ def main():
     i = 0
     langstats = {}
     for iteminfo in gen:
+        # With Qid
         if iteminfo.get(u'q'):
             text = text + u'| [[%(q)s]] || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]' % iteminfo
-            if iteminfo.get('image'):
-                text = text + u'|| [[File:%(image)s|150px]]' % iteminfo
-            text = text + u'\n|-\n'
+        # Without Qid
         else:
-            text = text + u'| None <small>(<span class="plainlinks">[//www.wikidata.org/w/index.php?title=Special:NewItem&site=%(lang)swiki&page={{urlencode:%(title)s}} c]</span>)</small> || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]\n|-\n' % iteminfo
+            text = text + u'| None <small>(<span class="plainlinks">[//www.wikidata.org/w/index.php?title=Special:NewItem&site=%(lang)swiki&page={{urlencode:%(title)s}} c]</span>)</small> || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]' % iteminfo
+        # Image suggestion
+        if iteminfo.get('image'):
+            text = text + u' || [[File:%(image)s|150px]]' % iteminfo
+        # Close the row
+        text = text + u'\n|-\n'
+        # Do the statistics
         i = i + 1
         if iteminfo.get(u'lang') not in langstats:
             langstats[iteminfo.get(u'lang')]=1
