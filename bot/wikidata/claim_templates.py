@@ -102,7 +102,9 @@ class TemplateClaimBot:
                             pywikibot.output(summary)
                             item.addClaim(newclaim, summary=summary)
                 except pywikibot.exceptions.NoPage:
-                    print u'That page did not exist'
+                    pywikibot.output(u'That page did not exist')
+                except pywikibot.exceptions.OtherPageSaveError:
+                    pywikibot.output(u'Got some kind of other page save error')
                 return
 
 
