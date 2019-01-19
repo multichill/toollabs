@@ -57,11 +57,10 @@ def getCMAGenerator():
             metadata['id'] = iteminfo.get('accession_number')
             print (u'http://openaccess-api.clevelandart.org/api/artworks/%s' % (iteminfo.get('accession_number'),))
 
-
-            title = iteminfo.get('title')
+            title = iteminfo.get('title').replace('\n', ' ').replace('\r', ' ').strip(' ')
             # Chop chop, several very long titles
             if len(title) > 220:
-                title = title[0:200]
+                title = title[0:200].strip(' ')
 
             metadata['title'] = { u'en' : title,
                                   }
@@ -132,16 +131,14 @@ def getCMAGenerator():
                     if dimensions.get('depth'):
                         metadata['depthcm'] = u'%s' % (dimensions.get('depth')*100,)
 
-            # Image is available, but not free
-            #imageurlregex = u'\<link rel\=\"image_src\" href\=\"([^\"]+jpg)\" \/\>'
-            #imageurlmatch = re.search(imageurlregex, itempage.text)
-            #if imageurlmatch:
-            #    metadata[u'imageurl'] = imageurlmatch.group(1)
-            #    metadata[u'imageurlformat'] = u'Q2195' #JPEG
-            #    #metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa-4.0
-            #    # Could use this later to force
-            #    metadata[u'imageurlforce'] = False
-
+            # Image is available and they mark it with a license!
+            if iteminfo.get('share_license_status') and iteminfo.get('share_license_status')==u'CC0':
+                if iteminfo.get('images') and iteminfo.get('images').get('full'):
+                    if iteminfo.get('images').get('full').get('url').endswith('.tif'):
+                        metadata[u'imageurl'] = iteminfo.get('images').get('full').get('url')
+                        metadata[u'imageurlformat'] = u'Q215106' # TIFF
+                        metadata[u'imageurllicense'] = u'Q6938433' # CC0
+                        metadata[u'imageurlforce'] = False # Already did a full forced run
             # No IIIF
 
             yield metadata
