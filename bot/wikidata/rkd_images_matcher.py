@@ -553,40 +553,8 @@ def addRkdimagesLink(itemTitle, rkdid, summary):
 def publishStatistics(artistsstats, collectionsstats):
     repo = pywikibot.Site().data_repository()
     page = pywikibot.Page(repo, title=u'Wikidata:WikiProject sum of all paintings/RKD to match')
-    text = u'This pages gives an overview of [https://rkd.nl/en/explore/images#filters%5Bobjectcategorie%5D%5B%5D=painting paintings in RKDimages] to match with paintings in collections on Wikidata.\n'
-
-    totalrkd = 0
-    totalrkdsuggestions = 0
-    totalwikidata = 0
-
-    text = text + u'== Artists ==\n'
-    text = text + u'{| class="wikitable sortable"\n'
-    text = text + u'! Artist !! RKDimages !! Page !! Total RKDimages !! RKDimages left to match !! Wikidata possibilities\n'
-
-    for artiststats in artistsstats:
-        rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bnaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (artiststats.get('artistname').replace(u' ', u'%20'),
-                                                                                                                                                        artiststats.get('artistname'), )
-        pagelink = u'[[%s|%s]]' % (artiststats.get(u'pageTitle'),
-                                   artiststats.get(u'pageTitle').replace(u'Wikidata:WikiProject sum of all paintings/RKD to match/', u''),
-                                   )
-        text = text + u'|-\n'
-        text = text + u'|| {{Q|%s}} ' % (artiststats.get(u'artistid'),)
-        text = text + u'|| %s ' % (rkdimageslink,)
-        text = text + u'|| %s ' % (pagelink,)
-        text = text + u'|| %s ' % (artiststats.get(u'rkdcount'),)
-        text = text + u'|| %s ' % (artiststats.get(u'rkdsuggestioncount'),)
-        text = text + u'|| %s \n' % (artiststats.get(u'wdsuggestioncount'),)
-
-        totalrkd = totalrkd + artiststats.get(u'rkdcount')
-        totalrkdsuggestions = totalrkdsuggestions + artiststats.get(u'rkdsuggestioncount')
-        totalwikidata = totalwikidata + artiststats.get(u'wdsuggestioncount')
-
-    text = text + u'|- class="sortbottom"\n'
-    text = text + u'| || || || %s || %s || %s\n' % (totalrkd,
-                                                    totalrkdsuggestions,
-                                                    totalwikidata,
-                                                    )
-    text = text + u'|}\n\n'
+    text = u'This pages gives an overview of [https://rkd.nl/en/explore/images#filters%5Bobjectcategorie%5D%5B%5D=painting paintings in RKDimages] to match with paintings in [[Wikidata:WikiProject sum of all paintings/Collection|collections]] and [[Wikidata:WikiProject sum of all paintings/Creator|creators]] on Wikidata.\n'
+    text = text + u'\nSee also the [[Wikidata:WikiProject sum of all paintings/RKD to match/Oldest additions|oldest]] and [[Wikidata:WikiProject sum of all paintings/RKD to match/Recent additions|recent additions]] to RKDimages.\n'
     text = text + u'== Collections ==\n'
     text = text + u'{| class="wikitable sortable"\n'
     text = text + u'! Collection !! RKDimages !! Page !! RKDimages left to match !! Auto added !! Auto next !! Suggestions !! Failed in use !! Failed options !! Failed else\n'
@@ -634,6 +602,39 @@ def publishStatistics(artistsstats, collectionsstats):
                                                                             totailfailedoptions,
                                                                             totalfailedelse,
                                                                             )
+    text = text + u'|}\n\n'
+
+    totalrkd = 0
+    totalrkdsuggestions = 0
+    totalwikidata = 0
+
+    text = text + u'== Artists ==\n'
+    text = text + u'{| class="wikitable sortable"\n'
+    text = text + u'! Artist !! RKDimages !! Page !! Total RKDimages !! RKDimages left to match !! Wikidata possibilities\n'
+
+    for artiststats in artistsstats:
+        rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bnaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (artiststats.get('artistname').replace(u' ', u'%20'),
+                                                                                                                                                        artiststats.get('artistname'), )
+        pagelink = u'[[%s|%s]]' % (artiststats.get(u'pageTitle'),
+                                   artiststats.get(u'pageTitle').replace(u'Wikidata:WikiProject sum of all paintings/RKD to match/', u''),
+                                   )
+        text = text + u'|-\n'
+        text = text + u'|| {{Q|%s}} ' % (artiststats.get(u'artistid'),)
+        text = text + u'|| %s ' % (rkdimageslink,)
+        text = text + u'|| %s ' % (pagelink,)
+        text = text + u'|| %s ' % (artiststats.get(u'rkdcount'),)
+        text = text + u'|| %s ' % (artiststats.get(u'rkdsuggestioncount'),)
+        text = text + u'|| %s \n' % (artiststats.get(u'wdsuggestioncount'),)
+
+        totalrkd = totalrkd + artiststats.get(u'rkdcount')
+        totalrkdsuggestions = totalrkdsuggestions + artiststats.get(u'rkdsuggestioncount')
+        totalwikidata = totalwikidata + artiststats.get(u'wdsuggestioncount')
+
+    text = text + u'|- class="sortbottom"\n'
+    text = text + u'| || || || %s || %s || %s\n' % (totalrkd,
+                                                    totalrkdsuggestions,
+                                                    totalwikidata,
+                                                    )
     text = text + u'|}\n\n[[Category:WikiProject sum of all paintings RKD to match| ]]'
 
     summary = u'%s RKDimages to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
@@ -726,10 +727,10 @@ def main(*args):
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kunsthistorisches Museum',
                                },
                 u'Q160112' : { u'collectienaam' : u'Museo Nacional del Prado',
-                              u'replacements' : [(u'^(\d\d\d\d)$', u'P0\\1'),
-                                                 (u'^(\d\d\d)$', u'P00\\1'),
-                                                 (u'^PO? ?(\d\d\d\d)(\s*\(cat\. 2006\))?$', u'P0\\1'),
-                                                 (u'^00(\d\d\d\d)$', u'P0\\1'),
+                              u'replacements' : [(u'^(\d\d\d\d)$', u'P00\\1'),
+                                                 (u'^(\d\d\d)$', u'P000\\1'),
+                                                 (u'^PO? ?(\d\d\d\d)(\s*\(cat\. 2006\))?$', u'P00\\1'),
+                                                 #(u'^00(\d\d\d\d)$', u'P0\\1'),
                                                  ],
                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Prado',
                               },
@@ -1129,10 +1130,18 @@ def main(*args):
                 #                },
 
                }
-    artists = { u'Q374039' : { u'artistname' : u'Bol, Ferdinand',
+    artists = { u'Q711737' : { u'artistname' : u'Berchem, Nicolaes',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nicolaes Pieterszoon Berchem',
+                             },
+                u'Q374039' : { u'artistname' : u'Bol, Ferdinand',
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Ferdinand Bol',
-                             },
+                               },
+                u'Q346808' : { u'artistname' : u'Borch, Gerard ter (II)',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gerard ter Borch',
+                               },
                 u'Q130531' : { u'artistname' : u'Bosch, Jheronimus',
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Hieronymus Bosch',
@@ -1189,6 +1198,10 @@ def main(*args):
                              u'replacements' : [],
                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bartholomeus van der Helst',
                              },
+                u'Q370567' : { u'artistname' : u'Heyden, Jan van der',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan van der Heyden',
+                               },
                 u'Q314548' : { u'artistname' : u'Honthorst, Gerard van',
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gerard van Honthorst',
@@ -1237,9 +1250,17 @@ def main(*args):
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Michiel van Mierevelt',
                                },
+                u'Q959236' : { u'artistname' : u'Mieris, Frans van (I)',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans van Mieris the Elder',
+                               },
                 u'Q151803' : { u'artistname' : u'Mondriaan, Piet',
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Piet Mondrian',
+                               },
+                u'Q352438' : { u'artistname' : u'Ostade, Adriaen van',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Adriaen van Ostade',
                                },
                 u'Q5598' : { u'artistname' : u'Rembrandt',
                                u'replacements' : [],
@@ -1257,6 +1278,10 @@ def main(*args):
                                 u'replacements' : [],
                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan Sluyters',
                               },
+                u'Q205863' : { u'artistname' : u'Steen, Jan',
+                                u'replacements' : [],
+                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan Steen',
+                                },
                 u'Q335022' : { u'artistname' : u'Teniers, David (II)',
                                 u'replacements' : [],
                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/David Teniers the Younger',
