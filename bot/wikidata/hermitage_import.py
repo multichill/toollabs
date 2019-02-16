@@ -1,11 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import Hermitage paintings. No api, no csv, just plain old screen scraping stuff
+Bot to import Hermitage paintings. Second iteration, they have an api now:
 
-* Loop over https://www.hermitagemuseum.org/wps/portal/hermitage/explore/collections/col-search/?lng=en&p1=category:%22Painting%22&p15=1
-* Grab individual paintings like https://www.hermitagemuseum.org/wps/portal/hermitage/digital-collection/01.+Paintings/25685/ (remove the language)
-
+https://www.hermitagemuseum.org/api/v10/search?resultLang=en&queryLang=en&collection=mainweb|kamis|rooms|hermitage&query=meta_woa_category_main:(%22Painting%22)&pageSize=10&page=1&output=application/json
 
 """
 import artdatabot
@@ -21,117 +19,116 @@ def getHermitageGenerator():
     '''
 
     # Use one session for everything
-    session = requests.Session()
+    # session = requests.Session()
+
+    # They broke it
+    # https://www.hermitagemuseum.org/api/v10/search?resultLang=en&queryLang=en&collection=mainweb|kamis|rooms|hermitage&query=meta_woa_category_main:(%22Painting%22)%20AND%20meta_authoring_template:(%22WOA%22)&pageSize=100&page=1&output=application/json
 
     # 1 - 367
-    searchBaseUrl = u'https://www.hermitagemuseum.org/wps/portal/hermitage/explore/collections/col-search/?lng=en&p1=category:%%22Painting%%22&p15=%s'
-    baseUrl = u'https://www.hermitagemuseum.org%s'
+    #searchBaseUrl = u'https://www.hermitagemuseum.org/wps/portal/hermitage/explore/collections/col-search/?lng=en&p1=category:%%22Painting%%22&p15=%s'
+    basesearchurl = u'https://www.hermitagemuseum.org/api/v10/search?resultLang=en&queryLang=en&collection=mainweb|kamis|rooms|hermitage&query=meta_woa_category_main:(%%22Painting%%22)%%20AND%%20meta_authoring_template:(%%22WOA%%22)&pageSize=100&page=%s&output=application/json'
+    #baseUrl = u'https://www.hermitagemuseum.org%s'
     htmlparser = HTMLParser.HTMLParser()
 
-    for i in range(1, 432):
-        searchUrl = searchBaseUrl % (i,)
-        print searchUrl
-        searchPage = session.get(searchUrl, verify=False)
+    # 6575, 100 per page
 
-        # searchRegex = u'<div class="her-search-results-row">[\r\n\s]+<div class="her-col-35 her-search-results-img">[\r\n\s]+<a href="(/wps/portal/hermitage/digital-collection/01.+Paintings/\d+/)?lng=en"'
-        searchRegex = u'<div class="her-search-results-row">[\r\n\s]+<div class="her-col-35 her-search-results-img">[\r\n\s]+<a href="(/wps/portal/hermitage/digital-collection/01\.\+Paintings/\d+/)\?lng=en"'
-        matches = re.finditer(searchRegex, searchPage.text)
-        for match in matches:
+    foundids = []
+
+    for i in range(1, 67):
+        searchUrl = basesearchurl % (i,)
+        print searchUrl
+        searchPage = requests.get(searchUrl, verify=False)
+        searchJson = searchPage.json()
+
+        for iteminfo in searchJson.get('es_apiResponse').get('es_result'):
             metadata = {}
 
             metadata['collectionqid'] = u'Q132783'
             metadata['collectionshort'] = u'Hermitage'
             metadata['locationqid'] = u'Q132783'
             metadata['instanceofqid'] = u'Q3305213'
-            
-            metadata['url'] = baseUrl % match.group(1)
-            metadata['url_en'] = '%s?lng=en' % (metadata['url'],)
-            metadata['url_ru'] = '%s?lng=ru' % (metadata['url'],)
 
-            # Don't go too fast
-            # time.sleep(15)
-            itemPageEn = requests.get(metadata['url_en'], verify=False)
-            itemPageRu = requests.get(metadata['url_ru'], verify=False)
-            print metadata['url_en']
+            # metadata['artworkidpid'] = u'Pxxxx' maybe in the future
+            metadata['artworkid'] = iteminfo.get('es_title')
 
-            headerRegex = u'<header>[\r\n\s]+<h3>([^<]*)</h3>[\r\n\s]+<h1>([^<]*)</h1>[\r\n\s]+<p>([^<]*)</p>[\r\n\s]+</header>'
-            matchEn = re.search(headerRegex, itemPageEn.text)
-            if not matchEn:
-                pywikibot.output(u'The data for this painting is BORKED!')
+            if iteminfo.get('es_title') in foundids:
+                print u'1Ran into the same id %s again!' % (iteminfo.get('es_title'),)
+                print u'2Ran into the same id %s again!' % (iteminfo.get('es_title'),)
+                print u'3Ran into the same id %s again!' % (iteminfo.get('es_title'),)
+                print u'4Ran into the same id %s again!' % (iteminfo.get('es_title'),)
+                print u'5Ran into the same id %s again!' % (iteminfo.get('es_title'),)
+                print u'6Ran into the same id %s again!' % (iteminfo.get('es_title'),)
+                print u'7Ran into the same id %s again!' % (iteminfo.get('es_title'),)
                 continue
 
-            matchRu = re.search(headerRegex, itemPageRu.text)
+            foundids.append(iteminfo.get('es_title'))
+            
+            metadata['url'] = u'https://www.hermitagemuseum.org/wps/portal/hermitage/digital-collection/01.+Paintings/%s/' % (iteminfo.get('es_title'),)
 
+            fields = {}
 
-            metadata['title'] = { u'en' : htmlparser.unescape(matchEn.group(2)),
-                                  u'ru' : htmlparser.unescape(matchRu.group(2)), 
-                                  }
+            for field in iteminfo.get('ibmsc_field'):
+                fields[field.get('id')] = field.get('#text')
 
-            painterName = matchEn.group(1)
+            #print fields
+            metadata['idpid'] = u'P217'
+            metadata['id'] = fields.get('meta_woa_inventory')
 
-            painterRegexes = [u'([^,]+),\s([^\.]+)\.(.+)',
-                              u'([^,]+),\s([^,]+),(.+)',
-                              ]
-            for painterRegex in painterRegexes:
-                painterMatch = re.match(painterRegex, painterName)
-                if painterMatch:
-                    painterName = '%s %s' % (painterMatch.group(2), painterMatch.group(1),)
-                    continue
+            if fields.get('meta_woa_name'):
+                title = fields.get('meta_woa_name')
+                # Chop chop, several very long titles
+                if len(title) > 220:
+                    title = title[0:200].strip(' ')
+                metadata['title'] = { u'en' : title,
+                                      }
 
-            if painterName==u'Unknown artist' or not painterName.strip():
-                metadata['creatorname'] = u'anonymous'
+            name = fields.get('meta_woa_author_rubr')
+            if name:
+                regexnamedate = u'^([^,]+), (.+)\.\s*(c\.)?\s*\d\d\d\d-\d\d\d\d$'
+                namematch = re.match(regexnamedate, name)
+                if namematch:
+                    name = u'%s %s' % (namematch.group(2), namematch.group(1),)
+                    metadata['description'] = { u'nl' : u'schilderij van %s' % (name, ),
+                                                u'en' : u'painting by %s' % (name, ),
+                                                u'de' : u'Gemälde von %s' % (name, ),
+                                                u'fr' : u'peinture de %s' % (name, ),
+                                                }
+                else:
+                    # Don't want to have to do clean up in multiple languages
+                    metadata['description'] = { u'en' : u'painting by %s' % (name, ),
+                                                }
+            else:
                 metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
                                             u'en' : u'painting by anonymous painter',
                                             }
-                metadata['creatorqid'] = u'Q4233718'
-            else:
-                metadata['creatorname'] = painterName
 
-                metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', painterName,),
-                                            u'en' : u'%s by %s' % (u'painting', painterName,),
-                                            }
+            if fields.get('meta_woa_date') and fields.get('meta_woa_date_low') and fields.get('meta_woa_date_high') \
+                    and fields.get('meta_woa_date')==fields.get('meta_woa_date_low') \
+                and fields.get('meta_woa_date')==fields.get('meta_woa_date_high'):
+                metadata['inception'] = fields.get('meta_woa_date')
+            elif fields.get('meta_woa_date'):
+                datecircaregex = u'^Circa (\d\d\d\d)$'
+                datecircamatch = re.match(datecircaregex, fields.get('meta_woa_date'))
+                if datecircamatch:
+                    metadata['inception'] = datecircamatch.group(1).strip()
+                    metadata['inceptioncirca'] = True
 
-            invRegex = u'\<p\>[\r\n\s]+Inventory Number:[\r\n\s]+\<\/p\>[\r\n\s]+\<\/div\>[\r\n\s]+\<div class=\"her-data-tbl-val\"\>[\r\n\s]+\<p\>[\r\n\s]+(.*\d+[^\>]+)[\r\n\s]+\<\/p\>'
-            invMatch = re.search(invRegex, itemPageEn.text)
+            if fields.get('meta_woa_prvnc'):
+                acqdateregex = u'^Entered the Hermitage in (\d\d\d\d)\;.*'
+                acqdatamatch = re.match(acqdateregex, fields.get('meta_woa_prvnc'))
+                if acqdatamatch:
+                    metadata['acquisitiondate'] = acqdatamatch.group(1)
 
-            if not invMatch:
-                pywikibot.output(u'No inventory number found! Skipping')
-                continue
-            
-            metadata['id'] = invMatch.group(1).strip()
-            metadata['idpid'] = u'P217'
-
-            materialregex = u'\<p\>[\r\n\s]+Material:[\r\n\s]+\<\/p\>[\r\n\s]+\<\/div\>[\r\n\s]+\<div class=\"her-data-tbl-val\"\>[\r\n\s]+\<a [^\>]+\>canvas\<\/a\>'
-            techniqueregex = u'\<p\>[\r\n\s]+Technique:[\r\n\s]+\<\/p\>[\r\n\s]+\<\/div\>[\r\n\s]+\<div class=\"her-data-tbl-val\"\>[\r\n\s]+\<p\>[\r\n\s]+oil[\r\n\s]+\<\/p\>'
-
-            materialMatch = re.search(materialregex, itemPageEn.text)
-            techniqueMatch = re.search(techniqueregex, itemPageEn.text)
-
-            if materialMatch and techniqueMatch:
+            if fields.get('meta_woa_material')==u'canvas' and fields.get('meta_woa_technique')==u'oil':
                 metadata['medium'] = u'oil on canvas'
 
-            dateRegex = u'\<p\>[\r\n\s]+Date:[\r\n\s]+\<\/p\>[\r\n\s]+\<\/div\>[\r\n\s]+\<div class=\"her-data-tbl-val\"\>[\r\n\s]+\<a [^\>]+\>(\d\d\d\d)\<\/a\>'
-            dateMatch = re.search(dateRegex, itemPageEn.text)
-            if dateMatch:
-                metadata['inception'] = dateMatch.group(1)
-
-            dimRegex = u'\<p\>[\r\n\s]+Dimensions:[\r\n\s]+\<\/p\>[\r\n\s]+\<\/div\>[\r\n\s]+\<div class=\"her-data-tbl-val\"\>[\r\n\s]+\<p\>[\r\n\s]+([^\>]+)[\r\n\s]+\<\/p\>'
-            dimMatch = re.search(dimRegex, itemPageEn.text)
-
-            # Weird, sometimes they do width x height instead of height x width
-            if dimMatch:
-                dimtext = dimMatch.group(1).strip()
-                regex_2d = u'(?P<height>\d+(,\d+)?)\s*x\s*(?P<width>\d+(,\d+)?)\s*cm.*'
-                regex_3d = u'(?P<height>\d+(,\d+)?)\s*x\s*(?P<width>\d+(,\d+)?)\s*x\s*(?P<depth>\d+(,\d+)?)\s*cm.*'
-                match_2d = re.match(regex_2d, dimtext)
-                match_3d = re.match(regex_3d, dimtext)
+            if fields.get('meta_woa_dimension'):
+                measurementstext = fields.get('meta_woa_dimension')
+                regex_2d = u'^(?P<height>\d+(,\d+)?)\s*x\s*(?P<width>\d+(,\d+)?)\s*cm$'
+                match_2d = re.match(regex_2d, measurementstext)
                 if match_2d:
                     metadata['heightcm'] = match_2d.group(u'height').replace(u',', u'.')
                     metadata['widthcm'] = match_2d.group(u'width').replace(u',', u'.')
-                elif match_3d:
-                    metadata['heightcm'] = match_3d.group(u'height').replace(u',', u'.')
-                    metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
-                    metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
 
             yield metadata
 
