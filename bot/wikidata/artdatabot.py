@@ -84,8 +84,9 @@ class ArtDataBot:
                 metadata['idrefurl']=metadata['refurl']
             if not metadata.get('describedbyurl'):
                 metadata['describedbyurl']=metadata['url']
+            if not metadata.get('imagesourceurl'):
+                metadata['imagesourceurl']=metadata['url']
 
-            
             artworkItem = None
             newclaims = []
             if metadata[u'id'] in self.artworkIds:
@@ -126,7 +127,12 @@ class ArtDataBot:
                     pywikibot.output(u'Oops, already had that one. Trying again')
                     for lang, description in metadata['description'].items():
                         data['descriptions'][lang] = {'language': lang, 'value': u'%s (%s %s)' % (description, metadata['collectionshort'], metadata['id'],) }
-                    result = self.repo.editEntity(identification, data, summary=summary)
+                    try:
+                        result = self.repo.editEntity(identification, data, summary=summary)
+                    except pywikibot.data.api.APIError:
+                        pywikibot.output(u'Oops, retry also failed. Skipping this one.')
+                        # Just skip this one
+                        continue
                     pass
 
                 artworkItemTitle = result.get(u'entity').get('id')
@@ -491,7 +497,7 @@ class ArtDataBot:
             newclaim.addQualifier(newqualifier)
 
         newqualifier = pywikibot.Claim(self.repo, u'P2699')
-        newqualifier.setTarget(metadata[u'describedbyurl'])
+        newqualifier.setTarget(metadata[u'imagesourceurl'])
         pywikibot.output('Adding new qualifier claim to %s' % item)
         newclaim.addQualifier(newqualifier)
 
