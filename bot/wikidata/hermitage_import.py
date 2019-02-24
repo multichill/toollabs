@@ -70,7 +70,10 @@ def getHermitageGenerator():
             for field in iteminfo.get('ibmsc_field'):
                 fields[field.get('id')] = field.get('#text')
 
-            #print fields
+            # In some rare cases we have no inventory number. Skip these.
+            if not fields.get('meta_woa_inventory'):
+                continue
+
             metadata['idpid'] = u'P217'
             metadata['id'] = fields.get('meta_woa_inventory')
 
