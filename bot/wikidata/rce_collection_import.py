@@ -147,7 +147,7 @@ def getRCEGenerator():
             #print itemfields
             metadata = {}
 
-            collectionid = itemfields.get('delving_spec')[0].get('value')
+            collectionid = itemfields.get('delving_spec').get('value')
             if collectionid==u'rce-kunstcollectie':
                 metadata['collectionqid'] = u'Q18600731'
                 metadata['collectionshort'] = u'RCE'
@@ -182,11 +182,15 @@ def getRCEGenerator():
             ## Is this enough or do we need to use requests to see if all urls point somewhere?
             #metadata['url'] = metadata['refurl'].replace(u'http://data.collectienederland.nl/resource/aggregation/dordrechts-museum/', u'https://www.dordrechtsmuseum.nl/objecten/id/')
 
+            name = u''
             if itemfields.get('dc_creator'):
-                name = itemfields.get('dc_creator')[0].get('value')
-            else:
+                for possiblename in itemfields.get('dc_creator'):
+                    if possiblename.get('value')!=u'onbekend':
+                        name = possiblename.get('value')
+
+            if not name:
                 name = u'onbekend'
-                metadata['creatorname'] = u'onbekend'
+
 
             if u',' in name:
                 (surname, sep, firstname) = name.partition(u',')
@@ -260,6 +264,15 @@ def getRCEGenerator():
                             metadata['heightcm'] = dcformatmatch.group(2)
                         else:
                             print u'Found weird type: %s' % (dcvalue,)
+
+            # High resolution tiff images for some, jpgeg for all images!!!!!
+            if itemfields.get('nave_allowSourceDownload') and itemfields.get('nave_allowSourceDownload')[0].get('value')=='true':
+                if itemfields.get('nave_thumbLarge'):
+                    imageurl = itemfields.get('nave_thumbLarge')[0].get('value').replace(u'https://images.memorix.nl/rce/thumb/fullsize/', u'https://images.memorix.nl/rce/download/fullsize/')
+                    metadata[u'imageurl'] = imageurl
+                    metadata[u'imagesourceurl'] = itemfields.get('edm_isShownAt')[0].get('value')
+                    metadata[u'imageurlformat'] = u'Q2195' # JPEG
+                    metadata[u'imageurlforce'] = False # Already did a full forced run
 
             # For now only the SNK collection
             # if metadata.get('extracollectionqid') and metadata.get('extracollectionqid')==u'Q28045665':
