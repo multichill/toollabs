@@ -706,22 +706,6 @@ class PaintingsMatchBot:
         Returns false if both files are probably not the same.
         Returns True if not sure or it is the same
         """
-        filePageA = pywikibot.FilePage(self.commons, title=filea)
-        filePageB = pywikibot.FilePage(self.commons, title=fileb)
-        fileaUrl = filePageA.get_file_url(url_width=600)
-        filebUrl = filePageB.get_file_url(url_width=600)
-
-        imageFileA = requests.get(fileaUrl)
-        imageFileB = requests.get(filebUrl)
-        handleA, tempnameA = tempfile.mkstemp()
-        with os.fdopen(handleA, "wb") as tA:
-            tA.write(imageFileA.content)
-            tA.close()
-
-        handleB, tempnameB = tempfile.mkstemp()
-        with os.fdopen(handleB, "wb") as tB:
-            tB.write(imageFileB.content)
-            tB.close()
 
         #HOG parameters
         winSize = (32,32)
@@ -740,26 +724,40 @@ class PaintingsMatchBot:
         locations = ((10,20),)
         hog = cv2.HOGDescriptor(winSize,blockSize,blockStride,cellSize,nbins,derivAperture,winSigma,
                                 histogramNormType,L2HysThreshold,gammaCorrection,nlevels)
-        try:
-            img1 = cv2.imread(tempnameA, 0)
-            img2 = cv2.imread(tempnameB, 0)
-        except:
-            # If it fails, don't filter it
-            return None
-        if img1 is None or img2 is None:
-            return None
-        #compute hog
-        hist1 = hog.compute(img1, winStride, padding, locations)
-        hist2 = hog.compute(img2, winStride, padding, locations)
-        #compute distance
-        #dist=cosine_similarity(hist1,hist2)
-        dist=pearsonr(hist1,hist2)
-        correlation=0 if np.isnan(dist[0]) else dist[0]
-        pywikibot.output(u'%s correlation for %s and %s' % (correlation, filea, fileb))
-        if correlation > 0.30:
-            return True
-        else:
-            return False
+
+        filePageA = pywikibot.FilePage(self.commons, title=filea)
+        filePageB = pywikibot.FilePage(self.commons, title=fileb)
+        fileaUrl = filePageA.get_file_url(url_width=600)
+        filebUrl = filePageB.get_file_url(url_width=600)
+
+        imageFileA = requests.get(fileaUrl)
+        imageFileB = requests.get(filebUrl)
+        with tempfile.NamedTemporaryFile() as tA:
+            tA.write(imageFileA.content)
+            tA.flush()
+            with tempfile.NamedTemporaryFile() as tB:
+                tB.write(imageFileB.content)
+                tB.flush()
+                try:
+                    img1 = cv2.imread(tA.name, 0)
+                    img2 = cv2.imread(tB.name, 0)
+                except:
+                    # If it fails, don't filter it
+                    return None
+                if img1 is None or img2 is None:
+                    return None
+                #compute hog
+                hist1 = hog.compute(img1, winStride, padding, locations)
+                hist2 = hog.compute(img2, winStride, padding, locations)
+                #compute distance
+                #dist=cosine_similarity(hist1,hist2)
+                dist=pearsonr(hist1,hist2)
+                correlation=0 if np.isnan(dist[0]) else dist[0]
+                pywikibot.output(u'%s correlation for %s and %s' % (correlation, filea, fileb))
+                if correlation > 0.30:
+                    return True
+                else:
+                    return False
 
     def publishCategorySuggestions(self, pageTitle, samplesize=300, maxlines=1000):
         #self.categorysuggestions
