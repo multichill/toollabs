@@ -172,20 +172,20 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?sourceurl ?title ?creatorname ?license
                               }
                 self.duplicates.append(duplicate)
                 return
-            handle, tempname = tempfile.mkstemp()
-            with os.fdopen(handle, "wb") as t:
+
+            with tempfile.NamedTemporaryFile() as t:
                 t.write(response.content)
-                t.close()
+                t.flush()
 
-            imagefile = pywikibot.FilePage(self.site, title=title)
-            imagefile.text=description
+                imagefile = pywikibot.FilePage(self.site, title=title)
+                imagefile.text=description
 
-            comment = u'Uploading based on Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata
-            try:
-                uploadsuccess = self.site.upload(imagefile, source_filename=tempname, ignore_warnings=True, comment=comment) # chunk_size=1000000)
-            except pywikibot.data.api.APIError:
-                pywikibot.output(u'Failed to upload image for Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata)
-                uploadsuccess = False
+                comment = u'Uploading based on Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata
+                try:
+                    uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment) # chunk_size=1000000)
+                except pywikibot.data.api.APIError:
+                    pywikibot.output(u'Failed to upload image for Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata)
+                    uploadsuccess = False
 
             if uploadsuccess:
                 pywikibot.output('Uploaded a file, sleeping a bit so I don\'t run into lagging databases')
