@@ -138,16 +138,20 @@ def getNTGenerator():
 
             # Only match on years
             dateRegex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*(\d\d\d\d)\s*(\(signed and dated\))?\<\/p\>'
+            circadateRegex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*circa (\d\d\d\d)\s*\<\/p\>'
+            perioddateRegex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*(\d\d\d\d)\s*-\s*(\d\d\d\d)\s*\<\/p\>'
+
             dateMatch = re.search(dateRegex, itemPageData)
+            circadateMatch = re.search(circadateRegex, itemPageData)
+            perioddateMatch = re.search(perioddateRegex, itemPageData)
             if dateMatch:
                 metadata['inception'] = htmlparser.unescape(dateMatch.group(1))
-            else:
-                # Try to find a circa date
-                dateRegex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*circa (\d\d\d\d)\s*\<\/p\>'
-                dateMatch = re.search(dateRegex, itemPageData)
-                if dateMatch:
-                    metadata['inception'] = htmlparser.unescape(dateMatch.group(1))
-                    metadata['inceptioncirca'] = True
+            elif circadateMatch:
+                metadata['inception'] = htmlparser.unescape(circadateMatch.group(1))
+                metadata['inceptioncirca'] = True
+            elif perioddateMatch:
+                metadata['inceptionstart'] = int(perioddateMatch.group(1),)
+                metadata['inceptionend'] = int(perioddateMatch.group(2),)
 
             # acquisitiondate not available
             # acquisitiondateRegex = u'\<em\>Acknowledgement\<\/em\>\:\s*.+(\d\d\d\d)[\r\n\t\s]*\<br\>'
@@ -167,16 +171,16 @@ def getNTGenerator():
             if dimensionMatch:
                 dimensiontext = dimensionMatch.group(1).strip()
                 regex_2d = u'^(?P<height>\d+)\s*(x|×)\s*(?P<width>\d+)\s*mm'
-                #regex_3d = u'^.+\((?P<height>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<width>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<depth>\d+(\.\d+)?)\s*cm\)$'
+                regex_3d = u'^(?P<height>\d+)\s*(x|×)\s*(?P<width>\d+)\s*(x|×)\s*(?P<depth>\d+)\s*mm'
                 match_2d = re.match(regex_2d, dimensiontext)
-                #match_3d = re.match(regex_3d, dimensiontext)
+                match_3d = re.match(regex_3d, dimensiontext)
                 if match_2d:
                     metadata['heightcm'] = u'%s' % (float(match_2d.group(u'height'))/10, )
                     metadata['widthcm'] = u'%s' % (float(match_2d.group(u'width'))/10, )
-                #if match_3d:
-                #    metadata['heightcm'] = match_3d.group(u'height')
-                #    metadata['widthcm'] = match_3d.group(u'width')
-                #    metadata['depthcm'] = match_3d.group(u'depth')
+                if match_3d:
+                    metadata['heightcm'] = u'%s' % (float(match_3d.group(u'height'))/10, )
+                    metadata['widthcm'] = u'%s' % (float(match_3d.group(u'width'))/10, )
+                    metadata['depthcm'] = u'%s' % (float(match_3d.group(u'depth'))/10, )
 
             # Image use policy unclear
             #imageMatch = re.search(imageregex, itemPageData)
