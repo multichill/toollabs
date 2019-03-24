@@ -137,8 +137,11 @@ class ArtDataBot:
 
                 artworkItemTitle = result.get(u'entity').get('id')
 
-                # Wikidata is sometimes lagging. Wait for 10 seconds before trying to actually use the item
-                time.sleep(10)
+                # Make a backup to the Wayback Machine when we have to wait anyway
+                self.doWaybackup(metadata)
+
+                # Wikidata is sometimes lagging. Wait for additional 5 seconds before trying to actually use the item
+                time.sleep(5)
                 
                 artworkItem = pywikibot.ItemPage(self.repo, title=artworkItemTitle)
 
@@ -447,6 +450,27 @@ class ArtDataBot:
                     artworkItem.addClaim(newclaim)
                     self.addReference(artworkItem, newclaim, metadata[u'refurl'])
 
+    def doWaybackup(self, metadata):
+        """
+        Links to paintings are subject to link rot. When creating a new item, have the Wayback Machine make a snapshot.
+        That way always have a copy of the page we used to source a bunch of statements.
+
+        See also https://www.wikidata.org/wiki/Wikidata:WikiProject_sum_of_all_paintings/Link_rot
+
+        :param url: Metadata containing url fields
+        :return: Nothing
+        """
+        urfields = [u'url', u'refurl', u'describedbyurl']
+        doneurls = []
+        for urlfield in urfields:
+            url = metadata.get(urlfield)
+            if url and url not in doneurls:
+                print (u'Backing up this url to the Wayback Machine: %s' % (url,))
+                waybackUrl = u'https://web.archive.org/save/%s' % (url,)
+                waybackPage = requests.get(waybackUrl)
+                doneurls.append(url)
+        return
+
     def addImageSuggestion(self, item, metadata):
         """
         Add an image that can be uploaded to Commons
@@ -465,8 +489,13 @@ class ArtDataBot:
         if u'P4765' in claims:
             # Already has a suggestion
             return
+        if u'P6500' in claims:
+            # Already has a non-free artwork image URL
+            return
 
         if u'P18' in claims and not metadata.get(u'imageurlforce'):
+            if not metadata.get(u'imageupgrade'):
+                return
             newimage = requests.get(metadata.get(u'imageurl'), stream=True)
             if not newimage.headers.get('Content-length'):
                 return
