@@ -283,24 +283,7 @@ class ArtDataBot:
                 self.addItemStatement(artworkItem, u'P170', metadata.get(u'creatorqid'), metadata.get(u'refurl'))                
 
                 # Inception
-                if u'P571' not in claims and metadata.get(u'inception'):
-                    if type(metadata[u'inception']) is int or (len(metadata[u'inception'])==4 and \
-                                                                   metadata[u'inception'].isnumeric()): # It's a year
-                        newdate = pywikibot.WbTime(year=metadata[u'inception'])
-                        newclaim = pywikibot.Claim(self.repo, u'P571')
-                        newclaim.setTarget(newdate)
-                        pywikibot.output('Adding date of creation claim to %s' % artworkItem)
-                        artworkItem.addClaim(newclaim)
-
-                        # Handle circa dates
-                        if metadata.get(u'inceptioncirca'):
-                            newqualifier = pywikibot.Claim(self.repo, u'P1480')
-                            newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q5727902'))
-                            pywikibot.output('Adding new circa qualifier claim to %s' % artworkItem)
-                            newclaim.addQualifier(newqualifier)
-                
-                        self.addReference(artworkItem, newclaim, metadata[u'refurl'])
-                        # TODO: Implement circa
+                self.addInception(artworkItem, metadata)
 
                 # Try to add the acquisitiondate to the existing collection claim
                 # TODO: Move to function and also work with multiple collection claims
@@ -470,6 +453,89 @@ class ArtDataBot:
                 waybackPage = requests.get(waybackUrl)
                 doneurls.append(url)
         return
+
+    def addInception(self, item, metadata):
+        """
+        Add the inception to the item.
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the imageurl field
+        :return:
+        """
+
+        claims = item.get().get('claims')
+
+        if u'P571' in claims:
+            # Already has inception
+            return
+
+        if metadata.get(u'inception'):
+            if type(metadata[u'inception']) is int or (len(metadata[u'inception'])==4 and \
+                                                               metadata[u'inception'].isnumeric()): # It's a year
+                newdate = pywikibot.WbTime(year=metadata[u'inception'])
+                newclaim = pywikibot.Claim(self.repo, u'P571')
+                newclaim.setTarget(newdate)
+                pywikibot.output('Adding date of creation claim to %s' % item)
+                item.addClaim(newclaim)
+
+                # Handle circa dates
+                if metadata.get(u'inceptioncirca'):
+                    newqualifier = pywikibot.Claim(self.repo, u'P1480')
+                    newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q5727902'))
+                    pywikibot.output('Adding new circa qualifier claim to %s' % item)
+                    newclaim.addQualifier(newqualifier)
+                self.addReference(item, newclaim, metadata[u'refurl'])
+
+        elif metadata.get(u'inceptionstart') and metadata.get(u'inceptionend'):
+            if metadata.get(u'inceptionstart')==metadata.get(u'inceptionend'):
+                newdate = pywikibot.WbTime(year=metadata[u'inception'])
+                newclaim = pywikibot.Claim(self.repo, u'P571')
+                newclaim.setTarget(newdate)
+                pywikibot.output('Adding date of creation claim to %s' % item)
+                item.addClaim(newclaim)
+
+                # Handle circa dates
+                if metadata.get(u'inceptioncirca'):
+                    newqualifier = pywikibot.Claim(self.repo, u'P1480')
+                    newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q5727902'))
+                    pywikibot.output('Adding new circa qualifier claim to %s' % item)
+                    newclaim.addQualifier(newqualifier)
+                self.addReference(item, newclaim, metadata[u'refurl'])
+            else:
+                if len(str(metadata.get(u'inceptionstart')))!=4 or len(str(metadata.get(u'inceptionend')))!=4:
+                    return
+                precision = 5
+                if str(metadata.get(u'inceptionstart'))[0]==str(metadata.get(u'inceptionend'))[0]:
+                    precision = 6
+                    if str(metadata.get(u'inceptionstart'))[1]==str(metadata.get(u'inceptionend'))[1]:
+                        precision = 7
+                        if str(metadata.get(u'inceptionstart'))[2]==str(metadata.get(u'inceptionend'))[2]:
+                            precision = 8
+                averageYear = abs((metadata.get(u'inceptionstart') + metadata.get(u'inceptionend'))/2)
+                newdate = pywikibot.WbTime(year=averageYear, precision=precision)
+                earliestdate = pywikibot.WbTime(year=metadata.get(u'inceptionstart'))
+                latestdate = pywikibot.WbTime(year=metadata.get(u'inceptionend'))
+
+                newclaim = pywikibot.Claim(self.repo, u'P571')
+                newclaim.setTarget(newdate)
+                pywikibot.output('Adding date of creation claim to %s' % item)
+                item.addClaim(newclaim)
+
+                earliestqualifier = pywikibot.Claim(self.repo, u'P1319')
+                earliestqualifier.setTarget(earliestdate)
+                newclaim.addQualifier(earliestqualifier)
+
+                latestqualifier = pywikibot.Claim(self.repo, u'P1326')
+                latestqualifier.setTarget(latestdate)
+                newclaim.addQualifier(latestqualifier)
+
+                # Handle circa dates
+                if metadata.get(u'inceptioncirca'):
+                    newqualifier = pywikibot.Claim(self.repo, u'P1480')
+                    newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q5727902'))
+                    pywikibot.output('Adding new circa qualifier claim to %s' % item)
+                    newclaim.addQualifier(newqualifier)
+                self.addReference(item, newclaim, metadata[u'refurl'])
 
     def addImageSuggestion(self, item, metadata):
         """
