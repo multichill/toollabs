@@ -116,11 +116,13 @@ def getRijksmuseumGenerator():
                 for dimension in record.get('dimensions'):
                     if dimension.get('unit') == u'cm' and \
                        dimension.get('type') == u'hoogte' and \
-                       dimension.get('part') == u'drager':
+                       dimension.get('part') == u'drager' and \
+                       dimension.get('value') :
                         metadata['heightcm'] = dimension.get('value').replace(u',', u'.')
                     elif dimension.get('unit') == u'cm' and \
                          dimension.get('type') == u'breedte' and \
-                         dimension.get('part') == u'drager':
+                         dimension.get('part') == u'drager' and \
+                         dimension.get('value') :
                         metadata['widthcm'] = dimension.get('value').replace(u',', u'.')
                 if not metadata.get('heightcm') and not metadata.get('widthcm') and len(record.get('dimensions'))==2:
                     height = record.get('dimensions')[0]
