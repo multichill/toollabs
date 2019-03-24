@@ -25,6 +25,7 @@ def getRCEGenerator():
 
     """
     basesearchurl = u'http://data.collectienederland.nl/api/search/v2/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aschilderij&format=json&start=%s&rows=%s'
+    #basesearchurl = u'http://data.collectienederland.nl/api/search/v2/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aminiatuur&format=json&start=%s&rows=%s'
     start = 1
     rows = 50
     hasNext = True
@@ -220,7 +221,15 @@ def getRCEGenerator():
 
 
             if itemfields.get('dcterms_created'):
-                metadata['inception'] = itemfields.get('dcterms_created')[0].get('value')
+                dcvalue = itemfields.get('dcterms_created')[0].get('value')
+                periodregex = u'(\d\d\d\d) – (\d\d\d\d)'
+                periodmatch = re.match(periodregex, dcvalue)
+
+                if periodmatch:
+                    metadata['inceptionstart'] = int(periodmatch.group(1))
+                    metadata['inceptionend'] = int(periodmatch.group(2))
+                else:
+                    metadata['inception'] = itemfields.get('dcterms_created')[0].get('value')
 
             # TODO: Check if this still works
             # Where did it come from????
