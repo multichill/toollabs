@@ -101,7 +101,21 @@ def getBavarianGenerator():
 
             # This will get the date field if it's filled
             if record.get(u'date'):
-                metadata['inception'] = record.get(u'date')
+                circaperiodregex = u'^um (\d\d)(\d\d)\/(\d\d)$'
+                circaregex = u'^um (\d\d\d\d)$'
+
+                circaperiodmatch = re.match(circaperiodregex, record.get(u'date'))
+                circamatch = re.match(circaregex, record.get(u'date'))
+
+                if circaperiodmatch:
+                    metadata['inceptionstart'] = int(u'%s%s' % (circaperiodmatch.group(1), circaperiodmatch.group(2)))
+                    metadata['inceptionend'] = int(u'%s%s' % (circaperiodmatch.group(1), circaperiodmatch.group(3)))
+                    metadata['inceptioncirca'] = True
+                elif circamatch:
+                    metadata['inception'] = circamatch.group(1)
+                    metadata['inceptioncirca'] = True
+                else:
+                    metadata['inception'] = record.get(u'date')
 
             metadata['idpid'] = u'P217'
             invregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Inventory Number[\s\t\r\n]*\<\/div\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/div\>'
