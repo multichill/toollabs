@@ -87,7 +87,27 @@ def getFNGPaintingGenerator(jsonlocation):
             if paintingMetadata.get('date'):
                 for datefield in paintingMetadata.get('date'):
                     if datefield.get(u'creation'):
-                        metadata[u'inception'] = datefield.get(u'creation')
+                        circaperiodregex = u'^\((\d\d\d\d)\s*-\s*(\d\d\d\d)\)$'
+                        periodregex = u'^(\d\d\d\d)\s*-\s*(\d\d\d\d)$'
+                        circaregex = u'^\((\d\d\d\d)\)$'
+
+                        circaperiodmatch = re.match(circaperiodregex, datefield.get(u'creation'))
+                        periodmatch = re.match(periodregex, datefield.get(u'creation'))
+                        circamatch = re.match(circaregex, datefield.get(u'creation'))
+
+                        if circaperiodmatch:
+                            metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                            metadata['inceptionend'] = int(circaperiodmatch.group(2),)
+                            metadata['inceptioncirca'] = True
+                        elif periodmatch:
+                            metadata['inceptionstart'] = int(periodmatch.group(1),)
+                            metadata['inceptionend'] = int(periodmatch.group(2),)
+                        elif circamatch:
+                            metadata['inception'] = circamatch.group(1)
+                            metadata['inceptioncirca'] = True
+                        else:
+                            metadata[u'inception'] = datefield.get(u'creation')
+
                     elif datefield.get(u'acquisition'):
                         urldatematch = re.match(urldatereqex, datefield.get(u'acquisition'))
                         if urldatematch:
@@ -150,7 +170,7 @@ def main(*args):
     #for painting in paintingGen:
     #    print painting
 
-    artDataBot = artdatabot.ArtDataBot(paintingGen, create=False)
+    artDataBot = artdatabot.ArtDataBot(paintingGen, create=True)
     artDataBot.run()
     
     
