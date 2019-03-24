@@ -276,14 +276,17 @@ class ArtDataBot:
                 # instance of
                 self.addItemStatement(artworkItem, u'P31', metadata.get(u'instanceofqid'), metadata.get(u'refurl'))
 
-                # instance of
+                # location
                 self.addItemStatement(artworkItem, u'P276', metadata.get(u'locationqid'), metadata.get(u'refurl'))
 
-                # instance of
+                # creator
                 self.addItemStatement(artworkItem, u'P170', metadata.get(u'creatorqid'), metadata.get(u'refurl'))                
 
                 # Inception
                 self.addInception(artworkItem, metadata)
+
+                # genre
+                self.addItemStatement(artworkItem, u'P136', metadata.get(u'genreqid'), metadata.get(u'refurl'))
 
                 # Try to add the acquisitiondate to the existing collection claim
                 # TODO: Move to function and also work with multiple collection claims
