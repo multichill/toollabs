@@ -32,6 +32,12 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
     session = requests.Session()
     #session.auth = ('', '') set in your .netrc file, see https://www.labkey.org/Documentation/wiki-page.view?name=netrc
 
+    # Topics to genre
+    topics = { u'portrét' : u'Q134307', # https://www.webumenia.sk/en/katalog?topic=portr%C3%A9t -> portrait
+               u'náboženský motív' : u'Q2864737', # https://www.webumenia.sk/en/katalog?topic=n%C3%A1bo%C5%BEensk%C3%BD%20mot%C3%ADv -> religious art
+               u'krajina' : u'Q191163', # https://www.webumenia.sk/en/katalog?work_type=maliarstvo&topic=krajina -> landscape art
+               }
+
     # TODO: Get number of artworks from API instead of hard coding
 
     for i in range(0, collectioninfo.get(u'artworks'), size):
@@ -43,6 +49,7 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
                        ] } },}
         data = json.dumps(searchdata)
         page = session.get(baseSearchUrl, data=data)
+        #print (json.dumps(page.json(), indent = 2, separators=(',', ': ')))
         for bigitem in page.json().get(u'hits').get(u'hits'):
             item = bigitem.get(u'_source')
 
@@ -96,6 +103,10 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
 
             if item.get(u'date_earliest') and item.get(u'date_earliest')==item.get(u'date_latest'):
                 metadata['inception'] = item.get(u'date_earliest')
+            elif item.get(u'date_earliest') and item.get(u'date_latest'):
+                if 1000 < item.get(u'date_earliest') < 2500 and 1000 < item.get(u'date_latest') < 2500:
+                    metadata['inceptionstart'] = item.get(u'date_earliest')
+                    metadata['inceptionend'] = item.get(u'date_latest')
 
             # acquisitiondate not available
             # acquisitiondateRegex = u'\<em\>Acknowledgement\<\/em\>\:\s*.+(\d\d\d\d)[\r\n\t\s]*\<br\>'
@@ -103,10 +114,14 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             #if acquisitiondateMatch:
             #    metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
 
-
             if item.get(u'medium') and item.get(u'medium')==u'plátno' and item.get(u'technique') and \
                 item.get(u'technique')[0] and item.get(u'technique')[0]==u'olej':
                 metadata['medium'] = u'oil on canvas'
+
+            # Add the genre based on the topic. Only when we have one topic
+            if item.get(u'topic') and len(item.get(u'topic'))==1:
+                if item.get(u'topic')[0] in topics:
+                    metadata[u'genreqid'] = topics.get(item.get(u'topic')[0])
 
             # The search API returns null for measurement
             # Already indexed it in the previous run so leaving it for now
