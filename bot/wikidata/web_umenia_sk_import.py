@@ -13,6 +13,7 @@ import artdatabot
 import pywikibot
 import requests
 import json
+import random
 
 def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
     """
@@ -292,7 +293,9 @@ def main(*args):
             return
         processCollection(collections[collectionid], webumeniaArtists, dryrun=dryrun, create=create)
     else:
-        for collectionid in collections.keys():
+        collectionlist = collections.keys()
+        random.shuffle(collectionlist) # Different order every time we run
+        for collectionid in collectionlist:
             processCollection(collections[collectionid], webumeniaArtists, dryrun=dryrun, create=create)
 
 if __name__ == "__main__":
