@@ -13,7 +13,7 @@ https://github.com/american-art/SAAM
 
 import pywikibot
 import artdatabot
-#import re
+import re
 #import HTMLParser
 import requests
 import csv
@@ -104,9 +104,38 @@ def getSAAMPaintingGenerator():
 
         if object.get('Medium').lower()==u'oil on canvas':
             metadata['medium'] = u'oil on canvas'
-        # TODO: Implement circa
-        if object.get('dated')==object.get('datebegin') and object.get('dated')==object.get('dateend'):
-            metadata['inception'] = unicode(object.get('dated'), u'utf-8')
+
+        if object.get('dated'):
+            if object.get('dated')==object.get('datebegin') and object.get('dated')==object.get('dateend'):
+                metadata['inception'] = unicode(object.get('dated'), u'utf-8')
+            else:
+                circaperiodregex = u'^ca\.\s*(\d\d\d\d)\-(\d\d\d\d)$'
+                periodregex = u'^(\d\d\d\d)\-(\d\d\d\d)$'
+                circaregex = u'^ca\.\s*(\d\d\d\d)$'
+
+                circaperiodmatch = re.match(circaperiodregex, object.get('dated'))
+                periodmatch = re.match(periodregex, object.get('dated'))
+                circamatch = re.match(circaregex, object.get('dated'))
+
+                if circaperiodmatch:
+                    if int(circaperiodmatch.group(1))==int(object.get('datebegin')) and \
+                                    int(circaperiodmatch.group(2))==int(object.get('dateend')):
+                        metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                        metadata['inceptionend'] = int(circaperiodmatch.group(2))
+                        metadata['inceptioncirca'] = True
+                elif periodmatch:
+                    if int(periodmatch.group(1))==int(object.get('datebegin')) and \
+                                    int(periodmatch.group(2))==int(object.get('dateend')):
+                        metadata['inceptionstart'] = int(periodmatch.group(1),)
+                        metadata['inceptionend'] = int(periodmatch.group(2))
+                elif circamatch:
+                    if int(circamatch.group(1))==int(object.get('datebegin')) and \
+                                    int(circamatch.group(1))==int(object.get('dateend')):
+                        metadata['inception'] = int(circamatch.group(1))
+                        metadata['inceptioncirca'] = True
+                elif object.get('dated')==u'n.d.':
+                    metadata['inceptionstart'] = int(object.get('datebegin'))
+                    metadata['inceptionend'] = int(object.get('dateend'))
 
         name = unicode(makers[object.get('ObjectID')].get(u'DisplayName'), u'utf-8')
 
@@ -163,13 +192,11 @@ def getSAAMPaintingGenerator():
 def main():
     paintingGen = getSAAMPaintingGenerator()
 
-    #for painting in dictGen:
+    #for painting in paintingGen:
     #    print painting
 
-    artDataBot = artdatabot.ArtDataBot(paintingGen, create=False)
+    artDataBot = artdatabot.ArtDataBot(paintingGen, create=True)
     artDataBot.run()
-    
-    
 
 if __name__ == "__main__":
     main()
