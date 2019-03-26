@@ -507,13 +507,29 @@ class ArtDataBot:
             else:
                 if len(str(metadata.get(u'inceptionstart')))!=4 or len(str(metadata.get(u'inceptionend')))!=4:
                     return
-                precision = 5
-                if str(metadata.get(u'inceptionstart'))[0]==str(metadata.get(u'inceptionend'))[0]:
-                    precision = 6
-                    if str(metadata.get(u'inceptionstart'))[1]==str(metadata.get(u'inceptionend'))[1]:
-                        precision = 7
-                        if str(metadata.get(u'inceptionstart'))[2]==str(metadata.get(u'inceptionend'))[2]:
-                            precision = 8
+                precision = 5 # 10 millenia
+
+                # For things like 1901-2000 I want to end with century
+                incstart = str(metadata.get(u'inceptionstart'))
+                normalend = str(metadata.get(u'inceptionend'))
+                lowerend = str(int(metadata.get(u'inceptionend'))-1)
+
+                # The normal loop
+                if incstart[0]==normalend[0]:
+                    precision = 6 # millenium
+                    if incstart[1]==normalend[1]:
+                        precision = 7 # century
+                        if incstart[2]==normalend[2]:
+                            precision = 8 # decade
+                # The one lower loop. Can't mix them, will give funky results with things like 1701 and 1800
+                if incstart[0]==lowerend[0]:
+                    if precision < 6:
+                        precision = 6 # millenium
+                    if incstart[1]==lowerend[1]:
+                        if precision < 7:
+                            precision = 7 # century
+                        # Don't do it for decade
+
                 averageYear = abs((metadata.get(u'inceptionstart') + metadata.get(u'inceptionend'))/2)
                 newdate = pywikibot.WbTime(year=averageYear, precision=precision)
                 earliestdate = pywikibot.WbTime(year=metadata.get(u'inceptionstart'))
