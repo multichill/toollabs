@@ -80,6 +80,10 @@ def getBavarianGenerator():
 
             titleregex = u'\<h1 class\=\"artwork__title\"\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/h1\>'
             titlematch = re.search(titleregex, itempage.text)
+            if not titlematch:
+                print(u'No title found, probably something went wrong. Skipping and sleeping for 2 minutes')
+                time.sleep(120)
+                continue
             title = htmlparser.unescape(titlematch.group(1).strip()) # This didn't work and included attributed to junk: record.get('title')
 
             # Chop chop, several very long titles
