@@ -105,16 +105,17 @@ def getHermitageGenerator():
                                             u'en' : u'painting by anonymous painter',
                                             }
 
-            if fields.get('meta_woa_date') and fields.get('meta_woa_date_low') and fields.get('meta_woa_date_high') \
-                    and fields.get('meta_woa_date')==fields.get('meta_woa_date_low') \
-                and fields.get('meta_woa_date')==fields.get('meta_woa_date_high'):
-                metadata['inception'] = fields.get('meta_woa_date')
-            elif fields.get('meta_woa_date'):
+            if fields.get('meta_woa_date') and fields.get('meta_woa_date_low') and fields.get('meta_woa_date_high'):
                 datecircaregex = u'^Circa (\d\d\d\d)$'
                 datecircamatch = re.match(datecircaregex, fields.get('meta_woa_date'))
                 if datecircamatch:
                     metadata['inception'] = datecircamatch.group(1).strip()
                     metadata['inceptioncirca'] = True
+                elif fields.get('meta_woa_date')==fields.get('meta_woa_date_low') and fields.get('meta_woa_date')==fields.get('meta_woa_date_high'):
+                    metadata['inception'] = fields.get('meta_woa_date')
+                elif fields.get('meta_woa_date_low')!=fields.get('meta_woa_date_high'):
+                    metadata['inceptionstart'] = int(fields.get('meta_woa_date_low'))
+                    metadata['inceptionend'] = int(fields.get('meta_woa_date_high'))
 
             if fields.get('meta_woa_prvnc'):
                 acqdateregex = u'^Entered the Hermitage in (\d\d\d\d)\;.*'
@@ -140,7 +141,7 @@ def main():
     dictGen = getHermitageGenerator()
 
     #for painting in dictGen:
-    #    print painting
+    #    print (painting)
 
     artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
