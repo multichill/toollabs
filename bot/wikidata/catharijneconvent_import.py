@@ -30,7 +30,7 @@ def getRMCCGenerator():
 
     while hasNext:
         searchUrl = basesearchurl % (start, rows)
-        print searchUrl
+        print (searchUrl)
         searchPage = requests.get(searchUrl)
         searchJson = searchPage.json()
 
@@ -39,7 +39,7 @@ def getRMCCGenerator():
 
         for item in searchJson.get(u'result').get(u'items'):
             itemfields = item.get('item').get(u'fields')
-            #print itemfields
+            #print (itemfields)
             metadata = {}
 
             metadata['url'] = itemfields.get('system').get('about_uri')
@@ -52,7 +52,7 @@ def getRMCCGenerator():
                 metadata['locationqid'] = u'Q1954426'
             else:
                 #Another collection, skip
-                print u'Found other collection %s' % (collectionid,)
+                print (u'Found other collection %s' % (collectionid,))
                 continue
 
             # Do need to check the type because we include some different types
@@ -84,7 +84,7 @@ def getRMCCGenerator():
             metadata['id'] = itemfields.get('dc_identifier')[0].get('value')
             if u'?' in metadata['id']:
                 # Some messed up records in there!
-                print u'mess'
+                print (u'mess')
                 time.sleep(5)
                 continue
             metadata['idpid'] = u'P217'
@@ -184,8 +184,11 @@ def getRMCCGenerator():
                 inceptionregex = u'(\d\d\d\d) - (\d\d\d\d)'
                 inceptionmatch = re.match(inceptionregex, itemfields.get('dcterms_created')[0].get('value'))
 
-                if inceptionmatch and inceptionmatch.group(1)==inceptionmatch.group(2):
-                    metadata['inception'] = inceptionmatch.group(1)
+                if inceptionmatch:
+                    metadata['inceptionstart'] = int(inceptionmatch.group(1))
+                    metadata['inceptionend'] = int(inceptionmatch.group(2))
+                else:
+                    metadata['inception'] = itemfields.get('dcterms_created')[0].get('value')
 
             dcextenttregex = u'^\s*(breedte|hoogte|diepte)\s*([\d\.]+)\s*cm$'
             if itemfields.get('dcterms_extent') and len(itemfields.get('dcterms_extent')) > 0:
