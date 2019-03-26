@@ -89,11 +89,15 @@ def getFNGPaintingGenerator(jsonlocation):
                     if datefield.get(u'creation'):
                         circaperiodregex = u'^\((\d\d\d\d)\s*-\s*(\d\d\d\d)\)$'
                         periodregex = u'^(\d\d\d\d)\s*-\s*(\d\d\d\d)$'
+                        shortperiodregex = u'^(\d\d)(\d\d)\s*-\s*(\d\d)$'
                         circaregex = u'^\((\d\d\d\d)\)$'
+                        circaquestionregex = u'^(\d\d\d\d)\?$'
 
                         circaperiodmatch = re.match(circaperiodregex, datefield.get(u'creation'))
                         periodmatch = re.match(periodregex, datefield.get(u'creation'))
+                        shortperiodmatch = re.match(shortperiodregex, datefield.get(u'creation'))
                         circamatch = re.match(circaregex, datefield.get(u'creation'))
+                        circaquestionmatch = re.match(circaquestionregex, datefield.get(u'creation'))
 
                         if circaperiodmatch:
                             metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
@@ -102,8 +106,14 @@ def getFNGPaintingGenerator(jsonlocation):
                         elif periodmatch:
                             metadata['inceptionstart'] = int(periodmatch.group(1),)
                             metadata['inceptionend'] = int(periodmatch.group(2),)
+                        elif shortperiodmatch:
+                            metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1), shortperiodmatch.group(2),))
+                            metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1), shortperiodmatch.group(3),))
                         elif circamatch:
                             metadata['inception'] = circamatch.group(1)
+                            metadata['inceptioncirca'] = True
+                        elif circaquestionmatch:
+                            metadata['inception'] = circaquestionmatch.group(1)
                             metadata['inceptioncirca'] = True
                         else:
                             metadata[u'inception'] = datefield.get(u'creation')
@@ -172,8 +182,6 @@ def main(*args):
 
     artDataBot = artdatabot.ArtDataBot(paintingGen, create=True)
     artDataBot.run()
-    
-    
 
 if __name__ == "__main__":
     main()
