@@ -61,16 +61,15 @@ def getYaleGenerator():
 
             #print itemPageEnData
             #titleRegex = u'<th id\="titleHeaders">Title\s*</th>[\r\n\t\s]+<td id="dataField">[\r\n\t\s]+([^<]+)[\r\n\t\s]+</td>'
-            titleRegex = u'property\=\"dc\:title\"\>\<h1\>[\r\n\t\s]*([^<]+)[\r\n\t\s]*\<\/h1\>'
-            titleRegex = u'\<title\>[\r\n\t\s]*([^<]+)[\r\n\t\s]*\<\/title\>'
+            #titleRegex = u'property\=\"dc\:title\"\>\<h1\>[\r\n\t\s]*([^<]+)[\r\n\t\s]*\<\/h1\>'
+            titleRegex = u'\<title\>[\r\n\t\s]*([^<]+)[\r\n\t\s]*\| Yale University Art\xa0Gallery\<\/title\>'
             
             matchTitle = re.search(titleRegex, itemPageData)
             if not matchTitle:
                 pywikibot.output(u'The title data for this painting is BORKED!')
                 return
 
-
-            metadata['title'] = { u'en' : htmlparser.unescape(matchTitle.group(1).strip(u'\s\r\n\t')),
+            metadata['title'] = { u'en' : htmlparser.unescape(matchTitle.group(1).strip(u'\s\r\n\t').strip()),
                                   }
             #pywikibot.output(metadata.get('title'))
 
@@ -109,14 +108,25 @@ def getYaleGenerator():
             metadata['idpid'] = u'P217'
 
             dateRegex = u'\"field field-name-field-dated field-type-text field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>(\d\d\d\d)\<\/div\>'
-            dateMatch = re.search(dateRegex, itemPageData)
+            circaperiodregex = u'\"field field-name-field-dated field-type-text field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>ca\.\s*(\d\d\d\d)–(\d\d\d\d)\<\/div\>'
+            circaregex = u'\"field field-name-field-dated field-type-text field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>ca\.\s*(\d\d\d\d)\<\/div\>'
 
-            if dateMatch:
-                metadata['inception'] = dateMatch.group(1)
+            datematch = re.search(dateRegex, itemPageData)
+            circaperiodmatch = re.search(circaperiodregex, itemPageData)
+            circamatch = re.search(circaregex, itemPageData)
+
+            if datematch:
+                metadata['inception'] = datematch.group(1)
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                metadata['inceptionend'] = int(circaperiodmatch.group(2),)
+                metadata['inceptioncirca'] = True
+            elif circamatch:
+                metadata['inception'] = circamatch.group(1)
+                metadata['inceptioncirca'] = True
 
             # Data not available
             # record.get('acquisition')
-
 
             mediumRegex = u'\"field field-name-field-medium field-type-text-long field-label-hidden\"\>[\r\n\t\s]*\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>\<p\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<\/p\>\<\/div\>'
             mediumMatch = re.search(mediumRegex, itemPageData)
