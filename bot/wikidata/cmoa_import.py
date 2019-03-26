@@ -22,6 +22,9 @@ def getCarnegieGenerator():
 
     urls = []
 
+    # TODO: Reimplement based on https://collection.cmoa.org/?classification=paintings&page=2&perPage=10&withImage=0
+    # It's now JSON and contains images
+
      # First get the Painting
 
     # And let's get the paintings too
@@ -36,12 +39,12 @@ def getCarnegieGenerator():
     htmlparser = HTMLParser.HTMLParser()
 
     session = requests.Session()
-    searchPage = session.get(referer)
+    searchPage = session.get(referer, verify=False)
 
     urlregex = u'\<a href\=\"(CollectionDetail\.aspx\?item\=\d+)\&'
 
-    tosearch = [(u'Painting', 12, u'Y2xhc3NpZmljYXRpb249UGFpbnRpbmd8'), # 488, 48 per page
-                #(u'paintings', 13, u'Y2xhc3NpZmljYXRpb249cGFpbnRpbmdzfA9999'), # 605, 48 per page
+    tosearch = [#(u'Painting', 12, u'Y2xhc3NpZmljYXRpb249UGFpbnRpbmd8'), # 488, 48 per page
+                (u'paintings', 14, u'Y2xhc3NpZmljYXRpb249cGFpbnRpbmdzfA9999'), # 605, 48 per page
                 ]
     for (classification, endpage, priorsearch) in tosearch:
         for i in range(1,endpage):
@@ -61,9 +64,9 @@ def getCarnegieGenerator():
                                                    'referer' : referer,
                                                    u'Content-Type' : u'application/json; charset=utf-8'}
                                           )
-            #print apiurl
+            print apiurl
             #print postjson % (classification, i,)
-            #print searchpage.text
+            print searchpage.text
             searchjson =  searchpage.json()
             matches = re.finditer(urlregex, searchjson.get(u'd'))
             for match in matches:
@@ -92,7 +95,7 @@ def getCarnegieGenerator():
                 name = htmlparser.unescape(titlecreatormatch.group(u'name').strip())
 
                 # Chop chop, in case we have very long titles
-                if title > 220:
+                if len(title) > 220:
                     title = title[0:200]
                 metadata['title'] = { u'en' : title,
                                       }
@@ -133,17 +136,21 @@ def getCarnegieGenerator():
                         metadata['widthcm'] = match_3d.group(u'width')
                         metadata['depthcm'] = match_3d.group(u'depth')
 
+                # https://collection.cmoa.org/objects/b1357c35-c930-4e15-9d8a-e50bba6bd03a
+                # https://cmoa-collection-images.s3.amazonaws.com/133250/sizes/1035976-840.jpg
+                # https://cmoa-collection-images.s3.amazonaws.com/133250/1035976.jpg
+
                 yield metadata
 
 
 def main():
     dictGen = getCarnegieGenerator()
 
-    #for painting in dictGen:
-    #    print painting
+    for painting in dictGen:
+        print painting
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    #artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    #artDataBot.run()
 
 if __name__ == "__main__":
     main()
