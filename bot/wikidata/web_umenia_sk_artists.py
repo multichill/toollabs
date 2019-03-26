@@ -240,7 +240,7 @@ class WebUmeniaArtistsImporterBot:
         :return:
         '''
         pywikibot.output(u'Getting the page at %s for the date of birth and date of death' % (refurl,))
-        page = requests.get(refurl)
+        page = requests.get(refurl, verify=False) # Getting an incorrect certificate here
 
         fulldobregex = u'\<span itemprop\=\"birthDate\"\>(\d\d)\.(\d\d)\.(\d\d\d\d)\<\/span\>'
         partdobregex = u'\<span itemprop\=\"birthDate\"\>(\d\d\d\d)\<\/span\>'
