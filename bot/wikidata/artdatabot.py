@@ -491,7 +491,7 @@ class ArtDataBot:
 
         elif metadata.get(u'inceptionstart') and metadata.get(u'inceptionend'):
             if metadata.get(u'inceptionstart')==metadata.get(u'inceptionend'):
-                newdate = pywikibot.WbTime(year=metadata[u'inception'])
+                newdate = pywikibot.WbTime(year=metadata[u'inceptionstart'])
                 newclaim = pywikibot.Claim(self.repo, u'P571')
                 newclaim.setTarget(newdate)
                 pywikibot.output('Adding date of creation claim to %s' % item)
