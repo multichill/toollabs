@@ -3,9 +3,9 @@
 """
 Bot to import paintings from the Gemeentemuseum Den Haag (GM)
 
-Good old screen scraping. Looks like we only have search pages.
+Second version now based on their api:
 
-* http://www.gemeentemuseum.nl/topstukken/zoeken?s=olieverf&page=1
+* https://www.gemeentemuseum.nl/nl/api/v1/search?origin=gm&facets[]=object:Schilderij&page=0&_format=json
 
 Use artdatabot to upload it to Wikidata
 
@@ -13,61 +13,94 @@ Use artdatabot to upload it to Wikidata
 import artdatabot
 import pywikibot
 import requests
-#import urllib2
 import re
-import HTMLParser
-#import xml.etree.ElementTree as ET
-
 
 def getGMGenerator():
     """
-    Generator to return Gemeentemuseum. 
+    Generator to return Gemeentemuseum.
+
+    Don't use the fulltext fields! Stuff gets messed up in there.
     
     """
-    searchBase=u'http://www.gemeentemuseum.nl/topstukken/zoeken?s=olieverf&page=%s'
+    basesearchurl=u'https://www.gemeentemuseum.nl/nl/api/v1/search?origin=gm&facets[]=object:Schilderij&page=%s&_format=json'
 
-    htmlparser = HTMLParser.HTMLParser()
+    hasNext = True
+    page = 0
 
-    # Looks like out of 600+ hits, 2 are not found
-    bigRegex = '<h3><a href="(?P<url>/collection/item/\d+)">(?P<title>[^\<]+)</a></h3><p class="coll-creator">(?P<creator>[^\<]+)</p><div class="coll-prod-place">(?P<place>[^\<]*)</div><div class="coll-created">(?P<date>[^\<]*)</div><div class="coll-dimensions">(?P<dimensions>[^\<]+)</div><div class="coll-material">(?P<material>[^\<]+)</div><div class="coll-object-number">Gemeentemuseum Den Haag: (?P<id>\d+)</div><div class="coll-more-link">'
- 
-    for i in range(0, 40):
-        searchUrl = searchBase % (i)
+    while hasNext:
+        searchUrl = basesearchurl % (page,)
+        print (searchUrl)
         searchPage = requests.get(searchUrl)
-        searchText = searchPage.text
-        itemmatches = re.finditer(bigRegex, searchText)
+        searchJson = searchPage.json()
 
-        for itemmatch in itemmatches:
+        page += 1
+        hasNext = searchJson.get(u'search_results').get(u'more_results')
+
+        for item in searchJson.get(u'search_results').get(u'rows'):
             metadata = {}
             metadata['collectionqid'] = u'Q1499958'
             metadata['collectionshort'] = u'GM'
             metadata['locationqid'] = u'Q1499958'
             metadata['instanceofqid'] = u'Q3305213'
-            metadata[u'url'] = u'http://www.gemeentemuseum.nl%s' % (itemmatch.group(u'url'),)
-            metadata[u'title'] = { u'nl' : htmlparser.unescape(itemmatch.group(u'title')).strip(),
-                                   }
 
-            name = itemmatch.group(u'creator')
-            nameRegex = u'^([^\[]+)\s\[[^\)]+\]$'
-            nameMatch = re.match(nameRegex, name)
-            if nameMatch:
-                metadata['creatorname'] = nameMatch.group(1)
-            else:
-                metadata['creatorname'] = name
+            metadata['id'] = item.get(u'field_adlib_object_number')
+            metadata['idpid'] = u'P217'
+
+            url = u'https://www.gemeentemuseum.nl%s' % (item.get(u'url'),)
+            metadata[u'url'] = url
+            if item.get(u'field_adlib_title'):
+                metadata[u'title'] = { u'nl' : item.get(u'field_adlib_title').strip(),
+                                       }
+            name = item.get(u'creator')
+            if u',' in name:
+                (surname, sep, firstname) = name.partition(u',')
+                name = u'%s %s' % (firstname.strip(), surname.strip(),)
+            metadata['creatorname'] = name
+
             metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
                                         }
-            if itemmatch.group(u'date'):
-                metadata['inception'] = itemmatch.group(u'date')
-            metadata['id'] = itemmatch.group(u'id')
-            metadata['idpid'] = u'P217'            
+
+            if item.get(u'field_adlib_production_date'):
+                circaperiodregex = u'^circa\s*(\d\d\d\d)-(\d\d\d\d)$'
+                periodregex = u'^(\d\d\d\d)-(\d\d\d\d).*$'
+                circaregex = u'^circa\s*(\d\d\d\d)$'
+
+                circaperiodmatch = re.match(circaperiodregex, item.get(u'field_adlib_production_date'))
+                periodmatch = re.match(periodregex, item.get(u'field_adlib_production_date'))
+                circamatch = re.match(circaregex, item.get(u'field_adlib_production_date'))
+
+                if circaperiodmatch:
+                    metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                    metadata['inceptionend'] = int(circaperiodmatch.group(2),)
+                    metadata['inceptioncirca'] = True
+                elif periodmatch:
+                    metadata['inceptionstart'] = int(periodmatch.group(1),)
+                    metadata['inceptionend'] = int(periodmatch.group(2),)
+                elif circamatch:
+                    metadata['inception'] = circamatch.group(1)
+                    metadata['inceptioncirca'] = True
+                else:
+                    metadata['inception'] = item.get(u'field_adlib_production_date')
+
+            if item.get('field_adlib_material')==u'olieverf op doek':
+                metadata['medium'] = u'oil on canvas'
+
+            if item.get('field_adlib_dimensions'):
+                measurementstext = item.get('field_adlib_dimensions')
+                regex_2d = u'hoogte\s*(?P<height>\d+(,\d+)?)\s*cm\s*\n\s*breedte\s*(?P<width>\d+(,\d+)?)\s*cm'
+                match_2d = re.match(regex_2d, measurementstext)
+                if match_2d:
+                    metadata['heightcm'] = match_2d.group(u'height').replace(',', '.')
+                    metadata['widthcm'] = match_2d.group(u'width').replace(',', '.')
+
             yield metadata
 
 def main():
     dictGen = getGMGenerator()
 
     #for painting in dictGen:
-    #    print painting
+    #    print(painting)
 
     artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
