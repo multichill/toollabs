@@ -67,7 +67,7 @@ def getYaleGenerator():
             matchTitle = re.search(titleRegex, itemPageData)
             if not matchTitle:
                 pywikibot.output(u'The title data for this painting is BORKED!')
-                return
+                continue
 
             metadata['title'] = { u'en' : htmlparser.unescape(matchTitle.group(1).strip(u'\s\r\n\t').strip()),
                                   }
@@ -109,10 +109,14 @@ def getYaleGenerator():
 
             dateRegex = u'\"field field-name-field-dated field-type-text field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>(\d\d\d\d)\<\/div\>'
             circaperiodregex = u'\"field field-name-field-dated field-type-text field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>ca\.\s*(\d\d\d\d)–(\d\d\d\d)\<\/div\>'
+            circashortperiodregex = u'\"field field-name-field-dated field-type-text field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>ca\.\s*(\d\d)(\d\d)–(\d\d)\<\/div\>'
+            shortperiodregex = u'\"field field-name-field-dated field-type-text field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>\s*(\d\d)(\d\d)–(\d\d)\<\/div\>'
             circaregex = u'\"field field-name-field-dated field-type-text field-label-hidden\"\>[\r\n\t\s]+\<div class\=\"field-items\"\>[\r\n\t\s]*\<div class\=\"field-item even\"\>ca\.\s*(\d\d\d\d)\<\/div\>'
 
             datematch = re.search(dateRegex, itemPageData)
             circaperiodmatch = re.search(circaperiodregex, itemPageData)
+            circashortperiodmatch = re.search(circashortperiodregex, itemPageData)
+            shortperiodmatch = re.search(shortperiodregex, itemPageData)
             circamatch = re.search(circaregex, itemPageData)
 
             if datematch:
@@ -121,6 +125,12 @@ def getYaleGenerator():
                 metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
                 metadata['inceptionend'] = int(circaperiodmatch.group(2),)
                 metadata['inceptioncirca'] = True
+            elif circashortperiodmatch:
+                metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
+                metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+            elif shortperiodmatch:
+                metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
+                metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
             elif circamatch:
                 metadata['inception'] = circamatch.group(1)
                 metadata['inceptioncirca'] = True
