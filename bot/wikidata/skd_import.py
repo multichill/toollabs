@@ -64,7 +64,7 @@ def getSKDGenerator():
             metadata['title'] = { u'de' : htmlparser.unescape(matchTitle.group(1).strip()),
                                 }
 
-            creatorRegex = u'\<a href\=\"\/Home\/Index\?page\=1\&pId\=\d+\"\>([^\<]+)\<span\>\s*\|\s*(Maler|Autor|K\&\#xFC\;nstler)\<\/span\>\<\/a\>'
+            creatorRegex = u'\<a href\=\"\/Home\/Index\?page\=1\&pId\=\d+\"\>([^\<]+)\<span\>\s*-\s*(Maler|Autor|K\&\#xFC\;nstler)\<\/span\>\<\/a\>'
 
             creatorMatch = re.search(creatorRegex, itemPageData)
             #if not creatorMatch:
@@ -126,33 +126,41 @@ def getSKDGenerator():
                           13 : u'Q869690', # Skulpturensammlung
                           }
 
-
-            locationRegex = u'\<span class\=\"skd-headline-roof\"\>Museum\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>\<a href\=\"\/Home\/Index\?page\=1\&sId\=(\d\d?)\"\>'
+            locationRegex = u'\<span\>Museum\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>\<a href\=\"\/Home\/Index\?page\=1\&sId\=(\d\d?)\"\>'
             locationMatch = re.search(locationRegex, itemPageData)
 
             metadata['locationqid'] = locations.get(int(locationMatch.group(1)))
 
-            invRegex = u'\<span class\=\"skd-headline-roof\"\>Inventarnummer\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>([^\<]+)\<\/span\>'
+            invRegex = u'\<span\>Inventarnummer\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>([^\<]+)\<\/span\>'
             invMatch = re.search(invRegex, itemPageData)
             metadata['id'] = invMatch.group(1).strip()
             metadata['idpid'] = u'P217'
 
 
-            dateRegex = u'\<span class\=\"skd-headline-roof\"\>Datum\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>\<a href\=\"\/Home\/Index\?page=1&dVon\=(\d\d\d\d)\&dBis\=(\d\d\d\d)\"\>'
+            dateRegex = u'\<span\>Ort, Datierung\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>\<a href\=\"\/Home\/Index\?page=1&dVon\=(\d\d\d\d)\&dBis\=(\d\d\d\d)\"\>([^\<]+)\<\/a\>'
             dateMatch = re.search(dateRegex, itemPageData)
-            if dateMatch and dateMatch.group(1)==dateMatch.group(2):
-                metadata['inception'] = dateMatch.group(1)
+            if dateMatch:
+                circaregex = u'^[uU]m (\d\d\d\d)$'
+                circamatch = re.search(circaregex, dateMatch.group(3))
+                if circamatch:
+                    metadata['inception'] = circamatch.group(1)
+                    metadata['inceptioncirca'] = True
+                elif dateMatch.group(1)==dateMatch.group(2):
+                    metadata['inception'] = dateMatch.group(1)
+                else:
+                    metadata['inceptionstart'] = int(dateMatch.group(1),)
+                    metadata['inceptionend'] = int(dateMatch.group(2),)
 
             # acquisition date is not available
             #metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
 
-            mediumRegex = u'\<span class\=\"skd-headline-roof\"\>Material und Technik\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>\<a href\=\"\/Home\/Index\?page\=1\&q\=([^\"]+)\"\>'
+            mediumRegex = u'\<span\>Material und Technik\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>\<a href\=\"\/Home\/Index\?page\=1\&q\=([^\"]+)\"\>'
             mediumMatch = re.search(mediumRegex, itemPageData)
 
             if mediumMatch and mediumMatch.group(1).strip()==u'%C3%96l%20auf%20Leinwand':
                 metadata['medium'] = u'oil on canvas'
 
-            dimensionRegex = u'\<span class\=\"skd-headline-roof\"\>Abmessungen\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>([^\<]+)\<\/span\>'
+            dimensionRegex = u'\<span\>Abmessungen\<\/span\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<div class\=\"col-xs-12 col-sm-8\"\>[\r\n\t\s]*\<span\>([^\<]+)\<\/span\>'
             dimensionMatch = re.search(dimensionRegex, itemPageData)
 
             if dimensionMatch:
@@ -183,7 +191,7 @@ def main():
     #for painting in dictGen:
     #    print (painting)
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
     artDataBot.run()
 
 if __name__ == "__main__":
