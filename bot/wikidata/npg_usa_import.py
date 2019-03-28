@@ -11,7 +11,7 @@ https://github.com/american-art/npg
 
 import pywikibot
 import artdatabot
-#import re
+import re
 #import HTMLParser
 import requests
 import csv
@@ -47,11 +47,14 @@ def getNPGPaintingGenerator():
     xrefurl = u'https://raw.githubusercontent.com/american-art/npg/master/NPGObjConXrefs/NPGObjConXrefs3.csv'
     xrefpage = requests.get(xrefurl)
     xrefreader = csv.DictReader(xrefpage.iter_lines())
-    xrefs = {}
+    xrefscreators = {}
+    xrefssitters = {}
     for xref in xrefreader:
         # Only artists
         if int(xref.get(u'RoleID'))==1:
-            xrefs[xref.get(u'ObjectID')] = xref
+            xrefscreators[xref.get(u'ObjectID')] = xref
+        elif int(xref.get(u'RoleID'))==19:
+            xrefssitters[xref.get(u'ObjectID')] = xref
 
     ## ConstituentID,ObjectID,Maker,DisplayName,DisplayDate,DisplayOrder,Role,Prefix,Suffix,AlphaSort,Displayed,LastName,FirstName,NameTitle,allartists,objectnumber
     #makerurl = u'https://raw.githubusercontent.com/american-art/SAAM/master/WebMakers_view/WebMakers_view.csv'
@@ -114,6 +117,9 @@ def getNPGPaintingGenerator():
         metadata['id'] = unicode(object.get(u'ObjectNumber'), u'utf-8')
         metadata['idpid'] = u'P217'
 
+        metadata['artworkid'] = unicode(object.get(u'ObjectNumber'), u'utf-8')
+        metadata['artworkidpid'] = u'P6152'
+
         # No property for NPG
         #metadata['artworkid'] = unicode(object.get('ObjectID'), u'utf-8')
         #metadata['artworkidpid'] = u'P4704'
@@ -129,14 +135,29 @@ def getNPGPaintingGenerator():
 
         if unicode(object.get('Medium'), u'utf-8').lower()==u'oil on canvas':
             metadata['medium'] = u'oil on canvas'
-        # TODO: Implement circa
+
+        # Try to figure out the date
         if object.get('Dated')==object.get('DateBegin') and object.get('Dated')==object.get('DateEnd'):
             metadata['inception'] = unicode(object.get('Dated'), u'utf-8')
-        elif object.get('DateBegin')==object.get('DateEnd'):
-            metadata['inception'] = unicode(object.get('DateBegin'), u'utf-8')
+        else:
+            circaregex = u'[cC]\.\s*(^\d\d\d\d)$'
+            circaperiodregex = u'[cC]\.\s*(\d\d\d\d)-(\d\d\d\d)$'
+            circamatch = re.search(circaregex, object.get('Dated'))
+            circaperiodmatch = re.search(circaperiodregex, object.get('Dated'))
+            if circamatch:
+                metadata['inception'] = circamatch.group(1)
+                metadata['inceptioncirca'] = True
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1))
+                metadata['inceptionend'] = int(circaperiodmatch.group(2))
+                metadata['inceptioncirca'] = True
+            elif object.get('DateBegin') and object.get('DateBegin')==object.get('DateEnd'):
+                metadata['inception'] = unicode(object.get('DateBegin'), u'utf-8')
+            elif object.get('DateBegin') and object.get('DateEnd'):
+                metadata['inceptionstart'] = int(object.get('DateBegin'))
+                metadata['inceptionend'] = int(object.get('DateEnd'))
 
-
-        constituentid = xrefs[object.get('ObjectID')].get(u'ConstituentID')
+        constituentid = xrefscreators[object.get('ObjectID')].get(u'ConstituentID')
         name = unicode(constituents[constituentid].get(u'DisplayName'), u'utf-8')
 
         if name==u'Unidentified':
@@ -151,6 +172,16 @@ def getNPGPaintingGenerator():
             metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
                                         }
+
+        # Add genre portrait if we find a valid sitter
+        objectsitter = xrefssitters.get(object.get('ObjectID'))
+        if objectsitter:
+            # No groups and not non-portraits
+            if int(objectsitter.get(u'ConstituentID')) not in [81975, 61408]:
+                # Should be an individual
+                if constituents.get(objectsitter.get(u'ConstituentID')).get(u'ConstituentType')==u'Individual':
+                    metadata[u'genreqid'] = u'Q134307'
+
         """
         #FIXME: Implement later
         dimension = dimensions.get(object.get('ObjectID'))
