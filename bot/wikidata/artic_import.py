@@ -24,8 +24,8 @@ def getArticGenerator():
 
     session = requests.Session()
 
-    # 2683 results, 51 per page
-    for i in range(1, 55):
+    # 2941 results, 51 per page
+    for i in range(1, 60):
         searchurl = basesearchurl % (i,)
 
         pywikibot.output(searchurl)
@@ -77,7 +77,7 @@ def getArticGenerator():
 
             # Didn't check this one very well
             # creatorregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:creator\" itemprop\=\"creator\"\>'
-            creatorregex = u'\<a href\=\"https\:\/\/www\.artic\.edu\/artists\/(\d+)\" data-gtm-event\=\"([^\"]+)\"'
+            creatorregex = u'\<a href\=\"https\:\/\/www\.artic\.edu\/artists\/(\d+\/[^\"]+)\" data-gtm-event\=\"([^\"]+)\"'
             creatormatch = re.search(creatorregex, itempage.text)
             if creatormatch:
                 name = htmlparser.unescape(creatormatch.group(2).strip())
@@ -94,20 +94,33 @@ def getArticGenerator():
                                             }
                 metadata['creatorqid'] = u'Q4233718'
 
+            circadateregex = u'\<h2 class\=\"sr-only\"\>Date\:\<\/h2\>[\r\n\t\s]*\<p class\=\"title f-secondary o-article__inline-header-display\"\>c\.\s*(\d\d\d\d)\<\/p\>'
+            dateregex = u'\<dd itemprop\=\"dateCreated\">[\r\n\t\s]*\<span class\=\"f-secondary\"\>[\r\n\t\s]*\<a href\=\"https\:\/\/www\.artic\.edu\/collection\?date-start\=(\d\d\d\d)\&date-end\=(\d\d\d\d)\"\>([^\<]+)\<\/a\>'
 
-            dateregex = u'\<dd itemprop\=\"dateCreated\">[\r\n\t\s]*\<span class\=\"f-secondary\"\>[\r\n\t\s]*\<a href\=\"https\:\/\/www\.artic\.edu\/collection\?date-start\=(\d\d\d\d)\&date-end\=(\d\d\d\d)\"\>(\d\d\d\d)\<\/a\>'
             datematch = re.search(dateregex, itempage.text)
-            if datematch:
+            circadatematch = re.search(circadateregex, itempage.text)
+
+            if circadatematch:
+                metadata['inception'] = htmlparser.unescape(circadatematch.group(1).strip())
+                metadata['inceptioncirca'] = True
+            elif datematch:
                 if datematch.group(1).strip()==datematch.group(2).strip() and datematch.group(2).strip()==datematch.group(3).strip():
                     # Don't worry about cleaning up here.
                     metadata['inception'] = htmlparser.unescape(datematch.group(1).strip())
+                else:
+                    # Not really needed, but might prevent weird things from happening
+                    periodregex = u'^(\d\d\d\d)–(\d\d\d\d)$'
+                    periodematch = re.search(periodregex, datematch.group(3).strip())
+                    if periodematch:
+                        if datematch.group(1)==periodematch.group(1) and datematch.group(2)==periodematch.group(2):
+                            metadata['inceptionstart'] = int(periodematch.group(1),)
+                            metadata['inceptionend'] = int(periodematch.group(2),)
 
-            # Not available
-            #acquisitiondateregex = u'\<span class\=\"detailFieldLabel\"\>Inventarzugang:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>(\d\d\d\d)([^\<]+)\<\/span\>'
-            #acquisitiondatematch = re.search(acquisitiondateregex, itempage.text)
-            #if acquisitiondatematch:
-            #    metadata['acquisitiondate'] = acquisitiondatematch.group(1)
-
+            # Provenance is very extensive. Assuming it ends with the year it entered the ARTIC
+            acquisitiondateregex = u'\<div id\=\"panel_provenance\" class\=\"o-accordion__panel\" aria-labelledby\=\"provenance\" aria-hidden\=\"true\"\>[\r\n\t\s]*\<div class\=\"o-accordion__panel-content o-blocks\"\>[\r\n\t\s]*\<p\>[^\<]+\s(\d\d\d\d)\.?\<\/p\>'
+            acquisitiondatematch = re.search(acquisitiondateregex, itempage.text)
+            if acquisitiondatematch:
+                metadata['acquisitiondate'] = acquisitiondatematch.group(1)
 
             mediumregex = u'\<h2 class\=\"f-module-title-1\"\>Medium\<\/h2\>[\r\n\t\s]*\<\/dt\>[\r\n\t\s]*\<dd itemprop\=\"material\"\>[\r\n\t\s]*\<span class\=\"f-secondary\"\>Oil on canvas\<\/span\>'
             mediummatch = re.search(mediumregex, itempage.text)
