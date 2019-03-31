@@ -13,7 +13,7 @@ import pywikibot
 import requests
 import re
 import time
-import HTMLParser
+from html.parser import HTMLParser
 
 def getBelvedereGenerator():
     """
@@ -24,7 +24,7 @@ def getBelvedereGenerator():
     basesearchurl = u'https://digital.belvedere.at/advancedsearch/Objects/classifications%%3AMalerei/images?page=%s'
     # Leftovers
     #basesearchurl = u'https://digital.belvedere.at/advancedsearch/Objects/name%%3ATafelbild/images?page=%s'
-    htmlparser = HTMLParser.HTMLParser()
+    htmlparser = HTMLParser()
 
     for i in range(1, 341): #12): # 341):
         searchurl = basesearchurl % (i,)
@@ -99,16 +99,30 @@ def getBelvedereGenerator():
             # Was broken too
             #dateregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
             dateregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>(\d\d\d\d)\<\/span\>'
+            datecircaregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>um (?P<date>\d\d\d\d)\s*(\(\?\))?\s*\<\/span\>'
+            periodregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>(\d\d\d\d)[-–\/](\d\d\d\d)\<\/span\>'
+            circaperiodregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>um\s*(\d\d\d\d)\/(\d\d\d\d)\<\/span\>'
+            otherdateregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>'
             datematch = re.search(dateregex, itempage.text)
+            datecircamatch = re.search(datecircaregex, itempage.text)
+            periodmatch = re.search(periodregex, itempage.text)
+            circaperiodmatch = re.search(circaperiodregex, itempage.text)
+            otherdatematch = re.search(otherdateregex, itempage.text)
             if datematch:
                 # Don't worry about cleaning up here.
                 metadata['inception'] = htmlparser.unescape(datematch.group(1).strip())
-            else:
-                datecircaregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>um (\d\d\d\d)\<\/span\>'
-                datecircamatch = re.search(datecircaregex, itempage.text)
-                if datecircamatch:
-                    metadata['inception'] = htmlparser.unescape(datecircamatch.group(1).strip())
-                    metadata['inceptioncirca'] = True
+            elif datecircamatch:
+                metadata['inception'] = htmlparser.unescape(datecircamatch.group(1).strip())
+                metadata['inceptioncirca'] = True
+            elif periodmatch:
+                metadata['inceptionstart'] = int(periodmatch.group(1),)
+                metadata['inceptionend'] = int(periodmatch.group(2),)
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                metadata['inceptionend'] = int(circaperiodmatch.group(2),)
+                metadata['inceptioncirca'] = True
+            elif otherdatematch:
+                print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
 
             # Probably too
 
@@ -164,7 +178,7 @@ def main():
     dictGen = getBelvedereGenerator()
 
     #for painting in dictGen:
-    #    print painting
+    #    print (painting)
 
     artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
