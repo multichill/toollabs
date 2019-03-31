@@ -15,6 +15,7 @@ import pywikibot
 import requests
 import re
 import time
+import json
 
 def getRoyalCollectionGenerator():
     """
@@ -29,6 +30,8 @@ def getRoyalCollectionGenerator():
     totalObjects = firstpage.json().get('totalObjects')
     pywikibot.output(u'Found a total of %s objects on %s pages' % (totalObjects, pages))
 
+    slowrun = True
+
     for i in range(1, pages+1):
         print(u'On search page %s out of %s' % (i,pages ))
         searchpage = requests.post(apiurl, verify=False, data=postjson % (i,))
@@ -37,11 +40,9 @@ def getRoyalCollectionGenerator():
             metadata = {}
             url = u'https://www.royalcollection.org.uk/%s' % (item.get('url'),)
             print (url)
+            #print(json.dumps(item, indent=4, sort_keys=True))
 
             metadata['url'] = url
-
-            if not u'placeholder' in item.get('primaryLargeImage'):
-                metadata[u'imageurl'] = u'https:%s' % (item.get('primaryLargeImage'),)
 
             metadata['collectionqid'] = u'Q1459037'
             metadata['collectionshort'] = u'Royal Collection'
@@ -89,38 +90,77 @@ def getRoyalCollectionGenerator():
                     # Just set Royal Collection as location
                     metadata['locationqid'] = u'Q1459037'
 
-            inception = re.sub(u'signed and dated\s*', u'', item.get('creationDate'), flags=re.IGNORECASE).strip()
-            if inception:
-                metadata['inception'] = inception
+            # TODO: Add all the circa and period variants like c. 1234-5
+            dateregex = u'^Signed and dated\s*(\d\d\d\d)$'
+            datecircaregex = u'^c\.\s*(\d\d\d\d)$'
+            periodregex = u'^(\d\d\d\d)-(\d\d\d\d)$'
+            shortperiodregex = u'^(\d\d)(\d\d)-(\d\d)$'
+            circaperiodregex = u'^c\.\s*(\d\d\d\d)-(\d\d\d\d)$'
+            circashortperiodregex = u'^c\.\s*(\d\d)(\d\d)-(\d\d)$'
 
-            # Need to get a page and parse it to get the last info. Wait a bit to not overload the service
-            time.sleep(10)
-            itempage = requests.get(u'%s?ajax=true' % (url,))
+            datematch = re.search(dateregex, item.get('creationDate'), flags=re.IGNORECASE)
+            datecircamatch = re.search(datecircaregex, item.get('creationDate'), flags=re.IGNORECASE)
+            periodmatch = re.search(periodregex, item.get('creationDate'), flags=re.IGNORECASE)
+            shortperiodmatch = re.search(shortperiodregex, item.get('creationDate'), flags=re.IGNORECASE)
+            circaperiodmatch = re.search(circaperiodregex, item.get('creationDate'), flags=re.IGNORECASE)
+            circashortperiodmatch = re.search(circashortperiodregex, item.get('creationDate'), flags=re.IGNORECASE)
+            #inception = re.sub(u'signed and dated\s*', u'', item.get('creationDate'), flags=re.IGNORECASE).strip()
+            if datematch:
+                metadata['inception'] = datematch.group(1)
+            elif datecircamatch:
+                metadata['inception'] = datecircamatch.group(1)
+                metadata['inceptioncirca'] = True
+            elif periodmatch:
+                metadata['inceptionstart'] = int(periodmatch.group(1),)
+                metadata['inceptionend'] = int(periodmatch.group(2),)
+            elif shortperiodmatch:
+                metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
+                metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                metadata['inceptionend'] = int(circaperiodmatch.group(2),)
+                metadata['inceptioncirca'] = True
+            elif circashortperiodmatch:
+                metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
+                metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+                metadata['inceptioncirca'] = True
+            else:
+                print (u'Could not parse date: "%s"' % (item.get('creationDate'),))
 
-            # acquisitiondate not found
-            # metadata['acquisitiondate'] = acquisitiondatematch.group(1)
+            # Disable this part for a much faster run.
+            if slowrun:
+                # Need to get a page and parse it to get the last info. Wait a bit to not overload the service
+                time.sleep(10)
+                itempage = requests.get(u'%s?ajax=true' % (url,))
 
-            # Only add the medium if it's oil on canvas
-            oilcanvasregex = u'\<h4\>Medium and techniques\<\/h4\>[\s\r\t\n]*\<p\>Oil on canvas\<\/p\>'
-            oilcanvasmatch = re.search(oilcanvasregex, itempage.text)
-            if oilcanvasmatch:
-                metadata['medium'] = u'oil on canvas'
+                # acquisitiondate not found
+                # metadata['acquisitiondate'] = acquisitiondatematch.group(1)
 
-            measurementsregex = u'\<h4\>Measurements\<\/h4\>[\s\r\t\n]*\<p\>([^\<]+)\<\/p\>'
-            measurementsmatch = re.search(measurementsregex, itempage.text)
-            if measurementsmatch:
-                measurementstext = measurementsmatch.group(1)
-                regex_2d = u'(?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) cm.*'
-                regex_3d = u'(?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) x (?P<depth>\d+(\.\d+)?) cm.*'
-                match_2d = re.match(regex_2d, measurementstext)
-                match_3d = re.match(regex_3d, measurementstext)
-                if match_2d:
-                    metadata['heightcm'] = match_2d.group(u'height').replace(u',', u'.')
-                    metadata['widthcm'] = match_2d.group(u'width').replace(u',', u'.')
-                elif match_3d:
-                    metadata['heightcm'] = match_3d.group(u'height').replace(u',', u'.')
-                    metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
-                    metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
+                # Only add the medium if it's oil on canvas
+                oilcanvasregex = u'\<h4\>Medium and techniques\<\/h4\>[\s\r\t\n]*\<p\>Oil on canvas\<\/p\>'
+                oilcanvasmatch = re.search(oilcanvasregex, itempage.text)
+                if oilcanvasmatch:
+                    metadata['medium'] = u'oil on canvas'
+
+                measurementsregex = u'\<h4\>Measurements\<\/h4\>[\s\r\t\n]*\<p\>([^\<]+)\<\/p\>'
+                measurementsmatch = re.search(measurementsregex, itempage.text)
+                if measurementsmatch:
+                    measurementstext = measurementsmatch.group(1)
+                    regex_2d = u'(?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) cm.*'
+                    regex_3d = u'(?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) x (?P<depth>\d+(\.\d+)?) cm.*'
+                    match_2d = re.match(regex_2d, measurementstext)
+                    match_3d = re.match(regex_3d, measurementstext)
+                    if match_2d:
+                        metadata['heightcm'] = match_2d.group(u'height').replace(u',', u'.')
+                        metadata['widthcm'] = match_2d.group(u'width').replace(u',', u'.')
+                    elif match_3d:
+                        metadata['heightcm'] = match_3d.group(u'height').replace(u',', u'.')
+                        metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
+                        metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
+
+            # Add type and filter for year maybe? They claim copyright
+            #if not u'placeholder' in item.get('primaryLargeImage'):
+            #    metadata[u'imageurl'] = u'https:%s' % (item.get('primaryLargeImage'),)
 
             yield metadata
 
