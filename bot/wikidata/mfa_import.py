@@ -10,7 +10,7 @@ import pywikibot
 import artdatabot
 import requests
 import re
-import HTMLParser
+from html.parser import HTMLParser
 
 def getMFAGenerator():
     """
@@ -39,7 +39,7 @@ def getMFAGenerator():
         (u'https://www.mfa.org/collections/search?search_api_views_fulltext=&sort=search_api_aggregation_1&order=asc&f[0]=field_classifications%%3A16&f[1]=field_collections%%3A5&page=%s', 82),
     ]
 
-    htmlparser = HTMLParser.HTMLParser()
+    htmlparser = HTMLParser()
     session = requests.Session()
 
     for (baseurl, lastpage) in collectionurls:
@@ -60,7 +60,7 @@ def getMFAGenerator():
                 # No ssl, faster?
                 url = match.group(1)
                 metadata['url'] = url
-                print url
+                print (url)
 
                 metadata['artworkidpid'] = u'P4625'
                 metadata['artworkid'] = url.replace(u'https://www.mfa.org/collections/object/', u'')
@@ -82,14 +82,14 @@ def getMFAGenerator():
                 if idmatch:
                     metadata['id'] = htmlparser.unescape(idmatch.group(1))
                 else:
-                    print u'No ID found. Something is really wrong on this page'
+                    print (u'No ID found. Something is really wrong on this page')
                     continue
 
                 titleregex = u'<meta property="og:title" content="([^"]+)" />'
                 titlematch = re.search(titleregex, itemData, flags=re.M)
 
                 # Chop chop, several very long titles
-                if htmlparser.unescape(titlematch.group(1)) > 220:
+                if len(htmlparser.unescape(titlematch.group(1))) > 220:
                     title = htmlparser.unescape(titlematch.group(1))[0:200]
                 else:
                     title = htmlparser.unescape(titlematch.group(1))
@@ -113,15 +113,35 @@ def getMFAGenerator():
                     metadata['medium'] = u'oil on canvas'
 
                 dateregex = u'\<p\>\s*(\d\d\d\d)\s*\<br\>\s*\<a href=\"/collections/search\?f\[0\]=field_artists%253Afield_artist'
+                circadateregex = u'\<p\>\s*about\s*(\d\d\d\d)\s*\<br\>\s*\<a href=\"/collections/search\?f\[0\]=field_artists%253Afield_artist'
+                circaperiodregex = u'\<p\>\s*about\s*(\d\d\d\d)[-–](\d\d\d\d)\s*\<br\>\s*\<a href=\"/collections/search\?f\[0\]=field_artists%253Afield_artist'
+                circashortperiodregex = u'\<p\>\s*about\s*(\d\d)(\d\d)[-–](\d\d)\s*\<br\>\s*\<a href=\"/collections/search\?f\[0\]=field_artists%253Afield_artist'
+                otherdateregex = u'\<p\>([^\<]+)\<br\>\s*\<a href=\"/collections/search\?f\[0\]=field_artists%253Afield_artist'
+
                 datematch = re.search(dateregex, itemData, flags=re.M)
+                circadatematch = re.search(circadateregex, itemData, flags=re.M)
+                circaperiodmatch = re.search(circaperiodregex, itemData, flags=re.M)
+                circashortperiodmatch = re.search(circashortperiodregex, itemData, flags=re.M)
+                otherdatematch = re.search(otherdateregex, itemData, flags=re.M)
+
                 if datematch:
                     metadata['inception'] = htmlparser.unescape(datematch.group(1))
-                else:
-                    dateregex = u'\<p\>\s*about\s*(\d\d\d\d)\s*\<br\>\s*\<a href=\"/collections/search\?f\[0\]=field_artists%253Afield_artist'
-                    datematch = re.search(dateregex, itemData, flags=re.M)
-                    if datematch:
-                        metadata['inception'] = htmlparser.unescape(datematch.group(1))
-                        metadata['inceptioncirca'] = True
+                elif circadatematch:
+                    metadata['inception'] = htmlparser.unescape(circadatematch.group(1))
+                    metadata['inceptioncirca'] = True
+                elif circaperiodmatch:
+                    metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                    metadata['inceptionend'] = int(circaperiodmatch.group(2),)
+                    metadata['inceptioncirca'] = True
+                elif circashortperiodmatch:
+                    metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
+                    metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+                    metadata['inceptioncirca'] = True
+                elif otherdatematch:
+                    print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
+                #elif shortperiodmatch:
+                #    metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
+                #    metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
 
                 accessionDateRegex = u'\(Accession [dD]ate\:\s*(?P<month>(January|February|March|April|May|June|July|August|September|October|November|December))\s*(?P<day>\d+),\s*(?P<year>\d+\d+\d+\d+)\s*\)'
                 accessionDateMatch = re.search(accessionDateRegex, itemData)
@@ -164,18 +184,28 @@ def getMFAGenerator():
                         metadata['heightcm'] = match_3d.group(u'height')
                         metadata['widthcm'] = match_3d.group(u'width')
                         metadata['depthcm'] = match_3d.group(u'depth')
+                # On https://www.mfa.org/collections/object/download they indicate public domain images are for download
+                downloadregex = u'\<li\><a  href\=\"\/collections\/object\/download\/\d+\" class\=\"action\"\>Download\<\/a\>\<\/li\>'
+                imageurlregex = u'\<div class\=\"image fix-height zoom-viewport\"\>[\r\n\t\s]*\<div class\=\"zoom\"\>[\r\n\t\s]*\<img src\=\"([^\"]+)\" alt\=\"\" title\=\"\" class\=\"image-aspect'
+                downloadmatch = re.search(downloadregex, itemData)
+                imageurlmatch = re.search(imageurlregex, itemData)
 
+                if downloadmatch and imageurlmatch:
+                    metadata[u'imageurl'] = imageurlmatch.group(1)
+                    metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                    # Could use this later to force
+                    metadata[u'imageurlforce'] = False
                 yield metadata
 
-            print u'Excepted %s items, got %s items' % ((i+1) * 18, n)
+            print (u'Excepted %s items, got %s items' % ((i+1) * 18, n))
 
 def main():
     dictGen = getMFAGenerator()
 
     #for painting in dictGen:
-    #    print painting
+    #    print (painting)
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
 
 if __name__ == "__main__":
