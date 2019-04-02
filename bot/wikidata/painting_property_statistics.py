@@ -10,7 +10,7 @@ import pywikibot
 import pywikibot.data.sparql
 import collections
 
-class PaintintPropertyStatistics:
+class PaintingPropertyStatistics:
     """
     Generate painting statitics
 
@@ -26,8 +26,8 @@ class PaintintPropertyStatistics:
         self.properties = collections.OrderedDict()
         self.properties[u'P170'] = u'[[Property:P170|creator]]'
         self.properties[u'P276'] = u'[[Property:P276|location]]'
-        self.properties[u'P2048'] = u'[[Property:P2048|height]] & [[Property:P2049|width]]'
         self.properties[u'P571'] = u'[[Property:P571|inception]]'
+        self.properties[u'P2048'] = u'[[Property:P2048|height]] & [[Property:P2049|width]]'
         self.properties[u'P186'] = u'[[Property:P186|material used]]'
         self.properties[u'P18'] = u'[[Property:P18|image]]'
         self.properties[u'P136'] = u'[[Property:P136|genre]]'
@@ -85,6 +85,27 @@ LIMIT 1000""" % (prop, self.property_threshold)
             result[qid] = int(resultitem.get('count'))
         return result
 
+    def getPaintingTotals(self, prop=None):
+        """
+        Get the painting totals
+        :param prop:  Wikidata Pid of the property. If set, just get the count of paintings with that property
+        :return: number of paintings found
+        """
+        if prop:
+            query = """SELECT (COUNT(?item) as ?count) WHERE {
+  ?item wdt:P31 wd:Q3305213 .
+  FILTER EXISTS { ?item p:%s [] } .
+}""" % (prop,)
+        else:
+            query = """SELECT (COUNT(?item) as ?count) WHERE {
+  ?item wdt:P31 wd:Q3305213 .
+}"""
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+        for resultitem in queryresult:
+            # Just one result, return that right away
+            return int(resultitem.get('count'))
+
     def run(self):
         """
         Starts the robot and do all the work.
@@ -100,18 +121,13 @@ LIMIT 1000""" % (prop, self.property_threshold)
         text += u'! Country\n'
         text += u'! Name\n'
         text += u'! Count\n'
-
-        totalworks = 0
-        totalprops = {}
-
         for prop in self.properties:
             text += u'! data-sort-type="number"|%s\n' % self.properties.get(prop)
-            totalprops[prop] = 0
 
         for collection in collectionsCounts:
             countrycode = collectionCountries.get(collection)
             workcount = collectionsCounts.get(collection)
-            totalworks += workcount
+
             text += u'|-\n'
             if countrycode:
                 text += u'|data-sort-value="%s"|{{Flag|%s}}\n' % (countrycode, countrycode, )
@@ -123,13 +139,17 @@ LIMIT 1000""" % (prop, self.property_threshold)
                 propcount = self.propertyData.get(prop).get(collection)
                 if not propcount:
                     propcount = 0
-                totalprops[prop] += propcount
                 percentage = round(1.0 * propcount / max(workcount, 1) * 100, 2)
                 text += u'| {{/Cell|%s|%s}}\n' % (percentage, propcount)
-        text += u'|- class="sortbottom"\n|\n|\'\'\'Totals\'\'\' <small>(paintings in multiple collections are counted multiple times)<small>:\n| %s\n' % (totalworks,)
+
+        # Get the totals
+        totalworks = self.getPaintingTotals()
+
+        text += u'|- class="sortbottom"\n|\n|\'\'\'Totals\'\'\' <small>(all paintings)<small>:\n| %s\n' % (totalworks,)
         for prop in self.properties:
-            percentage = round(1.0 * totalprops.get(prop) / totalworks * 100, 2)
-            text += u'| {{/Cell|%s|%s}}\n' % (percentage, totalprops.get(prop))
+            totalprop = self.getPaintingTotals(prop=prop)
+            percentage = round(1.0 * totalprop / totalworks * 100, 2)
+            text += u'| {{/Cell|%s|%s}}\n' % (percentage, totalprop)
         text += u'|}\n'
         text += u'{{/Footer}}\n'
         text += u'[[Category:WikiProject sum of all paintings|Property statistics]]\n'
@@ -143,8 +163,8 @@ def main(*args):
     """
     Main function. Bot does all the work.
     """
-    paintintPropertyStatistics = PaintintPropertyStatistics()
-    paintintPropertyStatistics.run()
+    paintingPropertyStatistics = PaintingPropertyStatistics()
+    paintingPropertyStatistics.run()
 
 if __name__ == "__main__":
     main()
