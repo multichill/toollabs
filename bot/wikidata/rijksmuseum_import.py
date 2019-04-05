@@ -17,7 +17,6 @@ import re
 def getRijksmuseumGenerator():
     """
     Generator to return Groninger Museum paintings
-
     
     """
     apikey=u'NJwVKOnk' # Should generate a new on and put it in my configuration file. This one is all over github
@@ -62,6 +61,17 @@ def getRijksmuseumGenerator():
                     title = record.get('title')
                 metadata['title'] = { u'nl' : title,
                                     }
+                enurl = itemurl.replace(u'https://www.rijksmuseum.nl/api/nl/collection/', u'https://www.rijksmuseum.nl/api/en/collection/')
+                print (enurl)
+                if itemurl!=enurl:
+                    enrecord = requests.get(enurl).json().get('artObject')
+                    if enrecord.get('title'):
+                        if len(enrecord.get('title')) > 220:
+                            entitle = enrecord.get('title')[0:200]
+                        else:
+                            entitle = enrecord.get('title')
+                        metadata['title'][u'en'] = entitle
+
             print (itemurl)
             if record.get('principalOrFirstMaker')==u'anoniem':
                 metadata['creatorname'] = u'anonymous'
