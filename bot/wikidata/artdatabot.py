@@ -285,6 +285,9 @@ class ArtDataBot:
                 # Inception
                 self.addInception(artworkItem, metadata)
 
+                # You want titles? YOU GOT TITLES
+                self.addTitle(artworkItem, metadata)
+
                 # genre
                 self.addItemStatement(artworkItem, u'P136', metadata.get(u'genreqid'), metadata.get(u'refurl'))
 
@@ -456,6 +459,37 @@ class ArtDataBot:
                 waybackPage = requests.get(waybackUrl)
                 doneurls.append(url)
         return
+
+    def addTitle(self, item, metadata):
+        """
+        Add the  title (P1476) to the item. For now just skip items that already have a title
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the title field as a dict
+        :return:
+        """
+
+        claims = item.get().get('claims')
+
+        if u'P1476' in claims:
+            # Already has a title. Don't care if it's the same contents and or language for now
+            return
+
+        if metadata.get(u'title'):
+            for lang in metadata.get(u'title'):
+                # To prevent any empty titles
+                if metadata.get(u'title').get(lang):
+                    try:
+                        newtitle = pywikibot.WbMonolingualText(text=metadata.get(u'title').get(lang).strip(),
+                                                               language=lang,
+                                                               )
+                        newclaim = pywikibot.Claim(self.repo, u'P1476')
+                        newclaim.setTarget(newtitle)
+                        pywikibot.output('Adding title to %s' % item)
+                        item.addClaim(newclaim)
+                        self.addReference(item, newclaim, metadata[u'refurl'])
+                    except pywikibot.exceptions.OtherPageSaveError:
+                        pywikibot.output(u'The title was malformed, skipping it')
+                        pass
 
     def addInception(self, item, metadata):
         """
