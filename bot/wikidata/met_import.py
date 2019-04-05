@@ -17,11 +17,12 @@ import pywikibot
 import requests
 import re
 import time
-import HTMLParser
-import os
-import csv
-import codecs
-from xml.sax.saxutils import escape
+import json
+#import HTMLParser
+#import os
+#import csv
+#import codecs
+##from xml.sax.saxutils import escape
 
 
 def metWorksOnWikidata():
@@ -38,7 +39,7 @@ def metWorksOnWikidata():
     for resultitem in queryresult:
         qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
         result[resultitem.get('id')] = qid
-    print len(result)
+    print (len(result))
     return result
 
 def currentCommonsFiles():
@@ -62,7 +63,7 @@ def getImageUrls(metid, title):
     searchPage = requests.get(meturl, verify=False)
     searchJson = searchPage.json()
 
-    print searchJson
+    print (searchJson)
 
     regex =u'^http\:\/\/images\.metmuseum\.org\/CRDImages\/[^\/]+\/original\/(.+).jpe?g\s*$'
 
@@ -73,7 +74,7 @@ def getImageUrls(metid, title):
         for fileinfo in searchJson.get(u'results'):
             if fileinfo.get(u'isOasc'):
                 fileurl = fileinfo.get(u'originalImageUrl')
-                print fileurl
+                print (fileurl)
                 match = re.match(regex,fileurl, re.I)
                 if match:
                     title = title.strip().replace(u'  ', u' ')
@@ -89,7 +90,7 @@ def getImageUrls(metid, title):
 
     return result
 
-def getMETGenerator(csvlocation):
+def getMETGenerator2(csvlocation):
     """
     Generator to return Museum of New Zealand Te Papa Tongarewa paintings
     """
@@ -276,7 +277,7 @@ def getMETGenerator(csvlocation):
                                                 }
                 else:
                     bookdescription = u'%s by %s' % (u'book', metadata.get('creatorname').replace(u'|', u', '),)
-                    if bookdescription > 220:
+                    if len(bookdescription) > 220:
                         bookdescription = bookdescription[0:200]
                     metadata['description'] = { u'en' : bookdescription,
                                                 }
@@ -374,24 +375,168 @@ def getMETGenerator(csvlocation):
     #xmlData.write('</csv_data>' + "\n")
     #pywikibot.output(u'Processed %s items and %s are marked as public domain' % (i, pubcount))
     #pywikibot.output(u'Processed %s paintings and %s are marked as public domain' % (paintingcount, pubpaintingcount))
-    print classifications
+    print (classifications)
 
+
+def getMETGenerator():
+    '''
+    Use the API at https://metmuseum.github.io/ to get works
+    :return: Yields dictionaries with the metadata per work suitable for ArtDataBot
+    '''
+    idurl = u'https://collectionapi.metmuseum.org/public/collection/v1/objects'
+    idurl = u'https://collectionapi.metmuseum.org/public/collection/v1/search?q=Painting'
+    idpage = requests.get(idurl, verify=False)
+
+    pywikibot.output(u'The MET query returned %s works' % (idpage.json().get('total')))
+
+    session = requests.Session()
+
+    foundit= False
+    lookingfor = 65594
+
+    for metid in idpage.json().get('objectIDs'):
+        if metid == lookingfor:
+            foundit = True
+
+        if not foundit:
+            continue
+        meturl = u'https://collectionapi.metmuseum.org/public/collection/v1/objects/%s' % (metid,)
+        print (meturl)
+        metpage = session.get(meturl, verify=False)
+        # Only work on paintings
+        try:
+            metjson = metpage.json()
+        except ValueError:
+            print (metpage.text)
+
+        if metjson.get(u'objectName')!=u'Painting':
+            continue
+
+        print(json.dumps(metjson, indent=4, sort_keys=True))
+
+        metadata = {}
+
+        metadata['url'] = metjson.get('objectURL')
+
+        metadata['collectionqid'] = u'Q160236'
+        metadata['collectionshort'] = u'MET'
+        metadata['locationqid'] = u'Q160236'
+
+        metadata['idpid'] = u'P217'
+        metadata['id'] = metjson.get(u'accessionNumber')
+
+        metadata['instanceofqid'] = u'Q3305213'
+
+        metadata['artworkidpid'] = u'P3634'
+        metadata['artworkid'] = u'%s' % (metid,)
+
+        title = metjson.get('title')
+        # Chop chop, in case we have very long titles
+        if len(title) > 220:
+            title = title[0:200]
+        metadata['title'] = { u'en' : title,
+                              }
+
+        if metjson.get('artistDisplayName'):
+            metadata['creatorname'] = metjson.get('artistDisplayName')
+
+
+
+        if not metjson.get('artistDisplayName')  or metjson.get('artistDisplayName')==u'Unidentified Artist':
+            metadata['creatorqid'] = u'Q4233718'
+            metadata['creatorname'] = u'anonymous'
+            metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
+                                        u'en' : u'painting by anonymous painter',
+                                        u'es' : u'cuadro de autor desconocido'
+                                        }
+        elif metadata.get(u'creatorname'):
+            metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
+                                        u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+                                        u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'),),
+                                        u'es' : u'%s de %s' % (u'cuadro', metadata.get('creatorname'),),
+                                        }
+
+        datecircaregex = u'^ca\.\s*(\d\d\d\d)$'
+        datecircamatch = re.match(datecircaregex, metjson.get('objectDate'))
+
+        if metjson.get('objectDate')==str(metjson.get(u'objectBeginDate')) \
+                    and metjson.get('objectDate')==str(metjson.get(u'objectEndDate')):
+            metadata['inception']=metjson.get('objectDate')
+        elif datecircamatch:
+            metadata['inception'] = datecircamatch.group(1)
+            metadata['inceptioncirca'] = True
+        elif metjson.get(u'objectBeginDate') and metjson.get(u'objectEndDate') and \
+            metjson.get(u'objectBeginDate') > 1000 and metjson.get(u'objectEndDate') > metjson.get(u'objectBeginDate'):
+            metadata['inceptionstart'] = metjson.get(u'objectBeginDate')
+            metadata['inceptionend'] = metjson.get(u'objectEndDate')
+
+        # If the credit line ends with a year, we'll take it
+        acquisitiondateregex = u'^.+, (\d\d\d\d)$'
+        acquisitiondatematch = re.match(acquisitiondateregex, metjson.get(u'creditLine'))
+        if acquisitiondatematch:
+            metadata['acquisitiondate'] = acquisitiondatematch.group(1)
+
+        if metjson.get('medium')==u'Oil on canvas':
+            metadata['medium'] = u'oil on canvas'
+
+        dimensiontext = metjson.get('dimensions')
+        regex_2d = u'^.+in\. \((?P<height>\d+(\.\d+)?) x (?P<width>\d+(.\d+)?) cm\)$'
+        regex_3d = u'^.+in\. \((?P<height>\d+(\.\d+)?) x (?P<width>\d+(.\d+)?) x (?P<depth>\d+(,\d+)?) cm\)$'
+        match_2d = re.match(regex_2d, dimensiontext)
+        match_3d = re.match(regex_3d, dimensiontext)
+        if match_2d:
+            metadata['heightcm'] = match_2d.group(u'height')
+            metadata['widthcm'] = match_2d.group(u'width')
+        elif match_3d:
+            metadata['heightcm'] = match_3d.group(u'height').replace(u',', u'.')
+            metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
+            metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
+
+        # portrait (Q134307)
+        # religious art (Q2864737)
+        # landscape art (Q191163)
+        # still life (Q170571)
+        # self-portrait (Q192110)
+
+        genres = { u'Saints' : u'Q2864737', # religious art (Q2864737)
+                   u'Christ' : u'Q2864737',
+                   u'Jesus' : u'Q2864737',
+                   u'Angels' : u'Q2864737',
+                   u'Portraits' : u'Q134307', # portrait (Q134307)
+                   u'Landscapes' : u'Q191163', # landscape art (Q191163)
+                   u'Self-portraits' : u'Q192110', # self-portrait (Q192110)
+                   u'Still Life' : u'Q170571', # still life (Q170571)
+                   }
+
+        # Can loop over tags to add genre
+        foundgenre = u''
+        genrecollision = u''
+
+        for tag in metjson.get('tags'):
+            if tag in genres:
+                if not foundgenre:
+                    foundgenre = genres.get(tag)
+                elif foundgenre:
+                    if genres.get(tag)!=foundgenre:
+                        genrecollision = genres.get(tag)
+                        continue
+
+        if foundgenre and not genrecollision:
+            metadata['genreqid'] = foundgenre
+
+        # No IIIF
+        # Already uploaded the images
+
+        yield metadata
 
 def main(*args):
-    csvlocation = u''
-    for arg in pywikibot.handle_args(args):
-        csvlocation = arg
-
-    print csvlocation
-    #metworks = {}
-    #metworks = metWorksOnWikidata()
-    dictGen = getMETGenerator(csvlocation) #, metworks)
+    dictGen = getMETGenerator() #, metworks)
 
     #for painting in dictGen:
     #    #pass
-    #    print painting
+    #    print (painting)
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
     artDataBot.run()
 
 if __name__ == "__main__":
