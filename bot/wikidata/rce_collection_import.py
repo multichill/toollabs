@@ -259,6 +259,16 @@ def getRCEGenerator():
                         if location!=u'Depot ICN':
                             metadata['extracollectionqid2'] = locations[location]
 
+            # Add a genre
+            if itemfields.get('dc_description'):
+                dcdesc = itemfields.get('dc_description')[0].get('value')
+                if dcdesc.startswith(u'Portret van'):
+                    metadata[u'genreqid'] = u'Q134307'
+                elif dcdesc.startswith(u'Stilleven '):
+                    metadata[u'genreqid'] = u'Q170571'
+                elif u'Christus' in dcdesc:
+                    metadata[u'genreqid'] = u'Q2864737'
+
             dcformatregex = u'^(breedte|diepte \/ diameter|hoogte)\:\s*([\d\.]+)\s*cm$'
             if itemfields.get('dc_format'):
                 for dcformat in itemfields.get('dc_format'):
