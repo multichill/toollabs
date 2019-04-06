@@ -14,7 +14,7 @@ import artdatabot
 import pywikibot
 import requests
 import re
-
+import json
 def getGMGenerator():
     """
     Generator to return Gemeentemuseum.
@@ -51,6 +51,10 @@ def getGMGenerator():
             if item.get(u'field_adlib_title'):
                 metadata[u'title'] = { u'nl' : item.get(u'field_adlib_title').strip(),
                                        }
+            else:
+                # Seems to be a bug in their API where it returns an empty title field
+                print (u'Title is empty. Dumping the record for debugging')
+                print (json.dumps(item, indent=4, sort_keys=True))
             name = item.get(u'creator')
             if u',' in name:
                 (surname, sep, firstname) = name.partition(u',')
