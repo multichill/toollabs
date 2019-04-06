@@ -40,8 +40,7 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
     # Use the returned number in the API
     size = 100
     i = 0
-    moreworks = True
-    while moreworks:
+    while True:
         searchdata = { u'size' : size,
                        u'from' : i,
                        u'query': { u'bool': { u'must': [
@@ -53,9 +52,8 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
         #print (json.dumps(page.json(), indent = 2, separators=(',', ': ')))
 
         # Stop condition for the loop
-        totalhits = page.json().get(u'hits').get(u'total')
-        if i > totalhits:
-            moreworks = False
+        if not page.json().get(u'hits'):
+            return
         i += size
 
         for bigitem in page.json().get(u'hits').get(u'hits'):
