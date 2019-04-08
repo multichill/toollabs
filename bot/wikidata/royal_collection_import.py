@@ -30,7 +30,8 @@ def getRoyalCollectionGenerator():
     totalObjects = firstpage.json().get('totalObjects')
     pywikibot.output(u'Found a total of %s objects on %s pages' % (totalObjects, pages))
 
-    slowrun = True
+    # To control the loading of individual pages (which is very slow)
+    slowrun = False
 
     for i in range(1, pages+1):
         print(u'On search page %s out of %s' % (i,pages ))
@@ -91,24 +92,30 @@ def getRoyalCollectionGenerator():
                     metadata['locationqid'] = u'Q1459037'
 
             # TODO: Add all the circa and period variants like c. 1234-5
-            dateregex = u'^Signed and dated\s*(\d\d\d\d)$'
-            datecircaregex = u'^c\.\s*(\d\d\d\d)$'
-            periodregex = u'^(\d\d\d\d)-(\d\d\d\d)$'
-            shortperiodregex = u'^(\d\d)(\d\d)-(\d\d)$'
-            circaperiodregex = u'^c\.\s*(\d\d\d\d)-(\d\d\d\d)$'
-            circashortperiodregex = u'^c\.\s*(\d\d)(\d\d)-(\d\d)$'
+            dateregex = u'^(Signed and dated|signed \& dated|Dated|Inscribed)\s*(\d\d\d\d)$'
+            simpledateregex = u'^(\d\d\d\d)$'
+            datecircaregex = u'^(c\.|circa)\s*(\d\d\d\d)$'
+            periodregex = u'^(\d\d\d\d)\s*-\s*(\d\d\d\d)$'
+            shortperiodregex = u'^(\d\d)(\d\d)\s*-\s*(\d\d)$'
+            circaperiodregex = u'^c\.\s*(\d\d\d\d)\s*-\s*(\d\d\d\d)$'
+            circashortperiodregex = u'^c\.\s*(\d\d)(\d\d)\s*-\s*(\d\d)$'
+            circaveryshortperiodregex = u'^c\.\s*(\d\d\d)(\d)\s*-\s*(\d)$'
 
             datematch = re.search(dateregex, item.get('creationDate'), flags=re.IGNORECASE)
+            simpledatematch = re.search(simpledateregex, item.get('creationDate'), flags=re.IGNORECASE)
             datecircamatch = re.search(datecircaregex, item.get('creationDate'), flags=re.IGNORECASE)
             periodmatch = re.search(periodregex, item.get('creationDate'), flags=re.IGNORECASE)
             shortperiodmatch = re.search(shortperiodregex, item.get('creationDate'), flags=re.IGNORECASE)
             circaperiodmatch = re.search(circaperiodregex, item.get('creationDate'), flags=re.IGNORECASE)
             circashortperiodmatch = re.search(circashortperiodregex, item.get('creationDate'), flags=re.IGNORECASE)
+            circaveryshortperiodmatch = re.search(circaveryshortperiodregex, item.get('creationDate'), flags=re.IGNORECASE)
             #inception = re.sub(u'signed and dated\s*', u'', item.get('creationDate'), flags=re.IGNORECASE).strip()
             if datematch:
-                metadata['inception'] = datematch.group(1)
+                metadata['inception'] = datematch.group(2)
+            elif simpledatematch:
+                metadata['inception'] = simpledatematch.group(1)
             elif datecircamatch:
-                metadata['inception'] = datecircamatch.group(1)
+                metadata['inception'] = datecircamatch.group(2)
                 metadata['inceptioncirca'] = True
             elif periodmatch:
                 metadata['inceptionstart'] = int(periodmatch.group(1),)
@@ -123,6 +130,10 @@ def getRoyalCollectionGenerator():
             elif circashortperiodmatch:
                 metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
                 metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+                metadata['inceptioncirca'] = True
+            elif circaveryshortperiodmatch:
+                metadata['inceptionstart'] = int(u'%s%s' % (circaveryshortperiodmatch.group(1),circaveryshortperiodmatch.group(2),))
+                metadata['inceptionend'] = int(u'%s%s' % (circaveryshortperiodmatch.group(1),circaveryshortperiodmatch.group(3),))
                 metadata['inceptioncirca'] = True
             else:
                 print (u'Could not parse date: "%s"' % (item.get('creationDate'),))
