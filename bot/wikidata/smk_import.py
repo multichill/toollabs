@@ -7,14 +7,13 @@ http://www.smk.dk/en/explore-the-art/search-smk/#/category/collections/fq=object
 
 """
 
-
-
 import HTMLParser
 import time
 import json
 import artdatabot
 import pywikibot
 import requests
+import re
 
 def getPaintingGenerator(query=u''):
     '''
@@ -24,7 +23,7 @@ def getPaintingGenerator(query=u''):
     * Grab data from paintings
     '''
 
-    start = 200
+    start = 0
     end = 7000
     step = 100
 
@@ -35,9 +34,8 @@ def getPaintingGenerator(query=u''):
 
     for i in range (start, end, step):
         searchurl = basestarturl + unicode(i) + baseendurl
-        print searchurl
-        
-    
+        print (searchurl)
+
         searchPage = requests.get(searchurl)
         # Page says some weird Windows encoding, but it's actually utf-8
         searchPage.encoding = 'utf-8'
@@ -47,10 +45,10 @@ def getPaintingGenerator(query=u''):
         #print searchDataObject.get('response')
         for item in searchDataObject.get(u'response').get(u'docs'):
             #print item
-            #print json.dumps(item, indent=4, sort_keys=True)
+            #print (json.dumps(item, indent=4, sort_keys=True))
             #time.sleep(2)
             metadata = {}
-            url = u'http://www.smk.dk/en/explore-the-art/search-smk/#/detail/%s' % (item.get('id'),)
+            url = u'http://collection.smk.dk/#/en/detail/%s' % (item.get('id'),)
             print (url)
             metadata[u'url'] = url
 
@@ -73,17 +71,41 @@ def getPaintingGenerator(query=u''):
 
             if item.get('title_eng'):
                 metadata[u'title']['en'] = item['title_eng'].strip()
-            else:
-                metadata[u'title']['en'] = item['title_first'].strip()
+
+            #With the new title property this is causing noise
+            #else:
+            #    metadata[u'title']['en'] = item['title_first'].strip()
 
             metadata[u'creatorname'] = htmlparser.unescape(item.get('artist_name')[0])
 
             metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+                                        u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'),),
                                         }
 
-            metadata[u'inception'] = item.get('object_production_date_text_en')
-            metadata[u'acquisitiondate'] = item.get('acq_date')
+            # Inception
+            if item.get('object_production_date_text_en'):
+                circadateRegex = u'^(Circa|About)\s*(\d\d\d\d)$'
+                perioddateRegex = u'^(\d\d\d\d)-(\d\d\d\d)$'
+
+                circadateMatch = re.match(circadateRegex, item.get('object_production_date_text_en'))
+                perioddateMatch = re.match(perioddateRegex, item.get('object_production_date_text_en'))
+                if circadateMatch:
+                    metadata['inception'] = htmlparser.unescape(circadateMatch.group(2))
+                    metadata['inceptioncirca'] = True
+                elif perioddateMatch:
+                    metadata['inceptionstart'] = int(perioddateMatch.group(1),)
+                    metadata['inceptionend'] = int(perioddateMatch.group(2),)
+                else:
+                    metadata[u'inception'] = item.get('object_production_date_text_en')
+
+            # Sometimes some junk in this field that makes the bot trip
+            if item.get('acq_date'):
+                acqdateregex = u'^(\d\d\d\d)$'
+                acqdateMatch = re.match(acqdateregex, item.get('acq_date'))
+                if acqdateMatch:
+                    metadata[u'acquisitiondate'] = acqdateMatch.group(1)
+
             if item.get('prod_technique_en'):
                 metadata[u'medium'] = item.get('prod_technique_en').lower()
 
@@ -113,7 +135,7 @@ def getPaintingGenerator(query=u''):
                             isFree = True
 
                 if not foundCopyright:
-                    if len(metadata[u'inception'])==4 and metadata[u'inception'].isnumeric():
+                    if metadata.get('inception') and len(metadata[u'inception'])==4 and metadata[u'inception'].isnumeric():
                         foundCopyright = True
                         if int(metadata[u'inception']) < 1850:
                             isFree = True
@@ -124,16 +146,17 @@ def getPaintingGenerator(query=u''):
                         isFree = True
 
                 if foundCopyright and isFree:
-                    metadata[u'imageurl'] = item.get(u'medium_image_url')
-                    metadata[u'imageurlformat'] = u'Q2195' #JPEG
-                    metadata[u'imageurllicense'] = u'Q6938433' # cc-zero
+                    # Filter out placeholders like http://cspic.smk.dk/globus/UdenOptagelse/KMS813.jpg
+                    if not u'UdenOptagelse' in item.get(u'medium_image_url'):
+                        metadata[u'imageurl'] = item.get(u'medium_image_url')
+                        metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                        metadata[u'imageurllicense'] = u'Q6938433' # cc-zero
 
                 if not foundCopyright:
                     print u'Unable to determine copyright'
                     print json.dumps(item, indent=4, sort_keys=True)
 
             yield metadata
-
 
 def main():
     paintingGen = getPaintingGenerator()
