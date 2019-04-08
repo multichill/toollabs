@@ -25,13 +25,13 @@ def getBavarianGenerator():
     Problem is that over 200 pages will return server errors. So have to work on different subsets.
 
     """
-    #
     basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei"}'
-    #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"yearRange":{"min":1750,"max":9999},"genre":"malerei"}'
+    #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"yearRange":{"min":1900,"max":2100},"genre":"malerei"}'
     #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"publicDomain":true,"genre":"malerei"}'
     #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"onDisplay":true,"genre":"malerei"}'
     # For the image upload
     #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei","publicDomain":true}' # 1- 185
+    #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"publicDomain":true,"genre":"malerei"}'
     origin = u'https://www.sammlung.pinakothek.de'
     referer = u'https://www.sammlung.pinakothek.de/de/genre/malerei'
 
@@ -184,7 +184,7 @@ def getBavarianGenerator():
 
             # Find an image we can download
             imageregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Dimensions of the object[\s\t\r\n]*\<\/div\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/div\>'
-            imageregex = u'\<a class\=\"artwork__action action--download\" target\=\"_blank\" href\=\"(https\:\/\/media\.static\.onlinesammlung\.thenetexperts\.info[^\"]+\.jpg)\" download\>'
+            imageregex = u'\<a class\=\"artwork__action action--download\" target\=\"_blank\" href\=\"(https\:\/\/media\.static\.sammlung\.pinakothek\.de[^\"]+\.jpg)\" download\>'
             imagematch = re.search(imageregex, itempage.text)
             if imagematch and u'https://creativecommons.org/licenses/by-sa/4.0/' in itempage.text:
                 metadata[u'imageurl'] = imagematch.group(1)
