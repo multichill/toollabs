@@ -134,6 +134,7 @@ def getNTGenerator():
             metadata['creatorname'] = name
             metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+                                        u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'),),
                                         }
 
             # Only match on years
