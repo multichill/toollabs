@@ -96,21 +96,26 @@ def getTateGenerator(artworkdir):
                     if jsondata.get('dateRange') and \
                                     jsondata.get('dateRange').get(u'startYear')==jsondata.get('dateRange').get(u'endYear'):
                         metadata['inception'] = jsondata.get('dateRange').get(u'startYear')
+                    elif jsondata.get('dateRange') and jsondata.get('dateRange').get(u'startYear') \
+                            and jsondata.get('dateRange').get(u'endYear'):
+                        metadata['inceptionstart'] = int(jsondata.get('dateRange').get(u'startYear'))
+                        metadata['inceptionend'] = int(jsondata.get('dateRange').get(u'endYear'))
 
                     metadata['acquisitiondate'] = jsondata.get('acquisitionYear')
 
                     if jsondata.get('medium')==u'Oil paint on canvas':
                         metadata['medium'] = u'oil on canvas'
 
-                    if jsondata.get('units')==u'mm':
-                        if jsondata.get('width') and jsondata.get('width').isnumeric():
-                            metadata['widthcm'] = unicode(float(jsondata.get('width'))/10)
-                        if jsondata.get('height') and jsondata.get('height').isnumeric():
-                            metadata['heightcm'] = unicode(float(jsondata.get('height'))/10)
-                        if jsondata.get('depth') and jsondata.get('depth').isnumeric():
-                            metadata['depthcm'] = unicode(float(jsondata.get('depth'))/10)
+                    # I think this data was incorrect
+                    #if jsondata.get('units')==u'mm':
+                    #    if jsondata.get('width') and jsondata.get('width').isnumeric():
+                    #        metadata['widthcm'] = unicode(float(jsondata.get('width'))/10)
+                    #    if jsondata.get('height') and jsondata.get('height').isnumeric():
+                    #        metadata['heightcm'] = unicode(float(jsondata.get('height'))/10)
+                    #    if jsondata.get('depth') and jsondata.get('depth').isnumeric():
+                    #        metadata['depthcm'] = unicode(float(jsondata.get('depth'))/10)
 
-            yield metadata
+                    yield metadata
 
 
 def main(*args):
@@ -124,7 +129,7 @@ def main(*args):
     #for painting in dictGen:
     #    print painting
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
     artDataBot.run()
 
 if __name__ == "__main__":
