@@ -102,6 +102,11 @@ def getBavarianGenerator():
                                         u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
                                         }
+            creatordobregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Birth year of the artist[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<a href\=\"https\:\/\/www\.sammlung\.pinakothek\.de\/en\/year\/(\d\d\d\d)\"\>'
+            creatordodregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Year the artist deceased[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<a href\=\"https\:\/\/www\.sammlung\.pinakothek\.de\/en\/year\/(\d\d\d\d)\"\>'
+
+            creatordobmatch = re.search(creatordobregex, itempage.text)
+            creatordodmatch = re.search(creatordodregex, itempage.text)
 
             # This will get the date field if it's filled
             if record.get(u'date'):
@@ -120,6 +125,9 @@ def getBavarianGenerator():
                     metadata['inceptioncirca'] = True
                 else:
                     metadata['inception'] = record.get(u'date')
+            elif creatordobmatch and creatordodmatch:
+                metadata['inceptionstart'] = int(creatordobmatch.group(1))
+                metadata['inceptionend'] = int(creatordodmatch.group(1))
 
             metadata['idpid'] = u'P217'
             invregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Inventory Number[\s\t\r\n]*\<\/div\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/div\>'
