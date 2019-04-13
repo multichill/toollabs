@@ -114,11 +114,18 @@ def getCMAGenerator():
                 if datecircamatch:
                     metadata['inception'] = datecircamatch.group(1).strip()
                     metadata['inceptioncirca'] = True
-                else:
-                    metadata['inception'] = iteminfo.get('creation_date')
+                elif iteminfo.get('creation_date_earliest') and iteminfo.get('creation_date_latest'):
+                    if iteminfo.get('creation_date')==str(iteminfo.get('creation_date_earliest')) and \
+                                iteminfo.get('creation_date')==str(iteminfo.get('creation_date_latest')):
+                        metadata['inception'] = iteminfo.get('creation_date')
+                    else:
+                        metadata['inceptionstart'] = iteminfo.get('creation_date_earliest')
+                        metadata['inceptionend'] = iteminfo.get('creation_date_latest')
 
             # Doesn't seem to be available (could strip from inventory number)
             # metadata['acquisitiondate'] = acquisitiondatematch.group(1)
+            # Data is available, but too many different forms
+            #if iteminfo.get('provenance'):
 
             if iteminfo.get('technique') and iteminfo.get('technique')==u'oil on canvas':
                 metadata['medium'] = u'oil on canvas'
