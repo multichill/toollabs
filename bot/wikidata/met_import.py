@@ -18,6 +18,7 @@ import requests
 import re
 import time
 import json
+import pywikibot.data.sparql
 #import HTMLParser
 #import os
 #import csv
@@ -378,6 +379,18 @@ def getMETGenerator2(csvlocation):
     print (classifications)
 
 
+def getMETpaintingsOnWikikidataGenerator():
+    '''
+    Return the integer id's of the met
+    '''
+    query = u'SELECT ?item ?id WHERE { ?item wdt:P3634 ?id . ?item wdt:P31 wd:Q3305213 } ORDER BY xsd:integer(?id)'
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        yield int(resultitem.get('id'))
+
+
 def getMETGenerator():
     '''
     Use the API at https://metmuseum.github.io/ to get works
@@ -391,12 +404,15 @@ def getMETGenerator():
 
     session = requests.Session()
 
-    foundit= False
+    foundit= True
     lookingfor = 65594
 
-    for metid in idpage.json().get('objectIDs'):
+    #for metid in idpage.json().get('objectIDs'):
+    for metid in getMETpaintingsOnWikikidataGenerator():
         if metid == lookingfor:
             foundit = True
+
+        metadata = {}
 
         if not foundit:
             continue
@@ -409,12 +425,15 @@ def getMETGenerator():
         except ValueError:
             print (metpage.text)
 
-        if metjson.get(u'objectName')!=u'Painting':
-            continue
+
+        # Disabled for now because I'm just updating existing ones
+        #if metjson.get(u'objectName')!=u'Painting':
+        #    continue
 
         print(json.dumps(metjson, indent=4, sort_keys=True))
 
-        metadata = {}
+        if not metjson.get(u'objectName'):
+            continue
 
         metadata['url'] = metjson.get('objectURL')
 
