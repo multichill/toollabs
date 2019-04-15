@@ -57,6 +57,10 @@ def getGalleryCaGenerator():
             metadata['idpid'] = u'P217'
             invregex = u'\<div class\=\"artwork-field\"\>\<div class\=\"label-above\"\>Accession number\<\/div\>\<div\>([^\<]+)\<\/div\>'
             invmatch = re.search(invregex, itempage.text)
+            if not invmatch:
+                # Pages like https://www.gallery.ca/collection/artwork/genocide-no-1 throwing an error
+                pywikibot.output(u'No inventory number, skipping this page')
+                continue
             metadata['id'] = invmatch.group(1).strip()
 
             titleregex = u'\<meta property\=\"og:title\" content\=\"([^\"]+)\" \/\>'
@@ -111,15 +115,31 @@ def getGalleryCaGenerator():
                                             }
 
             dateregex = u'\<div class\=\"artwork-field\"\>\<div class\=\"label-above\"\>Date\<\/div\>\<div\>(\d\d\d\d)\<\/div\>'
+            datecircaregex = u'\<div class\=\"artwork-field\"\>\<div class\=\"label-above\"\>Date\<\/div\>\<div\>c\.\s*(\d\d\d\d)\<\/div\>'
+            periodregex = u'\<div class\=\"artwork-field\"\>\<div class\=\"label-above\"\>Date\<\/div\>\<div\>(\d\d\d\d)-(\d\d\d\d)\<\/div\>'
+            circaperiodregex = u'\<div class\=\"artwork-field\"\>\<div class\=\"label-above\"\>Date\<\/div\>\<div\>c\.\s*(\d\d\d\d)-(\d\d\d\d)\<\/div\>'
+            otherdateregex = u'\<div class\=\"artwork-field\"\>\<div class\=\"label-above\"\>Date\<\/div\>\<div\>([^\<]+)\<\/div\>'
+
             datematch = re.search(dateregex, itempage.text)
+            datecircamatch = re.search(datecircaregex, itempage.text)
+            periodmatch = re.search(periodregex, itempage.text)
+            circaperiodmatch = re.search(circaperiodregex, itempage.text)
+            otherdatematch = re.search(otherdateregex, itempage.text)
+
             if datematch:
-                metadata['inception'] = htmlparser.unescape(datematch.group(1).strip())
-            else:
-                datecircaregex = u'\<div class\=\"artwork-field\"\>\<div class\=\"label-above\"\>Date\<\/div\>\<div\>c\.\s*(\d\d\d\d)\<\/div\>'
-                datecircamatch = re.search(datecircaregex, itempage.text)
-                if datecircamatch:
-                    metadata['inception'] = htmlparser.unescape(datecircamatch.group(1).strip())
-                    metadata['inceptioncirca'] = True
+                metadata['inception'] = int(datematch.group(1))
+            elif datecircamatch:
+                metadata['inception'] = int(datecircamatch.group(1))
+                metadata['inceptioncirca'] = True
+            elif periodmatch:
+                metadata['inceptionstart'] = int(periodmatch.group(1),)
+                metadata['inceptionend'] = int(periodmatch.group(2),)
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                metadata['inceptionend'] = int(circaperiodmatch.group(2),)
+                metadata['inceptioncirca'] = True
+            elif otherdatematch:
+                print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
 
             # Just get the last year in the field
             acquisitiondateregex = u'\<div class\=\"artwork-field\"\><div class\=\"label-above\"\>Credit line\<\/div\>\<div\>[^\<]+(\d\d\d\d)\<\/div\>'
