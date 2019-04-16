@@ -13,6 +13,7 @@ import artdatabot
 import pywikibot
 import requests
 import re
+import json
 try:
     from html.parser import HTMLParser
 except ImportError:
@@ -35,6 +36,7 @@ def getRMGGenerator():
         searchJson = searchPage.json()
 
         for item in searchJson.get(u'response').get('docs'):
+            #print (json.dumps(item, indent=4, sort_keys=True))
             if item.get('uri'):
                 url = item.get('uri')
             else:
@@ -87,7 +89,31 @@ def getRMGGenerator():
             #    metadata['creatorqid'] = u'Q4233718'
 
             if item.get(u'displayDate'):
-                metadata['inception'] = item.get('displayDate')
+                dateregex = u'^(\d\d\d\d)$'
+                datecircaregex = u'^circa\s*(\d\d\d\d)$'
+                periodregex = u'^(\d\d\d\d)-(\d\d\d\d)$'
+                circashortperiodregex = u'^circa\s*(\d\d)(\d\d)-(\d\d)$'
+
+                datematch = re.match(dateregex, item.get(u'displayDate'))
+                datecircamatch = re.match(datecircaregex, item.get(u'displayDate'))
+                periodmatch = re.match(periodregex, item.get(u'displayDate'))
+                circashortperiodmatch = re.match(circashortperiodregex, item.get(u'displayDate'))
+
+                if datematch:
+                    metadata['inception'] = datematch.group(1)
+                elif datecircamatch:
+                    metadata['inception'] = datecircamatch.group(1)
+                    metadata['inceptioncirca'] = True
+                elif periodmatch:
+                    metadata['inceptionstart'] = int(periodmatch.group(1),)
+                    metadata['inceptionend'] = int(periodmatch.group(2),)
+                elif circashortperiodmatch:
+                    metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2)))
+                    metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3)))
+                    metadata['inceptioncirca'] = True
+                else:
+                    print(u'Could not parse date: %s' % (item.get(u'displayDate'),))
+                    #metadata['inception'] = item.get('displayDate')
 
             if item.get('primaryMaterial')==u'oil on canvas':
                 metadata['medium'] = u'oil on canvas'
