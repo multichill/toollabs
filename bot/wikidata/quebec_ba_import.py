@@ -83,6 +83,7 @@ def getQuebecBaGenerator():
           measurements
           productionDate
           name
+          subject
           imageRights
           artists {
             name
@@ -131,17 +132,15 @@ def getQuebecBaGenerator():
 
         searchpage = requests.post(basesearchurl, data=json.dumps(postjson), headers=headers)
 
-        #print(json.dumps(searchpage.json(), indent=4, sort_keys=True))
-
-
-
         for searchresult in searchpage.json().get("data").get("search").get("results"):
             iteminfo = searchresult.get("content")
             #print(json.dumps(iteminfo, indent=4, sort_keys=True))
             #time.sleep(5)
 
             metadata = {}
+            # English urls stopped working so adding French ones
             url = 'https://collections.mnbaq.org/en/artwork/%s' % iteminfo.get('id')
+            url = u'https://collections.mnbaq.org/fr/oeuvre/%s' % iteminfo.get('id')
             print (url)
 
             metadata['url'] = url
@@ -186,13 +185,26 @@ def getQuebecBaGenerator():
                                             }
 
             if iteminfo.get('productionDate'):
+                dateregex = u'^(\d\d\d\d)$'
                 datecircaregex = u'^vers (\d\d\d\d)$'
+                periodregex = u'^(\d\d\d\d)-(\d\d\d\d)$'
+                datematch = re.match(dateregex, iteminfo.get('productionDate'))
                 datecircamatch = re.match(datecircaregex, iteminfo.get('productionDate'))
-                if datecircamatch:
-                    metadata['inception'] = datecircamatch.group(1).strip()
+                periodmatch = re.match(periodregex, iteminfo.get('productionDate'))
+                if datematch:
+                    metadata['inception'] = datematch.group(1)
+                elif datecircamatch:
+                    metadata['inception'] = datecircamatch.group(1)
                     metadata['inceptioncirca'] = True
+                elif periodmatch:
+                    metadata['inceptionstart'] = int(periodmatch.group(1),)
+                    metadata['inceptionend'] = int(periodmatch.group(2),)
                 else:
-                    metadata['inception'] = iteminfo.get('productionDate')
+                    print (u'Could not parse date %s' % (iteminfo.get('productionDate'),))
+                    print (u'Could not parse date %s' % (iteminfo.get('productionDate'),))
+                    print (u'Could not parse date %s' % (iteminfo.get('productionDate'),))
+                    print (u'Could not parse date %s' % (iteminfo.get('productionDate'),))
+                    #metadata['inception'] = iteminfo.get('productionDate')
 
             # Doesn't seem to be available (could strip from inventory number)
             # metadata['acquisitiondate'] = acquisitiondatematch.group(1)
@@ -214,6 +226,14 @@ def getQuebecBaGenerator():
                     metadata['widthcm'] = match_3d.group(u'width').replace(',', '.')
                     metadata['depthcm'] = match_3d.group(u'depth').replace(',', '.')
 
+            # Got genre info
+            if iteminfo.get('subject'):
+                if iteminfo.get('subject')==u'Portrait':
+                    metadata[u'genreqid'] = u'Q134307'
+                elif iteminfo.get('subject')==u'Paysage':
+                    metadata[u'genreqid'] = u'Q191163' # landscape art
+                elif iteminfo.get('subject')==u'Religion':
+                    metadata[u'genreqid'] = u'Q2864737' # religious art
             # Image is available, but not free
             #imageurlregex = u'\<link rel\=\"image_src\" href\=\"([^\"]+jpg)\" \/\>'
             #imageurlmatch = re.search(imageurlregex, itempage.text)
