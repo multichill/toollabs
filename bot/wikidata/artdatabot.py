@@ -72,11 +72,6 @@ class ArtDataBot:
         """
             
         for metadata in self.generator:
-            # Buh, for this one I know for sure it's in there
-            
-            #print metadata[u'id']
-            #print metadata[u'url']
-
             # Do some url magic so that all url fields are always filled
             if not metadata.get('refurl'):
                 metadata['refurl']=metadata['url']
@@ -88,356 +83,144 @@ class ArtDataBot:
                 metadata['imagesourceurl']=metadata['url']
 
             artworkItem = None
-            newclaims = []
             if metadata[u'id'] in self.artworkIds:
                 artworkItemTitle = self.artworkIds.get(metadata[u'id'])
                 print (artworkItemTitle)
                 artworkItem = pywikibot.ItemPage(self.repo, title=artworkItemTitle)
 
             elif self.create:
-                #Break for now
-                #print u'Let us create stuff'
-                #continue
-                #print u'WTFTFTFTFT???'
-                
-                #print 'bla'
+                artworkItem = self.createArtworkItem(metadata)
 
+            if artworkItem and artworkItem.exists():
+                metadata['wikidata'] = artworkItem.title()
+                self.updateArtworkItem(artworkItem, metadata)
 
-                data = {'labels': {},
-                        'descriptions': {},
-                        }
+    def createArtworkItem(self, metadata):
+        """
+        Create a new artwork item based on the metadata
 
-                # loop over stuff
-                if metadata.get('title'):
-                    for lang, label in metadata['title'].items():
-                        data['labels'][lang] = {'language': lang, 'value': label}
+        :param metadata: All the metadata for this new artwork.
+        :return: The newly created artworkItem
+        """
+        data = {'labels': {},
+                'descriptions': {},
+                }
 
-                if metadata.get('description'):
-                    for lang, description in metadata['description'].items():
-                        data['descriptions'][lang] = {'language': lang, 'value': description}
-                
-                identification = {}
-                summary = u'Creating new item with data from %s ' % (metadata[u'url'],)
-                pywikibot.output(summary)
-                try:
-                    result = self.repo.editEntity(identification, data, summary=summary)
-                except pywikibot.data.api.APIError:
-                    # TODO: Check if this is pywikibot.OtherPageSaveError too
-                    # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
-                    pywikibot.output(u'Oops, already had that one. Trying again')
-                    for lang, description in metadata['description'].items():
-                        data['descriptions'][lang] = {'language': lang, 'value': u'%s (%s %s)' % (description, metadata['collectionshort'], metadata['id'],) }
-                    try:
-                        result = self.repo.editEntity(identification, data, summary=summary)
-                    except pywikibot.data.api.APIError:
-                        pywikibot.output(u'Oops, retry also failed. Skipping this one.')
-                        # Just skip this one
-                        continue
-                    pass
+        # loop over stuff
+        if metadata.get('title'):
+            for lang, label in metadata['title'].items():
+                data['labels'][lang] = {'language': lang, 'value': label}
 
-                artworkItemTitle = result.get(u'entity').get('id')
+        if metadata.get('description'):
+            for lang, description in metadata['description'].items():
+                data['descriptions'][lang] = {'language': lang, 'value': description}
 
-                # Make a backup to the Wayback Machine when we have to wait anyway
-                self.doWaybackup(metadata)
+        identification = {}
+        summary = u'Creating new item with data from %s ' % (metadata[u'url'],)
+        pywikibot.output(summary)
+        try:
+            result = self.repo.editEntity(identification, data, summary=summary)
+        except pywikibot.data.api.APIError:
+            # TODO: Check if this is pywikibot.OtherPageSaveError too
+            # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
+            pywikibot.output(u'Oops, already had that one. Trying again')
+            for lang, description in metadata['description'].items():
+                data['descriptions'][lang] = {'language': lang, 'value': u'%s (%s %s)' % (description, metadata['collectionshort'], metadata['id'],) }
+            try:
+                result = self.repo.editEntity(identification, data, summary=summary)
+            except pywikibot.data.api.APIError:
+                pywikibot.output(u'Oops, retry also failed. Skipping this one.')
+                # Just skip this one
+                return
+            pass
 
-                # Wikidata is sometimes lagging. Wait for additional 5 seconds before trying to actually use the item
-                time.sleep(5)
-                
-                artworkItem = pywikibot.ItemPage(self.repo, title=artworkItemTitle)
+        artworkItemTitle = result.get(u'entity').get('id')
 
-                # Add to self.artworkIds so that we don't create dupes
-                self.artworkIds[metadata[u'id']]=artworkItemTitle
+        # Make a backup to the Wayback Machine when we have to wait anyway
+        self.doWaybackup(metadata)
 
-                # Add the id to the item so we can get back to it later
+        # Wikidata is sometimes lagging. Wait for additional 5 seconds before trying to actually use the item
+        time.sleep(5)
+
+        artworkItem = pywikibot.ItemPage(self.repo, title=artworkItemTitle)
+
+        # Add to self.artworkIds so that we don't create dupes
+        self.artworkIds[metadata[u'id']]=artworkItemTitle
+
+        # Add the id to the item so we can get back to it later
+        newclaim = pywikibot.Claim(self.repo, self.idProperty)
+        newclaim.setTarget(metadata[u'id'])
+        pywikibot.output('Adding new id claim to %s' % artworkItem)
+        artworkItem.addClaim(newclaim)
+
+        self.addReference(artworkItem, newclaim, metadata[u'idrefurl'])
+
+        newqualifier = pywikibot.Claim(self.repo, u'P195') #Add collection, isQualifier=True
+        newqualifier.setTarget(self.collectionitem)
+        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
+        newclaim.addQualifier(newqualifier)
+
+        collectionclaim = pywikibot.Claim(self.repo, u'P195')
+        collectionclaim.setTarget(self.collectionitem)
+        pywikibot.output('Adding collection claim to %s' % artworkItem)
+        artworkItem.addClaim(collectionclaim)
+
+        # Add the date they got it as a qualifier to the collection
+        if metadata.get(u'acquisitiondate'):
+            if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
+                                                                     metadata[u'acquisitiondate'].isnumeric()): # It's a year
+                acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
+                colqualifier = pywikibot.Claim(self.repo, u'P580')
+                colqualifier.setTarget(acdate)
+                pywikibot.output('Adding new acquisition date qualifier claim to collection on %s' % artworkItem)
+                collectionclaim.addQualifier(colqualifier)
+        # FIXME: Still have to rewrite this part
+        '''
+        if metadata.get(u'acquisitiondate'):
+            colqualifier = pywikibot.Claim(self.repo, u'P580')
+            acdate = None
+            if len(painting[u'acquisitiondate'])==4 and painting[u'acquisitiondate'].isnumeric(): # It's a year
+                acdate = pywikibot.WbTime(year=painting[u'acquisitiondate'])
+            elif len(painting[u'acquisitiondate'].split(u'-', 2))==3:
+                (acday, acmonth, acyear) = painting[u'acquisitiondate'].split(u'-', 2)
+                acdate = pywikibot.WbTime(year=int(acyear), month=int(acmonth), day=int(acday))
+            if acdate:
+                colqualifier.setTarget(acdate)
+
+        '''
+
+        self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
+
+        # For the meta collections the option to add extra inventory number and extra collections
+        if metadata.get(u'extracollectionqid'):
+            extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid'))
+            collectionclaim = pywikibot.Claim(self.repo, u'P195')
+            collectionclaim.setTarget(extracollectionitem)
+            pywikibot.output('Adding collection claim to %s' % artworkItem)
+            artworkItem.addClaim(collectionclaim)
+
+            if metadata.get(u'extraid'):
                 newclaim = pywikibot.Claim(self.repo, self.idProperty)
-                newclaim.setTarget(metadata[u'id'])
-                pywikibot.output('Adding new id claim to %s' % artworkItem)
+                newclaim.setTarget(metadata[u'extraid'])
+                pywikibot.output('Adding extra new id claim to %s' % artworkItem)
                 artworkItem.addClaim(newclaim)
 
                 self.addReference(artworkItem, newclaim, metadata[u'idrefurl'])
-                
+
                 newqualifier = pywikibot.Claim(self.repo, u'P195') #Add collection, isQualifier=True
-                newqualifier.setTarget(self.collectionitem)
+                newqualifier.setTarget(extracollectionitem)
                 pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
                 newclaim.addQualifier(newqualifier)
 
-                collectionclaim = pywikibot.Claim(self.repo, u'P195')
-                collectionclaim.setTarget(self.collectionitem)
-                pywikibot.output('Adding collection claim to %s' % artworkItem)
-                artworkItem.addClaim(collectionclaim)
+        # And in some cases we need this one
+        if metadata.get(u'extracollectionqid2'):
+            extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid2'))
+            collectionclaim = pywikibot.Claim(self.repo, u'P195')
+            collectionclaim.setTarget(extracollectionitem)
+            pywikibot.output('Adding collection claim to %s' % artworkItem)
+            artworkItem.addClaim(collectionclaim)
 
-                # Add the date they got it as a qualifier to the collection
-                if metadata.get(u'acquisitiondate'):
-                    if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
-                                                                   metadata[u'acquisitiondate'].isnumeric()): # It's a year
-                        acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
-                        colqualifier = pywikibot.Claim(self.repo, u'P580')
-                        colqualifier.setTarget(acdate)
-                        pywikibot.output('Adding new acquisition date qualifier claim to collection on %s' % artworkItem)
-                        collectionclaim.addQualifier(colqualifier)
-                # FIXME: Still have to rewrite this part
-                '''
-                if metadata.get(u'acquisitiondate'):
-                    colqualifier = pywikibot.Claim(self.repo, u'P580')
-                    acdate = None
-                    if len(painting[u'acquisitiondate'])==4 and painting[u'acquisitiondate'].isnumeric(): # It's a year
-                        acdate = pywikibot.WbTime(year=painting[u'acquisitiondate'])
-                    elif len(painting[u'acquisitiondate'].split(u'-', 2))==3:
-                        (acday, acmonth, acyear) = painting[u'acquisitiondate'].split(u'-', 2)
-                        acdate = pywikibot.WbTime(year=int(acyear), month=int(acmonth), day=int(acday))
-                    if acdate:
-                        colqualifier.setTarget(acdate)
-
-                '''
-                
-                self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
-
-                # For the meta collections the option to add extra inventory number and extra collections
-                if metadata.get(u'extracollectionqid'):
-                    extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid'))
-                    collectionclaim = pywikibot.Claim(self.repo, u'P195')
-                    collectionclaim.setTarget(extracollectionitem)
-                    pywikibot.output('Adding collection claim to %s' % artworkItem)
-                    artworkItem.addClaim(collectionclaim)
-
-                    if metadata.get(u'extraid'):
-                        newclaim = pywikibot.Claim(self.repo, self.idProperty)
-                        newclaim.setTarget(metadata[u'extraid'])
-                        pywikibot.output('Adding extra new id claim to %s' % artworkItem)
-                        artworkItem.addClaim(newclaim)
-
-                        self.addReference(artworkItem, newclaim, metadata[u'idrefurl'])
-
-                        newqualifier = pywikibot.Claim(self.repo, u'P195') #Add collection, isQualifier=True
-                        newqualifier.setTarget(extracollectionitem)
-                        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
-                        newclaim.addQualifier(newqualifier)
-
-                # And in some cases we need this one
-                if metadata.get(u'extracollectionqid2'):
-                    extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid2'))
-                    collectionclaim = pywikibot.Claim(self.repo, u'P195')
-                    collectionclaim.setTarget(extracollectionitem)
-                    pywikibot.output('Adding collection claim to %s' % artworkItem)
-                    artworkItem.addClaim(collectionclaim)
-
-            
-            if artworkItem and artworkItem.exists():
-                metadata['wikidata'] = artworkItem.title()
-
-                data = artworkItem.get()
-                claims = data.get('claims')
-
-                # Add missing labels
-                # FIXME: Move to a function
-                # FIXME Do something with aliases too
-                labels = data.get('labels')
-                if metadata.get('title'):
-                    labelschanged = False
-                    for lang, label in metadata['title'].items():
-                        if lang not in labels:
-                            labels[lang] = label
-                            labelschanged = True
-                    if labelschanged:
-                        summary = u'Adding missing label(s) from %s' % (metadata.get(u'refurl'),)
-                        try:
-                            artworkItem.editLabels(labels, summary=summary)
-                        except pywikibot.OtherPageSaveError:
-                            # Just skip it for no
-                            pywikibot.output(u'Oops, already had that label/description combination. Skipping')
-                            pass
-
-                # Add missing descriptions
-                # FIXME Move to a function
-                descriptions = copy.deepcopy(data.get('descriptions'))
-                if metadata.get('description'):
-                    descriptionschanged = False
-                    for lang, description in metadata['description'].items():
-                        if lang not in descriptions:
-                            descriptions[lang] = description
-                            descriptionschanged = True
-                    if descriptionschanged:
-                        summary = u'Adding missing description(s) from %s' % (metadata.get(u'refurl'),)
-                        try:
-                            artworkItem.editDescriptions(descriptions, summary=summary)
-                        except pywikibot.exceptions.OtherPageSaveError: # pywikibot.data.api.APIError:
-                            # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
-                            descriptions = copy.deepcopy(data.get('descriptions'))
-                            pywikibot.output(u'Oops, already had that label/description combination. Trying again')
-                            for lang, description in metadata['description'].items():
-                                if lang not in descriptions:
-                                    descriptions[lang] = u'%s (%s %s)' % (description,
-                                                                             metadata['collectionshort'],
-                                                                             metadata['id'],)
-                            artworkItem.editDescriptions(descriptions, summary=summary)
-                            pass
-                #print claims
-
-                # instance of
-                self.addItemStatement(artworkItem, u'P31', metadata.get(u'instanceofqid'), metadata.get(u'refurl'))
-
-                # location
-                self.addItemStatement(artworkItem, u'P276', metadata.get(u'locationqid'), metadata.get(u'refurl'))
-
-                # creator
-                self.addItemStatement(artworkItem, u'P170', metadata.get(u'creatorqid'), metadata.get(u'refurl'))                
-
-                # Inception
-                self.addInception(artworkItem, metadata)
-
-                # You want titles? YOU GOT TITLES
-                self.addTitle(artworkItem, metadata)
-
-                # genre
-                self.addItemStatement(artworkItem, u'P136', metadata.get(u'genreqid'), metadata.get(u'refurl'))
-
-                # Try to add the acquisitiondate to the existing collection claim
-                # TODO: Move to function and also work with multiple collection claims
-                if u'P195' in claims:
-                    if len(claims.get(u'P195'))==1 and metadata.get(u'acquisitiondate'):
-                        collectionclaim = claims.get(u'P195')[0]
-                        # Would like to use collectionclaim.has_qualifier(u'P580')
-                        if collectionclaim.getTarget()==self.collectionitem and not collectionclaim.qualifiers.get(u'P580'):
-                            dateregex = u'^(\d\d\d\d)-(\d\d)-(\d\d)'
-                            datematch = re.match(dateregex, str(metadata[u'acquisitiondate']))
-                            acdate = None
-                            if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
-                                    metadata[u'acquisitiondate'].isnumeric()): # It's a year
-                                acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
-                            elif datematch:
-                                #print metadata[u'acquisitiondate']
-                                acdate = pywikibot.WbTime(year=int(datematch.group(1)),
-                                                          month=int(datematch.group(2)),
-                                                          day=int(datematch.group(3)))
-                            else:
-                                try:
-                                    acdate = pywikibot.WbTime.fromTimestr(metadata[u'acquisitiondate'])
-                                    # Pff, precision is t0o high. Hack to fix this
-                                    if acdate.precision > 11:
-                                        acdate.precision=11
-                                except ValueError:
-                                    pywikibot.output(u'Can not parse %s' % metadata[u'acquisitiondate'])
-                            if acdate:
-                                colqualifier = pywikibot.Claim(self.repo, u'P580')
-                                colqualifier.setTarget(acdate)
-                                pywikibot.output('Update collection claim with start time on %s' % artworkItem)
-                                collectionclaim.addQualifier(colqualifier)
-                                # This might give multiple similar references
-                                #self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
-
-                    # Try to add the extra collection
-                    if metadata.get(u'extracollectionqid'):
-                        foundExtraCollection = False
-                        extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid'))
-                        for collectionclaim in claims.get(u'P195'):
-                            if collectionclaim.getTarget()==extracollectionitem:
-                                foundExtraCollection = True
-                        if not foundExtraCollection:
-                            newclaim = pywikibot.Claim(self.repo, u'P195')
-                            newclaim.setTarget(extracollectionitem)
-                            pywikibot.output('Adding extra collection claim to %s' % artworkItem)
-                            artworkItem.addClaim(newclaim)
-                            self.addReference(artworkItem, newclaim, metadata[u'refurl'])
-
-                # material used
-                # FIXME: This does not scale at all.
-                if u'P186' not in claims and metadata.get(u'medium'):
-                    if metadata.get(u'medium') == u'oil on canvas':
-                        oil_paint = pywikibot.ItemPage(self.repo, u'Q296955')
-                        canvas = pywikibot.ItemPage(self.repo, u'Q4259259')
-                        painting_surface = pywikibot.ItemPage(self.repo, u'Q861259')
-                        
-                        newclaim = pywikibot.Claim(self.repo, u'P186')
-                        newclaim.setTarget(oil_paint)
-                        pywikibot.output('Adding new oil paint claim to %s' % artworkItem)
-                        artworkItem.addClaim(newclaim)
-
-                        self.addReference(artworkItem, newclaim, metadata[u'refurl'])
-
-                        newclaim = pywikibot.Claim(self.repo, u'P186')
-                        newclaim.setTarget(canvas)
-                        pywikibot.output('Adding new canvas claim to %s' % artworkItem)
-                        artworkItem.addClaim(newclaim)
-
-                        newqualifier = pywikibot.Claim(self.repo, u'P518') #Applies to part
-                        newqualifier.setTarget(painting_surface)
-                        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
-                        newclaim.addQualifier(newqualifier)
-
-                        self.addReference(artworkItem, newclaim, metadata[u'refurl'])
-
-                # Height in centimetres. Expect something that can be converted to a Decimal with . and not ,
-                if u'P2048' not in claims and metadata.get(u'heightcm'):
-                    newheight = pywikibot.WbQuantity(amount=metadata.get(u'heightcm'),
-                                                     unit=u'http://www.wikidata.org/entity/Q174728',
-                                                     site=self.repo)
-                    newclaim = pywikibot.Claim(self.repo, u'P2048')
-                    newclaim.setTarget(newheight)
-                    pywikibot.output('Adding height in cm claim to %s' % artworkItem)
-                    artworkItem.addClaim(newclaim)
-
-                    self.addReference(artworkItem, newclaim, metadata[u'refurl'])
-
-                # Width in centimetres. Expect something that can be converted to a Decimal with . and not ,
-                if u'P2049' not in claims and metadata.get(u'widthcm'):
-                    newwidth = pywikibot.WbQuantity(amount=metadata.get(u'widthcm'),
-                                                    unit=u'http://www.wikidata.org/entity/Q174728',
-                                                    site=self.repo)
-                    newclaim = pywikibot.Claim(self.repo, u'P2049')
-                    newclaim.setTarget(newwidth)
-                    pywikibot.output('Adding width in cm claim to %s' % artworkItem)
-                    artworkItem.addClaim(newclaim)
-
-                    self.addReference(artworkItem, newclaim, metadata[u'refurl'])
-
-                # Depth (or thickness) in centimetres.
-                # Expect something that can be converted to a Decimal with . and not ,
-                # Some museums provide this, but not a lot
-                if u'P2610' not in claims and metadata.get(u'depthcm'):
-                    newdepth = pywikibot.WbQuantity(amount=metadata.get(u'depthcm'),
-                                                    unit=u'http://www.wikidata.org/entity/Q174728',
-                                                    site=self.repo)
-                    newclaim = pywikibot.Claim(self.repo, u'P2610')
-                    newclaim.setTarget(newdepth)
-                    pywikibot.output('Adding depth in cm claim to %s' % artworkItem)
-                    artworkItem.addClaim(newclaim)
-
-                    self.addReference(artworkItem, newclaim, metadata[u'refurl'])
-
-                self.addImageSuggestion(artworkItem, metadata)
-
-                # Quite a few collections have custom id's these days.
-                if metadata.get(u'artworkidpid'):
-                    if metadata.get(u'artworkidpid') not in claims:
-                        newclaim = pywikibot.Claim(self.repo, metadata.get(u'artworkidpid') )
-                        newclaim.setTarget(metadata[u'artworkid'])
-                        pywikibot.output('Adding artwork id claim to %s' % artworkItem)
-                        artworkItem.addClaim(newclaim)
-                # Described at url
-                elif metadata.get(u'describedbyurl'):
-                    if u'P973' not in claims:
-                        newclaim = pywikibot.Claim(self.repo, u'P973')
-                        newclaim.setTarget(metadata[u'describedbyurl'])
-                        pywikibot.output('Adding described at claim to %s' % artworkItem)
-                        artworkItem.addClaim(newclaim)
-                    else:
-                        foundurl = False
-                        for claim in claims.get(u'P973'):
-                            if claim.getTarget()==metadata[u'describedbyurl']:
-                                foundurl=True
-                        if not foundurl:
-                            newclaim = pywikibot.Claim(self.repo, u'P973')
-                            newclaim.setTarget(metadata[u'describedbyurl'])
-                            pywikibot.output('Adding additional described at claim to %s' % artworkItem)
-                            artworkItem.addClaim(newclaim)
-
-                # iiif manifest url
-                if u'P6108' not in claims and metadata.get(u'iiifmanifesturl'):
-                    newclaim = pywikibot.Claim(self.repo, u'P6108')
-                    newclaim.setTarget(metadata[u'iiifmanifesturl'])
-                    pywikibot.output('Adding IIIF manifest url claim to %s' % artworkItem)
-                    artworkItem.addClaim(newclaim)
-                    self.addReference(artworkItem, newclaim, metadata[u'refurl'])
+        return artworkItem
 
     def doWaybackup(self, metadata):
         """
@@ -446,7 +229,7 @@ class ArtDataBot:
 
         See also https://www.wikidata.org/wiki/Wikidata:WikiProject_sum_of_all_paintings/Link_rot
 
-        :param url: Metadata containing url fields
+        :param metadata: Metadata containing url fields
         :return: Nothing
         """
         urfields = [u'url', u'refurl', u'describedbyurl']
@@ -458,16 +241,120 @@ class ArtDataBot:
                 waybackUrl = u'https://web.archive.org/save/%s' % (url,)
                 waybackPage = requests.get(waybackUrl)
                 doneurls.append(url)
-        return
+
+    def updateArtworkItem(self, artworkItem, metadata):
+        """
+        Add statements and other data to the artworkItem
+        :param artworkItem: The artwork item to work on
+        :param metadata: All the metadata about this artwork.
+        :return: Nothing, updates item in place
+        """
+
+        # Add the (missing) labels to the item based on the title.
+        self.addLabels(artworkItem, metadata)
+
+        # Add the (missing) descriptions to the item.
+        self.addDescriptions(artworkItem, metadata)
+
+        # Add instance of (P31) to the item.
+        self.addItemStatement(artworkItem, u'P31', metadata.get(u'instanceofqid'), metadata.get(u'refurl'))
+
+        # Add location (P276) to the item.
+        self.addItemStatement(artworkItem, u'P276', metadata.get(u'locationqid'), metadata.get(u'refurl'))
+
+        # Add creator (P170) to the item.
+        self.addItemStatement(artworkItem, u'P170', metadata.get(u'creatorqid'), metadata.get(u'refurl'))
+
+        # Add inception (P571) to the item.
+        self.addInception(artworkItem, metadata)
+
+        # Add title (P1476) to the item.
+        self.addTitle(artworkItem, metadata)
+
+        # Add genre (P136) to the item
+        self.addItemStatement(artworkItem, u'P136', metadata.get(u'genreqid'), metadata.get(u'refurl'))
+
+        # Add the material used (P186) based on the medium to the item.
+        self.addMaterialUsed(artworkItem, metadata)
+
+        # Add the dimensions height (P2048), width (P2049) and thickness (P2610) to the item.
+        self.addDimensions(artworkItem, metadata)
+
+        # Add Commons compatible image available at URL (P4765) to an image that can be uploaded to Commons.
+        self.addImageSuggestion(artworkItem, metadata)
+
+        # Add the IIIF manifest (P6108) to the item.
+        self.addIiifManifestUrl(artworkItem, metadata)
+
+        # Add a link to the item in a collection. Either described at URL (P973) or custom.
+        self.addCollectionLink(artworkItem, metadata)
+
+        # Update the collection with a start date and add extra collections.
+        self.updateCollection(artworkItem, metadata)
+
+    def addLabels(self, item, metadata):
+        """
+        Add the (missing) labels to the item based on the title.
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the title field
+        :return: Nothing, updates item in place
+        """
+        labels = item.get().get('labels')
+        if metadata.get('title'):
+            labelschanged = False
+            for lang, label in metadata['title'].items():
+                if lang not in labels:
+                    labels[lang] = label
+                    labelschanged = True
+            if labelschanged:
+                summary = u'Adding missing label(s) from %s' % (metadata.get(u'refurl'),)
+                try:
+                    item.editLabels(labels, summary=summary)
+                except pywikibot.OtherPageSaveError:
+                    # Just skip it for no
+                    pywikibot.output(u'Oops, already had that label/description combination. Skipping')
+                    pass
+
+    def addDescriptions(self, item, metadata):
+        """
+        Add the (missing) descriptions to the item based on the title.
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the description field
+        :return: Nothing, updates item in place
+        """
+        descriptions = copy.deepcopy(item.get().get('descriptions'))
+
+        if metadata.get('description'):
+            descriptionschanged = False
+            for lang, description in metadata['description'].items():
+                if lang not in descriptions:
+                    descriptions[lang] = description
+                    descriptionschanged = True
+            if descriptionschanged:
+                summary = u'Adding missing description(s) from %s' % (metadata.get(u'refurl'),)
+                try:
+                    item.editDescriptions(descriptions, summary=summary)
+                except pywikibot.exceptions.OtherPageSaveError: # pywikibot.data.api.APIError:
+                    # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
+                    descriptions = copy.deepcopy(item.get().get('descriptions'))
+                    pywikibot.output(u'Oops, already had that label/description combination. Trying again')
+                    for lang, description in metadata['description'].items():
+                        if lang not in descriptions:
+                            descriptions[lang] = u'%s (%s %s)' % (description,
+                                                                  metadata['collectionshort'],
+                                                                  metadata['id'],)
+                    item.editDescriptions(descriptions, summary=summary)
+                    pass
 
     def addTitle(self, item, metadata):
         """
-        Add the  title (P1476) to the item. For now just skip items that already have a title
+        Add the title (P1476) to the item. For now just skip items that already have a title
         :param item: The artwork item to work on
         :param metadata: All the metadata about this artwork, should contain the title field as a dict
         :return:
         """
-
         claims = item.get().get('claims')
 
         if u'P1476' in claims:
@@ -499,7 +386,6 @@ class ArtDataBot:
         :param metadata: All the metadata about this artwork, should contain the imageurl field
         :return:
         """
-
         claims = item.get().get('claims')
 
         if u'P571' in claims:
@@ -590,15 +476,153 @@ class ArtDataBot:
                     newclaim.addQualifier(newqualifier)
                 self.addReference(item, newclaim, metadata[u'refurl'])
 
+    def updateCollection(self, item, metadata):
+        """
+        Update the collection with a start date and add extra collections.
+
+        This is a bit of a weird function and needs to be improved.
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the acquisitiondate field
+        :return: Nothing, updates item in place
+        """
+        claims = item.get().get('claims')
+
+        # Try to add the acquisitiondate to the existing collection claim
+        # TODO: Move to function and also work with multiple collection claims
+        if u'P195' in claims:
+            if len(claims.get(u'P195'))==1 and metadata.get(u'acquisitiondate'):
+                collectionclaim = claims.get(u'P195')[0]
+                # Would like to use collectionclaim.has_qualifier(u'P580')
+                if collectionclaim.getTarget()==self.collectionitem and not collectionclaim.qualifiers.get(u'P580'):
+                    dateregex = u'^(\d\d\d\d)-(\d\d)-(\d\d)'
+                    datematch = re.match(dateregex, str(metadata[u'acquisitiondate']))
+                    acdate = None
+                    if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
+                                                                             metadata[u'acquisitiondate'].isnumeric()): # It's a year
+                        acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
+                    elif datematch:
+                        #print metadata[u'acquisitiondate']
+                        acdate = pywikibot.WbTime(year=int(datematch.group(1)),
+                                                  month=int(datematch.group(2)),
+                                                  day=int(datematch.group(3)))
+                    else:
+                        try:
+                            acdate = pywikibot.WbTime.fromTimestr(metadata[u'acquisitiondate'])
+                            # Pff, precision is t0o high. Hack to fix this
+                            if acdate.precision > 11:
+                                acdate.precision=11
+                        except ValueError:
+                            pywikibot.output(u'Can not parse %s' % metadata[u'acquisitiondate'])
+                    if acdate:
+                        colqualifier = pywikibot.Claim(self.repo, u'P580')
+                        colqualifier.setTarget(acdate)
+                        pywikibot.output('Update collection claim with start time on %s' % item)
+                        collectionclaim.addQualifier(colqualifier)
+                        # This might give multiple similar references
+                        #self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
+
+            # Try to add the extra collection
+            if metadata.get(u'extracollectionqid'):
+                foundExtraCollection = False
+                extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid'))
+                for collectionclaim in claims.get(u'P195'):
+                    if collectionclaim.getTarget()==extracollectionitem:
+                        foundExtraCollection = True
+                if not foundExtraCollection:
+                    newclaim = pywikibot.Claim(self.repo, u'P195')
+                    newclaim.setTarget(extracollectionitem)
+                    pywikibot.output('Adding extra collection claim to %s' % item)
+                    item.addClaim(newclaim)
+                    self.addReference(item, newclaim, metadata[u'refurl'])
+
+    def addMaterialUsed(self, item, metadata):
+        """
+        Add the material used (P186) based on the medium to the item.
+
+        This currently only supports oil on canvas so doesn't scale at all.
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the medium field
+        :return: Nothing, updates item in place
+        """
+        claims = item.get().get('claims')
+
+        if u'P186' not in claims and metadata.get(u'medium'):
+            if metadata.get(u'medium') == u'oil on canvas':
+                oil_paint = pywikibot.ItemPage(self.repo, u'Q296955')
+                canvas = pywikibot.ItemPage(self.repo, u'Q4259259')
+                painting_surface = pywikibot.ItemPage(self.repo, u'Q861259')
+
+                newclaim = pywikibot.Claim(self.repo, u'P186')
+                newclaim.setTarget(oil_paint)
+                pywikibot.output('Adding new oil paint claim to %s' % item)
+                item.addClaim(newclaim)
+                self.addReference(item, newclaim, metadata[u'refurl'])
+
+                newclaim = pywikibot.Claim(self.repo, u'P186')
+                newclaim.setTarget(canvas)
+                pywikibot.output('Adding new canvas claim to %s' % item)
+                item.addClaim(newclaim)
+
+                newqualifier = pywikibot.Claim(self.repo, u'P518') #Applies to part
+                newqualifier.setTarget(painting_surface)
+                pywikibot.output('Adding new qualifier claim to %s' % item)
+                newclaim.addQualifier(newqualifier)
+                self.addReference(item, newclaim, metadata[u'refurl'])
+
+    def addDimensions(self, item, metadata):
+        """
+        Add the dimensions height (P2048), width (P2049) and thickness (P2610) to the item.
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the heightcm, widthcm and depthcm fields.
+        :return: Nothing, updates item in place
+        """
+        claims = item.get().get('claims')
+
+        # Height in centimetres.
+        if u'P2048' not in claims and metadata.get(u'heightcm'):
+            newheight = pywikibot.WbQuantity(amount=metadata.get(u'heightcm').replace(u',', u'.'),
+                                             unit=u'http://www.wikidata.org/entity/Q174728',
+                                             site=self.repo)
+            newclaim = pywikibot.Claim(self.repo, u'P2048')
+            newclaim.setTarget(newheight)
+            pywikibot.output('Adding height in cm claim to %s' % item)
+            item.addClaim(newclaim)
+            self.addReference(item, newclaim, metadata[u'refurl'])
+
+        # Width in centimetres.
+        if u'P2049' not in claims and metadata.get(u'widthcm'):
+            newwidth = pywikibot.WbQuantity(amount=metadata.get(u'widthcm').replace(u',', u'.'),
+                                            unit=u'http://www.wikidata.org/entity/Q174728',
+                                            site=self.repo)
+            newclaim = pywikibot.Claim(self.repo, u'P2049')
+            newclaim.setTarget(newwidth)
+            pywikibot.output('Adding width in cm claim to %s' % item)
+            item.addClaim(newclaim)
+            self.addReference(item, newclaim, metadata[u'refurl'])
+
+        # Depth (or thickness) in centimetres. Some museums provide this, but not a lot
+        if u'P2610' not in claims and metadata.get(u'depthcm'):
+            newdepth = pywikibot.WbQuantity(amount=metadata.get(u'depthcm').replace(u',', u'.'),
+                                            unit=u'http://www.wikidata.org/entity/Q174728',
+                                            site=self.repo)
+            newclaim = pywikibot.Claim(self.repo, u'P2610')
+            newclaim.setTarget(newdepth)
+            pywikibot.output('Adding depth in cm claim to %s' % item)
+            item.addClaim(newclaim)
+            self.addReference(item, newclaim, metadata[u'refurl'])
+
     def addImageSuggestion(self, item, metadata):
         """
-        Add an image that can be uploaded to Commons
+        Add  Commons compatible image available at URL (P4765) to an image that can be uploaded to Commons
 
         It will also add the suggestion if the item already has an image, but new one is of much better quality
 
         :param item: The artwork item to work on
         :param metadata: All the metadata about this artwork, should contain the imageurl field
-        :return:
+        :return: Nothing, updates item in place
         """
         claims = item.get().get('claims')
 
@@ -672,10 +696,62 @@ class ArtDataBot:
             pywikibot.output('Adding new qualifier claim to %s' % item)
             newclaim.addQualifier(newqualifier)
 
+    def addIiifManifestUrl(self, item, metadata):
+        """
+        Add the  IIIF manifest (P6108) to the item.
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the iiifmanifesturl field
+        :return: Nothing, updates item in place
+        """
+        claims = item.get().get('claims')
+
+        if u'P6108' not in claims and metadata.get(u'iiifmanifesturl'):
+            newclaim = pywikibot.Claim(self.repo, u'P6108')
+            newclaim.setTarget(metadata[u'iiifmanifesturl'])
+            pywikibot.output('Adding IIIF manifest url claim to %s' % item)
+            item.addClaim(newclaim)
+            self.addReference(item, newclaim, metadata[u'refurl'])
+
+    def addCollectionLink(self, item, metadata):
+        """
+        Add a link to the item in a collection.
+        This is either described at URL (P973) or a customer per collection id
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the describedbyurl or the artworkidpid and artworkid fields.
+        :return: Nothing, updates item in place
+        """
+        claims = item.get().get('claims')
+
+        if metadata.get(u'artworkidpid'):
+            if metadata.get(u'artworkidpid') not in claims:
+                newclaim = pywikibot.Claim(self.repo, metadata.get(u'artworkidpid') )
+                newclaim.setTarget(metadata[u'artworkid'])
+                pywikibot.output('Adding artwork id claim to %s' % item)
+                item.addClaim(newclaim)
+        # Described at url
+        elif metadata.get(u'describedbyurl'):
+            if u'P973' not in claims:
+                newclaim = pywikibot.Claim(self.repo, u'P973')
+                newclaim.setTarget(metadata[u'describedbyurl'])
+                pywikibot.output('Adding described at claim to %s' % item)
+                item.addClaim(newclaim)
+            else:
+                foundurl = False
+                for claim in claims.get(u'P973'):
+                    if claim.getTarget()==metadata[u'describedbyurl']:
+                        foundurl=True
+                if not foundurl:
+                    newclaim = pywikibot.Claim(self.repo, u'P973')
+                    newclaim.setTarget(metadata[u'describedbyurl'])
+                    pywikibot.output('Adding additional described at claim to %s' % item)
+                    item.addClaim(newclaim)
+
     def addItemStatement(self, item, pid, qid, url):
-        '''
+        """
         Helper function to add a statement
-        '''
+        """
         if not qid:
             return False
 
@@ -698,7 +774,7 @@ class ArtDataBot:
         Add a reference with a retrieval url and todays date
         """
         pywikibot.output('Adding new reference claim to %s' % item)
-        refurl = pywikibot.Claim(self.repo, u'P854') # Add url, isReference=True
+        refurl = pywikibot.Claim(self.repo, u'P854')
         refurl.setTarget(url)
         refdate = pywikibot.Claim(self.repo, u'P813')
         today = datetime.datetime.today()
