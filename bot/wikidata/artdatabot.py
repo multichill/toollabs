@@ -82,9 +82,9 @@ class ArtDataBot:
                 metadata['refurl']=metadata['url']
             if not metadata.get('idrefurl'):
                 metadata['idrefurl']=metadata['refurl']
-            if not metadata.get('describedbyurl'):
+            if not metadata.get('describedbyurl') and metadata.get(u'url'):
                 metadata['describedbyurl']=metadata['url']
-            if not metadata.get('imagesourceurl'):
+            if not metadata.get('imagesourceurl') and metadata.get(u'url'):
                 metadata['imagesourceurl']=metadata['url']
 
             artworkItem = None
@@ -414,7 +414,7 @@ class ArtDataBot:
                         pywikibot.output('Adding artwork id claim to %s' % artworkItem)
                         artworkItem.addClaim(newclaim)
                 # Described at url
-                else:
+                elif metadata.get(u'describedbyurl'):
                     if u'P973' not in claims:
                         newclaim = pywikibot.Claim(self.repo, u'P973')
                         newclaim.setTarget(metadata[u'describedbyurl'])
