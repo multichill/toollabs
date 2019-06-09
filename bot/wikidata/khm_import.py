@@ -111,10 +111,8 @@ def getKHMGenerator():
                 pywikibot.output(u'Something went wrong, no description found, skipping this one')
                 continue
             (rawdate, sep, rawcreator) = htmlparser.unescape(descriptionmatch.group(1).strip()).replace(u', , Kunsthistorisches Museum Wien, Gemäldegalerie', u'').partition(u',')
-
-            # Don't worry too much about cleaning up here, just remove the datiert
-            metadata['inception'] = rawdate.strip().replace(u' datiert', u'')
             (creatortype, sep, name) = rawcreator.strip().partition(u':')
+            # Don't use rawdate anymore
 
             if creatortype==u'Künstler':
                 metadata['creatorname'] = name
@@ -144,6 +142,37 @@ def getKHMGenerator():
                     metadata['description'] = { u'de' : u'Gemälde %s %s' % (creatortype, name, ),
                                                 }
 
+            dateregex = u'\<h2 class\=\"label\"\>Datierung\<\/h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>(\d\d\d\d)\s*(datiert)?\<\/p\>'
+            datecircaregex = u'\<h2 class\=\"label\"\>Datierung\<\/h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>\s*um\s*(\d\d\d\d)\s*\<\/p\>'
+            periodregex = u'\<h2 class\=\"label\"\>Datierung\<\/h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>\s*zwischen\s*(\d\d\d\d)\s*-\s*(\d\d\d\d)\s*\<\/p\>'
+            circaperiodregex = u'\<h2 class\=\"label\"\>Datierung\<\/h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>\s*um\s*(\d\d\d\d)\s*\/\s*(\d\d\d\d)\s*\<\/p\>'
+            circashortperiodregex = u'\<h2 class\=\"label\"\>Datierung\<\/h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>\s*um\s*(\d\d)(\d\d)\s*\/\s*(\d\d)\s*\<\/p\>'
+            otherdateregex = u'\<h2 class\=\"label\"\>Datierung\<\/h2\>\s*\<\/div\>\s*\<div class\=\"medium-8 columns\"\>\s*\<p\>([^\<]+)\<\/p\>'
+            datematch = re.search(dateregex, itempage.text)
+            datecircamatch = re.search(datecircaregex, itempage.text)
+            periodmatch = re.search(periodregex, itempage.text)
+            circaperiodmatch = re.search(circaperiodregex, itempage.text)
+            circashortperiodmatch = re.search(circashortperiodregex, itempage.text)
+            otherdatematch = re.search(otherdateregex, itempage.text)
+            if datematch:
+                metadata['inception'] = htmlparser.unescape(datematch.group(1).strip())
+            elif datecircamatch:
+                metadata['inception'] = htmlparser.unescape(datecircamatch.group(1).strip())
+                metadata['inceptioncirca'] = True
+            elif periodmatch:
+                metadata['inceptionstart'] = int(periodmatch.group(1),)
+                metadata['inceptionend'] = int(periodmatch.group(2),)
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                metadata['inceptionend'] = int(circaperiodmatch.group(2),)
+                metadata['inceptioncirca'] = True
+            elif circashortperiodmatch:
+                metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
+                metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+                metadata['inceptioncirca'] = True
+            elif otherdatematch:
+                print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
+
             # No data
             # metadata['acquisitiondate'] = acquisitiondatematch.group(1)
             #  metadata['medium'] = u'oil on canvas'
@@ -170,7 +199,7 @@ def main():
     dictGen = getKHMGenerator()
 
     #for painting in dictGen:
-    #    print painting
+    #    print (painting)
 
     artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
