@@ -5,16 +5,13 @@ Bot to depicts statements for species.
 
 This is just a proof of concept to show that this is possible. When we're actually going to import,
 I should probably optimize it.
-
-TODO: Fix authentication, currently editing as IP(v6)
-
 """
 
 import pywikibot
 import re
 import pywikibot.data.sparql
 import datetime
-import requests
+from pywikibot.comms import http
 import json
 from pywikibot import pagegenerators
 
@@ -34,7 +31,7 @@ class DepictsSpeciesBot:
   ?item wdt:P105 wd:Q7432 .
   ?item wdt:P18 ?image .
   ?item wdt:P31 wd:Q16521 .
-  } LIMIT 1000"""
+  } LIMIT 200000"""
 
         self.generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
 
@@ -78,10 +75,9 @@ class DepictsSpeciesBot:
         pywikibot.output(u'Adding %s to %s' % (qid, mediaid))
 
         # I hate tokens
-        #tokenrequest = self.site._simple_request(action='query', meta='tokens', type='csrf')
-        tokenrequest = requests.get(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-        #tokendata = tokenrequest.submit()
-        tokendata = tokenrequest.json()
+        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+
+        tokendata = json.loads(tokenrequest.text)
         token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
 
         # https://commons.wikimedia.org/w/api.php?action=wbcreateclaim&entity=Q42&property=P9003&snaktype=value&value=%7B%22entity-type%22:%22item%22,%22numeric-id%22:1%7D
@@ -96,17 +92,12 @@ class DepictsSpeciesBot:
                     u'snaktype' : u'value',
                     u'value' : json.dumps(postvalue),
                     u'token' : token,
-                    u'summary' : summary
+                    u'summary' : summary,
+                    u'bot' : True,
                     }
 
-        userinfo = tokendata.get(u'query').get(u'tokens').get(u'userinfo')
-        #print tokendata
-
-        print postdata
-
-        #apipage = requests.post(u'https://commons.wikimedia.org/w/api.php?action=wbeditentity&format=json&data=, data=postdata)
-        apipage = requests.post(u'https://commons.wikimedia.org/w/api.php', data=postdata)
-        print apipage.text
+        pywikibot.output(summary)
+        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
 
     def mediaInfoExists(self, mediaid):
         """
