@@ -14,7 +14,7 @@ import pywikibot
 import re
 import pywikibot.data.sparql
 import datetime
-import requests
+from pywikibot.comms import http
 import json
 from pywikibot import pagegenerators
 
@@ -31,11 +31,9 @@ class DigitalRepresentationBot:
         self.repo = self.site.data_repository()
 
         query = u"""SELECT DISTINCT ?item ?image WHERE {
-  ?item p:P195/ps:P195 wd:Q303139 .
-  ?item wdt:P31 wd:Q3305213 .   
-  ?item wdt:P18 ?image
-  } 
- LIMIT 4000"""
+  ?item wdt:P31 wd:Q3305213 .
+  ?item wdt:P18 ?image.
+} LIMIT 200000"""
 
         self.generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
 
@@ -63,54 +61,44 @@ class DigitalRepresentationBot:
         if not filepage.exists():
             return
 
-        if u'{{Licensed-PD-Art|PD-old-auto-1923|' not in filepage.text:
-            return
-
         mediaid = u'M%s' % (filepage.pageid,)
         if self.mediaInfoExists(mediaid):
             return
 
-        self.addDigitalRepresentation(mediaid, item.title())
+        qid = item.title()
+        summary = u'this file depicts and is a digital representation of [[:d:%s]] (based on image usage)' % (qid,)
+        self.addClaim(mediaid, u'P180', qid, summary)
+        self.addClaim(mediaid, u'P6243', qid, summary)
 
-    def addDigitalRepresentation(self, mediaid, qid):
+    def addClaim(self, mediaid, pid, qid, summary=''):
         """
 
         :param mediaid:
+        :param pid:
         :param qid:
+        :param summary:
         :return:
         """
-        pywikibot.output(u'Adding %s to %s' % (qid, mediaid))
+        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, qid, mediaid, summary))
 
-        # I hate tokens
-        #tokenrequest = self.site._simple_request(action='query', meta='tokens', type='csrf')
-        tokenrequest = requests.get(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-        #tokendata = tokenrequest.submit()
-        tokendata = tokenrequest.json()
+        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+
+        tokendata = json.loads(tokenrequest.text)
         token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
 
-        # https://commons.wikimedia.org/w/api.php?action=wbcreateclaim&entity=Q42&property=P9003&snaktype=value&value=%7B%22entity-type%22:%22item%22,%22numeric-id%22:1%7D
-
         postvalue = {"entity-type":"item","numeric-id": qid.replace(u'Q', u'')}
-        summary = u'Adding [[:d:Property:P6243]] based on usage on [[:d:%s]]' % (qid,)
 
         postdata = {u'action' : u'wbcreateclaim',
                     u'format' : u'json',
                     u'entity' : mediaid,
-                    u'property' : u'P6243',
+                    u'property' : pid,
                     u'snaktype' : u'value',
                     u'value' : json.dumps(postvalue),
                     u'token' : token,
                     u'summary' : summary
                     }
+        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
 
-        userinfo = tokendata.get(u'query').get(u'tokens').get(u'userinfo')
-        #print tokendata
-
-        print postdata
-
-        #apipage = requests.post(u'https://commons.wikimedia.org/w/api.php?action=wbeditentity&format=json&data=, data=postdata)
-        apipage = requests.post(u'https://commons.wikimedia.org/w/api.php', data=postdata)
-        print apipage.text
 
     def mediaInfoExists(self, mediaid):
         """
