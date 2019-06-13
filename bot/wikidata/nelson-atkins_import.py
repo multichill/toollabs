@@ -39,14 +39,12 @@ def getNAGenerator():
             if match.group(1) not in idlist:
                 idlist.append(match.group(1))
 
-
         for workid in idlist:
             # Just drop the slug
             url = u'https://art.nelson-atkins.org/objects/%s/' % (workid,)
             metadata = {}
 
             itempage = requests.get(url)
-
 
             metadata['url'] = url
 
@@ -71,7 +69,7 @@ def getNAGenerator():
 
             title = htmlparser.unescape(titlematch.group(1)).strip()
 
-            ## Chop chop, several very long titles
+            # Chop chop, several very long titles
             if len(title) > 220:
                 title = title[0:200]
             metadata['title'] = { u'en' : title,
@@ -82,7 +80,6 @@ def getNAGenerator():
             attributedwithidregex = u'\<span class\=\"detailFieldLabel\"\>Attributed to: \<\/span\>\<span class\=\"detailFieldValue\"\>\<a href\=\"\/people\/(\d+)\/[^\"]+\"\>\<span\>Attributed to \<\/span\>\<span\>([^\<]+)\<\/span\>'
             schemacreatorregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:creator\" itemprop\=\"creator\"\>'
             cultureregex = u'\<div class\=\"detailField cultureField\"\>\<span class\=\"detailFieldLabel\"\>Culture: \<\/span\>\<span class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>'
-
 
             artistwithidmatch = re.search(artistwithidregex, itempage.text)
             attributedwithidmatch = re.search(attributedwithidregex, itempage.text)
@@ -237,10 +234,10 @@ def getNAGenerator():
 
 
 def getNAArtistsOnWikidata():
-    '''
-    Just return all the Whitney people as a dict
+    """
+    Just return all the Nelson-Atkins Museum people as a dict
     :return: Dict
-    '''
+    """
     result = {}
     query = u'SELECT ?item ?id WHERE { ?item wdt:P5273 ?id . ?item wdt:P31 wd:Q5 }'
     sq = pywikibot.data.sparql.SparqlQuery()
