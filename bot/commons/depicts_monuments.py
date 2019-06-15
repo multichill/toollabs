@@ -3,6 +3,8 @@
 """
 Bot to depicts statements for monuments. Start with Rijksmonumenten and maybe later more (3M images probably).
 
+Should be switched to a more general Pywikibot implementation.
+
 """
 
 import pywikibot
@@ -19,20 +21,24 @@ class DepictsMonumentsBot:
     """
     def __init__(self):
         """
-        Grab generator based on SPARQL to work on.
+        Grab generator based on search to work on.
 
         """
         self.site = pywikibot.Site(u'commons', u'commons')
         self.repo = self.site.data_repository()
 
-        monumentcat = pywikibot.Category(self.site, title=u'Category:Rijksmonumenten_with_known_IDs')
+        # This was everything in the category. Search is only the ones we still need to work on
+        # monumentcat = pywikibot.Category(self.site, title=u'Category:Rijksmonumenten_with_known_IDs')
+        # self.generator = pagegenerators.PreloadingGenerator(pagegenerators.CategorizedPageGenerator(monumentcat, namespaces=6))
 
-        self.generator = pagegenerators.PreloadingGenerator(pagegenerators.CategorizedPageGenerator(monumentcat, namespaces=6))
+        query = u'incategory:Rijksmonumenten_with_known_IDs -haswbstatement:P180'
+        self.generator = pagegenerators.PreloadingGenerator(pagegenerators.SearchPageGenerator(query, namespaces=6, site=self.site))
+
         self.monuments = self.getMonumentsOnWikidata()
 
     def getMonumentsOnWikidata(self):
         """
-        Get the monuments currently on Wikidata
+        Get the monuments currently on Wikidata. Keep the id as a string.
         :return:
         """
         result = {}
@@ -57,9 +63,10 @@ class DepictsMonumentsBot:
 
     def handleMonument(self, filepage):
         """
+        Handle a single monument. Try to extract the template, look up the id and add the Q if no mediawinfo is present.
 
-        :param item:
-        :return:
+        :param filepage: The page of the file to work on.
+        :return: Nothing, edit in place
         """
         if not filepage.exists():
             return
@@ -88,12 +95,13 @@ class DepictsMonumentsBot:
 
     def addClaim(self, mediaid, pid, qid, summary=''):
         """
+        Add a claim to a mediaid
 
-        :param mediaid:
-        :param pid:
-        :param qid:
-        :param summary:
-        :return:
+        :param mediaid: The mediaid to add it to
+        :param pid: The property P id (including the P)
+        :param qid: The item Q id (including the Q)
+        :param summary: The summary to add in the edit
+        :return: Nothing, edit in place
         """
         pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, qid, mediaid, summary))
 
@@ -111,7 +119,8 @@ class DepictsMonumentsBot:
                     u'snaktype' : u'value',
                     u'value' : json.dumps(postvalue),
                     u'token' : token,
-                    u'summary' : summary
+                    u'summary' : summary,
+                    u'bot' : True,
                     }
         apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
 
@@ -121,8 +130,7 @@ class DepictsMonumentsBot:
         :param mediaid: The entity ID (like M1234, pageid prefixed with M)
         :return: True if it exists, otherwise False
         """
-        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M52611909
-        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M10038
+        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M72643194
         request = self.site._simple_request(action='wbgetentities',ids=mediaid)
         data = request.submit()
         if data.get(u'entities').get(mediaid).get(u'pageid'):
