@@ -6,8 +6,6 @@ Bot to digital representation of ... to paintings
 This is just a proof of concept to show that this is possible. When we're actually going to import,
 I should probably optimize it.
 
-TODO: Fix authentication, currently editing as IP(v6)
-
 """
 
 import pywikibot
@@ -95,10 +93,10 @@ class DigitalRepresentationBot:
                     u'snaktype' : u'value',
                     u'value' : json.dumps(postvalue),
                     u'token' : token,
-                    u'summary' : summary
+                    u'summary' : summary,
+                    u'bot' : True,
                     }
         apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-
 
     def mediaInfoExists(self, mediaid):
         """
@@ -106,8 +104,6 @@ class DigitalRepresentationBot:
         :param mediaid: The entity ID (like M1234, pageid prefixed with M)
         :return: True if it exists, otherwise False
         """
-        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M52611909
-        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M10038
         request = self.site._simple_request(action='wbgetentities',ids=mediaid)
         data = request.submit()
         if data.get(u'entities').get(mediaid).get(u'pageid'):
