@@ -6,15 +6,13 @@ Bot to import POTD translations into the structured data captions.
 This is just a proof of concept to show that this is possible. When we're actually going to import,
 I should probably optimize it.
 
-TODO: Fix authentication, currently editing as IP(v6)
-
 """
 
 import pywikibot
 import re
 import pywikibot.data.sparql
 import datetime
-import requests
+from pywikibot.comms import http
 import json
 from pywikibot import pagegenerators
 
@@ -38,7 +36,6 @@ class PotdCaptionBot:
         Run on the POTD temlates
         """
         for potd in self.generator:
-            #print potd.title()
             self.handlePotd(potd)
 
     def handlePotd(self, potd):
@@ -49,23 +46,21 @@ class PotdCaptionBot:
         regex = u'\{\{Potd filename\|([^\|]+)\|(\d\d\d\d)\|(\d{1,2})|(\d{1,2})\}\}'
         match = re.search(regex, potd.text)
         captions = {}
+        filename = None
         if match:
             filename = match.group(1)
             for potdlang in pagegenerators.PrefixingPageGenerator(potd.title()+u'_(', site=self.site, includeredirects=False):
-                print potdlang.title()
                 potdinfo  = self.handlePotdLang(potdlang)
                 if potdinfo:
                     (lang, caption) = potdinfo
                     captions[lang] = caption
 
         # Reshufle so I don't end up getting the captions all the time
-        if captions:
-            print captions
+        if captions and filename:
             filepage = pywikibot.FilePage(self.site, title=filename)
             if filepage.exists():
                 # Might run into redirects
                 mediaid = u'M%s' % (filepage.pageid,)
-                print mediaid
                 if not self.mediaInfoExists(mediaid):
                     self.addCaptions(mediaid, captions)
 
@@ -79,7 +74,6 @@ class PotdCaptionBot:
         regex = u'\{\{Potd (page|description)\|1\=(.+)\|2\=([^\|]{2,5})\|3\=(\d\d\d\d)\|4\=(\d\d)\|5\=(\d\d)\}\}'
         match = re.search(regex, potdlang.text)
         if match:
-            print match.group(2)
             caption = self.sanitizeCaption(match.group(2))
             lang = match.group(3)
             return (lang, caption)
@@ -111,42 +105,26 @@ class PotdCaptionBot:
         :param captions: Dict of language and the caption in that language
         :return:
         """
-        print u'ADDING CAPTIONS'
         labels = {}
         for lang in captions:
             labels[lang] = {u'language' : lang, 'value' : captions.get(lang)}
 
-        # I hate tokens
-        #tokenrequest = self.site._simple_request(action='query', meta='tokens', type='csrf')
-        tokenrequest = requests.get(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-        #tokendata = tokenrequest.submit()
-        tokendata = tokenrequest.json()
+        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+        tokendata = json.loads(tokenrequest.text)
         token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+
+        summary = u'adding captions for %s languages based on POTD template' % (len(captions),)
+        pywikibot.output(mediaid + u' ' + summary)
 
         postdata = {u'action' : u'wbeditentity',
                     u'format' : u'json',
                     u'id' : mediaid,
                     u'data' : json.dumps({ u'labels' : labels}),
-                    u'token' : token }
-
-        userinfo = tokendata.get(u'query').get(u'tokens').get(u'userinfo')
-        #print tokendata
-
-        print postdata
-
-        #apipage = requests.post(u'https://commons.wikimedia.org/w/api.php?action=wbeditentity&format=json&data=, data=postdata)
-        apipage = requests.post(u'https://commons.wikimedia.org/w/api.php', data=postdata)
-        print apipage.text
-
-        print labels
-        #tokens = self.site.get_tokens('csrf')
-        #print tokens
-        #token = self.site.tokens['csrf']
-        #request = self.site._simple_request(action='wbeditentity',data=json.dumps(labels), token=token)
-        #data = request.submit()
-
-
-        # First look if it already exists, if that's the case, just skip it.
+                    u'token' : token,
+                    u'summary' : summary,
+                    u'bot' : True,
+                    }
+        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
 
     def mediaInfoExists(self, mediaid):
         """
