@@ -68,30 +68,39 @@ class DepictsMonumentsBot:
         :param filepage: The page of the file to work on.
         :return: Nothing, edit in place
         """
+        pywikibot.output(u'Working on %s' % (filepage.title(),))
         if not filepage.exists():
             return
 
-        regex = u'\{\{[rR]ijksmonument\|(\d+)\}\}'
+        regex = u'\{\{[rR]ijksmonument\|(1=)?\s*(?P<id>\d+)\}\}'
         matches = list(re.finditer(regex, filepage.text))
-        monumentid = None
-        qid = None
 
-        # Only work if you find exactly one template
-        if matches and len(matches)==1:
-            monumentid = matches[0].group(1)
-            if monumentid in self.monuments:
-                qid = self.monuments.get(monumentid)
-
-        if not monumentid or not qid:
+        if not matches:
+            pywikibot.output(u'No matches found on %s, skipping' % (filepage.title(),))
             return
+
+        toadd = []
+
+        # First collect the matches to add
+        for match in matches:
+            monumentid = match.group(u'id')
+            if monumentid not in self.monuments:
+                pywikibot.output(u'Found unknown monument id %s on %s, skipping' % (monumentid, filepage.title(),))
+                return
+            qid = self.monuments.get(monumentid)
+            toadd.append((monumentid, qid))
 
         mediaid = u'M%s' % (filepage.pageid,)
         if self.mediaInfoExists(mediaid):
             return
-
-        summary = u'based on [[Template:Rijksmonument]] with id %s, which is the same id as [[:d:Property:P359| Rijksmonument ID (P359)]] on [[:d:%s]]' % (monumentid, qid,)
-
-        self.addClaim(mediaid, u'P180', qid, summary)
+        i = 1
+        for (monumentid, qid) in toadd:
+            if len(toadd)==1:
+                summary = u'based on [[Template:Rijksmonument]] with id %s, which is the same id as [[:d:Property:P359|Rijksmonument ID (P359)]] on [[:d:%s]]' % (monumentid, qid,)
+            else:
+                summary = u'based on [[Template:Rijksmonument]] with id %s, which is the same id as [[:d:Property:P359|Rijksmonument ID (P359)]] on [[:d:%s]] (%s/%s)' % (monumentid, qid, i, len(toadd))
+            self.addClaim(mediaid, u'P180', qid, summary)
+            i +=1
 
     def addClaim(self, mediaid, pid, qid, summary=''):
         """
