@@ -677,7 +677,7 @@ def main(*args):
                                                ],
                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stedelijk',
                             },
-                u'Q160236' : { u'collectienaam' : u'Metropolitan Museum of Art, The',
+                u'Q160236' : { u'collectienaam' : u'Metropolitan Museum of Art, The', #u'Metropolitan Museum of Art (The Cloisters), The', #
                             u'replacements' : [],
                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/MET',
                             },
@@ -833,7 +833,9 @@ def main(*args):
                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museo Thyssen-Bornemisza',
                                 },
                 u'Q2066737' : { u'collectienaam' : u'Instituut Collectie Nederland',
-                               u'replacements' : [(u'^(.+)\s(.+)$', u'\\1\\2'),], # Remove the extra space
+                               u'replacements' : [(u'^(.+)\s(.+)$', u'\\1\\2'), # Remove the extra space
+                                                  (u'^(C\d+)\;(\d+)$', u'\\1'), # C numbers sometimes have junk in it
+                                                  ],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Instituut Collectie Nederland',
                                },
                 u'Q28045660' : { u'collectienaam' : u'Dienst voor \'s Rijks Verspreide Kunstvoorwerpen',
@@ -861,7 +863,9 @@ def main(*args):
                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Dulwich Picture Gallery',
                                 },
                 u'Q18600731' : { u'collectienaam' : u'Instituut Collectie Nederland', #u'Rijksdienst voor het Cultureel Erfgoed', u'Dienst voor \'s Rijks Verspreide Kunstvoorwerpen',
-                                u'replacements' : [(u'^(.+)\s(.+)$', u'\\1\\2'),], # Remove the extra space
+                                u'replacements' : [(u'^(.+)\s(.+)$', u'\\1\\2'), # Remove the extra space
+                                                   (u'^(C\d+)\;(\d+)$', u'\\1'), # C numbers sometimes have junk in it
+                                                   ],
                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rijksdienst voor het Cultureel Erfgoed',
                                 },
                 u'Q2324618' : { u'collectienaam' : u'Staatliches Museum Schwerin',
@@ -1020,9 +1024,9 @@ def main(*args):
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Herzog Anton Ulrich Museum',
                                },
-                u'Q17253974' : { u'collectienaam' : u'Bisschoppelijk Museum (Haarlem)',
+                u'Q61942636' : { u'collectienaam' : u'Bisschoppelijk Museum (Haarlem)',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bisschoppelijk Museum',
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bisschoppelijk Museum Haarlem',
                                },
                 u'Q1258370' : { u'collectienaam' : u'Drents Museum',
                                  u'replacements' : [],
@@ -1198,10 +1202,14 @@ def main(*args):
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans Hals',
                                },
-                u'Q380704' : { u'artistname' : u'Helst, Bartholomeus van der',
+                u'Q538350' : { u'artistname' : u'Heemskerck, Maarten van',
                              u'replacements' : [],
-                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bartholomeus van der Helst',
+                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Maarten van Heemskerck',
                              },
+                u'Q380704' : { u'artistname' : u'Helst, Bartholomeus van der',
+                               u'replacements' : [],
+                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bartholomeus van der Helst',
+                               },
                 u'Q370567' : { u'artistname' : u'Heyden, Jan van der',
                                u'replacements' : [],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan van der Heyden',
