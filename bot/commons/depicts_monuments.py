@@ -63,7 +63,7 @@ class DepictsMonumentsBot:
 
     def handleMonument(self, filepage):
         """
-        Handle a single monument. Try to extract the template, look up the id and add the Q if no mediawinfo is present.
+        Handle a single monument. Try to extract the template, look up the id and add the Q if no mediainfo is present.
 
         :param filepage: The page of the file to work on.
         :return: Nothing, edit in place
@@ -72,7 +72,7 @@ class DepictsMonumentsBot:
         if not filepage.exists():
             return
 
-        regex = u'\{\{[rR]ijksmonument\|(1=)?\s*(?P<id>\d+)\}\}'
+        regex = u'\{\{[rR]ijksmonument\|(1=)?\s*(?P<id>\d+)\s*\}\}'
         matches = list(re.finditer(regex, filepage.text))
 
         if not matches:
