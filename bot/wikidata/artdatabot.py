@@ -72,15 +72,7 @@ class ArtDataBot:
         """
             
         for metadata in self.generator:
-            # Do some url magic so that all url fields are always filled
-            if not metadata.get('refurl'):
-                metadata['refurl']=metadata['url']
-            if not metadata.get('idrefurl'):
-                metadata['idrefurl']=metadata['refurl']
-            if not metadata.get('describedbyurl') and metadata.get(u'url'):
-                metadata['describedbyurl']=metadata['url']
-            if not metadata.get('imagesourceurl') and metadata.get(u'url'):
-                metadata['imagesourceurl']=metadata['url']
+            metadata = self.enrichMetadata(metadata)
 
             artworkItem = None
             if metadata[u'id'] in self.artworkIds:
@@ -95,6 +87,31 @@ class ArtDataBot:
                 metadata['wikidata'] = artworkItem.title()
                 self.updateArtworkItem(artworkItem, metadata)
 
+    def enrichMetadata(self, metadata):
+        """
+        Take the metadata and enrich it with some missing fields
+        :param metadata: The current metadata dict
+        :return: The enriched metadata dict
+        """
+
+        # Do some url magic so that all url fields are always filled
+        if not metadata.get('refurl'):
+            metadata['refurl']=metadata['url']
+        if not metadata.get('idrefurl'):
+            metadata['idrefurl']=metadata['refurl']
+        if not metadata.get('describedbyurl') and metadata.get(u'url'):
+            metadata['describedbyurl']=metadata['url']
+        if not metadata.get('imagesourceurl') and metadata.get(u'url'):
+            metadata['imagesourceurl']=metadata['url']
+
+        # Use title to fill labels. If just labels is passed, no title property will be set.
+        if not metadata.get('labels') and metadata.get('title'):
+            metadata[u'labels'] = {}
+            for lang, label in metadata.get('title').items():
+                metadata[u'labels'][lang] = label
+
+        return metadata
+
     def createArtworkItem(self, metadata):
         """
         Create a new artwork item based on the metadata
@@ -107,8 +124,8 @@ class ArtDataBot:
                 }
 
         # loop over stuff
-        if metadata.get('title'):
-            for lang, label in metadata['title'].items():
+        if metadata.get('labels'):
+            for lang, label in metadata.get('labels').items():
                 data['labels'][lang] = {'language': lang, 'value': label}
 
         if metadata.get('description'):
@@ -294,16 +311,16 @@ class ArtDataBot:
 
     def addLabels(self, item, metadata):
         """
-        Add the (missing) labels to the item based on the title.
+        Add the (missing) labels to the item based.
 
         :param item: The artwork item to work on
-        :param metadata: All the metadata about this artwork, should contain the title field
+        :param metadata: All the metadata about this artwork, should contain the labels field
         :return: Nothing, updates item in place
         """
         labels = item.get().get('labels')
-        if metadata.get('title'):
+        if metadata.get('labels'):
             labelschanged = False
-            for lang, label in metadata['title'].items():
+            for lang, label in metadata['labels'].items():
                 if lang not in labels:
                     labels[lang] = label
                     labelschanged = True
@@ -318,7 +335,7 @@ class ArtDataBot:
 
     def addDescriptions(self, item, metadata):
         """
-        Add the (missing) descriptions to the item based on the title.
+        Add the (missing) descriptions to the item
 
         :param item: The artwork item to work on
         :param metadata: All the metadata about this artwork, should contain the description field
