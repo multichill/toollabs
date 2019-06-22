@@ -70,8 +70,8 @@ def geArthubFlGenerator(collectioninfo):
             if len(title) > 220:
                 title = title[0:200]
             # Leave out the title for now until we figure out the multilingual part
-            #metadata['title'] = { u'nl' : title,
-            #                      }
+            metadata['labels'] = { u'nl' : title,
+                                  }
 
             # Inventory number
             metadata['idpid'] = u'P217'
@@ -151,7 +151,7 @@ def geArthubFlGenerator(collectioninfo):
 
             # Add the genre
             if item.get(u'artwork_category'):
-                if len (item.get(u'artwork_category'))==1:
+                if len (item.get(u'artwork_category'))==1 or (len (item.get(u'artwork_category'))==2 and item.get(u'artwork_category')[0].lower()==item.get(u'artwork_category')[1].lower()):
                     artwork_category = item.get(u'artwork_category')[0].lower()
                     if artwork_category in artwork_categories:
                         metadata[u'genreqid'] = artwork_categories.get(artwork_category)
@@ -194,6 +194,24 @@ def main(*args):
                                    u'instanceofqid' : u'Q3305213',
                                    u'artworkidpid' : u'P2511', # MSK Gent work PID
                                    u'workprefix' : u'http://mskgent.be/collection/work/id/',
+                                   },
+                    u'Q1471477': { u'repository' : u'Koninklijk Museum voor Schone Kunsten Antwerpen',
+                                   u'collectionqid' : u'Q1471477',
+                                   u'collectionshort' : u'KMSKA',
+                                   u'locationqid' : u'Q1471477',
+                                   u'artwork_type' : u'schilderij',
+                                   u'instanceofqid' : u'Q3305213',
+                                   u'artworkidpid' : u'P4905', # KMSKA work PID
+                                   u'workprefix' : u'http://kmska.be/collection/work/id/',
+                                   },
+                    u'Q1948674': { u'repository' : u'Musea Brugge - Groeningemuseum',
+                                   u'collectionqid' : u'Q1948674',
+                                   u'collectionshort' : u'Groeninge',
+                                   u'locationqid' : u'Q1948674',
+                                   u'artwork_type' : u'schilderingen',
+                                   u'instanceofqid' : u'Q3305213',
+                                   u'artworkidpid' : u'P2282', # Groeningemuseum work PID
+                                   u'workprefix' : u'http://groeningemuseum.be/collection/work/id/',
                                    },
                     }
     collectionid = None
