@@ -6,8 +6,9 @@ Bot to upload public domain paintings.
 Bot uses files that have https://www.wikidata.org/wiki/Property:P4765
 
 The bot will decide if it's publid domain because:
-* Painter is known and died before 1923
-* Painter is anonymous, but painting is dated before 1850
+* Painter is known and died more than 95 years ago
+* Painter is anonymous or low on metadata, but painting is dated before 1850
+* Painting is by a known painter who died between 70-95 years ago and the painting was produced more than 95 years ago
 That should be a safe enough margin.
 
 """
@@ -36,15 +37,16 @@ class WikidataUploaderBot:
             * generator    - A generator that yields Dict objects.
 
         """
-        self.generatorPre192Creators = self.getGeneratorPre1923Creators()
+        self.generatorDied95Creators = self.getGeneratorDied95Creators()
         self.generatorPre1850Works = self.getGeneratorPre1850Works()
+        self.generatorDied70Produced95Works = self.getGeneratorDied70Produced95Works()
         self.repo = pywikibot.Site().data_repository()
         self.site = pywikibot.Site(u'commons', u'commons')
         self.duplicates = []
 
-    def getGeneratorPre1923Creators(self):
+    def getGeneratorDied95Creators(self):
         """
-        Get the generator of items with known painter died before 1923 to consider
+        Get the generator of items with known painter died more than 95 years ago
         """
         query = u"""
 SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
@@ -63,7 +65,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?collection wdt:P373 ?collectioncategory .
   ?item wdt:P170 ?creator .
   ?creator wdt:P570 ?dod . BIND(YEAR(?dod) AS ?deathyear)
-  FILTER(?deathyear < 1923) .
+  FILTER(?deathyear < (YEAR(NOW())-95)) .
   ?creator schema:dateModified ?creatordate .
   OPTIONAL { ?creator wdt:P1472 ?creatortemplate } .
   OPTIONAL { ?creator wdt:P373 ?creatorcategory } .
@@ -82,7 +84,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
 
     def getGeneratorPre1850Works(self):
         """
-        Get the generator of items with anonymous painter made before 1850 to consider
+        Get the generator of items which were made before 1850 to consider
         """
         query = u"""
 SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?collectionLabel ?collectioncategory WHERE {
@@ -115,14 +117,59 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             resultitem['creator'] = u'Q4233718' # Item for anonymous
             yield resultitem
 
+    def getGeneratorDied70Produced95Works(self):
+        """
+        Get the generator of items with known painter who died between 70 and 95 years ago and painting was made
+        more than 95 years ago.
+        """
+        query = u"""
+SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
+  ?item p:P4765 ?image .
+  ?item schema:dateModified ?itemdate .
+  ?item wdt:P31 wd:Q3305213 .
+  ?item wdt:P217 ?inv .
+  ?image ps:P4765 ?downloadurl .
+  ?image pq:P2701 ?format .
+  ?image pq:P2699 ?sourceurl .
+  ?image pq:P1476 ?title .
+  ?image pq:P2093 ?creatorname .
+  OPTIONAL { ?image pq:P275 ?license } .
+  ?item wdt:P195 ?collection .
+  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
+  ?collection wdt:P373 ?collectioncategory .
+  ?item wdt:P170 ?creator .
+  ?creator wdt:P570 ?dod . BIND(YEAR(?dod) AS ?deathyear)
+  FILTER(?deathyear > (YEAR(NOW())-95) && ?deathyear < (YEAR(NOW())-70)) .
+  ?creator wdt:P569 ?dob .
+  ?item wdt:P571 ?inception .
+  FILTER(YEAR(?inception) < (YEAR(NOW())-95) && ?dob < ?inception ) .
+  ?creator schema:dateModified ?creatordate .
+  OPTIONAL { ?creator wdt:P1472 ?creatortemplate } .
+  OPTIONAL { ?creator wdt:P373 ?creatorcategory } .
+  } ORDER BY DESC(?itemdate)
+  LIMIT 15000"""
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            resultitem['item'] = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            resultitem['format'] = resultitem.get('format').replace(u'http://www.wikidata.org/entity/', u'')
+            if resultitem.get('license'):
+                resultitem['license'] = resultitem.get('license').replace(u'http://www.wikidata.org/entity/', u'')
+            resultitem['creator'] = resultitem.get('creator').replace(u'http://www.wikidata.org/entity/', u'')
+            yield resultitem
+
     def run(self):
         """
         Starts the robot.
         """
-        for metadata in self.generatorPre192Creators:
+        for metadata in self.generatorDied95Creators:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
         for metadata in self.generatorPre1850Works:
+            if self.isReadyToUpload(metadata):
+                self.uploadPainting(metadata)
+        for metadata in self.generatorDied70Produced95Works:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
         self.reportDuplicates()
@@ -276,9 +323,9 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             result = u'{{PD-Art'
 
         if metadata.get(u'deathyear'):
-            result += u'|PD-old-auto-1923'
+            result += u'|PD-old-auto-expired'
         else:
-            result += u'|PD-old-100-1923'
+            result += u'|PD-old-100-expired'
 
         if metadata.get(u'license'):
             if metadata.get(u'license') not in licenses:
