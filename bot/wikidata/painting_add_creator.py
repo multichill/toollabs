@@ -129,6 +129,15 @@ class PaintingBot:
                          u'Netherlandish School' : anonymous,
                          u'Unknown Anglo-Netherlandish artist' : anonymous,
                          u'Unknown English artist' : anonymous,
+                         u'onbekend' : anonymous,
+                         u'an unknown artist' : anonymous,
+                         u'anonymous painter' : anonymous,
+                         u'Unknown Italian artist' : anonymous,
+                         u'Anonymous Artist' : anonymous,
+                         u'Unknown German artist' : anonymous,
+                         u'Islamic' : anonymous,
+                         u'Unknown artist of the venetian school' : anonymous,
+                         u'French painter' : anonymous,
                          #u'' : anonymous,
                         }
         self.replaceableCreators = { u'Q19595156' : True, # Not the right Gerhard Richter
@@ -145,7 +154,7 @@ class PaintingBot:
             pywikibot.output(u'Working on %s' % (item.title(),))
             canreplace = False
             
-            if item.exists():
+            if item.exists() and not item.isRedirectPage():
                 data = item.get()
                 # We need an English description
                 if not (data.get('descriptions') and data.get('descriptions').get(u'en')):
@@ -164,7 +173,7 @@ class PaintingBot:
                     continue
 
                 # Let's see if we can find a victim
-                creator = match.group(1)
+                creator = match.group(1).strip()
                 # The search generator in getCreator() sometimes times out
                 try:
                     creatorItem = self.getCreator(creator)
