@@ -27,10 +27,10 @@ class NonFreePaintingBot(WikidataBot):
     def getGenerator(self):
         """
         Get a generator of obviously non-free images based on:
-        * Inception after 1949
-        * Creator died after 1923
-        * Creator dided after 1949
-        This already returns a ton of images. Could be set a bit more strict
+        * Inception more recent than 95 years ago (to cover US part)
+        * Creator born more recent than 95 years ago
+        * Creator died more recent than 70 years ago
+        This should cover most of the unfree stuff and some false positives if run on US works.
         :return: A generator that yields ItemPages
         """
         query = u"""
@@ -38,9 +38,9 @@ SELECT DISTINCT ?item WHERE {
   ?item wdt:P195 wd:Q18600731 . # RCE for now, that's over 3800 suggestions. Be careful with other collections!
   ?item p:P4765 ?commonscompatible .
   ?item wdt:P31 wd:Q3305213 .
-  { ?item wdt:P571 ?inception . FILTER(YEAR(?inception) > 1949 ) } UNION
-  { ?item wdt:P170 ?creator . ?creator wdt:P569 ?dob . FILTER(YEAR(?dob) > 1923 ) } UNION
-  { ?item wdt:P170 ?creator . ?creator wdt:P570 ?dod . FILTER(YEAR(?dod) > 1949 ) } .
+  { ?item wdt:P571 ?inception . FILTER(YEAR(?inception) > (YEAR(NOW())-95) ) } UNION
+  { ?item wdt:P170 ?creator . ?creator wdt:P569 ?dob . FILTER(YEAR(?dob) > (YEAR(NOW())-95) ) } UNION
+  { ?item wdt:P170 ?creator . ?creator wdt:P570 ?dod . FILTER(YEAR(?dod) > (YEAR(NOW())-70) ) } .
   }"""
 
         generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
