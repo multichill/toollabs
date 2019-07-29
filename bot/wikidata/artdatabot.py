@@ -249,7 +249,7 @@ class ArtDataBot:
         :param metadata: Metadata containing url fields
         :return: Nothing
         """
-        urfields = [u'url', u'refurl', u'describedbyurl']
+        urfields = [u'url', u'idrefurl', u'refurl', u'describedbyurl', u'imagesourceurl']
         doneurls = []
         for urlfield in urfields:
             url = metadata.get(urlfield)
