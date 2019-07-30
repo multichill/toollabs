@@ -122,6 +122,8 @@ def getHermitageGenerator():
                 acqdatamatch = re.match(acqdateregex, fields.get('meta_woa_prvnc'))
                 if acqdatamatch:
                     metadata['acquisitiondate'] = acqdatamatch.group(1)
+                if u'handed over from the P.P. Semenov-Tyan-Shansky collection' in fields.get('meta_woa_prvnc'):
+                    metadata['extracollectionqid'] = u'Q66000362'
 
             if fields.get('meta_woa_material')==u'canvas' and fields.get('meta_woa_technique')==u'oil':
                 metadata['medium'] = u'oil on canvas'
