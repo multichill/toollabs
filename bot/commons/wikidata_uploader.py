@@ -210,7 +210,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         if response.status_code == 200:
             hashObject = hashlib.sha1()
             hashObject.update(response.content)
-            duplicates = list(self.site.allimages(sha1=base64.b16encode(hashObject.digest())))
+            sha1base64 = base64.b16encode(hashObject.digest())
+            duplicates = list(self.site.allimages(sha1=sha1base64))
             if duplicates:
                 pywikibot.output(u'Found a duplicate, trying to add it')
                 imagefile = duplicates[0]
@@ -224,6 +225,18 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                               }
                 self.duplicates.append(duplicate)
                 return
+
+            # This part is commented out because only sysop users can do this :-(
+            ## self.site.filearchive does not exist, have to dig deeper
+            ## deleted = list(self.site.filearchive(sha1=sha1base64))
+            #deleted_url = u'https://commons.wikimedia.org/w/api.php?action=query&list=filearchive&faprop=sha1&fasha1=%s&format=json'
+            #fa_response = http.fetch(deleted_url % (sha1base64,))
+            #fa_data = json.loads(fa_response.text)
+            #print (fa_data)
+            #if fa_data.get(u'query').get(u'filearchive'):
+            #    fa_title = fa_data.get(u'query').get(u'filearchive')[0].get(u'title')
+            #    pywikibot.output(u'Found a deleted file %s with the same hash %s, skipping it' % (fa_title, sha1base64))
+            #    return
 
             with tempfile.NamedTemporaryFile() as t:
                 t.write(response.content)
