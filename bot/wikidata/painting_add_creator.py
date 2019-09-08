@@ -230,8 +230,9 @@ class PaintingBot:
         if creator in self.creators:
             return self.creators[creator]
 
-        # Search Wikidata for a suitable candidate
-        creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(creator, step=None, total=50, namespaces=[0], site=self.repo)))
+        # Search Wikidata for a suitable candidate, tell the search to only return humans
+        searchstring = u'%s haswbstatement:P31=Q5' % (creator,)
+        creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
 
         for creatoritem in creategen:
             if creatoritem.isRedirectPage():
