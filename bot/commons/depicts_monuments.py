@@ -19,7 +19,7 @@ class DepictsMonumentsBot:
     """
     Bot to add depicts statements on Commons
     """
-    def __init__(self):
+    def __init__(self, config):
         """
         Grab generator based on search to work on.
 
@@ -27,25 +27,40 @@ class DepictsMonumentsBot:
         self.site = pywikibot.Site(u'commons', u'commons')
         self.repo = self.site.data_repository()
 
+        # From the config at https://commons.wikimedia.org/wiki/User:ErfgoedBot/Depicts_monuments.js
+        self.description = config.get('description')
+        self.property = config.get('property')
+        self.propertyname = config.get('propertyname')
+        self.template = config.get('template')
+        self.trackercategory = config.get('trackercategory')
+        self.search = config.get('search')
+        self.designation = config.get('designation')
+        self.templateregex = config.get('templateregex')
+
         # This was everything in the category. Search is only the ones we still need to work on
         # monumentcat = pywikibot.Category(self.site, title=u'Category:Rijksmonumenten_with_known_IDs')
         # self.generator = pagegenerators.PreloadingGenerator(pagegenerators.CategorizedPageGenerator(monumentcat, namespaces=6))
 
-        query = u'incategory:Rijksmonumenten_with_known_IDs -haswbstatement:P180'
-        self.generator = pagegenerators.PreloadingGenerator(pagegenerators.SearchPageGenerator(query, namespaces=6, site=self.site))
+        #query = u'incategory:Rijksmonumenten_with_known_IDs -haswbstatement:P180'
+        self.generator = pagegenerators.PreloadingGenerator(pagegenerators.SearchPageGenerator(self.search, namespaces=6, site=self.site))
 
-        self.monuments = self.getMonumentsOnWikidata()
+        self.monuments = self.getMonumentsOnWikidata(self.property, self.designation)
 
-    def getMonumentsOnWikidata(self):
+    def getMonumentsOnWikidata(self, property, designation=None):
         """
         Get the monuments currently on Wikidata. Keep the id as a string.
         :return:
         """
         result = {}
-        query = u'''SELECT ?item ?id WHERE {
-  ?item wdt:P1435 wd:Q916333 .
-  ?item wdt:P359 ?id .
-  } ORDER BY xsd:integer(?id)'''
+        if designation:
+            query = u'''SELECT ?item ?id WHERE {
+  ?item wdt:P1435 wd:%s .
+  ?item wdt:%s ?id .
+  } ORDER BY ?id''' % (property, designation)
+        else:
+            query = u'''SELECT ?item ?id WHERE {
+  ?item wdt:%s ?id .
+  } ORDER BY ?id''' % (property, )
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
@@ -72,8 +87,8 @@ class DepictsMonumentsBot:
         if not filepage.exists():
             return
 
-        regex = u'\{\{[rR]ijksmonument\|(1=)?\s*(?P<id>\d+)\s*\}\}'
-        matches = list(re.finditer(regex, filepage.text))
+        #regex = u'\{\{[rR]ijksmonument\|(1=)?\s*(?P<id>\d+)\s*\}\}'
+        matches = list(re.finditer(self.templateregex, filepage.text))
 
         if not matches:
             pywikibot.output(u'No matches found on %s, skipping' % (filepage.title(),))
@@ -96,9 +111,21 @@ class DepictsMonumentsBot:
         i = 1
         for (monumentid, qid) in toadd:
             if len(toadd)==1:
-                summary = u'based on [[Template:Rijksmonument]] with id %s, which is the same id as [[:d:Property:P359|Rijksmonument ID (P359)]] on [[:d:%s]]' % (monumentid, qid,)
+                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[:d:%s]]' % (self.template,
+                                                                                                                                     monumentid,
+                                                                                                                                     self.property,
+                                                                                                                                     self.propertyname,
+                                                                                                                                     self.property,
+                                                                                                                                     qid, )
             else:
-                summary = u'based on [[Template:Rijksmonument]] with id %s, which is the same id as [[:d:Property:P359|Rijksmonument ID (P359)]] on [[:d:%s]] (%s/%s)' % (monumentid, qid, i, len(toadd))
+                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[:d:%s]] (%s/%s)' % (self.template,
+                                                                                                                                             monumentid,
+                                                                                                                                             self.property,
+                                                                                                                                             self.propertyname,
+                                                                                                                                             self.property,
+                                                                                                                                             qid,
+                                                                                                                                             i,
+                                                                                                                                             len(toadd))
             self.addClaim(mediaid, u'P180', qid, summary)
             i +=1
 
@@ -146,10 +173,49 @@ class DepictsMonumentsBot:
             return True
         return False
 
+def getDepictsMonumentsConfig():
+    """
+    Load the configuration from https://commons.wikimedia.org/wiki/User:ErfgoedBot/Depicts_monuments.js
+    :return: Dict with the configuration
+    """
+    site = pywikibot.Site(u'commons', u'commons')
+    pageTitle = u'User:ErfgoedBot/Depicts monuments.js'
+    page = pywikibot.Page(site, title=pageTitle)
 
-def main():
-    depictsMonumentsBot = DepictsMonumentsBot()
-    depictsMonumentsBot.run()
+    jsonregex = u'^\/\*.+\n( \*.*\n)+(?P<json>(.+\n?)+)$'
+    match = re.match (jsonregex, page.text)
+    print (match.group('json'))
+    result = json.loads(match.group('json'))
+    print (result)
+    return result
+
+
+def main(*args):
+    monumentproperty = None
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-monumentproperty:'):
+            if len(arg) == 18:
+                monumentproperty = pywikibot.input(
+                        u'Please enter the property you want to work on:')
+            else:
+                monumentproperty = arg[18:]
+    config = getDepictsMonumentsConfig()
+    if monumentproperty:
+        if monumentproperty not in config.keys():
+            pywikibot.output(u'%s is not a valid property to work on!' % (monumentproperty,))
+            pywikibot.output(u'See https://commons.wikimedia.org/wiki/User:ErfgoedBot/Depicts_monuments.js')
+            return
+        depictsMonumentsBot = DepictsMonumentsBot(config.get(monumentproperty))
+        depictsMonumentsBot.run()
+    else:
+        for monumentproperty in config.keys():
+            depictsMonumentsBot = DepictsMonumentsBot(config.get(monumentproperty))
+            depictsMonumentsBot.run()
+
+    #print (config.get('P359').get('templateregex'))
+    #print ( u'\{\{[rR]ijksmonument\|(1=)?\s*(?P<id>\d+)\s*\}\}')
+    #depictsMonumentsBot = DepictsMonumentsBot()
+    #depictsMonumentsBot.run()
 
 if __name__ == "__main__":
     main()
