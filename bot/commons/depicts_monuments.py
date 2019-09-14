@@ -39,11 +39,8 @@ class DepictsMonumentsBot:
 
         # This was everything in the category. Search is only the ones we still need to work on
         # monumentcat = pywikibot.Category(self.site, title=u'Category:Rijksmonumenten_with_known_IDs')
-        # self.generator = pagegenerators.PreloadingGenerator(pagegenerators.CategorizedPageGenerator(monumentcat, namespaces=6))
 
-        #query = u'incategory:Rijksmonumenten_with_known_IDs -haswbstatement:P180'
         self.generator = pagegenerators.PreloadingGenerator(pagegenerators.SearchPageGenerator(self.search, namespaces=6, site=self.site))
-
         self.monuments = self.getMonumentsOnWikidata(self.property, self.designation)
 
     def getMonumentsOnWikidata(self, property, designation=None):
@@ -56,7 +53,7 @@ class DepictsMonumentsBot:
             query = u'''SELECT ?item ?id WHERE {
   ?item wdt:P1435 wd:%s .
   ?item wdt:%s ?id .
-  } ORDER BY ?id''' % (property, designation)
+  } ORDER BY ?id''' % (designation, property, )
         else:
             query = u'''SELECT ?item ?id WHERE {
   ?item wdt:%s ?id .
@@ -87,7 +84,6 @@ class DepictsMonumentsBot:
         if not filepage.exists():
             return
 
-        #regex = u'\{\{[rR]ijksmonument\|(1=)?\s*(?P<id>\d+)\s*\}\}'
         matches = list(re.finditer(self.templateregex, filepage.text))
 
         if not matches:
@@ -103,7 +99,9 @@ class DepictsMonumentsBot:
                 pywikibot.output(u'Found unknown monument id %s on %s, skipping' % (monumentid, filepage.title(),))
                 return
             qid = self.monuments.get(monumentid)
-            toadd.append((monumentid, qid))
+            # Some cases the template is in the file text multiple times
+            if (monumentid, qid) not in toadd:
+                toadd.append((monumentid, qid))
 
         mediaid = u'M%s' % (filepage.pageid,)
         if self.mediaInfoExists(mediaid):
@@ -184,9 +182,7 @@ def getDepictsMonumentsConfig():
 
     jsonregex = u'^\/\*.+\n( \*.*\n)+(?P<json>(.+\n?)+)$'
     match = re.match (jsonregex, page.text)
-    print (match.group('json'))
     result = json.loads(match.group('json'))
-    print (result)
     return result
 
 
@@ -211,11 +207,6 @@ def main(*args):
         for monumentproperty in config.keys():
             depictsMonumentsBot = DepictsMonumentsBot(config.get(monumentproperty))
             depictsMonumentsBot.run()
-
-    #print (config.get('P359').get('templateregex'))
-    #print ( u'\{\{[rR]ijksmonument\|(1=)?\s*(?P<id>\d+)\s*\}\}')
-    #depictsMonumentsBot = DepictsMonumentsBot()
-    #depictsMonumentsBot.run()
 
 if __name__ == "__main__":
     main()
