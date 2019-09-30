@@ -104,7 +104,7 @@ class DepictsMonumentsBot:
                 toadd.append((monumentid, qid))
 
         mediaid = u'M%s' % (filepage.pageid,)
-        if self.mediaInfoExists(mediaid):
+        if self.mediaInfoHasStatement(mediaid, u'P180'):
             return
         i = 1
         for (monumentid, qid) in toadd:
@@ -168,6 +168,26 @@ class DepictsMonumentsBot:
         request = self.site._simple_request(action='wbgetentities',ids=mediaid)
         data = request.submit()
         if data.get(u'entities').get(mediaid).get(u'pageid'):
+            return True
+        return False
+
+    def mediaInfoHasStatement(self, mediaid, property):
+        """
+        Check if the media info exists or not
+        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
+        :param property: The property ID to check for (like P180)
+        :return: True if it exists, otherwise False
+        """
+        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M72643194
+        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
+        data = request.submit()
+        # No structured data at all is no pageid
+        if not data.get(u'entities').get(mediaid).get(u'pageid'):
+            return False
+        # Has structured data, but the list of statements is empty
+        if not data.get(u'entities').get(mediaid).get(u'statements'):
+            return False
+        if property in data.get(u'entities').get(mediaid).get(u'statements'):
             return True
         return False
 
