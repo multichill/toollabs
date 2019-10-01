@@ -47,7 +47,12 @@ class OwnWorkBot:
         """
         # FIXME: Do query later
         result = { u'cc-zero' : u'Q6938433',
-                   u'cc-by-sa-3.0-nl' : u'Q18195572'
+                   u'cc-by-2.0' : u'Q19125117',
+                   u'cc-by-sa-2.0' : u'Q19068220',
+                   u'cc-by-3.0' : u'Q14947546',
+                   u'cc-by-sa-3.0' : u'Q14946043',
+                   u'cc-by-sa-3.0-nl' : u'Q18195572',
+                   u'cc-by-sa-4.0' : u'Q18199165',
                    }
         return result
 
