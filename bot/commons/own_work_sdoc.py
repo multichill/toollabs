@@ -18,7 +18,7 @@ Should be switched to a more general Pywikibot implementation.
 import pywikibot
 import re
 import pywikibot.data.sparql
-import datetime
+import time
 from pywikibot.comms import http
 import json
 from pywikibot import pagegenerators
@@ -194,16 +194,16 @@ class OwnWorkBot:
         :return: Tuple with a User and a string
         """
 
-        authorRegex = u'^Author\s*\=\s*\[\[User\:([^\|^\]]+)\|([^\|^\]]+)\]\](\s*\(\s*\[\[User talk\:[^\|^\]]+\|[^\|^\]]+\]\]\s*\)\s*)?$'
+        authorRegex = u'^[aA]uthor\s*\=\s*\[\[User\:([^\|^\]]+)\|([^\|^\]]+)\]\](\s*\(\s*\[\[User talk\:[^\|^\]]+\|[^\|^\]]+\]\]\s*\)\s*)?$'
 
         for template, parameters in filepage.templatesWithParams():
             if template.title()==u'Template:Information':
                 for field in parameters:
-                    if field.startswith(u'Author'):
+                    if field.lower().startswith(u'author'):
                         match = re.match(authorRegex, field)
                         if match:
                             authorPage = pywikibot.User(self.site, match.group(1))
-                            authorName = match.group(2)
+                            authorName = match.group(2).strip()
                             return (authorPage, authorName)
                         else:
                             pywikibot.output(field)
@@ -234,6 +234,7 @@ class OwnWorkBot:
         Dummy method for now
         :return:
         """
+        self.addClaim(mediaid, u'P7482', u'Q66458942', u'Extracted [[Commons:Structured data/Modeling/Source|source]] own work status from wikitext' )
         return
 
     def addAuthor(self, mediaid, authorPage, authorName):
@@ -270,21 +271,17 @@ class OwnWorkBot:
         claim = json.loads(apipage.text).get(u'claim').get(u'id')
 
         # Object has role (P3831) ->  photographer (Q33231)
-        apipage = self.addQualifier(claim, u'P3831', u'Q33231', u'item', revison, summary)
-        revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
+        revison = self.addQualifier(claim, u'P3831', u'Q33231', u'item', revison, summary)
 
         # author name string (P2093) ->  authorName
-        apipage = self.addQualifier(claim, u'P2093', authorName, u'string', revison, summary)
-        revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
+        revison = self.addQualifier(claim, u'P2093', authorName, u'string', revison, summary)
 
         #  Wikimedia username (P4174) ->  authorPage.username
-        apipage = self.addQualifier(claim, u'P4174', authorPage.username, u'string', revison, summary)
-        revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
+        revison = self.addQualifier(claim, u'P4174', authorPage.username, u'string', revison, summary)
 
-        #   URL (P2699) ->  authorPage.title
+        # URL (P2699) ->  authorPage.title
         authorUrl = u'https://commons.wikimedia.org/wiki/%s' % (authorPage.title(underscore=True), )
-        apipage = self.addQualifier(claim, u'P2699', authorUrl, u'string', revison, summary)
-        print (apipage)
+        revison = self.addQualifier(claim, u'P2699', authorUrl, u'string', revison, summary)
 
     def addLicenses(self, mediaid, licenses):
         """
@@ -336,7 +333,21 @@ class OwnWorkBot:
                     u'bot' : True,
                     }
         apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-        return apipage
+        try:
+            revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
+        except AttributeError:
+            print (apipage.text)
+            time.sleep(300)
+            tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+
+            tokendata = json.loads(tokenrequest.text)
+            token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+            postdata[u'token'] = token
+            apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
+            # Burn if it fails again
+            revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
+
+        return revison
 
     def addQualifier(self, claim, pid, value, entityType, baserevid, summary=u''):
         """
