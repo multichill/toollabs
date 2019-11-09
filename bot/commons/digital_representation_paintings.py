@@ -31,7 +31,9 @@ class DigitalRepresentationBot:
         query = u"""SELECT DISTINCT ?item ?image WHERE {
   ?item wdt:P31 wd:Q3305213 .
   ?item wdt:P18 ?image.
-} LIMIT 200000"""
+  ?item schema:dateModified ?modified
+} ORDER BY DESC(?modified)
+LIMIT 200000"""
 
         self.generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
 
