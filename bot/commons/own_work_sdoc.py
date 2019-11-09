@@ -115,12 +115,12 @@ class OwnWorkBot:
 
         mediaid = u'M%s' % (filepage.pageid,)
 
-
-
         # We got all the needed info, let's add it
         self.addSourceOwn(mediaid)
         self.addAuthor(mediaid, authorPage, authorName)
         self.addLicenses(mediaid, licenses)
+        # Optional stuff
+        self.handleDate(filepage)
         return
 
 
@@ -234,6 +234,8 @@ class OwnWorkBot:
         Dummy method for now
         :return:
         """
+        if self.mediaInfoHasStatement(mediaid, u'P7482'):
+            return
         self.addClaim(mediaid, u'P7482', u'Q66458942', u'Extracted [[Commons:Structured data/Modeling/Source|source]] own work status from wikitext' )
         return
 
@@ -249,7 +251,7 @@ class OwnWorkBot:
 
         # Do the adding of somevalue here
 
-        summary = u'Extracted [[Commons:Structured data/Modeling/Author|author]] from [[Template:Information|Information]] in the wikitext '
+        summary = u'Extracted [[Commons:Structured data/Modeling/Author|author]] from [[Template:Information|Information]] in the wikitext'
 
         tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
 
@@ -302,6 +304,55 @@ class OwnWorkBot:
         for license in licenses:
             self.addClaim(mediaid, u'P275', license, u'Extracted [[Commons:Structured data/Modeling/Licensing|license]] from [[Template:Self|Self]] in the wikitext' )
 
+    def handleDate(self, filepage):
+        """
+        Handle the date on the filepage. If it matches an ISO date (YYYY-MM-DD), add a date claim
+        :param filepage:
+        :return:
+        """
+        mediaid = u'M%s' % (filepage.pageid,)
+        pid = u'P571'
+        if self.mediaInfoHasStatement(mediaid, pid):
+            return
+        dateRegex = u'^[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)\s*$'
+        dateString = None
+
+        for template, parameters in filepage.templatesWithParams():
+            if template.title()==u'Template:Information':
+                for field in parameters:
+                    if field.lower().startswith(u'date'):
+                        match = re.match(dateRegex, field)
+                        if match:
+                            dateString = match.group(1).strip()
+                        break
+        if not dateString:
+            return
+
+        parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % (dateString,))
+        parsedata = json.loads(parserequest.text)
+
+        postvalue = parsedata.get(u'results')[0].get('value')
+
+        summary = u'Extracted [[Commons:Structured data/Modeling/Date|date]] from [[Template:Information|Information]] in the wikitext'
+
+        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, dateString, mediaid, summary))
+
+        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+
+        tokendata = json.loads(tokenrequest.text)
+        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+
+        postdata = {u'action' : u'wbcreateclaim',
+                    u'format' : u'json',
+                    u'entity' : mediaid,
+                    u'property' : pid,
+                    u'snaktype' : u'value',
+                    u'value' : json.dumps(postvalue),
+                    u'token' : token,
+                    u'summary' : summary,
+                    u'bot' : True,
+                    }
+        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
 
     def addClaim(self, mediaid, pid, qid, summary=u''):
         """
