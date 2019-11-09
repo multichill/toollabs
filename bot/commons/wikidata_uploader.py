@@ -318,7 +318,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         """
         result = u'{{Artwork\n'
         result = result + u'|source=%(sourceurl)s\n' % metadata
-        result = result + u'|wikidata=%(item)s\n' % metadata
         result = result + u'}}\n' % metadata
         return result
 
