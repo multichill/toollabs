@@ -713,6 +713,12 @@ class ArtDataBot:
             pywikibot.output('Adding new qualifier claim to %s' % item)
             newclaim.addQualifier(newqualifier)
 
+        if metadata.get(u'imageoperatedby'):
+            newqualifier = pywikibot.Claim(self.repo, u'P137')
+            newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get(u'imageoperatedby')))
+            pywikibot.output('Adding new qualifier claim to %s' % item)
+            newclaim.addQualifier(newqualifier)
+
     def addIiifManifestUrl(self, item, metadata):
         """
         Add the  IIIF manifest (P6108) to the item.

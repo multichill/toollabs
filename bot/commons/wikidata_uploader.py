@@ -49,7 +49,7 @@ class WikidataUploaderBot:
         Get the generator of items with known painter died more than 95 years ago
         """
         query = u"""
-SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
+SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
   ?item p:P4765 ?image .
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
@@ -60,6 +60,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?image pq:P1476 ?title .
   ?image pq:P2093 ?creatorname .
   OPTIONAL { ?image pq:P275 ?license } .
+  OPTIONAL { ?image pq:P137 ?operator } .
   ?item wdt:P195 ?collection .
   ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
   ?collection wdt:P373 ?collectioncategory .
@@ -87,7 +88,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         Get the generator of items which were made before 1850 to consider
         """
         query = u"""
-SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?collectionLabel ?collectioncategory WHERE {
+SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory WHERE {
   ?item p:P4765 ?image .
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
@@ -99,6 +100,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?image pq:P2093 ?creatorname .
   ?item wdt:P170 wd:Q4233718 .
   OPTIONAL { ?image pq:P275 ?license } .
+  OPTIONAL { ?image pq:P137 ?operator } .
   ?item wdt:P195 ?collection .
   ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
   ?collection wdt:P373 ?collectioncategory .
@@ -123,7 +125,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         more than 95 years ago.
         """
         query = u"""
-SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
+SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
   ?item p:P4765 ?image .
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
@@ -134,6 +136,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?image pq:P1476 ?title .
   ?image pq:P2093 ?creatorname .
   OPTIONAL { ?image pq:P275 ?license } .
+  OPTIONAL { ?image pq:P137 ?operator } .
   ?item wdt:P195 ?collection .
   ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
   ?collection wdt:P373 ?collectioncategory .
@@ -261,6 +264,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                 summary = u'this newly uploaded file depicts and is a digital representation of [[:d:%s]]' % (metadata.get(u'item'),)
                 self.addClaim(mediaid, u'P180', metadata.get(u'item'), summary)
                 self.addClaim(mediaid, u'P6243', metadata.get(u'item'), summary)
+                self.addSource(mediaid, metadata)
 
     def addImageToWikidata(self, metadata, imagefile, summary=u'Added the image'):
         """
@@ -444,6 +448,80 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                     u'bot' : True,
                     }
         apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
+
+    def addSource(self, mediaid, metadata):
+        """
+        :return:
+        """
+        pid = u'P7482'
+        qid =  u'Q74228490'
+
+        summary = u'Adding source of file'
+        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+        tokendata = json.loads(tokenrequest.text)
+        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+
+        postvalue = {"entity-type":"item","numeric-id": qid.replace(u'Q', u'')}
+
+        postdata = {u'action' : u'wbcreateclaim',
+                    u'format' : u'json',
+                    u'entity' : mediaid,
+                    u'property' : pid,
+                    u'snaktype' : u'value',
+                    u'value' : json.dumps(postvalue),
+                    u'token' : token,
+                    u'summary' : summary,
+                    u'bot' : True,
+                    }
+        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
+
+        revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
+        claim = json.loads(apipage.text).get(u'claim').get(u'id')
+
+        # Add the described at URL (P973) where we got it from
+        # FIXME: Don't think addQualifier returns the revision id
+        revison = self.addQualifier(claim, u'P973', metadata.get('sourceurl'), u'string', revison, summary)
+
+        if metadata.get('operator'):
+            # Add the operator (P137) where we got it from if it's available
+            revison = self.addQualifier(claim, u'P137', metadata.get('operator'), u'item', revison, summary)
+        return
+
+    def addQualifier(self, claim, pid, value, entityType, baserevid, summary=u''):
+        """
+
+        :param claim:
+        :param pid:
+        :param value:
+        :param entityType:
+        :param baserevid:
+        :return:
+        """
+        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, value, claim, summary))
+
+        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+
+        tokendata = json.loads(tokenrequest.text)
+        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+
+        if entityType==u'item':
+            postvalue = {"entity-type":"item","numeric-id": value.replace(u'Q', u'')}
+        else:
+            postvalue = value
+
+        postdata = {u'action' : u'wbsetqualifier',
+                    u'format' : u'json',
+                    u'claim' : claim,
+                    u'property' : pid,
+                    u'snaktype' : u'value',
+                    u'value' : json.dumps(postvalue),
+                    u'token' : token,
+                    u'summary' : summary,
+                    u'baserevid' : baserevid,
+                    u'bot' : True,
+                    }
+        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
+        return apipage
 
     def reportDuplicates(self):
         """
