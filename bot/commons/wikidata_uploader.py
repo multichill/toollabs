@@ -80,6 +80,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             resultitem['format'] = resultitem.get('format').replace(u'http://www.wikidata.org/entity/', u'')
             if resultitem.get('license'):
                 resultitem['license'] = resultitem.get('license').replace(u'http://www.wikidata.org/entity/', u'')
+            if resultitem.get('operator'):
+                resultitem['operator'] = resultitem.get('operator').replace(u'http://www.wikidata.org/entity/', u'')
             resultitem['creator'] = resultitem.get('creator').replace(u'http://www.wikidata.org/entity/', u'')
             yield resultitem
 
@@ -116,6 +118,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             resultitem['format'] = resultitem.get('format').replace(u'http://www.wikidata.org/entity/', u'')
             if resultitem.get('license'):
                 resultitem['license'] = resultitem.get('license').replace(u'http://www.wikidata.org/entity/', u'')
+            if resultitem.get('operator'):
+                resultitem['operator'] = resultitem.get('operator').replace(u'http://www.wikidata.org/entity/', u'')
             resultitem['creator'] = u'Q4233718' # Item for anonymous
             yield resultitem
 
@@ -159,6 +163,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             resultitem['format'] = resultitem.get('format').replace(u'http://www.wikidata.org/entity/', u'')
             if resultitem.get('license'):
                 resultitem['license'] = resultitem.get('license').replace(u'http://www.wikidata.org/entity/', u'')
+            if resultitem.get('operator'):
+                resultitem['operator'] = resultitem.get('operator').replace(u'http://www.wikidata.org/entity/', u'')
             resultitem['creator'] = resultitem.get('creator').replace(u'http://www.wikidata.org/entity/', u'')
             yield resultitem
 
