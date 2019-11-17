@@ -74,7 +74,11 @@ class RKDimagesPublicDomain():
             rkdimagesurl = u'https://rkd.nl/nl/explore/images/%s' % (rkdimagesid,)
 
             imagePage = requests.get('https://api.rkd.nl/api/record/images/%s?format=json&language=nl' % (rkdimagesid,), verify=False)
-            imagejson = imagePage.json()
+            try:
+                imagejson = imagePage.json()
+            except ValueError:
+                pywikibot.output(u'No valid json found for %s' % (rkdimagesurl,))
+                continue
 
             if imagejson.get('content') and imagejson.get('content').get('message'):
                 pywikibot.output(u'Something went wrong, got "%s" for %s, skipping' % (imagejson.get('content').get('message'),
