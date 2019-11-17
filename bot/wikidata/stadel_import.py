@@ -21,6 +21,20 @@ def getStadelGenerator():
     Generator to return Städel Museum paintings
     """
 
+    motifs = { 26 : u'Q134307', # portrait
+               44 : u'Q191163', # landscape -> landscape art
+               1955 : u'Q2864737', # altarpiece-> religious art
+               2437 : u'Q170571', # still life
+               2957 : u'Q1047337', # genre art
+               3657 : u'Q2864737', # devotional image -> religious art
+               3706 : u'Q40446', # nude
+               3796 : u'Q158607', # Seascape -> marine art
+               3901 : u'Q2839016', # allegory
+               8730 : u'Q128115', # abstration -> abstract art
+               14293 : u'Q2864737', # Biblical portrayal-> religious art
+               16679 : u'Q3374376', # mythological representation -> mythological painting
+               }
+
     stadelArtists = getStadelArtistsOnWikidata()
     basesearchurl = u'https://sammlung.staedelmuseum.de/en/search/%s?q=term(48:object)&scope=all'
     htmlparser = HTMLParser()
@@ -65,7 +79,13 @@ def getStadelGenerator():
 
             invregex = u'\<dt class\=\"dsProperty__caption\"\>Inventory Number\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*([^\<]+)\<\/dd\>'
             invmatch = re.search(invregex, itempage.text)
-            metadata['id'] = invmatch.group(1).strip()
+            metadata['id'] = htmlparser.unescape(invmatch.group(1).replace(u'&nbsp;', u' ')).strip()
+
+            # When it's a work with multiple parts, they add "Object Number". Overwrite the inventory number based on that
+            objectnumberregex = u'\<dt class\=\"dsProperty__caption\"\>Object Number\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*([^\<]+)\<\/dd\>'
+            objectnumbermatch = re.search(objectnumberregex, itempage.text)
+            if objectnumbermatch:
+                metadata['id'] = htmlparser.unescape(objectnumbermatch.group(1).replace(u'&nbsp;', u' ')).strip()
 
             #titleregex = u'\<meta content\=\"([^\"]+)\" name\=\"og\:title\"\>'
             titleregex = u'\<meta property\=\"og:title\" content\=\"([^\"]+)\" \/\>'
@@ -129,25 +149,21 @@ def getStadelGenerator():
                     metadata['creatorqid'] = stadelArtists.get(deartistid)
                 else:
                     pywikibot.output (u'Artist id %s & %s on %s & %s not found on Wikidata' % (enartistid, deartistid, url, deurl))
-                    pywikibot.output (u'Artist id %s & %s on %s & %s not found on Wikidata' % (enartistid, deartistid, url, deurl))
-                    pywikibot.output (u'Artist id %s & %s on %s & %s not found on Wikidata' % (enartistid, deartistid, url, deurl))
-                    pywikibot.output (u'Artist id %s & %s on %s & %s not found on Wikidata' % (enartistid, deartistid, url, deurl))
 
-            """
-            # Older paintings have more difficult dates
-            dateregex = u'\<meta content\=\"(\d\d\d\d)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
-            datecircaregex = u'\<meta content\=\"ca\. (\d\d\d\d)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
-            periodregex = u'\<meta content\=\"(\d\d\d\d)-?\/?(\d\d\d\d)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
-            circaperiodregex = u'\<meta content\=\"ca\. (\d\d\d\d)-(\d\d\d\d)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
-            shortperiodregex = u'\<meta content\=\"(\d\d)(\d\d)–(\d\d)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
+            # Let's see if we can extract some dates. Json-ld is provided, but doesn't have circa and the likes
+            dateregex = u'\<span class\=\"dsArtwork__titleYear\"\>,\s*(\d\d\d\d)\<\/span\>'
+            datecircaregex = u'\<span class\=\"dsArtwork__titleYear\"\>,\s*ca\.\s*(\d\d\d\d)\<\/span\>'
+            periodregex = u'\<span class\=\"dsArtwork__titleYear\"\>,\s*(\d\d\d\d)\s*&ndash;\s*(\d\d\d\d)\<\/span\>'
+            circaperiodregex = u'\<span class\=\"dsArtwork__titleYear\"\>,\s*ca\.\s*(\d\d\d\d)\s*&ndash;\s*(\d\d\d\d)\<\/span\>'
+            #shortperiodregex = u'\<meta content\=\"(\d\d)(\d\d)–(\d\d)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
             #circashortperiodregex = u'\<p\>\<strong\>Date\<\/strong\>\<br\/\>c\.\s*(\d\d)(\d\d)–(\d\d)\<\/p\>'
-            otherdateregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
+            otherdateregex = u'\<span class\=\"dsArtwork__titleYear\"\>([^\<]+)\<\/span\>'
 
             datematch = re.search(dateregex, itempage.text)
             datecircamatch = re.search(datecircaregex, itempage.text)
             periodmatch = re.search(periodregex, itempage.text)
             circaperiodmatch = re.search(circaperiodregex, itempage.text)
-            shortperiodmatch = re.search(shortperiodregex, itempage.text)
+            shortperiodmatch = None
             circashortperiodmatch = None
             otherdatematch = re.search(otherdateregex, itempage.text)
 
@@ -172,30 +188,41 @@ def getStadelGenerator():
                 metadata['inceptioncirca'] = True
             elif otherdatematch:
                 print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
-                print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
-                print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
-                print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
 
             # A bit of provenance data
-            acquisitiondateregex = u'(by|to) The Nelson-Atkins Museum of Art, Kansas City, MO, (\d\d\d\d)\.'
+            acquisitiondateregex = u'\<dt class\=\"dsProperty__caption\"\>Acquisition\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*Acquired in (\d\d\d\d)'
+            loandateregex = u'\<dt class\=\"dsProperty__caption\"\>Acquisition\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*On permanent loan from\s*([^\<]+)\s*since\s*(\d\d\d\d)\<\/dd\>'
+            missedacquisitionregex = u'\<dt class\=\"dsProperty__caption\"\>Acquisition\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*([^\<]+)\<\/dd\>'
             acquisitiondatematch = re.search(acquisitiondateregex, itempage.text)
+            loandatematch = re.search(loandateregex, itempage.text)
+            missedacquisitiondatematch = re.search(missedacquisitionregex, itempage.text)
             if acquisitiondatematch:
-                metadata['acquisitiondate'] = acquisitiondatematch.group(2)
+                metadata['acquisitiondate'] = acquisitiondatematch.group(1)
+            elif loandatematch:
+                metadata['acquisitiondate'] = loandatematch.group(2)
+            elif missedacquisitiondatematch:
+                print (u'Could not parse date: "%s"' % (missedacquisitiondatematch.group(1),))
 
-            mediumregex = u'\<meta content\=\"Oil on canvas\" property\=\"schema:artMedium\" itemprop\=\"artMedium\"\>'
+            mediumregex = u'\<dt class\=\"dsProperty__caption\">Physical Description\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*Oil on canvas,'
             mediummatch = re.search(mediumregex, itempage.text)
             if mediummatch:
                 metadata['medium'] = u'oil on canvas'
 
-            # Bit messy, this will get some of them
-            measurementsregex = u'\<span class\=\"detailFieldLabel\"\>Dimensions:\<\/span\>\<span class\=\"detailFieldValue\"\>\<div\>(Unframed|Overall):[^\<]+(inches|in\.)\s*\(([^\<]+cm)\)\<\/div\>'
+            # Look for genre
+            motifregex = u'\<a class\=\"dsTerm\" href\=\"\/en\/search\?scope\=all&amp;q\=term\((\d+)\:motif_general\)\" ontouchstart\=\"\"\>([^\<]+)\<\/a\>'
+            motifmatch = re.search(motifregex, itempage.text)
+            if motifmatch:
+                motifid = int(motifmatch.group(1))
+                print (u'Motif match with id %s and description %s' % (motifid, motifmatch.group(2)))
+                if motifid in motifs:
+                    metadata[u'genreqid'] = motifs.get(motifid)
+
+            # Movement is also available
+
+            measurementsregex = u'\<dt class\=\"dsProperty__caption\"\>Dimensions\<\/dt\>\<dd class\=\"dsProperty__text\"\>([^\<]+)\<\/dd\>'
             measurementsmatch = re.search(measurementsregex, itempage.text)
             if measurementsmatch:
-                measurementstext = measurementsmatch.group(3)
-                print (measurementstext)
-                print (measurementstext)
-                print (measurementstext)
-                print (measurementstext)
+                measurementstext = measurementsmatch.group(1)
                 regex_2d = u'(?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) cm.*'
                 regex_3d = u'(?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) x (?P<depth>\d+(\.\d+)?) cm.*'
                 match_2d = re.match(regex_2d, measurementstext)
@@ -208,14 +235,8 @@ def getStadelGenerator():
                     metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
                     metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
 
-            # They have IIIF!
-            # <a class="iiifLink" href="https://art.nelson-atkins.org/apis/iiif/presentation/v2/objects-7769/manifest">
-            # They insert a stupid Emuseum session id?
-            iiifregex = u'\<a class\=\"iiifLink\" href\=\"https\:\/\/art\.nelson-atkins\.org\/apis\/iiif\/presentation\/v2\/objects-(\d+)'
-            iiifmatch = re.search(iiifregex, itempage.text)
-            if iiifmatch:
-                metadata['iiifmanifesturl'] = u'https://art.nelson-atkins.org/apis/iiif/presentation/v2/objects-%s/manifest' % (iiifmatch.group(1),)
-            """
+            # No free images or IIIF
+
             yield metadata
 
 
