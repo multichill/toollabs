@@ -174,7 +174,8 @@ def getLenbachhausGenerator():
                 metadata[u'imageurlformat'] = u'Q2195' #JPEG
                 metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa.40
                 metadata[u'imageoperatedby'] = u'Q262234'
-                metadata[u'imageurlforce'] = True
+                # Used this to add suggestions everywhere
+                #metadata[u'imageurlforce'] = True
 
             yield metadata
 
