@@ -4,13 +4,9 @@
 A bot to add and update creators on paintings.
 
 """
-import json
 import pywikibot
 from pywikibot import pagegenerators
-import urllib
 import re
-import pywikibot.data.wikidataquery as wdquery
-from pywikibot.data import api
 
 class PaintingBot:
     """
@@ -328,7 +324,6 @@ def main(*args):
                            }"""
 
     for arg in pywikibot.handle_args(args):
-        print arg
         if arg.startswith('-collectionid'):
             if len(arg) == 13:
                 collectionid = pywikibot.input(
