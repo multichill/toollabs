@@ -68,57 +68,54 @@ def getGAlbrightKnoxGenerator():
 
             titleyearmatch = re.search(titleyearregex, itempage.text)
 
-            title = htmlparser.unescape(titleyearmatch.group(1)).strip()
+            if titleyearmatch:
+                title = htmlparser.unescape(titleyearmatch.group(1)).strip()
 
-            # Chop chop, several very long titles
-            if len(title) > 220:
-                title = title[0:200]
-            metadata['title'] = { u'en' : title,
-                                  }
+                # Chop chop, several very long titles
+                if len(title) > 220:
+                    title = title[0:200]
+                metadata['title'] = { u'en' : title,
+                                      }
 
-            # Let's see if we can extract some dates.
+                # Let's see if we can extract some dates.
 
-            inceptiontext = titleyearmatch.group(2).strip()
+                inceptiontext = titleyearmatch.group(2).strip()
 
-            dateregex = u'^\s*(\d\d\d\d)\s*$'
-            datecircaregex = u'^\s*ca\.\s*(\d\d\d\d)\s*$'
-            periodregex = u'^\s*(\d\d\d\d)-(\d\d\d\d)\s*$'
-            circaperiodregex = u'^\s*ca\.\s*(\d\d\d\d)-(\d\d\d\d)\s*$'
-            #shortperiodregex = u'\<meta content\=\"(\d\d)(\d\d)–(\d\d)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
-            #circashortperiodregex = u'\<p\>\<strong\>Date\<\/strong\>\<br\/\>c\.\s*(\d\d)(\d\d)–(\d\d)\<\/p\>'
+                dateregex = u'^\s*(\d\d\d\d)\s*$'
+                datecircaregex = u'^\s*ca\.\s*(\d\d\d\d)\s*$'
+                periodregex = u'^\s*(\d\d\d\d)-(\d\d\d\d)\s*$'
+                circaperiodregex = u'^\s*ca\.\s*(\d\d\d\d)-(\d\d\d\d)\s*$'
+                #shortperiodregex = u'\<meta content\=\"(\d\d)(\d\d)–(\d\d)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
+                #circashortperiodregex = u'\<p\>\<strong\>Date\<\/strong\>\<br\/\>c\.\s*(\d\d)(\d\d)–(\d\d)\<\/p\>'
 
-            datematch = re.search(dateregex, inceptiontext)
-            datecircamatch = re.search(datecircaregex, inceptiontext)
-            periodmatch = re.search(periodregex, inceptiontext)
-            circaperiodmatch = re.search(circaperiodregex, inceptiontext)
-            shortperiodmatch = None
-            circashortperiodmatch = None
+                datematch = re.search(dateregex, inceptiontext)
+                datecircamatch = re.search(datecircaregex, inceptiontext)
+                periodmatch = re.search(periodregex, inceptiontext)
+                circaperiodmatch = re.search(circaperiodregex, inceptiontext)
+                shortperiodmatch = None
+                circashortperiodmatch = None
 
-            if datematch:
-                metadata['inception'] = int(datematch.group(1).strip())
-            elif datecircamatch:
-                metadata['inception'] = int(datecircamatch.group(1).strip())
-                metadata['inceptioncirca'] = True
-            elif periodmatch:
-                metadata['inceptionstart'] = int(periodmatch.group(1))
-                metadata['inceptionend'] = int(periodmatch.group(2))
-            elif circaperiodmatch:
-                metadata['inceptionstart'] = int(circaperiodmatch.group(1))
-                metadata['inceptionend'] = int(circaperiodmatch.group(2))
-                metadata['inceptioncirca'] = True
-            elif shortperiodmatch:
-                metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
-                metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
-            elif circashortperiodmatch:
-                metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
-                metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
-                metadata['inceptioncirca'] = True
-            else:
-                print (u'Could not parse date: "%s"' % (inceptiontext,))
-                print (u'Could not parse date: "%s"' % (inceptiontext,))
-                print (u'Could not parse date: "%s"' % (inceptiontext,))
-                print (u'Could not parse date: "%s"' % (inceptiontext,))
-                print (u'Could not parse date: "%s"' % (inceptiontext,))
+                if datematch:
+                    metadata['inception'] = int(datematch.group(1).strip())
+                elif datecircamatch:
+                    metadata['inception'] = int(datecircamatch.group(1).strip())
+                    metadata['inceptioncirca'] = True
+                elif periodmatch:
+                    metadata['inceptionstart'] = int(periodmatch.group(1))
+                    metadata['inceptionend'] = int(periodmatch.group(2))
+                elif circaperiodmatch:
+                    metadata['inceptionstart'] = int(circaperiodmatch.group(1))
+                    metadata['inceptionend'] = int(circaperiodmatch.group(2))
+                    metadata['inceptioncirca'] = True
+                elif shortperiodmatch:
+                    metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
+                    metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
+                elif circashortperiodmatch:
+                    metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
+                    metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+                    metadata['inceptioncirca'] = True
+                else:
+                    print (u'Could not parse date: "%s"' % (inceptiontext,))
 
             creatoregex = u'\<div class\=\"info-maker\"\>[\r\n\t\s]*\<h1\>\<a href\=\"[^\"]*\" hreflang\=\"en\"\>\s*([^\<]+)\s*\<\/a\>\<\/h1\>'
             creatormatch = re.search(creatoregex, itempage.text)
@@ -160,7 +157,7 @@ def getGAlbrightKnoxGenerator():
             #    metadata[u'imageurllicense'] = u'' # No license
                 metadata[u'imageoperatedby'] = u'Q1970945'
             #    # Used this to add suggestions everywhere
-                metadata[u'imageurlforce'] = True
+            #    metadata[u'imageurlforce'] = True
 
             yield metadata
 
