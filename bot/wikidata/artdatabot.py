@@ -186,6 +186,7 @@ class ArtDataBot:
         if metadata.get(u'acquisitiondate'):
             if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
                                                                      metadata[u'acquisitiondate'].isnumeric()): # It's a year
+                #FIXME: Xqt broke this. Need to make sure it's an int
                 acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
                 colqualifier = pywikibot.Claim(self.repo, u'P580')
                 colqualifier.setTarget(acdate)
@@ -412,6 +413,7 @@ class ArtDataBot:
         if metadata.get(u'inception'):
             if type(metadata[u'inception']) is int or (len(metadata[u'inception'])==4 and \
                                                                metadata[u'inception'].isnumeric()): # It's a year
+                #FIXME: Xqt broke this. Need to make sure it's an int
                 newdate = pywikibot.WbTime(year=metadata[u'inception'])
                 newclaim = pywikibot.Claim(self.repo, u'P571')
                 newclaim.setTarget(newdate)
@@ -428,6 +430,7 @@ class ArtDataBot:
 
         elif metadata.get(u'inceptionstart') and metadata.get(u'inceptionend'):
             if metadata.get(u'inceptionstart')==metadata.get(u'inceptionend'):
+                #FIXME: Xqt broke this. Need to make sure it's an int
                 newdate = pywikibot.WbTime(year=metadata[u'inceptionstart'])
                 newclaim = pywikibot.Claim(self.repo, u'P571')
                 newclaim.setTarget(newdate)
@@ -467,7 +470,7 @@ class ArtDataBot:
                             precision = 7 # century
                         # Don't do it for decade
 
-                averageYear = abs((metadata.get(u'inceptionstart') + metadata.get(u'inceptionend'))/2)
+                averageYear = int(abs((metadata.get(u'inceptionstart') + metadata.get(u'inceptionend'))/2))
                 newdate = pywikibot.WbTime(year=averageYear, precision=precision)
                 earliestdate = pywikibot.WbTime(year=metadata.get(u'inceptionstart'))
                 latestdate = pywikibot.WbTime(year=metadata.get(u'inceptionend'))
@@ -517,6 +520,7 @@ class ArtDataBot:
                     acdate = None
                     if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
                                                                              metadata[u'acquisitiondate'].isnumeric()): # It's a year
+                        #FIXME: Xqt broke this. Need to make sure it's an int
                         acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
                     elif datematch:
                         #print metadata[u'acquisitiondate']
@@ -525,6 +529,7 @@ class ArtDataBot:
                                                   day=int(datematch.group(3)))
                     else:
                         try:
+                            #FIXME: Xqt broke this. Need to make sure it's an int
                             acdate = pywikibot.WbTime.fromTimestr(metadata[u'acquisitiondate'])
                             # Pff, precision is t0o high. Hack to fix this
                             if acdate.precision > 11:
