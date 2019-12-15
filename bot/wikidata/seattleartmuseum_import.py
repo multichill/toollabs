@@ -44,6 +44,12 @@ def getSeattleArtMuseumGenerator():
             urlregex = u'\<meta content\=\"([^\"]+)\;[^\"]+\" name\=\"og\:url\"\>'
             urlmatch = re.search(urlregex, itempage.text)
 
+            if not urlmatch:
+                print(u'Something went wrong. No url found. Sleeping and trying again')
+                time.sleep(300)
+                itempage = requests.get(url)
+                urlmatch = re.search(urlregex, itempage.text)
+
             # they have a localhost bug here :-) No https
             ogurl = urlmatch.group(1).replace(u'http://localhost/objects/', u'http://art.seattleartmuseum.org/objects/')
             if ogurl.startswith(url):
