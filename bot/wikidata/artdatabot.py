@@ -286,6 +286,9 @@ class ArtDataBot:
         # Add inception (P571) to the item.
         self.addInception(artworkItem, metadata)
 
+        # Add location of final assembly (P1071) to the item.
+        self.addItemStatement(artworkItem, u'P1071', metadata.get(u'madeinqid'), metadata.get(u'refurl'))
+
         # Add title (P1476) to the item.
         self.addTitle(artworkItem, metadata)
 
