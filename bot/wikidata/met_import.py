@@ -407,8 +407,10 @@ def getMETGenerator():
     foundit= True
     lookingfor = 65594
 
-    #for metid in idpage.json().get('objectIDs'):
-    for metid in getMETpaintingsOnWikikidataGenerator():
+    metids = sorted(idpage.json().get('objectIDs'), reverse=True)
+
+    for metid in metids:
+    #for metid in getMETpaintingsOnWikikidataGenerator():
         if metid == lookingfor:
             foundit = True
 
@@ -424,16 +426,20 @@ def getMETGenerator():
             metjson = metpage.json()
         except ValueError:
             print (metpage.text)
+            continue
 
+        foundPainting = False
 
-        # Disabled for now because I'm just updating existing ones
-        #if metjson.get(u'objectName')!=u'Painting':
-        #    continue
+        if metjson.get(u'objectName') and metjson.get(u'objectName')==u'Painting':
+            foundPainting = True
+
+        if metjson.get(u'classification') and metjson.get(u'classification')==u'Paintings':
+            foundPainting = True
+
+        if not foundPainting:
+            continue
 
         print(json.dumps(metjson, indent=4, sort_keys=True))
-
-        if not metjson.get(u'objectName'):
-            continue
 
         metadata['url'] = metjson.get('objectURL')
 
@@ -455,11 +461,8 @@ def getMETGenerator():
             title = title[0:200]
         metadata['title'] = { u'en' : title,
                               }
-
         if metjson.get('artistDisplayName'):
             metadata['creatorname'] = metjson.get('artistDisplayName')
-
-
 
         if not metjson.get('artistDisplayName')  or metjson.get('artistDisplayName')==u'Unidentified Artist':
             metadata['creatorqid'] = u'Q4233718'
@@ -480,20 +483,20 @@ def getMETGenerator():
 
         if metjson.get('objectDate')==str(metjson.get(u'objectBeginDate')) \
                     and metjson.get('objectDate')==str(metjson.get(u'objectEndDate')):
-            metadata['inception']=metjson.get('objectDate')
+            metadata['inception']=int(metjson.get('objectDate'))
         elif datecircamatch:
-            metadata['inception'] = datecircamatch.group(1)
+            metadata['inception'] = int(datecircamatch.group(1))
             metadata['inceptioncirca'] = True
         elif metjson.get(u'objectBeginDate') and metjson.get(u'objectEndDate') and \
             metjson.get(u'objectBeginDate') > 1000 and metjson.get(u'objectEndDate') > metjson.get(u'objectBeginDate'):
-            metadata['inceptionstart'] = metjson.get(u'objectBeginDate')
-            metadata['inceptionend'] = metjson.get(u'objectEndDate')
+            metadata['inceptionstart'] = int(metjson.get(u'objectBeginDate'))
+            metadata['inceptionend'] = int(metjson.get(u'objectEndDate'))
 
         # If the credit line ends with a year, we'll take it
         acquisitiondateregex = u'^.+, (\d\d\d\d)$'
         acquisitiondatematch = re.match(acquisitiondateregex, metjson.get(u'creditLine'))
         if acquisitiondatematch:
-            metadata['acquisitiondate'] = acquisitiondatematch.group(1)
+            metadata['acquisitiondate'] = int(acquisitiondatematch.group(1))
 
         if metjson.get('medium')==u'Oil on canvas':
             metadata['medium'] = u'oil on canvas'
@@ -543,8 +546,28 @@ def getMETGenerator():
         if foundgenre and not genrecollision:
             metadata['genreqid'] = foundgenre
 
+        madelocations = {u'China' : u'Q29520',
+                         u'India' : u'Q668',
+                         u'Iran' : u'Q794',
+                         u'Japan' : u'Q17',
+                         u'Nepal' : u'Q837',
+                         }
+
+        if metjson.get('country') and metjson.get('country') in madelocations:
+            metadata['madeinqid'] = madelocations.get(metjson.get('country'))
+        elif metjson.get('culture'):
+            for madelocation in madelocations:
+                if metjson.get('culture').startswith(madelocation):
+                    metadata['madeinqid'] = madelocations.get(madelocation)
+                    break
+
         # No IIIF
-        # Already uploaded the images
+        # Most images are uploaded already
+        if metjson.get('isPublicDomain') and metjson.get('primaryImage'):
+            metadata[u'imageurl'] = metjson.get('primaryImage')
+            metadata[u'imageurlformat'] = u'Q2195' #JPEG
+            metadata[u'imageurllicense'] = u'Q6938433' # CC0
+            metadata[u'imageoperatedby'] = u'Q160236'
 
         yield metadata
 
@@ -552,10 +575,9 @@ def main(*args):
     dictGen = getMETGenerator() #, metworks)
 
     #for painting in dictGen:
-    #    #pass
     #    print (painting)
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
 
 if __name__ == "__main__":
