@@ -404,8 +404,8 @@ def getMETGenerator():
 
     session = requests.Session()
 
-    foundit= True
-    lookingfor = 65594
+    foundit= False
+    lookingfor = 671052
 
     metids = sorted(idpage.json().get('objectIDs'), reverse=True)
 
@@ -455,7 +455,7 @@ def getMETGenerator():
         metadata['artworkidpid'] = u'P3634'
         metadata['artworkid'] = u'%s' % (metid,)
 
-        title = metjson.get('title')
+        title = metjson.get('title').replace(u'\n', u'')
         # Chop chop, in case we have very long titles
         if len(title) > 220:
             title = title[0:200]
