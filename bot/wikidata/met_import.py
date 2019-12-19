@@ -404,7 +404,7 @@ def getMETGenerator():
 
     session = requests.Session()
 
-    foundit= False
+    foundit= True
     lookingfor = 671052
 
     metids = sorted(idpage.json().get('objectIDs'), reverse=True)
@@ -455,12 +455,15 @@ def getMETGenerator():
         metadata['artworkidpid'] = u'P3634'
         metadata['artworkid'] = u'%s' % (metid,)
 
-        title = metjson.get('title').replace(u'\n', u'')
-        # Chop chop, in case we have very long titles
-        if len(title) > 220:
-            title = title[0:200]
-        metadata['title'] = { u'en' : title,
-                              }
+        # Empty titles exist:
+        if metjson.get('title'):
+            title = metjson.get('title').replace(u'\n', u'')
+            # Chop chop, in case we have very long titles
+            if len(title) > 220:
+                title = title[0:200]
+            metadata['title'] = { u'en' : title,
+                                  }
+
         if metjson.get('artistDisplayName'):
             metadata['creatorname'] = metjson.get('artistDisplayName')
 
@@ -564,7 +567,7 @@ def getMETGenerator():
         # No IIIF
         # Most images are uploaded already
         if metjson.get('isPublicDomain') and metjson.get('primaryImage'):
-            metadata[u'imageurl'] = metjson.get('primaryImage')
+            metadata[u'imageurl'] = metjson.get('primaryImage').replace(u' ', u'%20') # Damn spaces
             metadata[u'imageurlformat'] = u'Q2195' #JPEG
             metadata[u'imageurllicense'] = u'Q6938433' # CC0
             metadata[u'imageoperatedby'] = u'Q160236'
