@@ -25,6 +25,7 @@ def paintingGenerator():
   FILTER(LANG(?sittername)="en")
   { ?sitter rdfs:label ?sittername } UNION { ?sitter skos:altLabel ?sittername } .
   ?sitter wdt:P569 ?dob .
+  ?sitter wdt:P31 wd:Q5 .
   BIND(YEAR(?dob) AS ?yob)  .
   OPTIONAL { ?sitter wdt:P570 ?dod . BIND(YEAR(?dod) AS ?yod) .} .
   ?sitter wikibase:sitelinks ?sitterlinks .
