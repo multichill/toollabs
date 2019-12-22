@@ -52,6 +52,10 @@ def getRinglingGenerator():
 
             invregex = u'\<div class\=\"detailField invnoField\"\>\<span class\=\"detailFieldLabel\"\>Object number\:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>\<\/div\>'
             invmatch = re.search(invregex, itempage.text)
+            if not invmatch:
+                # Some pages are empty ( https://emuseum.ringling.org/emuseum/objects/21096/evening-street )
+                print (u'No inventory number found')
+                continue
             # Not sure if I need to replace space here
             metadata['id'] = htmlparser.unescape(invmatch.group(1).replace(u'&nbsp;', u' ')).strip()
 
