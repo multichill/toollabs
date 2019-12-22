@@ -123,18 +123,44 @@ def getDIAGenerator():
 
             mediumregex = u'\<th\>Medium\<\/th\>[\r\n\t\s]*\<td\>oil on canvas\<\/td\>'
 
-            mediumematch = re.search(mediumregex, itempage.text)
-            if mediumematch:
+            mediummatch = re.search(mediumregex, itempage.text)
+            if mediummatch:
                 metadata['medium'] = u'oil on canvas'
 
-            """
-            # Framed, unframed, .....
-            measurementsregex = u'\<dt\>\<h3 class\=\"object__accordion-title\"\>Dimensions\<\/h3\>\<\/dt\>[\r\n\t\s]*\<dd\>[\r\n\t\s]*\<div\>[\r\n\t\s]*\<div class\=\"field field--name-field-dimensions field--type-string field--label-hidden\"\>([^\<]+)\<\/div\>'
+            # Genre
+            portraitregex = u'\<a href\=\"\/art\/collection\?keys\=[P|p]ortraits?\" class\=\"keyword\"\>[P|p]ortraits?\<\/a\>'
+            religiousregex = u'\<a href\=\"\/art\/collection\?keys\=religious%20art\" class\=\"keyword\"\>religious art\<\/a\>'
+            landscaperegex = u'\<a href\=\"\/art\/collection\?keys\=landscape\" class\=\"keyword\"\>landscape\<\/a\\>'
+            genreregex = u'\<a href\=\"\/art\/collection\?keys\=Genre\" class\=\"keyword\"\>Genre\<\/a\>'
+
+            portraitmatch = re.search(portraitregex, itempage.text)
+            religiousmatch = re.search(religiousregex, itempage.text)
+            landscapematch = re.search(landscaperegex, itempage.text)
+            genrematch = re.search(genreregex, itempage.text)
+
+            # Add the genre based on the key found. Multiple keys are possible so only hit on the first one.
+            if portraitmatch:
+                metadata[u'genreqid'] = u'Q134307'
+            elif religiousmatch:
+                metadata[u'genreqid'] = u'Q2864737'
+            elif landscapematch:
+                metadata[u'genreqid'] = u'Q191163'
+            elif religiousmatch:
+                metadata[u'genreqid'] = u'Q2864737'
+            elif genrematch:
+                metadata[u'genreqid'] = u'Q1047337'
+
+            # Bit messy, this will get some of them
+            measurementsregex = u'\<th\>Dimensions\<\/th\>[\r\n\t\s]*\<td\>(Unframed|Overall):[^\<]+inches\s*\(([^\<]+cm)\)\<br \/\>'
             measurementsmatch = re.search(measurementsregex, itempage.text)
             if measurementsmatch:
-                measurementstext = measurementsmatch.group(1)
-                regex_2d = u'^(?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) cm.*'
-                regex_3d = u'^(?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) x (?P<depth>\d+(\.\d+)?) cm.*'
+                measurementstext = measurementsmatch.group(2)
+                print (measurementstext)
+                print (measurementstext)
+                print (measurementstext)
+                print (measurementstext)
+                regex_2d = u'(?P<height>\d+(\.\d+)?) × (?P<width>\d+(\.\d+)?) cm.*'
+                regex_3d = u'(?P<height>\d+(\.\d+)?) × (?P<width>\d+(\.\d+)?) × (?P<depth>\d+(\.\d+)?) cm.*'
                 match_2d = re.match(regex_2d, measurementstext)
                 match_3d = re.match(regex_3d, measurementstext)
                 if match_2d:
@@ -144,7 +170,7 @@ def getDIAGenerator():
                     metadata['heightcm'] = match_3d.group(u'height').replace(u',', u'.')
                     metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
                     metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
-            """
+
             imageurlregex = u'\<div class\=\"qtip-container icon-download\" data-content\=\"Download this Image\"\>\<a href\=\"(https\:\/\/www\.dia\.org\/sites\/default\/files\/tms-collections-objects\/[^\"]+\.jpg)\"\>\<span  class\=\"fa-2x fa-stack\" aria-label\=\"Download this Image\"\>'
             imageurlmatch = re.search(imageurlregex, itempage.text)
 
@@ -153,7 +179,7 @@ def getDIAGenerator():
                 metadata[u'imageurlformat'] = u'Q2195' #JPEG
                 # metadata[u'imageurllicense'] = u'' no explicit license
                 # Could use this later to force
-                metadata[u'imageurlforce'] = True
+                metadata[u'imageurlforce'] = False
 
             yield metadata
 
@@ -164,7 +190,7 @@ def main():
     #for painting in dictGen:
     #    print (painting)
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
     artDataBot.run()
 
 if __name__ == "__main__":
