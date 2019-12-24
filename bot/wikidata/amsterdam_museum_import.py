@@ -17,7 +17,7 @@ import requests
 def getAmsterdamGenerator():
     """
     Generator to return Amsterdam Museum paintings
-    * search=object_name=schilderij returns 2905 hits
+    * search=object_name=schilderij returns 2958 hits
     * search=object_category=schilderijencollectie 2878 hits
 
     """
@@ -28,7 +28,7 @@ def getAmsterdamGenerator():
 
     for i in range(0,30):
         searchurl = basesearchurl % (limit, limit * i,)
-        print searchurl
+        print (searchurl)
         searchPage = requests.get(searchurl)
         searchJson = searchPage.json()
 
@@ -40,7 +40,7 @@ def getAmsterdamGenerator():
 
             metadata['url'] = url
 
-            print itemurl
+            print (itemurl)
             itempage = requests.get(itemurl)
             itemjson = itempage.json()
             record = itemjson.get('adlibJSON').get('recordList').get('record')[0]
@@ -68,23 +68,24 @@ def getAmsterdamGenerator():
                 metadata['title'] = { u'nl' : record.get('title')[0].strip(),
                                       }
 
-            if record.get('maker') and record.get('maker')[0].get('creator')[0] and record.get('maker')[0].get('creator')[0].get('name')[0]:
-                name = record.get('maker')[0].get('creator')[0].get('name')[0]
-                if u',' in name:
-                    (surname, sep, firstname) = name.partition(u',')
-                    name = u'%s %s' % (firstname.strip(), surname.strip(),)
-                metadata['creatorname'] = name
+            if record.get('maker'):
+                if record.get('maker')[0].get('creator')[0]:
+                    name = record.get('maker')[0].get('creator')[0]
+                    if u',' in name:
+                        (surname, sep, firstname) = name.partition(u',')
+                        name = u'%s %s' % (firstname.strip(), surname.strip(),)
+                    metadata['creatorname'] = name
 
-                if name==u'onbekend':
-                    metadata['creatorname'] = u'anonymous'
-                    metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
-                                                u'en' : u'painting by anonymous painter',
-                                                }
-                    metadata['creatorqid'] = u'Q4233718'
-                else:
-                    metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
-                                                u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
-                                                }
+                    if name==u'onbekend':
+                        metadata['creatorname'] = u'anonymous'
+                        metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
+                                                    u'en' : u'painting by anonymous painter',
+                                                    }
+                        metadata['creatorqid'] = u'Q4233718'
+                    else:
+                        metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
+                                                    u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+                                            }
             else:
                 metadata['creatorname'] = u'anonymous'
                 metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
@@ -118,22 +119,47 @@ def getAmsterdamGenerator():
 
             # Set the inception only if start only start or if start and end are the same
             if record.get('production.date.start'):
-                proddate = record.get('production.date.start')[0]
                 if not record.get('production.date.end'):
-                    metadata['inception'] = proddate
-                elif proddate == record.get('production.date.end')[0]:
-                    metadata['inception'] = proddate
+                    metadata['inception'] = int(record.get('production.date.start')[0])
+                elif record.get('production.date.start')[0] == record.get('production.date.end')[0]:
+                    metadata['inception'] = int(record.get('production.date.start')[0])
+                elif record.get('production.date.start')[0] != record.get('production.date.end')[0]:
+                    metadata['inceptionstart'] = int(record.get('production.date.start')[0])
+                    metadata['inceptionend'] = int(record.get('production.date.end')[0])
+
+            # They provide the different genres in the api
+            genres = { u'bijbelse voorstelling' : u'Q2864737',
+                       u'dierstuk' : u'Q16875712',
+                       u'genre' : u'Q1047337',
+                       u'geschiedenis (iconografie)' : u'Q742333',
+                       u'kerkinterieur' : u'Q21074330',
+                       u'landschap' : u'Q191163',
+                       u'mythologie' : u'',
+                       u'portret' : u'Q134307',
+                       u'stadsgezicht' : u'Q1935974',
+                       u'stilleven' : u'Q170571',
+                       u'zeegezicht' : u'Q158607',
+                       }
+
+            if record.get('content.motif.general'):
+                for motif in record.get('content.motif.general'):
+                    term = motif.get('term')[0]
+                    if term in genres:
+                        metadata[u'genreqid'] = genres.get(term)
+                        break
+
             # Get the image!
             if record.get('copyright') and record.get('copyright')[0]==u'Public Domain':
-                print u'public domain'
+                print (u'public domain')
                 if record.get('reproduction') and type(record.get('reproduction')[0])==dict:
                     repro = record.get('reproduction')[0].get(u'reproduction.identifier_URL')[0].lower()
-                    print repro
+                    print (repro)
                     if repro.startswith(u'..\\..\\dat\\collectie\\images\\'):
                         filename = repro.replace(u'..\\..\\dat\\collectie\\images\\', u'')
                         imageurl = u'https://am-web.adlibhosting.com/wwwopacx_images/wwwopac.ashx?command=getcontent&server=images&value=%s' % (filename)
                         metadata[u'imageurl'] = imageurl
                         metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                        metadata[u'imageoperatedby'] = u'Q1820897'
             yield metadata
 
     return
@@ -142,7 +168,7 @@ def main():
     dictGen = getAmsterdamGenerator()
 
     #for painting in dictGen:
-    #     print painting
+    #     print (painting)
 
     artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
     artDataBot.run()
