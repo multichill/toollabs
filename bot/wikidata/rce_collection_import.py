@@ -136,7 +136,7 @@ def getRCEGenerator():
 
     while hasNext:
         searchUrl = basesearchurl % (start, rows)
-        print searchUrl
+        print (searchUrl)
         searchPage = requests.get(searchUrl)
         searchJson = searchPage.json()
 
@@ -145,18 +145,18 @@ def getRCEGenerator():
 
         for item in searchJson.get(u'result').get(u'items'):
             itemfields = item.get('item').get(u'fields')
-            #print itemfields
+            #print (itemfields)
             metadata = {}
 
             collectionid = itemfields.get('delving_spec').get('value')
-            if collectionid==u'rce-kunstcollectie':
+            if collectionid==u'rijkscollectie-rce' or collectionid==u'rce-kunstcollectie':
                 metadata['collectionqid'] = u'Q18600731'
                 metadata['collectionshort'] = u'RCE'
                 # It's a meta collection, leaving out the location
                 #metadata['locationqid'] = u'Q18600731'
             else:
                 #Another collection, skip
-                print u'Found other collection %s' % (collectionid,)
+                print (u'Found other collection %s' % (collectionid,))
                 continue
 
             #No need to check, I'm actually searching for paintings.
@@ -166,7 +166,7 @@ def getRCEGenerator():
             metadata['id'] = itemfields.get('dc_identifier')[0].get('value')
             if u'?' in metadata['id']:
                 # Some messed up records in there!
-                print u'mess'
+                print (u'mess')
                 time.sleep(5)
                 continue
             metadata['idpid'] = u'P217'
@@ -178,7 +178,7 @@ def getRCEGenerator():
                 metadata['title'] = { u'nl' : title,
                                     }
 
-            metadata['url'] = itemfields.get('system').get('about_uri')
+            metadata['url'] = itemfields.get('system').get('about_uri').replace(u'http://', u'https://')
 
             ## Is this enough or do we need to use requests to see if all urls point somewhere?
             #metadata['url'] = metadata['refurl'].replace(u'http://data.collectienederland.nl/resource/aggregation/dordrechts-museum/', u'https://www.dordrechtsmuseum.nl/objecten/id/')
@@ -192,11 +192,24 @@ def getRCEGenerator():
             if not name:
                 name = u'onbekend'
 
-
             if u',' in name:
                 (surname, sep, firstname) = name.partition(u',')
                 name = u'%s %s' % (firstname.strip(), surname.strip(),)
-            metadata['creatorname'] = name
+
+            creatordob = u''
+            creatordod = u''
+            if itemfields.get('rda_dateOfBirth'):
+                creatordob = itemfields.get('rda_dateOfBirth')[0].get(u'value')
+            if itemfields.get('rda_dateOfDeath'):
+                creatordod = itemfields.get('rda_dateOfDeath')[0].get(u'value')
+
+            # Expand the crap names with livespan information
+            if creatordob and creatordod:
+                metadata['creatorname'] = u'%s (%s - %s)' % (name, creatordob, creatordod)
+            elif creatordob:
+                metadata['creatorname'] = u'%s (%s)' % (name, creatordob)
+            else:
+                metadata['creatorname'] = name
 
             # FIXME: Everything is stuff into one field with ; in between. Take different field or split it
             # Don't think we'll find onbekend, but doesn't hurt
@@ -209,7 +222,9 @@ def getRCEGenerator():
             else:
                 metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                             u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
-                                          }
+                                            u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'), ),
+                                            u'fr' : u'%s de %s' % (u'peinture', metadata.get('creatorname'), ),
+                                            }
 
             if itemfields.get('dcterms_medium'):
                 if itemfields.get('dcterms_medium')[0].get('value') == u'doek, olieverf':
@@ -222,14 +237,18 @@ def getRCEGenerator():
 
             if itemfields.get('dcterms_created'):
                 dcvalue = itemfields.get('dcterms_created')[0].get('value')
-                periodregex = u'(\d\d\d\d) – (\d\d\d\d)'
+                dateregex = u'^(\d\d\d\d)$'
+                periodregex = u'^(\d\d\d\d)\s*[–-]\s*(\d\d\d\d)$'
+                datematch = re.match(dateregex, dcvalue)
                 periodmatch = re.match(periodregex, dcvalue)
 
-                if periodmatch:
+                if datematch:
+                    metadata['inception'] = int(datematch.group(1))
+                elif periodmatch:
                     metadata['inceptionstart'] = int(periodmatch.group(1))
                     metadata['inceptionend'] = int(periodmatch.group(2))
                 else:
-                    metadata['inception'] = itemfields.get('dcterms_created')[0].get('value')
+                    print (u'Could not parse date: "%s"' % (dcvalue,))
 
             # TODO: Check if this still works
             # Where did it come from????
@@ -259,8 +278,33 @@ def getRCEGenerator():
                         if location!=u'Depot ICN':
                             metadata['extracollectionqid2'] = locations[location]
 
-            # Add a genre
-            if itemfields.get('dc_description'):
+            genres = { u'genre' : u'Q1047337',
+                       u'historie' : u'Q742333',
+                       u'landschap' : u'Q191163',
+                       u'portret' : u'Q134307',
+                       u'religie' : u'Q2864737',
+                       u'stadsgezicht' : u'Q1935974',
+                       u'stilleven' : u'Q170571',
+                       u'zelfportret' : u'Q192110',
+                       }
+
+            if itemfields.get('dc_subject'):
+                for dcsubject in itemfields.get('dc_subject'):
+                    dcvalue = dcsubject.get(u'value')
+                    if dcvalue=='schilderkunst':
+                        continue
+                    if dcvalue in genres:
+                        metadata[u'genreqid'] = genres.get(dcvalue)
+                        break
+                    else:
+                        print (u'Found unkown genre type: %s' % (dcvalue,))
+                        print (u'Found unkown genre type: %s' % (dcvalue,))
+                        print (u'Found unkown genre type: %s' % (dcvalue,))
+                        print (u'Found unkown genre type: %s' % (dcvalue,))
+                        print (u'Found unkown genre type: %s' % (dcvalue,))
+
+                # Add a genre
+            if not metadata.get(u'genreqid') and itemfields.get('dc_description'):
                 dcdesc = itemfields.get('dc_description')[0].get('value')
                 if dcdesc.startswith(u'Portret van'):
                     metadata[u'genreqid'] = u'Q134307'
@@ -282,7 +326,7 @@ def getRCEGenerator():
                         elif dcformatmatch.group(1)==u'hoogte':
                             metadata['heightcm'] = dcformatmatch.group(2)
                         else:
-                            print u'Found weird type: %s' % (dcvalue,)
+                            print (u'Found weird type: %s' % (dcvalue,))
 
             # High resolution tiff images for some, jpgeg for all images!!!!!
             if itemfields.get('nave_allowSourceDownload') and itemfields.get('nave_allowSourceDownload')[0].get('value')=='true':
@@ -354,9 +398,9 @@ def main():
     # currentrijksworks = paintingsInvOnWikidata()
 
     #for painting in dictGen:
-    #    # if painting.get(u'extracollectionqid') and painting.get(u'extracollectionqid')==u'Q190804' and painting.get(u'id') not in currentrijksworks:
-    #    #    rijksworks.append(painting)
-    #    print painting
+    ##    # if painting.get(u'extracollectionqid') and painting.get(u'extracollectionqid')==u'Q190804' and painting.get(u'id') not in currentrijksworks:
+    ##    #    rijksworks.append(painting)
+    #    print (painting)
 
     #makeRijksReport(rijksworks)
     artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
