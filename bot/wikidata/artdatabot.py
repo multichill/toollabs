@@ -53,7 +53,7 @@ class ArtDataBot:
         # FIXME: Do something with the collection qualifier
         #query = u'SELECT ?item ?id WHERE { ?item wdt:P195 wd:%s . ?item wdt:%s ?id }' % (collectionqid, idProperty)
         query = u"""SELECT ?item ?id WHERE {
-        ?item wdt:P195 wd:%s .
+        ?item p:P195/ps:P195 wd:%s .
         ?item p:%s ?idstatement .
         ?idstatement pq:P195 wd:%s .
         ?idstatement ps:%s ?id }""" % (collectionqid, idProperty, collectionqid, idProperty)
@@ -187,7 +187,7 @@ class ArtDataBot:
             if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
                                                                      metadata[u'acquisitiondate'].isnumeric()): # It's a year
                 #FIXME: Xqt broke this. Need to make sure it's an int
-                acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
+                acdate = pywikibot.WbTime(year=int(metadata[u'acquisitiondate']))
                 colqualifier = pywikibot.Claim(self.repo, u'P580')
                 colqualifier.setTarget(acdate)
                 pywikibot.output('Adding new acquisition date qualifier claim to collection on %s' % artworkItem)
@@ -524,7 +524,7 @@ class ArtDataBot:
                     if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
                                                                              metadata[u'acquisitiondate'].isnumeric()): # It's a year
                         #FIXME: Xqt broke this. Need to make sure it's an int
-                        acdate = pywikibot.WbTime(year=metadata[u'acquisitiondate'])
+                        acdate = pywikibot.WbTime(year=int(metadata[u'acquisitiondate']))
                     elif datematch:
                         #print metadata[u'acquisitiondate']
                         acdate = pywikibot.WbTime(year=int(datematch.group(1)),
