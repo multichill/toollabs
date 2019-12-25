@@ -85,7 +85,9 @@ def getAmsterdamGenerator():
                     else:
                         metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                                     u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
-                                            }
+                                                    u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'), ),
+                                                    u'fr' : u'%s de %s' % (u'peinture', metadata.get('creatorname'), ),
+                                                    }
             else:
                 metadata['creatorname'] = u'anonymous'
                 metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
