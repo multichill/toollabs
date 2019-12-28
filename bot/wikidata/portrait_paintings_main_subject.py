@@ -96,33 +96,41 @@ class PortraitPaintingsBot:
         if not personitem:
             return
 
-        # Labelend is empty so we have an exact match
-        if not labelend:
-            summary = u'based on %s (%s-%s)' % (name, yob, yod)
-            mainsubjectclaim = pywikibot.Claim(self.repo, u'P921')
-            mainsubjectclaim.setTarget(personitem)
-            pywikibot.output('Adding main subject claim to %s %s' % (item.title(), summary))
-            item.addClaim(mainsubjectclaim, summary=summary)
-            # Exact match, also add depicts if it's missing
-            if u'P180' not in claims:
+        if isinstance(personitem, pywikibot.ItemPage):
+            # Labelend is empty so we have an exact match
+            if not labelend:
+                summary = u'based on %s (%s-%s)' % (name, yob, yod)
+                mainsubjectclaim = pywikibot.Claim(self.repo, u'P921')
+                mainsubjectclaim.setTarget(personitem)
+                pywikibot.output('Adding main subject claim to %s %s' % (item.title(), summary))
+                item.addClaim(mainsubjectclaim, summary=summary)
+                # Exact match, also add depicts if it's missing
+                if u'P180' not in claims:
+                    depictsclaim = pywikibot.Claim(self.repo, u'P180')
+                    depictsclaim.setTarget(personitem)
+                    pywikibot.output('Adding depicts claim to %s %s' % (item.title(), summary))
+                    item.addClaim(depictsclaim, summary=summary)
+                # Exact match, also add portrait genre if it's missing
+                if u'P136' not in claims:
+                    genreclaim = pywikibot.Claim(self.repo, u'P136')
+                    genreclaim.setTarget(pywikibot.ItemPage(self.repo, u'Q134307'))
+                    pywikibot.output('Adding genre claim to %s %s' % (item.title(), summary))
+                    item.addClaim(genreclaim, summary=summary)
+
+            # We don't have an exact match, just fall back to adding depicts
+            elif labelend and u'P180' not in claims:
+                summary = u'based on %s (%s-%s)%s' % (name, yob, yod, labelend)
                 depictsclaim = pywikibot.Claim(self.repo, u'P180')
                 depictsclaim.setTarget(personitem)
                 pywikibot.output('Adding depicts claim to %s %s' % (item.title(), summary))
                 item.addClaim(depictsclaim, summary=summary)
-            # Exact match, also add portrait genre if it's missing
-            if u'P136' not in claims:
-                genreclaim = pywikibot.Claim(self.repo, u'P136')
-                genreclaim.setTarget(pywikibot.ItemPage(self.repo, u'Q134307'))
-                pywikibot.output('Adding genre claim to %s %s' % (item.title(), summary))
-                item.addClaim(genreclaim, summary=summary)
-
-        # We don't have an exact match, just fall back to adding depicts
-        elif labelend and u'P180' not in claims:
-            summary = u'based on %s (%s-%s)%s' % (name, yob, yod, labelend)
-            depictsclaim = pywikibot.Claim(self.repo, u'P180')
-            depictsclaim.setTarget(personitem)
-            pywikibot.output('Adding depicts claim to %s %s' % (item.title(), summary))
-            item.addClaim(depictsclaim, summary=summary)
+        # The name was a valid name, just not the right date of birth/death, but it is a portrait
+        elif personitem and not labelend and u'P136' not in claims:
+            summary = u'based on the name "%s" in the label' % (name, )
+            genreclaim = pywikibot.Claim(self.repo, u'P136')
+            genreclaim.setTarget(pywikibot.ItemPage(self.repo, u'Q134307'))
+            pywikibot.output('Adding genre claim to %s %s' % (item.title(), summary))
+            item.addClaim(genreclaim, summary=summary)
 
     def findPerson(self, name, yob, yod):
         """
@@ -136,6 +144,8 @@ class PortraitPaintingsBot:
         searchstring = u'"%s" haswbstatement:P31=Q5' % (name,)
         persongen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
 
+        foundperson = False
+
         for personitem in persongen:
             #print (u'Possible match %s' % (personitem.title(),))
             if personitem.isRedirectPage():
@@ -147,13 +157,14 @@ class PortraitPaintingsBot:
             if u'P569' in personitem.get().get('claims') and u'P570' in personitem.get().get('claims'):
                 dob = personitem.get().get('claims').get('P569')[0].getTarget()
                 dod = personitem.get().get('claims').get('P570')[0].getTarget()
+                foundperson = True
                 if dob and dod:
                     #print (u'Date found dob "%s" "%s" "%s"' % (dob, dob.year, yob))
                     #print (u'Date found dod "%s" "%s" "%s"' % (dod, dod.year, yod))
                     if int(dob.year)==int(yob) and int(dod.year)==int(yod):
                         #print (u'maaaaaaaaaaaaaaaaaaaaaaaatcchhhhh')
                         return personitem
-
+        return foundperson
 
 def main():
     """
