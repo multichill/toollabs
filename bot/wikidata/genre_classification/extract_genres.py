@@ -102,7 +102,7 @@ class GenreExtractionBot:
                             if isinstance(itementry, dict):
                                 result.append(itementry.get(u'@value'))
                 for entrykey in entry:
-                    if entrykey.startswith(u'P'):
+                    if entrykey.startswith(u'P') and not entrykey==u'P136':
                         wantedprops.append(entrykey)
                         if isinstance(entry.get(entrykey), str):
                             if entry.get(entrykey).startswith(u'wd:'):
@@ -114,9 +114,6 @@ class GenreExtractionBot:
                 #print (wantedprops)
                 #print (wanteditems)
 
-            elif entry.get(u'@id')==u'P136':
-                # Ignore the genre
-                continue
             elif entry.get(u'@id').startswith(u'wd:Q') and entry.get(u'@id') in wanteditems:
                 itemfields = [ u'label']
                 for itemfield in itemfields:
