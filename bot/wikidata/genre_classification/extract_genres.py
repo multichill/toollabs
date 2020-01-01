@@ -45,7 +45,7 @@ class GenreExtractionBot:
   ?item wdt:P136 wd:%s .
   ?item wdt:P31 wd:Q3305213 .
   MINUS { ?item wdt:P136 ?genre . FILTER (?genre!=wd:%s) }
-  } LIMIT 40""" % (genre, genre)
+  } LIMIT 1000""" % (genre, genre)
         return pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
 
     def run(self):
