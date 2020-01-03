@@ -311,7 +311,7 @@ class OwnWorkBot:
 
     def handleDate(self, filepage):
         """
-        Handle the date on the filepage. If it matches an ISO date (YYYY-MM-DD), add a date claim
+        Handle the date on the filepage. If it matches an ISO date (YYYY-MM-DD) (with or without time), add a date claim
         :param filepage:
         :return:
         """
@@ -319,7 +319,7 @@ class OwnWorkBot:
         pid = u'P571'
         if self.mediaInfoHasStatement(mediaid, pid):
             return
-        dateRegex = u'^[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)\s*$'
+        dateRegex = u'^[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d)?)?\s*$'
         dateString = None
 
         for template, parameters in filepage.templatesWithParams():
