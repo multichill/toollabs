@@ -46,12 +46,17 @@ class OwnWorkBot:
         :return:
         """
         # FIXME: Do query later
+        # cc-by-sa-3.0-au,-ee,-es,-fr,-lu,-ro all have 10.000+ files in it
         result = { u'cc-zero' : u'Q6938433',
                    u'cc-by-2.0' : u'Q19125117',
-                   u'cc-by-sa-2.0' : u'Q19068220',
                    u'cc-by-3.0' : u'Q14947546',
+                   u'cc-by-4.0' : u'Q20007257',
+                   u'cc-by-sa-2.0' : u'Q19068220',
                    u'cc-by-sa-3.0' : u'Q14946043',
+                   u'cc-by-sa-3.0-at' : u'Q80837139',
+                   u'cc-by-sa-3.0-de' : u'Q42716613',
                    u'cc-by-sa-3.0-nl' : u'Q18195572',
+                   u'cc-by-sa-3.0-pl' : u'Q80837607',
                    u'cc-by-sa-4.0' : u'Q18199165',
                    }
         return result
