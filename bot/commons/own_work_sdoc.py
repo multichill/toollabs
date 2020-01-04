@@ -199,7 +199,7 @@ class OwnWorkBot:
         :return: Tuple with a User and a string
         """
 
-        authorRegex = u'^[aA]uthor\s*\=\s*\[\[User\:([^\|^\]]+)\|([^\|^\]]+)\]\](\s*\(\s*\[\[User talk\:[^\|^\]]+\|[^\|^\]]+\]\]\s*\)\s*)?$'
+        authorRegex = u'^\s*[aA]uthor\s*\=\s*\[\[User\:([^\|^\]]+)\|([^\|^\]]+)\]\](\s*\(\s*\[\[User talk\:[^\|^\]]+\|[^\|^\]]+\]\]\s*\)\s*)?\s*$'
 
         for template, parameters in filepage.templatesWithParams():
             if template.title()==u'Template:Information':
@@ -319,7 +319,7 @@ class OwnWorkBot:
         pid = u'P571'
         if self.mediaInfoHasStatement(mediaid, pid):
             return
-        dateRegex = u'^[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d)?)?\s*$'
+        dateRegex = u'^\s*[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
         dateString = None
 
         for template, parameters in filepage.templatesWithParams():
