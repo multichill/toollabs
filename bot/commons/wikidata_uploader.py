@@ -146,7 +146,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?collection wdt:P373 ?collectioncategory .
   ?item wdt:P170 ?creator .
   ?creator wdt:P570 ?dod . BIND(YEAR(?dod) AS ?deathyear)
-  FILTER(?deathyear > (YEAR(NOW())-95) && ?deathyear < (YEAR(NOW())-70)) .
+  FILTER(?deathyear >= (YEAR(NOW())-95) && ?deathyear < (YEAR(NOW())-70)) .
   ?creator wdt:P569 ?dob .
   ?item wdt:P571 ?inception .
   FILTER(YEAR(?inception) < (YEAR(NOW())-95) && ?dob < ?inception ) .
@@ -265,12 +265,12 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                 pywikibot.output('Uploaded a file, sleeping a bit so I don\'t run into lagging databases')
                 time.sleep(15)
                 self.addImageToWikidata(metadata, imagefile, summary = u'Uploaded the image')
-                imagefile.touch()
                 mediaid = u'M%s' % (imagefile.pageid,)
                 summary = u'this newly uploaded file depicts and is a digital representation of [[:d:%s]]' % (metadata.get(u'item'),)
                 self.addClaim(mediaid, u'P180', metadata.get(u'item'), summary)
                 self.addClaim(mediaid, u'P6243', metadata.get(u'item'), summary)
                 self.addSource(mediaid, metadata)
+                imagefile.touch()
 
     def addImageToWikidata(self, metadata, imagefile, summary=u'Added the image'):
         """
@@ -311,7 +311,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         """
         Construct the description for the file to be uploaded
         """
-        artworkinfo = self.getArtworkTemplate(metadata)
+        artworkinfo = u'{{Artwork}}\n' # All structured data on Commons!
         licenseinfo = self.getLicenseTemplate(metadata)
         categoryinfo =  self.getCategories(metadata)
         if artworkinfo and licenseinfo and categoryinfo:
@@ -320,16 +320,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             description = description + u'\n=={{int:license-header}}==\n'
             description = description + licenseinfo + u'\n' + categoryinfo
             return description
-
-    def getArtworkTemplate(self, metadata):
-        """
-        Construct the artwork template.
-        Just do a minimal one because it grabs the rest from Wikidata
-        """
-        result = u'{{Artwork\n'
-        result = result + u'|source=%(sourceurl)s\n' % metadata
-        result = result + u'}}\n' % metadata
-        return result
 
     def getLicenseTemplate(self, metadata):
         """
