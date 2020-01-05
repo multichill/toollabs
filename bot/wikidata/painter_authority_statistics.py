@@ -21,6 +21,7 @@ class PainterAuthorityStatistics:
         """
         self.repo = pywikibot.Site().data_repository()
         self.artistProperties = self.getArtistProperties()
+        self.skipProperties = []
         self.propertyTotals = {}
         self.propertyPainterTotals = {}
         self.propertyIdentifiers = {}
@@ -60,7 +61,7 @@ class PainterAuthorityStatistics:
         result = []
         query = """SELECT ?property WHERE {
   ?property wdt:P31 wd:Q55653847 .
-  } LIMIT 20"""
+  } LIMIT 1000"""
 
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
@@ -80,16 +81,34 @@ class PainterAuthorityStatistics:
             print (propertyid1)
             self.propertyTotals[propertyid1] = self.getPropertyTotals(propertyid1)
             self.propertyPainterTotals[propertyid1] = self.getPropertyTotals(propertyid1, itemtype=u'painter')
+
+            painterpercentage = round(1.0 * self.propertyPainterTotals.get(propertyid1) / max(self.propertyTotals.get(propertyid1), 1) * 100, 2)
+            if painterpercentage < 15:
+                self.skipProperties.append(propertyid1)
+                continue
+
             self.propertyIdentifiers[propertyid1] = self.getpropertyIdentifiers(propertyid1)
             self.propertyPainterIdentifiers[propertyid1] = self.getpropertyIdentifiers(propertyid1, itemtype=u'painter')
-            for propertyid2 in self.artistProperties:
-                # This way we only work on each pair once
-                if propertyid1 < propertyid2:
-                    pair = (propertyid1, propertyid2)
-                    print (pair)
-                    self.propertyPairTotals[pair] = self.getpropertyPairTotals(propertyid1, propertyid2)
-                    self.propertyPairPainterTotals[pair] = self.getpropertyPairTotals(propertyid1, propertyid2,
-                                                                                      itemtype=u'painter')
+
+            pairs = self.getpropertyPairTotals(propertyid1)
+            for pair in pairs:
+                if not pair in self.propertyPairTotals:
+                    self.propertyPairTotals[pair] = pairs.get(pair)
+
+            painterpairs = self.getpropertyPairTotals(propertyid1, itemtype=u'painter')
+            for pair in painterpairs:
+                if not pair in self.propertyPairPainterTotals:
+                    self.propertyPairTotals[pair] = painterpairs.get(pair)
+        print (self.propertyPairTotals)
+
+            #for propertyid2 in self.artistProperties:
+            #    # This way we only work on each pair once
+            #    if propertyid1 < propertyid2:
+            #        pair = (propertyid1, propertyid2)
+            #        print (pair)
+            #        self.propertyPairTotals[pair] = self.getpropertyPairTotals(propertyid1, propertyid2)
+            #        self.propertyPairPainterTotals[pair] = self.getpropertyPairTotals(propertyid1, propertyid2,
+            #                                                                          itemtype=u'painter')
 
 
     def getPropertyTotals(self, propertyid, itemtype=u''):
@@ -121,7 +140,7 @@ class PainterAuthorityStatistics:
             return int(count)
         return 0
 
-    def getpropertyPairTotals(self, propertyid1, propertyid2, itemtype=u''):
+    def getpropertyPairTotals(self, propertyid, itemtype=u''):
         """
         Get the totals for a pair of properties
         :param propertyid:
@@ -129,28 +148,49 @@ class PainterAuthorityStatistics:
         :return:
         """
         if itemtype==u'painter':
-            query = """SELECT (COUNT(?item) AS ?count) WHERE {
-  ?item wdt:P%s ?id2 .
-  ?item wdt:P%s ?id1 .
-  ?item wdt:P106 wd:Q1028181 .
-  ?item wdt:P31 wd:Q5 .
-  }""" % (propertyid2, propertyid1,)
+            query = """SELECT ?property ?count WHERE {
+  {
+    SELECT ?propertyclaim (COUNT(*) AS ?count) where {
+      ?item wdt:P%s [] .
+      ?item wdt:P106 wd:Q1028181 .
+      ?item wdt:P31 wd:Q5 .
+      ?item ?propertyclaim [] .
+    } GROUP BY ?propertyclaim
+  }
+  ?property wikibase:propertyType wikibase:ExternalId .
+  ?property wdt:P31 wd:Q55653847 .
+  ?property wikibase:claim ?propertyclaim .
+}""" % (propertyid,)
         else:
-            query = """SELECT (COUNT(?item) AS ?count) WHERE {
-  ?item wdt:P%s ?id2 .
-  ?item wdt:P%s ?id1 .
-  ?item wdt:P31 wd:Q5 .
-  }""" % (propertyid2, propertyid1,)
+            query = """SELECT ?property ?count WHERE {
+  {
+    SELECT ?propertyclaim (COUNT(*) AS ?count) where {
+      ?item wdt:P%s [] .
+      ?item wdt:P106 wd:Q1028181 .
+      ?item wdt:P31 wd:Q5 .
+      ?item ?propertyclaim [] .
+    } GROUP BY ?propertyclaim
+  }
+  ?property wikibase:propertyType wikibase:ExternalId .
+  ?property wdt:P31 wd:Q55653847 .
+  ?property wikibase:claim ?propertyclaim .
+}""" % (propertyid,)
+
+        result = {}
 
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
-        # Only one row
         for resultitem in queryresult:
-            count = resultitem.get('count')
-            print (count)
-            return int(count)
-        return 0
+            print (resultitem)
+            if resultitem.get('property').startswith(u'http://www.wikidata.org/entity/P'):
+                pid = int(resultitem.get('property').replace(u'http://www.wikidata.org/entity/P', u''))
+                count = int(resultitem.get('count'))
+                if pid in self.artistProperties and propertyid < pid:
+                    pair = (propertyid, pid)
+                    result[pair] = count
+        print (result)
+        return result
 
     def getpropertyIdentifiers(self, propertyid, itemtype=u''):
         """
@@ -201,8 +241,10 @@ ORDER BY ASC(?ids)""" % (propertyid,)
         text += u'|-\n'
         text += u'! Properties\n'
 
+        properties = sorted(list(set(self.artistProperties).difference(self.skipProperties)))
+
         # Complete the header
-        for prop in self.artistProperties:
+        for prop in properties:
             text += u'! data-sort-type="number"|P%s\n' % (prop,)
         text += u'! <!-- spacer -->\n'
         text += u'! data-sort-type="number"|1 ID\n'
@@ -211,12 +253,12 @@ ORDER BY ASC(?ids)""" % (propertyid,)
         text += u'! data-sort-type="number"|>10 ID\'s\n'
 
         # Build the rows
-        for prop1 in self.artistProperties:
+        for prop1 in properties:
             text += u'|-\n'
             text += u'| {{P|%s}}\n' % (prop1,)
             prop1number = self.propertyTotals.get(prop1)
             prop1painternumber = self.propertyPainterTotals.get(prop1)
-            for prop2 in self.artistProperties:
+            for prop2 in properties:
                 if prop1==prop2:
                     number = prop1number
                     painternumber = prop1painternumber
@@ -227,8 +269,8 @@ ORDER BY ASC(?ids)""" % (propertyid,)
                         pair = (prop1, prop2)
                     else:
                         pair = (prop2, prop1)
-                    number = self.propertyPairTotals.get(pair)
-                    painternumber = self.propertyPairPainterTotals.get(pair)
+                    number = self.propertyPairTotals.get(pair, 0)
+                    painternumber = self.propertyPairPainterTotals.get(pair, 0)
                     percentage = round(1.0 * number / max(prop1number, 1) * 100, 2)
                     painterpercentage = round(1.0 * painternumber / max(prop1painternumber, 1) * 100, 2)
                 text += u'| {{/Cell|%s|%s|%s|%s}}\n' % (percentage, number, painterpercentage, painternumber)
