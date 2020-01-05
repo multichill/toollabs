@@ -259,11 +259,17 @@ def main(*args):
                                     u'locationqid' : u'Q3094652',
                                     },
                     u'Q62430225' : { u'name' : u'Tatra Gallery',
-                                    u'gallery' : u'Tatransk\u00e1 gal\u00e9ria, TGP', # For some reason this doesn't work
+                                    u'gallery' : u'Tatranská galéria, TGP', # For some reason this doesn't work
                                     u'collectionqid' : u'Q62430225',
                                     u'collectionshort' : u'TGP',
                                     u'locationqid' : u'Q62430225',
                                     },
+                    u'Q12774288' : { u'name' : u'Považská galéria umenia',
+                                     u'gallery' : u'Považská galéria umenia, PGU',
+                                     u'collectionqid' : u'Q12774288',
+                                     u'collectionshort' : u'PGU',
+                                     u'locationqid' : u'Q12774288',
+                                     },
                  }
     collectionid = None
     dryrun = False
