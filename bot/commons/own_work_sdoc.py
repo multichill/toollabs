@@ -102,6 +102,8 @@ class OwnWorkBot:
             pywikibot.output(u'No own and self templates found on %s, skipping' % (filepage.title(),))
             return
 
+
+
         # Get the author
         authorInfo = self.getAuthor(filepage)
         if not authorInfo:
@@ -119,13 +121,37 @@ class OwnWorkBot:
         print (licenses)
 
         mediaid = u'M%s' % (filepage.pageid,)
+        # Here we're collecting
+        itemdata = self.getStartMediaInfo(mediaid)
+        itemdata = {u'claims' : [] }
 
         # We got all the needed info, let's add it
-        self.addSourceOwn(mediaid)
-        self.addAuthor(mediaid, authorPage, authorName)
-        self.addLicenses(mediaid, licenses)
+        itemdata = self.addSourceOwn(mediaid, itemdata)
+        print (itemdata)
+        itemdata = self.addAuthor(mediaid, itemdata, authorPage, authorName)
+        print (itemdata)
+        itemdata = self.addLicenses(mediaid, itemdata, licenses)
+        print (itemdata)
         # Optional stuff
-        self.handleDate(filepage)
+        itemdata = self.handleDate(filepage, mediaid, itemdata)
+        # Flush it
+        print (itemdata)
+
+        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+
+        tokendata = json.loads(tokenrequest.text)
+        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+
+        postdata = {u'action' : u'wbeditentity',
+                    u'format' : u'json',
+                    u'id' : mediaid,
+                    u'data' : json.dumps(itemdata),
+                    u'token' : token,
+                    u'summary' : u'Adding structured data',
+                    u'bot' : True,
+                    }
+        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
+        print (apipage)
         return
 
 
@@ -192,6 +218,22 @@ class OwnWorkBot:
             return True
         return False
 
+    def getStartMediaInfo(self, mediaid):
+        """
+        Check if the media info exists. If that's the case, return that so we can expand it.
+        Otherwise return an empty structure with just <s>claims</>statements in it to start
+        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
+        :return: json
+            """
+        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M52611909
+        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M10038
+        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
+        data = request.submit()
+        if data.get(u'entities').get(mediaid).get(u'pageid'):
+            return data.get(u'entities').get(mediaid)
+
+        return { u'statements' : {}, }
+
     def getAuthor(self, filepage):
         """
         Extract the author form the information template
@@ -234,17 +276,18 @@ class OwnWorkBot:
                 break
         return result
 
-    def addSourceOwn(self, mediaid):
+    def addSourceOwn(self, mediaid, itemdata):
         """
         Dummy method for now
         :return:
         """
         if self.mediaInfoHasStatement(mediaid, u'P7482'):
-            return
-        self.addClaim(mediaid, u'P7482', u'Q66458942', u'Extracted [[Commons:Structured data/Modeling/Source|source]] own work status from wikitext' )
-        return
+            return itemdata
+        #self.addClaim(mediaid, u'P7482', u'Q66458942', u'Extracted [[Commons:Structured data/Modeling/Source|source]] own work status from wikitext' )
+        return self.addClaimJson(mediaid, itemdata, u'P7482', u'Q66458942')
 
-    def addAuthor(self, mediaid, authorPage, authorName):
+
+    def addAuthor(self, mediaid, itemdata, authorPage, authorName):
         """
         Add the author info to filepage
         :param authorPage:
@@ -252,11 +295,64 @@ class OwnWorkBot:
         :return:
         """
         if self.mediaInfoHasStatement(mediaid, u'P170'):
-            return
+            return itemdata
+        #return itemdata
 
         # Do the adding of somevalue here
 
         summary = u'Extracted [[Commons:Structured data/Modeling/Author|author]] from [[Template:Information|Information]] in the wikitext'
+
+        toclaim = {'mainsnak': { 'snaktype':'somevalue',
+                                 'property': 'P170',
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   'qualifiers' : {'P3831' : [ {'snaktype': 'value',
+                                                'property': 'P3831',
+                                                'datavalue': { 'value': { 'numeric-id': '33231',
+                                                                          'id' : 'Q33231',
+                                                                          },
+                                                               'type' : 'wikibase-entityid',
+                                                               },
+                                                } ],
+                                   'P2093' : [ {'snaktype': 'value',
+                                                'property': 'P2093',
+                                                'datavalue': { 'value': authorName,
+                                                               'type' : 'string',
+                                                               },
+                                                } ],
+                                   'P4174' : [ {'snaktype': 'value',
+                                                'property': 'P4174',
+                                                'datavalue': { 'value': authorPage.username,
+                                                               'type' : 'string',
+                                                               },
+                                                } ],
+                                   'P2699' : [ {'snaktype': 'value',
+                                                'property': 'P2699',
+                                                'datavalue': { 'value': u'https://commons.wikimedia.org/wiki/%s' % (authorPage.title(underscore=True), ),
+                                                               'type' : 'string',
+                                                               },
+                                                } ],
+                                   },
+                   }
+        itemdata[u'claims'].append(toclaim)
+        return itemdata
+
+
+        toclaim = {'mainsnak': { 'snaktype':'value',
+                                 'property': pid,
+                                 'datavalue': { 'value': { 'numeric-id': qid.replace(u'Q', u''),
+                                                           'id' : qid,
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+
+
 
         tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
 
@@ -290,7 +386,7 @@ class OwnWorkBot:
         authorUrl = u'https://commons.wikimedia.org/wiki/%s' % (authorPage.title(underscore=True), )
         revison = self.addQualifier(claim, u'P2699', authorUrl, u'string', revison, summary)
 
-    def addLicenses(self, mediaid, licenses):
+    def addLicenses(self, mediaid, itemdata, licenses):
         """
         Add the author info to filepage
         :param authorPage:
@@ -298,27 +394,30 @@ class OwnWorkBot:
         :return:
         """
         if self.mediaInfoHasStatement(mediaid, u'P6216'):
-            return
+            return itemdata
         if self.mediaInfoHasStatement(mediaid, u'P275'):
-            return
+            return itemdata
 
         # Add the fact that the file is copyrighted
-        self.addClaim(mediaid, u'P6216', u'Q50423863', u'Extracted [[Commons:Structured data/Modeling/Copyright|copyright]] status from wikitext' )
+        #self.addClaim(mediaid, u'P6216', u'Q50423863', u'Extracted [[Commons:Structured data/Modeling/Copyright|copyright]] status from wikitext' )
+        itemdata = self.addClaimJson(mediaid, itemdata, u'P6216', u'Q50423863')
 
         # Add the different licenses
         for license in licenses:
-            self.addClaim(mediaid, u'P275', license, u'Extracted [[Commons:Structured data/Modeling/Licensing|license]] from [[Template:Self|Self]] in the wikitext' )
+            #self.addClaim(mediaid, u'P275', license, u'Extracted [[Commons:Structured data/Modeling/Licensing|license]] from [[Template:Self|Self]] in the wikitext' )
+            itemdata = self.addClaimJson(mediaid, itemdata, u'P275', license)
+        return itemdata
 
-    def handleDate(self, filepage):
+    def handleDate(self, filepage, mediaid, itemdata):
         """
         Handle the date on the filepage. If it matches an ISO date (YYYY-MM-DD) (with or without time), add a date claim
         :param filepage:
         :return:
         """
-        mediaid = u'M%s' % (filepage.pageid,)
+
         pid = u'P571'
         if self.mediaInfoHasStatement(mediaid, pid):
-            return
+            return itemdata
         dateRegex = u'^\s*[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
         dateString = None
 
@@ -331,7 +430,7 @@ class OwnWorkBot:
                             dateString = match.group(1).strip()
                         break
         if not dateString:
-            return
+            return itemdata
 
         parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % (dateString,))
         parsedata = json.loads(parserequest.text)
@@ -341,6 +440,29 @@ class OwnWorkBot:
         summary = u'Extracted [[Commons:Structured data/Modeling/Date|date]] from [[Template:Information|Information]] in the wikitext'
 
         pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, dateString, mediaid, summary))
+
+        toclaim = {'mainsnak': { 'snaktype':'value',
+                                 'property': pid,
+                                 'datavalue': { 'value': postvalue,
+                                                'type' : 'time',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        itemdata[u'claims'].append(toclaim)
+        return itemdata
+
+        toclaim = {'mainsnak': {'snaktype': 'value',
+                                'property': pid,
+                                'datavalue': {'value': json.dumps(postvalue), },
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        itemdata[u'claims'].append(toclaim)
+        return itemdata
 
         tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
 
@@ -359,7 +481,7 @@ class OwnWorkBot:
                     }
         apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
 
-    def addClaim(self, mediaid, pid, qid, summary=u''):
+    def addClaimA(self, mediaid, pid, qid, summary=u''):
         """
         Add a claim to a mediaid
 
@@ -404,6 +526,75 @@ class OwnWorkBot:
             revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
 
         return revison
+
+    def addClaimJson(self, mediaid, itemdata, pid, qid, summary=u''):
+        """
+        Add a claim to a mediaid
+
+        :param mediaid: The mediaid to add it to
+        :param pid: The property P id (including the P)
+        :param qid: The item Q id (including the Q)
+        :param summary: The summary to add in the edit
+        :return: Nothing, edit in place
+        """
+        #if not itemdata.get(u'statements').get(pid):
+        #   itemdata[u'statements'][pid] = []
+        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, qid, mediaid, summary))
+
+        postvalue = { 'type' : 'item', # entity-type
+                      'numeric-id': qid.replace(u'Q', u''),
+                      'id' : qid,
+                      }
+
+        toclaim = {'mainsnak': { 'snaktype':'value',
+                                 'property': pid,
+                                 'datavalue': { 'value': { 'numeric-id': qid.replace(u'Q', u''),
+                                                           'id' : qid,
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        itemdata[u'claims'].append(toclaim)
+        return itemdata
+
+
+
+
+
+
+
+        postdata = {u'action' : u'wbcreateclaim',
+                    u'format' : u'json',
+                    u'entity' : mediaid,
+                    u'property' : pid,
+                    u'snaktype' : u'value',
+                    u'value' : json.dumps(postvalue),
+                    u'token' : token,
+                    u'summary' : summary,
+                    u'bot' : True,
+                    }
+        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
+        try:
+            revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
+        except AttributeError:
+            print (apipage.text)
+            time.sleep(300)
+            tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+
+            tokendata = json.loads(tokenrequest.text)
+            token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+            postdata[u'token'] = token
+            apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
+            # Burn if it fails again
+            revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
+
+        return revison
+
+
 
     def addQualifier(self, claim, pid, value, entityType, baserevid, summary=u''):
         """
