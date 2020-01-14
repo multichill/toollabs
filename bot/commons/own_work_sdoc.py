@@ -102,8 +102,6 @@ class OwnWorkBot:
             pywikibot.output(u'No own and self templates found on %s, skipping' % (filepage.title(),))
             return
 
-
-
         # Get the author
         authorInfo = self.getAuthor(filepage)
         if not authorInfo:
@@ -134,6 +132,7 @@ class OwnWorkBot:
         print (itemdata)
         # Optional stuff
         itemdata = self.handleDate(filepage, mediaid, itemdata)
+        itemdata = self.handleCoordinates(filepage, mediaid, itemdata)
         # Flush it
         print (itemdata)
 
@@ -150,6 +149,13 @@ class OwnWorkBot:
                     u'summary' : u'Adding structured data',
                     u'bot' : True,
                     }
+
+        self.site.login()
+        request = self.site._simple_request(**postdata)
+        data = request.submit()
+        print (data)
+        return
+
         apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
         print (apipage)
         return
@@ -480,6 +486,131 @@ class OwnWorkBot:
                     u'bot' : True,
                     }
         apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
+
+    def handleCoordinates(self, filepage, mediaid, itemdata):
+        """
+        Handle the date on the filepage. If it matches an ISO date (YYYY-MM-DD) (with or without time), add a date claim
+        :param filepage:
+        :return:
+        """
+        pid = u'P1259' # Location of the point of view, if we have that we're done
+        if self.mediaInfoHasStatement(mediaid, pid):
+            return itemdata
+
+        cameraregex = u'\{\{[lL]ocation\|(?P<lat>\d+\.?\d*)\|(?P<lon>\d+\.?\d*)(\|heading\:(?P<heading>\d+))?\}\}'
+        objectregex = u'\{\{[oO]bject location\|(?P<lat>\d+\.?\d*)\|(?P<lon>\d+\.?\d*)\}\}'
+
+        cameramatch = re.search(cameraregex, filepage.text)
+        objectmatch = re.search(objectregex, filepage.text)
+
+        if not cameramatch and not objectmatch:
+            return itemdata
+
+        if cameramatch and not cameramatch.group('heading'):
+            coordinateText = u'%s %s' % (cameramatch.group('lat'), cameramatch.group('lon'), )
+            parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=globe-coordinate&values=%s' % (coordinateText,))
+            parsedata = json.loads(parserequest.text)
+            if parsedata.get('error'):
+                return itemdata
+            print (parsedata)
+
+            postvalue = parsedata.get(u'results')[0].get('value')
+
+            summary = u'Extracted coordinates from the wikitext'
+
+            pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, coordinateText, mediaid, summary))
+
+            toclaim = {'mainsnak': { 'snaktype':'value',
+                                     'property': pid,
+                                     'datavalue': { 'value': postvalue,
+                                                    'type' : 'globecoordinate',
+                                                    }
+
+                                     },
+                       'type': 'statement',
+                       'rank': 'normal',
+                       }
+            if cameramatch.group('heading'):
+                toclaim['qualifiers'] = {'P7787' : [ {'snaktype': 'value',
+                                                      'property': 'P7787',
+                                                      'datavalue': { 'value': { 'amount': '+%s' % (cameramatch.group('heading'),),
+                                                                                #'unit' : '1',
+                                                                                'unit' : 'http://www.wikidata.org/entity/Q28390',
+                                                                                },
+                                                                     'type' : 'quantity',
+                                                                     },
+                                                      },
+                                                     ],
+                                         }
+            itemdata[u'claims'].append(toclaim)
+            return itemdata
+
+        elif objectmatch:
+            pid = u'P625' # Object location
+            if self.mediaInfoHasStatement(mediaid, pid):
+                return itemdata
+            coordinateText = u'%s %s' % (objectmatch.group('lat'), objectmatch.group('lon'), )
+            parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % (coordinateText,))
+            parsedata = json.loads(parserequest.text)
+
+            postvalue = parsedata.get(u'results')[0].get('value')
+
+            summary = u'Extracted coordinates from the wikitext'
+
+            pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, coordinateText, mediaid, summary))
+
+            toclaim = {'mainsnak': { 'snaktype':'value',
+                                     'property': pid,
+                                     'datavalue': { 'value': postvalue,
+                                                    'type' : 'globecoordinate',
+                                                    }
+
+                                     },
+                       'type': 'statement',
+                       'rank': 'normal',
+                       }
+            return itemdata
+        return itemdata
+
+
+        pid = u'P625'
+        if self.mediaInfoHasStatement(mediaid, pid):
+            return itemdata
+        dateRegex = u'^\s*[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
+        dateString = None
+
+        for template, parameters in filepage.templatesWithParams():
+            if template.title()==u'Template:Information':
+                for field in parameters:
+                    if field.lower().startswith(u'date'):
+                        match = re.match(dateRegex, field)
+                        if match:
+                            dateString = match.group(1).strip()
+                        break
+        if not dateString:
+            return itemdata
+
+        parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % (dateString,))
+        parsedata = json.loads(parserequest.text)
+
+        postvalue = parsedata.get(u'results')[0].get('value')
+
+        summary = u'Extracted [[Commons:Structured data/Modeling/Date|date]] from [[Template:Information|Information]] in the wikitext'
+
+        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, dateString, mediaid, summary))
+
+        toclaim = {'mainsnak': { 'snaktype':'value',
+                                 'property': pid,
+                                 'datavalue': { 'value': postvalue,
+                                                'type' : 'time',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        itemdata[u'claims'].append(toclaim)
+        return itemdata
 
     def addClaimA(self, mediaid, pid, qid, summary=u''):
         """
