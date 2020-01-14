@@ -398,10 +398,6 @@ class OwnWorkBot:
 
             postvalue = parsedata.get(u'results')[0].get('value')
 
-            summary = u'Extracted coordinates from the wikitext'
-
-            pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, coordinateText, mediaid, summary))
-
             toclaim = {'mainsnak': { 'snaktype':'value',
                                      'property': 'P625',
                                      'datavalue': { 'value': postvalue,
