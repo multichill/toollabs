@@ -140,7 +140,7 @@ class OwnWorkBot:
             if len(addedclaims) > 2:
                 for i in range(1, len(addedclaims)-1):
                     summary = summary + u', %s' % (addedclaims[i],)
-            if len(addedclaims) > 0:
+            if len(addedclaims) > 1:
                 summary = summary + u' & %s' % (addedclaims[-1],)
 
             # Flush it
@@ -321,6 +321,7 @@ class OwnWorkBot:
         if not dateString:
             return False
 
+        # FIXME: Switch to a site request
         parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % (dateString,))
         parsedata = json.loads(parserequest.text)
         postvalue = parsedata.get(u'results')[0].get('value')
@@ -357,6 +358,7 @@ class OwnWorkBot:
 
         if cameramatch and not cameramatch.group('heading'):
             coordinateText = u'%s %s' % (cameramatch.group('lat'), cameramatch.group('lon'), )
+            # FIXME: Switch to a site request
             parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=globe-coordinate&values=%s' % (coordinateText,))
             parsedata = json.loads(parserequest.text)
             if parsedata.get('error'):
@@ -393,7 +395,8 @@ class OwnWorkBot:
                 return False
 
             coordinateText = u'%s %s' % (objectmatch.group('lat'), objectmatch.group('lon'), )
-            parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % (coordinateText,))
+            # FIXME: Switch to a site request
+            parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=globe-coordinate&values=%s' % (coordinateText,))
             parsedata = json.loads(parserequest.text)
 
             postvalue = parsedata.get(u'results')[0].get('value')
