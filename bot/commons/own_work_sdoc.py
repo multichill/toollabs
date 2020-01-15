@@ -324,6 +324,8 @@ class OwnWorkBot:
         # FIXME: Switch to a site request
         parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % (dateString,))
         parsedata = json.loads(parserequest.text)
+        if parsedata.get('error'):
+            return False
         postvalue = parsedata.get(u'results')[0].get('value')
 
         toclaim = {'mainsnak': { 'snaktype':'value',
@@ -398,6 +400,8 @@ class OwnWorkBot:
             # FIXME: Switch to a site request
             parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=globe-coordinate&values=%s' % (coordinateText,))
             parsedata = json.loads(parserequest.text)
+            if parsedata.get('error'):
+                return False
 
             postvalue = parsedata.get(u'results')[0].get('value')
 
