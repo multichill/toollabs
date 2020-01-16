@@ -19,6 +19,7 @@ import time
 import requests
 import json
 from html.parser import HTMLParser
+from pyproj import Proj, transform
 
 class OnroerendUploaderBot:
     """
@@ -30,32 +31,34 @@ class OnroerendUploaderBot:
             * generator    - A generator that yields Dict objects.
 
         """
-        self.generator = generator
-        self.repo = pywikibot.Site().data_repository()
         self.site = pywikibot.Site(u'commons', u'commons')
+        self.site.login()
+        self.site.get_tokens('csrf')
+        self.repo = self.site.data_repository()
+        self.generator = generator
 
     def run(self):
         """
         Starts the robot.
         """
         for metadata in self.generator:
-            self.uploadPainting(metadata)
+            self.uploadImage(metadata)
 
-    def uploadPainting(self, metadata):
+    def uploadImage(self, metadata):
         """
         Process the metadata and if suitable, upload the painting
         """
         pywikibot.output(metadata)
         description = self.getDescription(metadata)
         title = self.cleanUpTitle(self.getTitle(metadata))
-        if not description or not title:
-            return
+
         pywikibot.output(title)
         pywikibot.output(description)
+
         try:
-            response = requests.get(metadata.get(u'downloadurl'), verify=False) # Museums and valid SSL.....
+            response = requests.get(metadata.get(u'imageurl')) #, verify=False) # Museums and valid SSL.....
         except requests.exceptions.ConnectionError:
-            pywikibot.output(u'Got a connection error for Wikidata item [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
+            pywikibot.output(u'Got a connection error for [[:d:%(item)s]] with url %(imageurl)s' % metadata)
             return False
 
         if response.status_code == 200:
@@ -64,6 +67,7 @@ class OnroerendUploaderBot:
             sha1base64 = base64.b16encode(hashObject.digest())
             duplicates = list(self.site.allimages(sha1=sha1base64))
             if duplicates:
+                return
                 pywikibot.output(u'Found a duplicate, trying to add it')
                 imagefile = duplicates[0]
                 self.addImageToWikidata(metadata, imagefile, summary = u'Adding already uploaded image')
@@ -96,140 +100,98 @@ class OnroerendUploaderBot:
                 imagefile = pywikibot.FilePage(self.site, title=title)
                 imagefile.text=description
 
-                comment = u'Uploading based on Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata
+                comment = u'Uploading onroerenderfboed.be image from %(imageurl)s' % metadata
                 try:
                     uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment) # chunk_size=1000000)
                 except pywikibot.data.api.APIError:
-                    pywikibot.output(u'Failed to upload image for Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata)
+                    pywikibot.output(u'Failed to upload image %(imageurl)s' % metadata)
                     uploadsuccess = False
-
             if uploadsuccess:
-                pywikibot.output('Uploaded a file, sleeping a bit so I don\'t run into lagging databases')
-                time.sleep(15)
-                self.addImageToWikidata(metadata, imagefile, summary = u'Uploaded the image')
+                pywikibot.output('Uploaded a file, now grabbing structured data')
+                itemdata = {u'claims' : self.getStructuredData(metadata) }
+                pywikibot.output(json.dumps(itemdata, indent=2))
+                #time.sleep(15)
                 mediaid = u'M%s' % (imagefile.pageid,)
-                summary = u'this newly uploaded file depicts and is a digital representation of [[:d:%s]]' % (metadata.get(u'item'),)
-                self.addClaim(mediaid, u'P180', metadata.get(u'item'), summary)
-                self.addClaim(mediaid, u'P6243', metadata.get(u'item'), summary)
-                self.addSource(mediaid, metadata)
-                imagefile.touch()
+                summary = u'Adding structured data to this newly uploaded beeldbank.onroerenderfgoed.be image'
+                token = self.site.tokens['csrf']
+                postdata = {u'action' : u'wbeditentity',
+                            u'format' : u'json',
+                            u'id' : mediaid,
+                            u'data' : json.dumps(itemdata),
+                            u'token' : token,
+                            u'summary' : summary,
+                            u'bot' : True,
+                            }
 
-    def addImageToWikidata(self, metadata, imagefile, summary=u'Added the image'):
-        """
-        Add the image to the Wikidata item. This might add an extra image if the item already has one
-        """
-        artworkItem = pywikibot.ItemPage(self.repo, title=metadata.get(u'item'))
-        data = artworkItem.get()
-        claims = data.get('claims')
-
-        newclaim = pywikibot.Claim(self.repo, u'P18')
-        newclaim.setTarget(imagefile)
-
-        foundimage = False
-        replacedimage = False
-        if u'P18' in claims:
-            for claim in claims.get(u'P18'):
-                if claim.getTarget().title()==newclaim.getTarget().title():
-                    pywikibot.output(u'The image is already on the item')
-                    foundimage = True
-            if not foundimage and len(claims.get(u'P18'))==1:
-                claim = claims.get(u'P18')[0]
-                newimagesize = imagefile.latest_file_info.size
-                currentsize = claim.getTarget().latest_file_info.size
-                # Only replace if new one is at least 4 times larger
-                if currentsize * 4 < newimagesize:
-                    summary = u'replacing with much larger image'
-                    claim.changeTarget(imagefile, summary=summary)
-                    replacedimage = True
-
-        if not foundimage and not replacedimage:
-            pywikibot.output('Adding %s --> %s' % (newclaim.getID(), newclaim.getTarget()))
-            artworkItem.addClaim(newclaim, summary=summary)
-        # Only remove if we had one suggestion. Might improve the logic in the future here
-        if u'P4765' in claims and len(claims.get(u'P4765'))==1:
-            artworkItem.removeClaims(claims.get(u'P4765')[0], summary=summary)
+                request = self.site._simple_request(**postdata)
+                data = request.submit()
+                pywikibot.output(data)
 
     def getDescription(self, metadata):
         """
         Construct the description for the file to be uploaded
         """
-        artworkinfo = u'{{Artwork}}\n' # All structured data on Commons!
-        licenseinfo = self.getLicenseTemplate(metadata)
-        categoryinfo =  self.getCategories(metadata)
-        if artworkinfo and licenseinfo and categoryinfo:
-            description = u'== {{int:filedesc}} ==\n'
-            description = description + artworkinfo
-            description = description + u'\n=={{int:license-header}}==\n'
-            description = description + licenseinfo + u'\n' + categoryinfo
-            return description
-
-    def getLicenseTemplate(self, metadata):
-        """
-        Construct the license template to be used
-        """
-        # FIXME: Add more or different implementation
-        licenses = { u'Q6938433' : u'Cc-zero',
-                     u'Q18199165' : u'cc-by-sa-4.0'}
-
-        if metadata.get(u'license'):
-            result = u'{{Licensed-PD-Art'
+        desc  = '=={{int:filedesc}}==\n'
+        desc += '{{Information\n'
+        desc += '|description={{nl|%(title)s}}\n' % metadata
+        if metadata.get('erfgoedobject'):
+            for erfgoedid in metadata.get('erfgoedobject'):
+                desc += '{{Onroerend erfgoed|%s}}\n' % (erfgoedid,)
         else:
-            result = u'{{PD-Art'
-
-        if metadata.get(u'deathyear'):
-            result += u'|PD-old-auto-expired'
+            desc += '{{Possible onroerend erfgoed'
+            if metadata.get('street') and metadata.get('housenumber'):
+                desc += '\n| adres = %(street)s %(housenumber)s' % metadata
+            if metadata.get('municipality'):
+                desc += '\n| plaats = %(municipality)s' % metadata
+            if metadata.get('province'):
+                desc += '\n| provincie = %(province)s\n' % metadata
+            desc += '}}\n'
+        if metadata.get('street'):
+            desc += '{{Building address\n'
+            desc += ' | Street name = %(street)s\n' % metadata
+            if metadata.get('housenumber'):
+                desc += ' | House number = %(housenumber)s\n' % metadata
+            desc += ' | Postal code = \n'
+            desc += ' | City = %(municipality)s \n' % metadata
+            desc += ' | State = %(province)s \n' % metadata
+            desc += ' | Country = BE\n'
+            desc += '}}\n'
+        desc += '|date=%(date)s\n' % metadata
+        desc += '|source=%(url)s\n' % metadata
+        desc += '|author=%(author)s\n' % metadata
+        desc += '|permission=\n'
+        desc += '|other_versions=\n'
+        desc += '|other_fields=\n'
+        desc += '}}\n'
+        if metadata.get('coordinatessource'):
+            desc += '{{Object location|%(lat)s|%(lon)s|source:%(coordinatessource)s}}\n' % metadata
+        desc += '\n=={{int:license-header}}==\n'
+        desc += '{{%(license)s}}\n\n' % metadata
+        if metadata.get('erfgoedobject'):
+            if metadata.get('municipality'):
+                desc += '[[Category:Onroerend erfgoed in %(municipality)s]]\n' % metadata
+            else:
+                desc += '[[Category:Onroerend erfgoed in Flanders]]\n'
         else:
-            result += u'|PD-old-100-expired'
-
-        if metadata.get(u'license'):
-            if metadata.get(u'license') not in licenses:
-                pywikibot.output(u'Found a license I do not understand: %(license)s' % metadata)
-                return False
-            licensetemplate = licenses.get(metadata.get(u'license'))
-            result += u'|%s' % (licensetemplate,)
-
-        if metadata.get(u'deathyear'):
-            result += u'|deathyear=%s' % (metadata.get(u'deathyear'),)
-
-        result += u'}}\n'
-        return result
-
-    def getCategories(self, metadata):
-        """
-        Add categories for the collection and creator if available.
-
-        For the collection the fallback tree is:
-        1. Category:Paintings in the <collectioncategory>
-        2. Category:Paintings in <collectioncategory>
-        3. Category:<collectioncategory>
-
-        Only add a creatorcategory if it's available (not the case for anonymous works)
-        """
-        result = u'{{subst:#ifexist:Category:Paintings in the %(collectioncategory)s|[[Category:Paintings in the %(collectioncategory)s]]|{{subst:#ifexist:Category:Paintings in %(collectioncategory)s|[[Category:Paintings in %(collectioncategory)s]]|[[Category:%(collectioncategory)s]]}}}}\n' % metadata
-        if metadata.get(u'creatorcategory'):
-            result = result + u'{{subst:#ifexist:Category:Paintings by %(creatorcategory)s|[[Category:Paintings by %(creatorcategory)s]]|[[Category:%(creatorcategory)s]]}}' % metadata
-        return result
+            if metadata.get('municipality'):
+                desc += '[[Category:%(municipality)s]]\n' % metadata
+            elif metadata.get('province'):
+                desc += '[[Category:%(province)s]]\n' % metadata
+            else:
+                desc += '[[Category:Buildings in Flanders]]\n'
+        return desc
 
     def getTitle(self, metadata):
         """
         Construct the title to be used for the upload
         """
-        formats = { u'Q2195' : u'jpg',
-                    #u'Q215106' : u'tiff',
-                    }
-        if not metadata.get(u'format') or metadata.get(u'format') not in formats:
-            return u''
-
-        metadata[u'ext'] = formats.get(metadata.get(u'format'))
-
-        fmt = u'%(creatorname)s - %(title)s - %(inv)s - %(collectionLabel)s.%(ext)s'
+        fmt = u'%(title)s - %(imageid)s - onroerenderfgoed.jpg'
         title = fmt % metadata
         if len(title) < 200:
             return title
         else:
-            title = u'%(creatorname)s - ' % metadata
-            title = title + metadata.get(u'title')[0:100].strip()
-            title = title + u' - %(inv)s - %(collectionLabel)s.jpg' % metadata
+            title = metadata.get(u'title')[0:100].strip()
+            title = title + u' - %(imageid)s - onroerenderfgoed.jpg' % metadata
             return title
 
     def cleanUpTitle(self, title):
@@ -257,138 +219,147 @@ class OnroerendUploaderBot:
         title = title.replace(u" ", u"_")
         return title
 
-    def addClaim(self, mediaid, pid, qid, summary=''):
+    def getStructuredData(self, metadata):
         """
-
-        :param mediaid:
-        :param pid:
-        :param qid:
-        :param summary:
+        Just like getting the description, but now in structured form
+        :param metadata:
         :return:
         """
-        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, qid, mediaid, summary))
+        result = []
+        # Copyright status -> copyrighted
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P6216',
+                                 'datavalue': { 'value': { 'numeric-id': 50423863,
+                                                           'id' : 'Q50423863',
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        result.append(toclaim)
+        # License -> cc-by-4.0
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P275',
+                                 'datavalue': { 'value': { 'numeric-id': 20007257,
+                                                           'id' : 'Q20007257',
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        result.append(toclaim)
+        toclaim = self.getSource(metadata)
+        if toclaim:
+            result.append(toclaim)
+        toclaim = self.getDate(metadata)
+        if toclaim:
+            result.append(toclaim)
+        toclaim = self.getCoordinates(metadata)
+        if toclaim:
+            result.append(toclaim)
+        return result
 
-        postvalue = {"entity-type":"item","numeric-id": qid.replace(u'Q', u'')}
-
-        postdata = {u'action' : u'wbcreateclaim',
-                    u'format' : u'json',
-                    u'entity' : mediaid,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-
-    def addSource(self, mediaid, metadata):
+    def getSource(self, metadata):
         """
+
+        :param metadata:
         :return:
         """
-        pid = u'P7482'
-        qid =  u'Q74228490'
 
-        summary = u'Adding source of file'
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P7482',
+                                 'datavalue': { 'value': { 'numeric-id': 74228490,
+                                                           'id' : 'Q74228490',
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        postvalue = {"entity-type":"item","numeric-id": qid.replace(u'Q', u'')}
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   'qualifiers' : {'P137' : [ {'snaktype': 'value',
+                                                'property': 'P137',
+                                                'datavalue': { 'value': { 'numeric-id': '3262326',
+                                                                          'id' : 'Q3262326',
+                                                                          },
+                                                               'type' : 'wikibase-entityid',
+                                                               },
+                                                } ],
+                                   'P973' : [ {'snaktype': 'value',
+                                                'property': 'P973',
+                                                'datavalue': { 'value': metadata.get('url'),
+                                                               'type' : 'string',
+                                                               },
+                                                } ],
+                                   },
+                   }
+        return toclaim
 
-        postdata = {u'action' : u'wbcreateclaim',
-                    u'format' : u'json',
-                    u'entity' : mediaid,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-
-        revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
-        claim = json.loads(apipage.text).get(u'claim').get(u'id')
-
-        # Add the described at URL (P973) where we got it from
-        # FIXME: Don't think addQualifier returns the revision id
-        revison = self.addQualifier(claim, u'P973', metadata.get('sourceurl'), u'string', revison, summary)
-
-        if metadata.get('operator'):
-            # Add the operator (P137) where we got it from if it's available
-            revison = self.addQualifier(claim, u'P137', metadata.get('operator'), u'item', revison, summary)
-        return
-
-    def addQualifier(self, claim, pid, value, entityType, baserevid, summary=u''):
+    def getDate(self, metadata):
         """
 
-        :param claim:
-        :param pid:
-        :param value:
-        :param entityType:
-        :param baserevid:
+        :param metadata:
         :return:
         """
-        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, value, claim, summary))
+        if not metadata.get('date'):
+            return False
 
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-
-        if entityType==u'item':
-            postvalue = {"entity-type":"item","numeric-id": value.replace(u'Q', u'')}
+        dateregex = '(\d\d\d\d-\d\d-\d\d) \d\d:\d\d'
+        datematch = re.search(dateregex, metadata.get('date'))
+        if datematch:
+            date = datematch.group(1)
         else:
-            postvalue = value
+            date = metadata.get('date')
 
-        postdata = {u'action' : u'wbsetqualifier',
-                    u'format' : u'json',
-                    u'claim' : claim,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'baserevid' : baserevid,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-        return apipage
+        # FIXME: Switch to a site request
+        parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % date)
+        parsedata = json.loads(parserequest.text)
+        if parsedata.get('error'):
+            return False
+        postvalue = parsedata.get(u'results')[0].get('value')
 
-    def reportDuplicates(self):
+        toclaim = {'mainsnak': { 'snaktype':'value',
+                                 'property': 'P571',
+                                 'datavalue': { 'value': postvalue,
+                                                'type' : 'time',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        return toclaim
+
+    def getCoordinates(self, metadata):
         """
-        We might have encountered some duplicates. Publish these so they can be sorted out
 
-        https://commons.wikimedia.org/wiki/Commons:WikiProject_sum_of_all_paintings/To_upload/Duplicates
-
+        :param metadata:
         :return:
         """
-        print (u'Duplicates:')
-        print (json.dumps(self.duplicates, indent=4, sort_keys=True))
+        if not metadata.get('coordinatessource'):
+            return False
 
-        pageTitle = u'Commons:WikiProject sum of all paintings/To upload/Duplicates'
-        page = pywikibot.Page(self.site, title=pageTitle)
+        toclaim = {'mainsnak': { 'snaktype':'value',
+                                 'property': 'P625',
+                                 'datavalue': { 'value': { 'latitude': metadata.get('lat'),
+                                                           'longitude':metadata.get('lon'),
+                                                           'altitude': None,
+                                                           'precision':1.0e-6,
+                                                           'globe':'http://www.wikidata.org/entity/Q2'},
+                                                'type' : 'globecoordinate',
+                                                }
 
-        text = u'{{Commons:WikiProject sum of all paintings/To upload/Duplicates/header}}\n'
-        text = text + u'{| class="wikitable sortable"\n'
-        text = text + u'! Existing file !! Wikidata item !! Url !! Description\n'
-        for duplicate in self.duplicates:
-            text = text + u'|-\n'
-            text = text + u'| [[File:%(duplicate)s|150px]]\n' % duplicate
-            text = text + u'| [[:d:%(qid)s|%(qid)s]]\n' % duplicate
-            text = text + u'| [%(sourceurl)s]\n' % duplicate
-            text = text + u'|\n<small><nowiki>\n%(description)s\n</nowiki></small>\n' % duplicate
-        text = text + u'|}\n'
-
-        summary = u'Found %s duplicates in this bot run' % (len(self.duplicates), )
-        pywikibot.output(summary)
-        page.put(text, summary)
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        return toclaim
 
 def getOnroerenderfgoedGenerator(startpage=1):
     htmlparser = HTMLParser()
@@ -401,7 +372,7 @@ def getOnroerenderfgoedGenerator(startpage=1):
         matches = re.finditer(itemidregex, searchpage.text)
         for match in matches:
             metadata = {}
-            metadata['licence'] = 'Cc-by-4.0'
+            metadata['license'] = 'Cc-by-4.0'
             metadata['licenseqid'] = 'Q20007257'
 
             imageid = match.group(1)
@@ -436,9 +407,10 @@ def getOnroerenderfgoedGenerator(startpage=1):
             addressregex = '\<dd\>Adres\<\/dd\>[\s\t\r\n]*\<dt\>[\s\t\r\n]*\<ul class\=\"nodisk\"\>[\s\t\r\n]*\<li\>[\s\t\r\n]*Provincie\:[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/li\>[\s\t\r\n]*\<li\>[\s\t\r\n]*Gemeente\:[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/li\>[\s\t\r\n]*\<li\>[\s\t\r\n]*Straat\:[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/li\>[\s\t\r\n]*\<li\>[\s\t\r\n]*Nummer\:[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/li\>[\s\t\r\n]*\<\/ul\>[\s\t\r\n]*\<\/dt\>'
             addressmatch = re.search(addressregex, itempage.text)
             if addressmatch:
-                metadata['province'] = addressmatch.group(1).strip()
-                metadata['municipality'] = addressmatch.group(2).strip()
-                metadata['street'] = addressmatch.group(3).strip()
+                metadata['province'] = htmlparser.unescape(addressmatch.group(1).strip())
+                metadata['municipality'] = htmlparser.unescape(addressmatch.group(2).strip())
+                if addressmatch.group(3).strip()!='/':
+                    metadata['street'] = htmlparser.unescape(addressmatch.group(3).strip())
                 #print (addressmatch.group(2).strip())
                 #print (addressmatch.group(3).strip())
                 if addressmatch.group(4).strip()!='/':
@@ -460,19 +432,23 @@ def getOnroerenderfgoedGenerator(startpage=1):
             pointmatch = re.search(pointregex, itempage.text)
             if pointmatch:
                 print ('%s %s' % (pointmatch.group('x'), pointmatch.group('y')))
-
-
-
+                metadata['coordinatessource'] = 'epsg:31370 %s, %s' % (pointmatch.group('x'), pointmatch.group('y'))
+                sourceProj = Proj('epsg:31370')
+                outputProj = Proj('epsg:4326')
+                lat,lon = transform(sourceProj,outputProj,float(pointmatch.group('x')),float(pointmatch.group('y')))
+                print ('https://www.openstreetmap.org/#map=15/%s/%s' % (lat, lon,))
+                metadata['lat'] = lat
+                metadata['lon'] = lon
 
             yield metadata
 
 
 def main():
     generator = getOnroerenderfgoedGenerator()
-    for page in generator:
-        print (page)
-    #onroerendUploaderBot = OnroerendUploaderBot()
-    #onroerendUploaderBot.run()
+    #for page in generator:
+    #    print (page)
+    onroerendUploaderBot = OnroerendUploaderBot(generator)
+    onroerendUploaderBot.run()
 
 if __name__ == "__main__":
     main()
