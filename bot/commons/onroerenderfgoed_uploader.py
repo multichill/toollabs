@@ -109,7 +109,7 @@ class OnroerendUploaderBot:
             if uploadsuccess:
                 pywikibot.output('Uploaded a file, now grabbing structured data')
                 itemdata = {u'claims' : self.getStructuredData(metadata) }
-                pywikibot.output(json.dumps(itemdata, indent=2))
+                #pywikibot.output(json.dumps(itemdata, indent=2))
                 #time.sleep(15)
                 mediaid = u'M%s' % (imagefile.pageid,)
                 summary = u'Adding structured data to this newly uploaded beeldbank.onroerenderfgoed.be image'
@@ -156,9 +156,15 @@ class OnroerendUploaderBot:
             desc += ' | State = %(province)s \n' % metadata
             desc += ' | Country = BE\n'
             desc += '}}\n'
-        desc += '|date=%(date)s\n' % metadata
+        if metadata.get('date'):
+            desc += '|date=%(date)s\n' % metadata
+        else:
+            desc += '|date=\n'
         desc += '|source=%(url)s\n' % metadata
-        desc += '|author=%(author)s\n' % metadata
+        if metadata.get('author'):
+            desc += '|author=%(author)s\n' % metadata
+        else:
+            desc += '|author=\n'
         desc += '|permission=\n'
         desc += '|other_versions=\n'
         desc += '|other_fields=\n'
@@ -366,6 +372,7 @@ def getOnroerenderfgoedGenerator(startpage=1):
     endpage = 19622
     for i in range(startpage, endpage):
         searchurl = 'https://beeldbank.onroerenderfgoed.be/images?license=https%%3A%%2F%%2Fcreativecommons.org%%2Flicenses%%2Fby%%2F4.0%%2F&page=%s' % (i,)
+        print (searchurl)
         searchpage = requests.get(searchurl)
 
         itemidregex = '\<img src\=\"[\s\t\r\n]*\/images\/(\d+)[\s\t\r\n]*\/content\/square\"\>'
@@ -393,16 +400,18 @@ def getOnroerenderfgoedGenerator(startpage=1):
             dateregex = '\<dd\>Datum opname\<\/dd\>[\s\t\r\n]*\<dt\>[\s\t\r\n]*(?P<day>\d\d)-(?P<month>\d\d)-(?P<year>\d\d\d\d)\s*(?P<hour>\d\d)\:(?P<minute>\d\d)[\s\t\r\n]*\<\/dt\>'
             datematch = re.search(dateregex, itempage.text)
 
-            if datematch.group('minute')=='00' and datematch.group('hour')=='00' and datematch.group('day')=='01' and datematch.group('month')=='01':
-                metadata['date'] = datematch.group('year')
-            elif datematch.group('minute')=='00' and datematch.group('hour')=='00' and datematch.group('day')=='01':
-                metadata['date'] = '%s-%s' % (datematch.group('year'), datematch.group('month'))
-            else:
-                metadata['date'] = '%s-%s-%s %s:%s' % (datematch.group('year'), datematch.group('month'), datematch.group('day'), datematch.group('hour'), datematch.group('minute'))
+            if datematch:
+                if datematch.group('minute')=='00' and datematch.group('hour')=='00' and datematch.group('day')=='01' and datematch.group('month')=='01':
+                    metadata['date'] = datematch.group('year')
+                elif datematch.group('minute')=='00' and datematch.group('hour')=='00' and datematch.group('day')=='01':
+                    metadata['date'] = '%s-%s' % (datematch.group('year'), datematch.group('month'))
+                else:
+                    metadata['date'] = '%s-%s-%s %s:%s' % (datematch.group('year'), datematch.group('month'), datematch.group('day'), datematch.group('hour'), datematch.group('minute'))
 
             authorregex = '\<dd\>Fotograaf\<\/dd\>[\s\t\r\n]*\<dt\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/dt\>'
             authormatch = re.search(authorregex, itempage.text)
-            metadata['author'] = htmlparser.unescape(authormatch.group(1)).strip()
+            if authormatch:
+                metadata['author'] = htmlparser.unescape(authormatch.group(1)).strip()
 
             addressregex = '\<dd\>Adres\<\/dd\>[\s\t\r\n]*\<dt\>[\s\t\r\n]*\<ul class\=\"nodisk\"\>[\s\t\r\n]*\<li\>[\s\t\r\n]*Provincie\:[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/li\>[\s\t\r\n]*\<li\>[\s\t\r\n]*Gemeente\:[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/li\>[\s\t\r\n]*\<li\>[\s\t\r\n]*Straat\:[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/li\>[\s\t\r\n]*\<li\>[\s\t\r\n]*Nummer\:[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/li\>[\s\t\r\n]*\<\/ul\>[\s\t\r\n]*\<\/dt\>'
             addressmatch = re.search(addressregex, itempage.text)
