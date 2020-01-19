@@ -47,20 +47,27 @@ class OwnWorkBot:
         # FIXME: Do query later
         # cc-by-sa-3.0-au,-ee,-es,-fr,-lu,-ro all have 10.000+ files in it
         result = { 'cc-zero' : 'Q6938433',
+                   'cc-by-1.0' : 'Q30942811',
                    'cc-by-2.0' : 'Q19125117',
+                   'cc-by-2.5' : 'Q18810333',
                    'cc-by-3.0' : 'Q14947546',
+                   'cc-by-3.0,2.5,2.0,1.0' : ['Q14947546', 'Q18810333', 'Q19125117', 'Q30942811'],
                    'cc-by-4.0' : 'Q20007257',
                    'cc-by-sa-1.0' : 'Q47001652',
                    'cc-by-sa-2.0' : 'Q19068220',
                    'cc-by-sa-2.5' : 'Q19113751',
+                   'cc-by-sa-2.5,2.0,1.0' : ['Q19113751', 'Q19068220', 'Q47001652'],
                    'cc-by-sa-3.0' : 'Q14946043',
                    'cc-by-sa-3.0,2.5,2.0,1.0' : ['Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
+                   'cc-by-sa-3.0-migrated' : 'Q14946043', # Just cc-by-sa-3.0
                    'cc-by-sa-3.0-at' : 'Q80837139',
                    'cc-by-sa-3.0-de' : 'Q42716613',
                    'cc-by-sa-3.0-nl' : 'Q18195572',
                    'cc-by-sa-3.0-pl' : 'Q80837607',
                    'cc-by-sa-4.0' : 'Q18199165',
+                   'cc-by-sa-4.0,3.0,2.5,2.0,1.0' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
                    'gfdl' : 'Q50829104',
+                   'gfdl-1.2' : 'Q26921686',
                    }
         return result
 
@@ -69,6 +76,8 @@ class OwnWorkBot:
         Run on the items
         """
         for filepage in self.generator:
+            if not filepage.exists():
+                continue
             # Probably want to get this all in a preloading generator to make it faster
             mediaid = u'M%s' % (filepage.pageid,)
             currentdata = self.getCurrentMediaInfo(mediaid)
