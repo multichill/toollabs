@@ -46,17 +46,21 @@ class OwnWorkBot:
         """
         # FIXME: Do query later
         # cc-by-sa-3.0-au,-ee,-es,-fr,-lu,-ro all have 10.000+ files in it
-        result = { u'cc-zero' : u'Q6938433',
-                   u'cc-by-2.0' : u'Q19125117',
-                   u'cc-by-3.0' : u'Q14947546',
-                   u'cc-by-4.0' : u'Q20007257',
-                   u'cc-by-sa-2.0' : u'Q19068220',
-                   u'cc-by-sa-3.0' : u'Q14946043',
-                   u'cc-by-sa-3.0-at' : u'Q80837139',
-                   u'cc-by-sa-3.0-de' : u'Q42716613',
-                   u'cc-by-sa-3.0-nl' : u'Q18195572',
-                   u'cc-by-sa-3.0-pl' : u'Q80837607',
-                   u'cc-by-sa-4.0' : u'Q18199165',
+        result = { 'cc-zero' : 'Q6938433',
+                   'cc-by-2.0' : 'Q19125117',
+                   'cc-by-3.0' : 'Q14947546',
+                   'cc-by-4.0' : 'Q20007257',
+                   'cc-by-sa-1.0' : 'Q47001652',
+                   'cc-by-sa-2.0' : 'Q19068220',
+                   'cc-by-sa-2.5' : 'Q19113751',
+                   'cc-by-sa-3.0' : 'Q14946043',
+                   'cc-by-sa-3.0,2.5,2.0,1.0' : ['Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
+                   'cc-by-sa-3.0-at' : 'Q80837139',
+                   'cc-by-sa-3.0-de' : 'Q42716613',
+                   'cc-by-sa-3.0-nl' : 'Q18195572',
+                   'cc-by-sa-3.0-pl' : 'Q80837607',
+                   'cc-by-sa-4.0' : 'Q18199165',
+                   'gfdl' : 'Q50829104',
                    }
         return result
 
@@ -198,6 +202,8 @@ class OwnWorkBot:
                             authorPage = pywikibot.User(self.site, match.group(1))
                             authorName = match.group(2).strip()
                             return (authorPage, authorName)
+                        # The author regex didn't match. Let's get the uploader in the log to compare
+                        # Todo, do a bit of trickery to detect a customer user template like {{User:<user>/<something}}
                         else:
                             pywikibot.output(field)
                         break
@@ -216,7 +222,11 @@ class OwnWorkBot:
             if template.title()==u'Template:Self':
                 for license in parameters:
                     if license.lower() in self.validLicenses:
-                        result.append(self.validLicenses.get(license.lower()))
+                        licenseqid = self.validLicenses.get(license.lower())
+                        if isinstance(licenseqid, list):
+                            result.extend(licenseqid)
+                        else:
+                            result.append(self.validLicenses.get(license.lower()))
                     else:
                         return False
                 break
