@@ -51,14 +51,14 @@ def petscanGenerator(repo, lang, project, depth, categories, typequery='nostatem
     Used petscan1 for now because the new one mixes titles on Wikipedia with Qids
     '''
     if typequery=='nostatements':
-        query = u'https://petscan1.wmflabs.org/?language=%(lang)s&project=%(project)s&depth=%(depth)s' \
+        query = u'https://petscan.wmflabs.org/?language=%(lang)s&project=%(project)s&depth=%(depth)s' \
                 u'&categories=%(categories)s&combination=subset&ns%%5B0%%5D=1&show_redirects=no&edits%%5Bbots%%5D=both' \
                 u'&edits%%5Banons%%5D=both&edits%%5Bflagged%%5D=both&subpage_filter=either&common_wiki=auto' \
                 u'&wikidata_item=with&wpiu=any&wpiu_no_statements=1&cb_labels_yes_l=1&cb_labels_any_l=1&cb_labels_no_l=1' \
                 u'&format=json&output_compatability=catscan&sortby=none&sortorder=ascending&min_redlink_count=1' \
                 u'&doit=Do%%20it%%21&interface_language=en&active_tab=tab_output&add_image=on'
     elif typequery=='withoutitem':
-        query = u'https://petscan1.wmflabs.org/?language=%(lang)s&project=%(project)s&depth=%(depth)s' \
+        query = u'https://petscan.wmflabs.org/?language=%(lang)s&project=%(project)s&depth=%(depth)s' \
                 u'&categories=%(categories)s&combination=subset&ns%%5B0%%5D=1&show_redirects=no&edits%%5Bbots%%5D=both' \
                 u'&edits%%5Banons%%5D=both&edits%%5Bflagged%%5D=both&subpage_filter=either&common_wiki=auto' \
                 u'&wikidata_item=without' \
