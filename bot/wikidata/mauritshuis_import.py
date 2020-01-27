@@ -165,7 +165,45 @@ def getMauritshuisGenerator():
                                                        nlitem.get(u'authors')[2],)
 
         # Fixme, better date handling
-        # metadata['inception'] = nlitem.get(u'periode')
+        if nlitem.get(u'periode'):
+            print (nlitem.get(u'periode'))
+            # metadata['inception'] = nlitem.get(u'periode')
+
+            dateregex = u'^\s*(\d\d\d\d)\s*$'
+            datecircaregex = u'^\s*c\.\s*(\d\d\d\d)\s*$'
+            periodregex = u'^\s*(\d\d\d\d)\s*-\s*(\d\d\d\d)\s*$'
+            circaperiodregex = u'^\s*c\.\s*(\d\d\d\d)\s*-\s*(\d\d\d\d)\s*$'
+            #shortperiodregex = u'\<meta content\=\"(\d\d)(\d\d)–(\d\d)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
+            #circashortperiodregex = u'\<p\>\<strong\>Date\<\/strong\>\<br\/\>c\.\s*(\d\d)(\d\d)–(\d\d)\<\/p\>'
+
+            datematch = re.match(dateregex, nlitem.get(u'periode'))
+            datecircamatch = re.match(datecircaregex, nlitem.get(u'periode'))
+            periodmatch = re.match(periodregex, nlitem.get(u'periode'))
+            circaperiodmatch = re.match(circaperiodregex, nlitem.get(u'periode'))
+            shortperiodmatch = None
+            circashortperiodmatch = None
+
+            if datematch:
+                metadata['inception'] = int(datematch.group(1).strip())
+            elif datecircamatch:
+                metadata['inception'] = int(datecircamatch.group(1).strip())
+                metadata['inceptioncirca'] = True
+            elif periodmatch:
+                metadata['inceptionstart'] = int(periodmatch.group(1))
+                metadata['inceptionend'] = int(periodmatch.group(2))
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1))
+                metadata['inceptionend'] = int(circaperiodmatch.group(2))
+                metadata['inceptioncirca'] = True
+            elif shortperiodmatch:
+                metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
+                metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
+            elif circashortperiodmatch:
+                metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
+                metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+                metadata['inceptioncirca'] = True
+            else:
+                print (u'Could not parse date: "%s"' % (nlitem.get(u'periode'),))
 
         dimensionregex = u'\<div class\=\"component-key-value-set\"\>[\s\t\r\n]*\<div class\=\"key\"\>Afmetingen\<\/div\>[\s\t\r\n]*\<div class\=\"value\">hoogte\:\s*(?P<height>\d+(,\d+)?)\s*cm[\s\t\r\n]*\<br \/\>breedte\:\s*(?P<width>\d+(,\d+)?)\s*cm[\s\t\r\n]*\<\/div\>'
         dimensionmatch = re.search(dimensionregex, itempage.text)
@@ -179,6 +217,8 @@ def getMauritshuisGenerator():
         if herkomstmatch:
             if u'Rijksmuseum, Amsterdam' in herkomstmatch.group(1):
                 metadata[u'extracollectionqid'] = u'Q190804'
+            elif u'Rijksdienst voor het Cultureel Erfgoed' in herkomstmatch.group(1):
+                metadata[u'extracollectionqid'] = u'Q18600731'
 
         # Can't really find dates in a format I can parse
         # metadata['acquisitiondate'] = acquisitiondatematch.group(1)
