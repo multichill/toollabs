@@ -8,7 +8,6 @@ Bot to upload onroerenderfgoed.be images.
 import pywikibot
 import re
 import pywikibot.data.sparql
-from pywikibot.comms import http
 import datetime
 import hashlib
 import io
@@ -323,12 +322,12 @@ class OnroerendUploaderBot:
         else:
             date = metadata.get('date')
 
-        # FIXME: Switch to a site request
-        parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % date)
-        parsedata = json.loads(parserequest.text)
-        if parsedata.get('error'):
+        request = self.site._simple_request(action='wbparsevalue', datatype='time', values=date)
+        data = request.submit()
+        # Not sure if this works or that I get an exception.
+        if data.get('error'):
             return False
-        postvalue = parsedata.get(u'results')[0].get('value')
+        postvalue = data.get(u'results')[0].get('value')
 
         toclaim = {'mainsnak': { 'snaktype':'value',
                                  'property': 'P571',
@@ -369,10 +368,9 @@ class OnroerendUploaderBot:
 
 def getOnroerenderfgoedGenerator(startpage=1):
     htmlparser = HTMLParser()
-    endpage = 19622
+    endpage = 19643
     for i in range(startpage, endpage):
         searchurl = 'https://beeldbank.onroerenderfgoed.be/images?license=https%%3A%%2F%%2Fcreativecommons.org%%2Flicenses%%2Fby%%2F4.0%%2F&page=%s' % (i,)
-        print (searchurl)
         searchpage = requests.get(searchurl)
 
         itemidregex = '\<img src\=\"[\s\t\r\n]*\/images\/(\d+)[\s\t\r\n]*\/content\/square\"\>'
@@ -385,7 +383,8 @@ def getOnroerenderfgoedGenerator(startpage=1):
             imageid = match.group(1)
             url = 'https://beeldbank.onroerenderfgoed.be/images/%s' % (imageid,)
 
-            pywikibot.output(url)
+            pywikibot.output (searchurl)
+            pywikibot.output (url)
             metadata['imageid'] = imageid
             metadata['url'] = 'https://id.erfgoed.net/afbeeldingen/%s' % (imageid,)
             metadata['imageurl'] = 'https://beeldbank.onroerenderfgoed.be/images/%s/content/original' % (imageid,)
