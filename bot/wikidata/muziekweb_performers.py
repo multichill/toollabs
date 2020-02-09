@@ -1,18 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to get all the artists from the Auckland Art Gallery website so these can be added to mix'n'match.
+Bot to process Muziekweg performers so these can be added to mix'n'match and to Wikidata
 
-They seem to provide json:
+Loop over all performers and insert it into a dict based on the unique key. Output it as a tsv
 
-http://www.aucklandartgallery.com/search/artworks?section=collection&undated=undated&objectType[0]=Painting&reference=artworks&page=2
+For the quality hits, edit Wikidata.
 
-Loop over all works and insert it into a dict based on the unique key. Output it as a tsv
-
-
+Not working properly at the moment. No good way to confirm the suggestion is actually the correct link.
 """
-import artdatabot
+
 import pywikibot
+import pywikibot.data.sparql
 import requests
 import re
 import time
@@ -24,7 +23,7 @@ def getMuziekwebMedewerkersGenerator():
     Generator to return Auckland Art Gallery paintings
 
     """
-    with open('/home/mdammers/temp/MuziekwebMedewerkers.tsv', 'rb') as medewerkersFile:
+    with open('/home/mdammers/temp/MuziekwebMedewerkers_inclExternalIdentifers.tsv', 'r') as medewerkersFile:
         #data = medewerkersFile.read().decode("utf-8-sig").encode("utf-8")
         #for line in medewerkersFile:
         #    print line
@@ -33,84 +32,11 @@ def getMuziekwebMedewerkersGenerator():
         for medewerker in reader:
             yield medewerker
 
-    """
-
-
-    basesearchurl=u'http://www.aucklandartgallery.com/search/artworks?section=collection&undated=undated&reference=artworks&page=%s'
-
-    #basesearchurl = u'http://www.aucklandartgallery.com/search/artworks?section=collection&undated=undated&objectType[0]=Painting&reference=artworks&page=%s'
-    origin = u'http://www.aucklandartgallery.com'
-    referer = u'http://www.aucklandartgallery.com/search/artworks?section=collection&undated=undated&objectType%5B0%5D=Painting'
-
-    result = {}
-    notdone = []
-
-
-
-    # Just loop over the pages
-    for i in range(1, 1341):
-        print i
-        searchurl = basesearchurl % (i,)
-        searchPage = requests.get(searchurl, headers={'X-Requested-With' : 'XMLHttpRequest',
-                                                      'referer' : referer,
-                                                      'origin' : origin} )
-
-        # This might bork evey once in a while, we'll see
-        try:
-            searchJson = searchPage.json()
-        except ValueError:
-            print u'Oh, noes, no JSON. Wait and try again'
-            time.sleep(15)
-            searchPage = requests.get(searchurl, headers={'X-Requested-With' : 'XMLHttpRequest',
-                                                          'referer' : referer,
-                                                          'origin' : origin} )
-            searchJson = searchPage.json()
-
-        for record in searchJson.get('data'):
-
-            entryid = record.get('user_sym_91')
-            if not isinstance(entryid, list):
-                result = processEntry(entryid, record.get('user_sym_32'),record.get('classification'), result)
-            else:
-                i = 0
-                for ndentry in entryid:
-                    result = processEntry(ndentry, record.get('user_sym_32')[i],record.get('classification'), result)
-                    i = i + 1
-                    #notdone.append(ndentry)
-                #print u'No idea how to process this one'
-
-            #yield
-    for entrynum in result:
-        result[entrynum][u'description'] =  result[entrynum]['shortdescription'] + u' (field of work: ' + u'/'.join(result[entrynum]['classification']) + u')'
-
-    return result
-    """
-
-def processEntry(entryid, user_sym_32, classification, result):
-    descregex = u'^([^\)]+)\s*\((.+)\)'
-    if int(entryid) not in result:
-        metadata = { u'id' : entryid,
-                     u'name' : u'',
-                     u'shortdescription' : u'',
-                     u'url' : u'http://www.aucklandartgallery.com/explore-art-and-ideas/artist/%s/' % (entryid,),
-                     u'classification' : [classification,]
-                     }
-        match = re.match(descregex, user_sym_32)
-        if match:
-            metadata[u'name'] = match.group(1).strip()
-            metadata[u'shortdescription'] = match.group(2)
-        else:
-            metadata[u'name'] =  user_sym_32
-            metadata[u'shortdescription'] = user_sym_32
-        result[int(entryid)]=metadata
-    else:
-        if classification not in result[int(entryid)][u'classification']:
-            result[int(entryid)][u'classification'].append(classification)
-    return result
-
-
 def getMetadata(medewerker):
 
+    print (medewerker)
+    if not medewerker.get('MEDEWERKERLINK'):
+        return False
     metadata = {}
     metadata[u'id'] = medewerker.get(u'MEDEWERKERLINK').decode(u'utf-8')
     metadata[u'url'] = u'https://www.muziekweb.nl/Link/%s/' % (medewerker.get(u'MEDEWERKERLINK').decode(u'utf-8'),)
@@ -130,6 +56,21 @@ def getMetadata(medewerker):
     elif medewerker.get(u'WIKI_EN_KEY'):
         qid = getWikidataId(medewerker.get(u'WIKI_EN_KEY').decode(u'utf-8'), u'en')
 
+    if medewerker.get(u'MUSICBRAINZ'):
+        metadata[u'musicbrainz'] = u'%s' % (medewerker.get(u'MUSICBRAINZ').decode(u'utf-8').replace(u'https://musicbrainz.org/artist/', u''),)
+
+    if medewerker.get(u'DISCOGS'):
+        metadata[u'discogs'] = u'%s' % (medewerker.get(u'DISCOGS').decode(u'utf-8').replace(u'https://www.discogs.com/artist/', u''),)
+
+    isniregex = u'(\d\d\d\d)\s*(\d\d\d\d)\s*(\d\d\d\d)\s*(\d\d\d\d)'
+    if medewerker.get(u'ISNI'):
+        isnimatch = re.match(isniregex, medewerker.get(u'ISNI').decode(u'utf-8'))
+        if isnimatch:
+            metadata[u'isni'] = u'%s %s %s %s' % (isnimatch.group(1),
+                                                  isnimatch.group(2),
+                                                  isnimatch.group(3),
+                                                  isnimatch.group(4),)
+
     metadata[u'type'] = u''
 
     metadata[u'suggestion'] = u''
@@ -138,6 +79,21 @@ def getMetadata(medewerker):
 
     return metadata
 
+def getLookupTabel(property):
+    """
+    Make a lookupt table "id" -> "qid" for the property
+    :param property: Property to make the lookup table for
+    :return: Dict with strings in it
+    """
+    result = {}
+    query = u'SELECT ?item ?id WHERE { ?item wdt:%s ?id }' % (property, )
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+        result[resultitem.get('id')] = qid
+    return result
 
 def getWikidataId(page_title, lang):
     try:
@@ -158,9 +114,96 @@ def getWikidataId(page_title, lang):
     except pywikibot.exceptions.NoPage:
         return
 
+def addWikidata(metadata, muziekWebLookup, musicBrainzLookup, discogsLookup, isniLookup, repo):
+    """
+    The to add the suggestion in the metadata if it's good enough
+    :param metadata:
+    :param muziekWebLookup:
+    :param musicBrainzLookup:
+    :param discogsLookup:
+    :return:
+    """
+    if metadata.get('id') in muziekWebLookup:
+        # It's already linked!
+        return True
+
+    qid = metadata.get('suggestion')
+    print (u'Working on %s' % (qid,))
+    musicbrainz = None
+    musicbrainzqid = None
+    discogs = None
+    discogsqid = None
+    isni = None
+    isniqid = None
+
+    if metadata.get('musicbrainz'):
+        musicbrainz = metadata.get('musicbrainz')
+        musicbrainzqid = musicBrainzLookup.get(musicbrainz)
+    if metadata.get('discogsLookup'):
+        discogs = metadata.get('discogsLookup')
+        discogsqid = discogsLookup.get(discogs)
+    if metadata.get('isniLookup'):
+        isni = metadata.get('isniLookup')
+        isniqid = isniLookup.get(isni)
+
+    print (u'Suggestions found: %s->%s %s->%s %s->%s' % (musicbrainz, musicbrainzqid, discogs, discogsqid, isni, isniqid, ))
+
+    if not musicbrainzqid and not discogsqid and not isniqid:
+        # Nothing to match against
+        return False
+
+    # Mismatches
+    if musicbrainzqid and musicbrainzqid!=qid:
+        return False
+    if discogsqid and discogsqid!=qid:
+        return False
+    if isniqid and isniqid!=qid:
+        return False
+
+    # Basic checks done, let's grab the item to check it.
+    itempage = pywikibot.ItemPage(repo, qid)
+    data = itempage.get()
+    claims = data.get('claims')
+
+    if u'P5882' in claims:
+        # Already done
+        return True
+
+    summary = u'based on linkback'
+
+    # Check MusicBrainz
+    if u'P434' in claims:
+        if claims.get(u'P434')[0].getTarget()!=musicbrainz:
+            return False
+        summary += u' / MusicBrainz artist ID %s' % (musicbrainz,)
+    # Check Discogs
+    if u'P1953' in claims:
+        if claims.get(u'P1953')[0].getTarget()!=discogs:
+            return False
+        summary += u' / Discogs artist ID %s' % (discogs,)
+    # Check ISNI
+    if u'P213' in claims:
+        if claims.get(u'P213')[0].getTarget()!=isni:
+            return False
+        summary += u' / ISNI %s' % (isni,)
+
+    print (summary)
+    print (summary)
+    print (summary)
+    print (summary)
+    print (summary)
+    newclaim = pywikibot.Claim(repo, u'P5882')
+    newclaim.setTarget(metadata.get('id'))
+    itempage.addClaim(newclaim, summary=summary)
+
 
 def main():
     medewerkerDict = getMuziekwebMedewerkersGenerator()
+    muziekWebLookup = getLookupTabel('P5882')
+    musicBrainzLookup = getLookupTabel('P434')
+    discogsLookup = getLookupTabel('P1953')
+    isniLookup = getLookupTabel('P213')
+    repo = pywikibot.Site().data_repository()
 
     with open('/tmp/muziekweb_performers.tsv', 'wb') as tsvfile:
         fieldnames = [u'Entry ID', # (your alphanumeric identifier; must be unique within the catalog)
@@ -171,14 +214,16 @@ def main():
                       u'Entry suggestion'
                       ]
 
-        writer = csv.DictWriter(tsvfile, fieldnames, dialect='excel-tab')
+        #writer = csv.DictWriter(tsvfile, fieldnames, dialect='excel-tab')
 
         #No header!
         #writer.writeheader()
 
         for medewerker in medewerkerDict:
             metadata = getMetadata(medewerker)
-            print metadata
+            if not metadata:
+                continue
+            print (metadata)
 
             artistdict = {u'Entry ID' : metadata[u'id'].encode(u'utf-8'),
                           u'Entry name' : metadata[u'name'].encode(u'utf-8'),
@@ -187,8 +232,13 @@ def main():
                           u'Entry URL': metadata[u'url'].encode(u'utf-8'),
                           u'Entry suggestion': metadata[u'suggestion'].encode(u'utf-8'),
                           }
-            print artistdict
-            writer.writerow(artistdict)
+            #print (artistdict)
+            #writer.writerow(artistdict)
+
+            print (u'heeeelpup')
+            if metadata.get('suggestion'):
+                print (u'blaaaaldie bla')
+                addWikidata(metadata, muziekWebLookup, musicBrainzLookup, discogsLookup, isniLookup, repo)
 
 if __name__ == "__main__":
     main()
