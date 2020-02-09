@@ -19,7 +19,6 @@ import pywikibot
 import re
 import pywikibot.data.sparql
 import time
-from pywikibot.comms import http
 import json
 from pywikibot import pagegenerators
 
@@ -340,12 +339,12 @@ class OwnWorkBot:
         if not dateString:
             return False
 
-        # FIXME: Switch to a site request
-        parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % (dateString,))
-        parsedata = json.loads(parserequest.text)
-        if parsedata.get('error'):
+        request = self.site._simple_request(action='wbparsevalue', datatype='time', values=dateString)
+        data = request.submit()
+        # Not sure if this works or that I get an exception.
+        if data.get('error'):
             return False
-        postvalue = parsedata.get(u'results')[0].get('value')
+        postvalue = data.get(u'results')[0].get('value')
 
         toclaim = {'mainsnak': { 'snaktype':'value',
                                  'property': 'P571',
@@ -379,13 +378,14 @@ class OwnWorkBot:
 
         if cameramatch and not cameramatch.group('heading'):
             coordinateText = u'%s %s' % (cameramatch.group('lat'), cameramatch.group('lon'), )
-            # FIXME: Switch to a site request
-            parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=globe-coordinate&values=%s' % (coordinateText,))
-            parsedata = json.loads(parserequest.text)
-            if parsedata.get('error'):
+
+            request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
+            data = request.submit()
+            # Not sure if this works or that I get an exception.
+            if data.get('error'):
                 return False
 
-            postvalue = parsedata.get(u'results')[0].get('value')
+            postvalue = data.get(u'results')[0].get('value')
 
             toclaim = {'mainsnak': { 'snaktype':'value',
                                      'property': 'P1259',
@@ -416,13 +416,14 @@ class OwnWorkBot:
                 return False
 
             coordinateText = u'%s %s' % (objectmatch.group('lat'), objectmatch.group('lon'), )
-            # FIXME: Switch to a site request
-            parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=globe-coordinate&values=%s' % (coordinateText,))
-            parsedata = json.loads(parserequest.text)
-            if parsedata.get('error'):
+
+            request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
+            data = request.submit()
+            # Not sure if this works or that I get an exception.
+            if data.get('error'):
                 return False
 
-            postvalue = parsedata.get(u'results')[0].get('value')
+            postvalue = data.get(u'results')[0].get('value')
 
             toclaim = {'mainsnak': { 'snaktype':'value',
                                      'property': 'P625',
