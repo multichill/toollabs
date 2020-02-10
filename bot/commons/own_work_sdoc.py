@@ -51,11 +51,13 @@ class OwnWorkBot:
                    'cc-by-2.5' : 'Q18810333',
                    'cc-by-3.0' : 'Q14947546',
                    'cc-by-3.0,2.5,2.0,1.0' : ['Q14947546', 'Q18810333', 'Q19125117', 'Q30942811'],
+                   'cc-by 4.0' : 'Q20007257',
                    'cc-by-4.0' : 'Q20007257',
                    'cc-by-sa-1.0' : 'Q47001652',
                    'cc-by-sa-2.0' : 'Q19068220',
                    'cc-by-sa-2.5' : 'Q19113751',
                    'cc-by-sa-2.5,2.0,1.0' : ['Q19113751', 'Q19068220', 'Q47001652'],
+                   'cc-by-sa 3.0' : 'Q14946043',
                    'cc-by-sa-3.0' : 'Q14946043',
                    'cc-by-sa-3.0,2.5,2.0,1.0' : ['Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
                    'cc-by-sa-3.0-migrated' : 'Q14946043', # Just cc-by-sa-3.0
@@ -63,6 +65,7 @@ class OwnWorkBot:
                    'cc-by-sa-3.0-de' : 'Q42716613',
                    'cc-by-sa-3.0-nl' : 'Q18195572',
                    'cc-by-sa-3.0-pl' : 'Q80837607',
+                   'cc-by-sa 4.0' : 'Q18199165',
                    'cc-by-sa-4.0' : 'Q18199165',
                    'cc-by-sa-4.0,3.0,2.5,2.0,1.0' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
                    'gfdl' : 'Q50829104',
@@ -181,8 +184,13 @@ class OwnWorkBot:
         ownfound = False
         selfFound = False
 
+        ownTemplates = ['Template:Own',
+                        'Template:Own photograph',
+                        'Template:Self-photographed',
+                        ]
+
         for template in filepage.itertemplates():
-            if template.title()==u'Template:Own':
+            if template.title() in ownTemplates:
                 ownfound = True
             elif template.title()==u'Template:Self':
                 selfFound = True
@@ -199,7 +207,7 @@ class OwnWorkBot:
         :return: Tuple with a User and a string
         """
 
-        authorRegex = u'^\s*[aA]uthor\s*\=\s*\[\[User\:([^\|^\]]+)\|([^\|^\]]+)\]\](\s*\(\s*\[\[User talk\:[^\|^\]]+\|[^\|^\]]+\]\]\s*\)\s*)?\s*$'
+        authorRegex = u'^\s*[aA]uthor\s*\=\s*\[\[[uU]ser\:([^\|^\]]+)\|([^\|^\]]+)\]\](\s*\(\s*\[\[[uU]ser talk\:[^\|^\]]+\|[^\|^\]]+\]\]\s*\)\s*)?\s*$'
 
         for template, parameters in filepage.templatesWithParams():
             if template.title()==u'Template:Information':
@@ -235,6 +243,8 @@ class OwnWorkBot:
                             result.extend(licenseqid)
                         else:
                             result.append(self.validLicenses.get(license.lower()))
+                    elif license.lower()=='migration=redundant':
+                        continue
                     else:
                         return False
                 break
