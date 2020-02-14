@@ -371,8 +371,12 @@ def getOnroerenderfgoedGenerator(startpage=1):
     endpage = 19643
     for i in range(startpage, endpage):
         searchurl = 'https://beeldbank.onroerenderfgoed.be/images?license=https%%3A%%2F%%2Fcreativecommons.org%%2Flicenses%%2Fby%%2F4.0%%2F&page=%s' % (i,)
-        searchpage = requests.get(searchurl)
-
+        try:
+            searchpage = requests.get(searchurl)
+        except requests.exceptions.ConnectionError:
+            pywikibot.output(u'Got a connection error on %s. Sleeping 5 minutes' (searchurl,))
+            time.sleep(300)
+            searchpage = requests.get(searchurl)
         itemidregex = '\<img src\=\"[\s\t\r\n]*\/images\/(\d+)[\s\t\r\n]*\/content\/square\"\>'
         matches = re.finditer(itemidregex, searchpage.text)
         for match in matches:
@@ -389,11 +393,23 @@ def getOnroerenderfgoedGenerator(startpage=1):
             metadata['url'] = 'https://id.erfgoed.net/afbeeldingen/%s' % (imageid,)
             metadata['imageurl'] = 'https://beeldbank.onroerenderfgoed.be/images/%s/content/original' % (imageid,)
 
-            itempage = requests.get(url)
+            try:
+                itempage = requests.get(url)
+            except requests.exceptions.ConnectionError:
+                pywikibot.output(u'Got a connection error on %s. Sleeping 5 minutes' % (url,))
+                time.sleep(300)
+                itempage = requests.get(url)
 
             titleregex = '\<dl class\=\"caption-info\"\>[\s\t\r\n]*\\<dd\>Titel\<\/dd\>[\s\t\r\n]*\<dt\>([^\<]+)\<\/dt\>'
 
             titlematch = re.search(titleregex, itempage.text)
+            # Sometimes we get a weird page
+            if not titlematch:
+                pywikibot.output(u'Title did not match on %s. Sleeping 5 minutes' % (url,))
+                time.sleep(300)
+                itempage = requests.get(url)
+                titlematch = re.search(titleregex, itempage.text)
+
             metadata['title'] = htmlparser.unescape(titlematch.group(1)).strip()
 
             dateregex = '\<dd\>Datum opname\<\/dd\>[\s\t\r\n]*\<dt\>[\s\t\r\n]*(?P<day>\d\d)-(?P<month>\d\d)-(?P<year>\d\d\d\d)\s*(?P<hour>\d\d)\:(?P<minute>\d\d)[\s\t\r\n]*\<\/dt\>'
