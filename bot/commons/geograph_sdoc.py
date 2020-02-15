@@ -360,7 +360,7 @@ class GeographSDOCBot:
         if currentdata.get('statements') and currentdata.get('statements').get('P1259'):
             return False
 
-        cameraregex = u'\{\{[lL]ocation(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:geograph-osgb36\([^\)]+\))?(_?heading\:(?P<heading>\d+))?(\|prec\=\d+)?\}\}'
+        cameraregex = u'\{\{[lL]ocation(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:geograph[^\(]+\([^\)]+\))?(_?heading\:(?P<heading>\d+))?(\|prec\=\d+)?\}\}'
         cameramatch = re.search(cameraregex, filepage.text)
 
         if not cameramatch:
@@ -410,7 +410,7 @@ class GeographSDOCBot:
         if currentdata.get('statements') and currentdata.get('statements').get('P625'):
             return False
 
-        objectregex = u'\{\{[oO]bject location(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:geograph-osgb36\([^\)]+\))?(_?heading\:(?P<heading>\d+))?(\|prec\=\d+)?\}\}'
+        objectregex = u'\{\{[oO]bject location(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:geograph-[^\(]+\([^\)]+\))?(_?heading\:(?P<heading>\d+))?(\|prec\=\d+)?\}\}'
         objectmatch = re.search(objectregex, filepage.text)
 
         if not objectmatch:
