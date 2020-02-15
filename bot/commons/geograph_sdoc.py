@@ -5,7 +5,7 @@ Bot to convert Geograph images to SDoC (structured data on Commons).
 
 https://commons.wikimedia.org/wiki/Category:Images_from_Geograph_Britain_and_Ireland contains about 1.85M files.
 The source, author and license information should be converted to structured data format
-(https://commons.wikimedia.org/wiki/Commons:Structured_data).
+(https://commons.wikimedia.org/wiki/Commons:Structured_data). Probably date and coordinates too.
 
 Relevant modeling pages:
 * https://commons.wikimedia.org/wiki/Commons:Structured_data/Modeling/Source
@@ -13,7 +13,6 @@ Relevant modeling pages:
 * https://commons.wikimedia.org/wiki/Commons:Structured_data/Modeling/Licensing
 
 Should be switched to a more general Pywikibot implementation.
-
 """
 
 import pywikibot
@@ -26,7 +25,7 @@ from pywikibot import pagegenerators
 
 class GeographSDOCBot:
     """
-    Bot to add depicts statements on Commons
+    Bot to add structured data to Geograph uploads
     """
     def __init__(self, gen):
         """
@@ -34,6 +33,8 @@ class GeographSDOCBot:
 
         """
         self.site = pywikibot.Site(u'commons', u'commons')
+        self.site.login()
+        self.site.get_tokens('csrf')
         self.repo = self.site.data_repository()
 
         self.generator = gen
@@ -45,14 +46,34 @@ class GeographSDOCBot:
         Run on the items
         """
         for filepage in self.generator:
-            self.handleGeographFile(filepage)
+            if not filepage.exists():
+                continue
+            # Probably want to get this all in a preloading generator to make it faster
+            mediaid = u'M%s' % (filepage.pageid,)
+            currentdata = self.getCurrentMediaInfo(mediaid)
+            self.handleGeographFile(filepage, mediaid, currentdata)
 
-    def handleGeographFile(self, filepage):
+    def getCurrentMediaInfo(self, mediaid):
+        """
+        Check if the media info exists. If that's the case, return that so we can check against it
+        Otherwise return an empty dict
+        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
+        :return: dict
+        """
+        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
+        data = request.submit()
+        if data.get(u'entities').get(mediaid).get(u'pageid'):
+            return data.get(u'entities').get(mediaid)
+        return {}
+
+    def handleGeographFile(self, filepage, mediaid, currentdata):
         """
         Handle a Geograph file.
-        Try to extract the template, look up the id and add the Q if no mediainfo is present.
+        Extract the metadata, add the structured data
 
         :param filepage: The page of the file to work on.
+        :param mediaid: The mediaid of the file (like M12345)
+        :param currentdata: Dict with the current structured data
         :return: Nothing, edit in place
         """
         pywikibot.output(u'Working on %s' % (filepage.title(),))
@@ -74,72 +95,61 @@ class GeographSDOCBot:
             pywikibot.output(u'No Geograph ID found  on %s, skipping' % (filepage.title(),))
             return
         print (geographid)
-        licenses = [u'Q19068220',] # All Geograph images are cc-by-sa-2.0
 
-        mediaid = u'M%s' % (filepage.pageid,)
+        # Here we're collecting
+        newclaims = {}
 
         # We got all the needed info, let's add it
-        self.addSourceGeograph(mediaid, geographid)
-        self.addAuthor(mediaid, authorUrl, authorName)
-        self.addLicenses(mediaid, licenses)
-        # Optional stuff
-        self.handleDate(filepage)
-        return
+        newclaims['source'] = self.addSourceGeograph(mediaid, currentdata, geographid)
+        newclaims['author'] = self.addAuthor(mediaid, currentdata, authorUrl, authorName)
+        newclaims['copyright'] = self.addCopyrightLicense(mediaid, currentdata)
+        # Optional stuff, maybe split that up too
+        newclaims['date'] = self.handleDate(mediaid, currentdata, filepage)
+        #FIXME: Handle coordinates
+        #newclaims['coordinates'] = self.handleCoordinates(mediaid, currentdata, filepage)
 
+        addedclaims = []
 
-        matches = list(re.finditer(self.templateregex, filepage.text))
+        itemdata = {u'claims' : [] }
 
-        if not matches:
-            pywikibot.output(u'No matches found on %s, skipping' % (filepage.title(),))
-            return
+        for newclaim in newclaims:
+            if newclaims.get(newclaim):
+                itemdata['claims'].extend(newclaims.get(newclaim))
+                addedclaims.append(newclaim)
 
-        toadd = []
+        if len(addedclaims) > 0:
+            summary = u'Adding structured data: %s' % (addedclaims[0],)
+            if len(addedclaims) > 2:
+                for i in range(1, len(addedclaims)-1):
+                    summary = summary + u', %s' % (addedclaims[i],)
+            if len(addedclaims) > 1:
+                summary = summary + u' & %s' % (addedclaims[-1],)
 
-        # First collect the matches to add
-        for match in matches:
-            monumentid = match.group(u'id')
-            if monumentid not in self.monuments:
-                pywikibot.output(u'Found unknown monument id %s on %s, skipping' % (monumentid, filepage.title(),))
-                return
-            qid = self.monuments.get(monumentid)
-            # Some cases the template is in the file text multiple times
-            if (monumentid, qid) not in toadd:
-                toadd.append((monumentid, qid))
+            # Flush it
+            pywikibot.output(summary)
 
-        mediaid = u'M%s' % (filepage.pageid,)
-        if self.mediaInfoHasStatement(mediaid, u'P180'):
-            return
-        i = 1
-        for (monumentid, qid) in toadd:
-            if len(toadd)==1:
-                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[:d:%s]]' % (self.template,
-                                                                                                                                     monumentid,
-                                                                                                                                     self.property,
-                                                                                                                                     self.propertyname,
-                                                                                                                                     self.property,
-                                                                                                                                     qid, )
-            else:
-                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[:d:%s]] (%s/%s)' % (self.template,
-                                                                                                                                             monumentid,
-                                                                                                                                             self.property,
-                                                                                                                                             self.propertyname,
-                                                                                                                                             self.property,
-                                                                                                                                             qid,
-                                                                                                                                             i,
-                                                                                                                                             len(toadd))
-            self.addClaim(mediaid, u'P180', qid, summary)
-            i +=1
+            token = self.site.tokens['csrf']
+            postdata = {u'action' : u'wbeditentity',
+                        u'format' : u'json',
+                        u'id' : mediaid,
+                        u'data' : json.dumps(itemdata),
+                        u'token' : token,
+                        u'summary' : summary,
+                        u'bot' : True,
+                        }
+
+            request = self.site._simple_request(**postdata)
+            data = request.submit()
 
     def getAuthor(self, filepage):
         """
-        Extract the author form the information template
+        Extract the author from the information template
         :param filepage: The page of the file to work on.
         :return: Tuple with a User and a string
         """
 
         # |author=[https://www.geograph.org.uk/profile/5 Helena Downton]
         authorRegex = u'^[aA]uthor\s*\=\s*\[\s*(https\:\/\/www\.geograph\.org\.uk\/profile\/\d+) ([^\]]+)\s*\]$'
-        #authorRegex = u'^[aA]uthor\s*\=\s*\[\[User\:([^\|^\]]+)\|([^\|^\]]+)\]\](\s*\(\s*\[\[User talk\:[^\|^\]]+\|[^\|^\]]+\]\]\s*\)\s*)?$'
 
         for template, parameters in filepage.templatesWithParams():
             if template.title()==u'Template:Information':
@@ -158,9 +168,11 @@ class GeographSDOCBot:
 
     def getGeographId(self, filepage, authorName):
         """
-        Check if the file is own work. We do that by looking for both the "own" and the "self" template.
+        Extract the geograph ID from the filepage
+
         :param filepage: The page of the file to work on.
-        :return:
+        :param authorName: The expected name of the author
+        :return: The ID of the file (string)
         """
         templateFound = False
         for template in filepage.itertemplates():
@@ -169,127 +181,144 @@ class GeographSDOCBot:
         if not templateFound:
             return False
 
-        regex = u'\{\{Geograph\|(\d+)\|%s\}\}' % (authorName,)
+        regex = u'\{\{[gG]eograph\|(\d+)\|%s\}\}' % (authorName,)
         match = re.search(regex, filepage.text)
         if not match:
             return False
         return match.group(1)
 
-    def addSourceGeograph(self, mediaid, geographid):
+    def addSourceGeograph(self, mediaid, currentdata, geographid):
         """
-        :return:
+        Construct the structured source to add if it isn't in the currentdata
+        :return: List of dicts
         """
-        pid = u'P7482'
-        qid =  u'Q74228490'
-        if self.mediaInfoHasStatement(mediaid, pid):
-            return
-        #self.addClaim(mediaid, u'P7482', u'Q74228490', u'Extracted [[Commons:Structured data/Modeling/Source|source]] own work status from wikitext' )
-        summary = u'Extracted [[Commons:Structured data/Modeling/Source|source]] Geograph from wikitext'
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-
-        postvalue = {"entity-type":"item","numeric-id": qid.replace(u'Q', u'')}
-
-        postdata = {u'action' : u'wbcreateclaim',
-                    u'format' : u'json',
-                    u'entity' : mediaid,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-
-        revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
-        claim = json.loads(apipage.text).get(u'claim').get(u'id')
-
-        # operator (P137) -> Geograph Britain and Ireland (Q1503119)
-        revison = self.addQualifier(claim, u'P137', u'Q1503119', u'item', revison, summary)
-
-        #  geograph.org.uk image ID (P7384) -> the id
-        revison = self.addQualifier(claim, u'P7384', geographid, u'string', revison, summary)
-
-        #  described at URL (P973) ->  The Geograph page
+        if currentdata.get('statements') and currentdata.get('statements').get('P7482'):
+            return False
         geographUrl = u'https://www.geograph.org.uk/photo/%s' % (geographid, )
-        revison = self.addQualifier(claim, u'P973', geographUrl, u'string', revison, summary)
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P7482',
+                                 'datavalue': { 'value': { 'numeric-id': 74228490,
+                                                           'id' : 'Q74228490',
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        return
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   'qualifiers' : {'P137' : [ {'snaktype': 'value',
+                                               'property': 'P137',
+                                               'datavalue': { 'value': { 'numeric-id': '1503119',
+                                                                         'id' : 'Q1503119',
+                                                                         },
+                                                              'type' : 'wikibase-entityid',
+                                                              },
+                                               } ],
+                                   'P7384' : [ {'snaktype': 'value',
+                                               'property': 'P7384',
+                                               'datavalue': { 'value': geographid,
+                                                              'type' : 'string',
+                                                              },
+                                               } ],
+                                   'P973' : [ {'snaktype': 'value',
+                                               'property': 'P973',
+                                               'datavalue': { 'value': geographUrl,
+                                                              'type' : 'string',
+                                                              },
+                                               } ],
+                                   },
+                   }
+        return [toclaim,]
 
-    def addAuthor(self, mediaid, authorUrl, authorName):
+    def addAuthor(self, mediaid, currentdata, authorUrl, authorName):
         """
-        Add the author info to filepage
-        :param authorPage:
-        :param authorName:
-        :return:
+        Construct the structured author to add if it isn't in the currentdata
+        :param authorUrl: The url pointing to the author on Geograph
+        :param authorName: The name of the author
+        :return: List of dicts
         """
-        if self.mediaInfoHasStatement(mediaid, u'P170'):
-            return
+        if currentdata.get('statements') and currentdata.get('statements').get('P170'):
+            return False
 
-        # Do the adding of somevalue here
+        toclaim = {'mainsnak': { 'snaktype':'somevalue',
+                                 'property': 'P170',
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   'qualifiers' : {'P3831' : [ {'snaktype': 'value',
+                                                'property': 'P3831',
+                                                'datavalue': { 'value': { 'numeric-id': '33231',
+                                                                          'id' : 'Q33231',
+                                                                          },
+                                                               'type' : 'wikibase-entityid',
+                                                               },
+                                                } ],
+                                   'P2093' : [ {'snaktype': 'value',
+                                                'property': 'P2093',
+                                                'datavalue': { 'value': authorName,
+                                                               'type' : 'string',
+                                                               },
+                                                } ],
+                                   'P2699' : [ {'snaktype': 'value',
+                                                'property': 'P2699',
+                                                'datavalue': { 'value': authorUrl,
+                                                               'type' : 'string',
+                                                               },
+                                                } ],
+                                   },
+                   }
+        return [toclaim,]
 
-        summary = u'Extracted [[Commons:Structured data/Modeling/Author|author]] from [[Template:Information|Information]] in the wikitext'
-
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-
-        postdata = {u'action' : u'wbcreateclaim',
-                    u'format' : u'json',
-                    u'entity' : mediaid,
-                    u'property' : u'P170',
-                    u'snaktype' : u'somevalue',
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-
-        revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
-        claim = json.loads(apipage.text).get(u'claim').get(u'id')
-
-        # Object has role (P3831) ->  photographer (Q33231)
-        revison = self.addQualifier(claim, u'P3831', u'Q33231', u'item', revison, summary)
-
-        # author name string (P2093) ->  authorName
-        revison = self.addQualifier(claim, u'P2093', authorName, u'string', revison, summary)
-
-        # URL (P2699) ->  authorLink
-        revison = self.addQualifier(claim, u'P2699', authorUrl, u'string', revison, summary)
-
-    def addLicenses(self, mediaid, licenses):
+    def addCopyrightLicense(self, mediaid, currentdata):
         """
-        Add the author info to filepage
-        :param authorPage:
-        :param authorName:
-        :return:
+        Construct the structured copyright license  to add if it isn't in the currentdata
+        :return: List of dicts
         """
-        if self.mediaInfoHasStatement(mediaid, u'P6216'):
-            return
-        if self.mediaInfoHasStatement(mediaid, u'P275'):
-            return
+        if currentdata.get('statements') and currentdata.get('statements').get('P6216'):
+            return False
+        if currentdata.get('statements') and currentdata.get('statements').get('P275'):
+            return False
+        result = []
+        # Copyright status -> copyrighted
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P6216',
+                                 'datavalue': { 'value': { 'numeric-id': 50423863,
+                                                           'id' : 'Q50423863',
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        # Add the fact that the file is copyrighted
-        self.addClaim(mediaid, u'P6216', u'Q50423863', u'Added [[Commons:Structured data/Modeling/Copyright|copyright]] status based on [[Template:Geograph]]' )
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        result.append(toclaim)
+        # License -> cc-by-2.0
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P275',
+                                 'datavalue': { 'value': { 'numeric-id': 19068220,
+                                                           'id' : 'Q19068220',
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        # Add the different licenses
-        for license in licenses:
-            self.addClaim(mediaid, u'P275', license, u'Added [[Commons:Structured data/Modeling/Copyright|copyright]] status based on [[Template:Geograph]]' )
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        result.append(toclaim)
+        return result
 
-    def handleDate(self, filepage):
+    def handleDate(self, mediaid, currentdata, filepage):
         """
-        Handle the date on the filepage. If it matches an ISO date (YYYY-MM-DD), add a date claim
+        Handle the date on the filepage. If it matches an ISO date (YYYY-MM-DD) (with or without time), add a date claim
         :param filepage:
         :return:
         """
-        mediaid = u'M%s' % (filepage.pageid,)
-        pid = u'P571'
-        if self.mediaInfoHasStatement(mediaid, pid):
-            return
-        dateRegex = u'^[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)\s*$'
+        if currentdata.get('statements') and currentdata.get('statements').get('P571'):
+            return False
+
+        dateRegex = u'^\s*[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
         dateString = None
 
         for template, parameters in filepage.templatesWithParams():
@@ -301,149 +330,26 @@ class GeographSDOCBot:
                             dateString = match.group(1).strip()
                         break
         if not dateString:
-            return
-
-        parserequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?format=json&action=wbparsevalue&datatype=time&values=%s' % (dateString,))
-        parsedata = json.loads(parserequest.text)
-
-        postvalue = parsedata.get(u'results')[0].get('value')
-
-        summary = u'Extracted [[Commons:Structured data/Modeling/Date|date]] from [[Template:Information|Information]] in the wikitext'
-
-        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, dateString, mediaid, summary))
-
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-
-        postdata = {u'action' : u'wbcreateclaim',
-                    u'format' : u'json',
-                    u'entity' : mediaid,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-
-    def addClaim(self, mediaid, pid, qid, summary=u''):
-        """
-        Add a claim to a mediaid
-
-        :param mediaid: The mediaid to add it to
-        :param pid: The property P id (including the P)
-        :param qid: The item Q id (including the Q)
-        :param summary: The summary to add in the edit
-        :return: Nothing, edit in place
-        """
-        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, qid, mediaid, summary))
-
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-
-        postvalue = {"entity-type":"item","numeric-id": qid.replace(u'Q', u'')}
-
-        postdata = {u'action' : u'wbcreateclaim',
-                    u'format' : u'json',
-                    u'entity' : mediaid,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-        try:
-            revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
-        except AttributeError:
-            print (apipage.text)
-            time.sleep(300)
-            tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-
-            tokendata = json.loads(tokenrequest.text)
-            token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-            postdata[u'token'] = token
-            apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-            # Burn if it fails again
-            revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
-
-        return revison
-
-    def addQualifier(self, claim, pid, value, entityType, baserevid, summary=u''):
-        """
-
-        :param claim:
-        :param pid:
-        :param value:
-        :param entityType:
-        :param baserevid:
-        :return:
-        """
-        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, value, claim, summary))
-
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-
-        if entityType==u'item':
-            postvalue = {"entity-type":"item","numeric-id": value.replace(u'Q', u'')}
-        else:
-            postvalue = value
-
-        postdata = {u'action' : u'wbsetqualifier',
-                    u'format' : u'json',
-                    u'claim' : claim,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'baserevid' : baserevid,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-        return apipage
-
-
-    def mediaInfoExists(self, mediaid):
-        """
-        Check if the media info exists or not
-        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
-        :return: True if it exists, otherwise False
-        """
-        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M72643194
-        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
-        data = request.submit()
-        if data.get(u'entities').get(mediaid).get(u'pageid'):
-            return True
-        return False
-
-    def mediaInfoHasStatement(self, mediaid, property):
-        """
-        Check if the media info exists or not
-        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
-        :param property: The property ID to check for (like P180)
-        :return: True if it exists, otherwise False
-        """
-        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M72643194
-        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
-        data = request.submit()
-        # No structured data at all is no pageid
-        if not data.get(u'entities').get(mediaid).get(u'pageid'):
             return False
-        # Has structured data, but the list of statements is empty
-        if not data.get(u'entities').get(mediaid).get(u'statements'):
+
+        request = self.site._simple_request(action='wbparsevalue', datatype='time', values=dateString)
+        data = request.submit()
+        # Not sure if this works or that I get an exception.
+        if data.get('error'):
             return False
-        if property in data.get(u'entities').get(mediaid).get(u'statements'):
-            return True
-        return False
+        postvalue = data.get(u'results')[0].get('value')
+
+        toclaim = {'mainsnak': { 'snaktype':'value',
+                                 'property': 'P571',
+                                 'datavalue': { 'value': postvalue,
+                                                'type' : 'time',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        return [toclaim,]
 
 
 def main(*args):
