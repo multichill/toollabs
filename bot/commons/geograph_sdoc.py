@@ -105,8 +105,8 @@ class GeographSDOCBot:
         newclaims['copyright'] = self.addCopyrightLicense(mediaid, currentdata)
         # Optional stuff, maybe split that up too
         newclaims['date'] = self.handleDate(mediaid, currentdata, filepage)
-        #FIXME: Handle coordinates
-        #newclaims['coordinates'] = self.handleCoordinates(mediaid, currentdata, filepage)
+        newclaims['coordinates'] = self.handlePointOfViewCoordinates(mediaid, currentdata, filepage)
+        newclaims['object coordinates'] = self.handleObjectCoordinates(mediaid, currentdata, filepage)
 
         addedclaims = []
 
@@ -350,6 +350,94 @@ class GeographSDOCBot:
                    'rank': 'normal',
                    }
         return [toclaim,]
+
+    def handlePointOfViewCoordinates(self, mediaid, currentdata, filepage):
+        """
+        Handle the point of view coordinates on the file page
+        :param filepage:
+        :return:
+        """
+        if currentdata.get('statements') and currentdata.get('statements').get('P1259'):
+            return False
+
+        cameraregex = u'\{\{[lL]ocation(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:geograph-osgb36\([^\)]+\))?(_?heading\:(?P<heading>\d+))?(\|prec\=\d+)?\}\}'
+        cameramatch = re.search(cameraregex, filepage.text)
+
+        if not cameramatch:
+            return False
+
+        if cameramatch:
+            coordinateText = u'%s %s' % (cameramatch.group('lat'), cameramatch.group('lon'), )
+
+            request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
+            data = request.submit()
+            # Not sure if this works or that I get an exception.
+            if data.get('error'):
+                return False
+
+            postvalue = data.get(u'results')[0].get('value')
+
+            toclaim = {'mainsnak': { 'snaktype':'value',
+                                     'property': 'P1259',
+                                     'datavalue': { 'value': postvalue,
+                                                    'type' : 'globecoordinate',
+                                                    }
+
+                                     },
+                       'type': 'statement',
+                       'rank': 'normal',
+                       }
+            if cameramatch.group('heading'):
+                toclaim['qualifiers'] = {'P7787' : [ {'snaktype': 'value',
+                                                      'property': 'P7787',
+                                                      'datavalue': { 'value': { 'amount': '+%s' % (cameramatch.group('heading'),),
+                                                                                #'unit' : '1',
+                                                                                'unit' : 'http://www.wikidata.org/entity/Q28390',
+                                                                                },
+                                                                     'type' : 'quantity',
+                                                                     },
+                                                      },
+                                                     ],
+                                         }
+            return [toclaim,]
+
+    def handleObjectCoordinates(self, mediaid, currentdata, filepage):
+        """
+        Handle the object coordinates on the file page
+        :param filepage:
+        :return:
+        """
+        if currentdata.get('statements') and currentdata.get('statements').get('P625'):
+            return False
+
+        objectregex = u'\{\{[oO]bject location(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:geograph-osgb36\([^\)]+\))?(_?heading\:(?P<heading>\d+))?(\|prec\=\d+)?\}\}'
+        objectmatch = re.search(objectregex, filepage.text)
+
+        if not objectmatch:
+            return False
+
+        if objectmatch:
+            coordinateText = u'%s %s' % (objectmatch.group('lat'), objectmatch.group('lon'), )
+
+            request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
+            data = request.submit()
+            # Not sure if this works or that I get an exception.
+            if data.get('error'):
+                return False
+
+            postvalue = data.get(u'results')[0].get('value')
+
+            toclaim = {'mainsnak': { 'snaktype':'value',
+                                     'property': 'P625',
+                                     'datavalue': { 'value': postvalue,
+                                                    'type' : 'globecoordinate',
+                                                    }
+
+                                     },
+                       'type': 'statement',
+                       'rank': 'normal',
+                       }
+            return [toclaim,]
 
 
 def main(*args):
