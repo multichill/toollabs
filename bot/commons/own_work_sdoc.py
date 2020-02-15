@@ -139,7 +139,8 @@ class OwnWorkBot:
         newclaims['copyright'] = self.addLicenses(mediaid, currentdata, licenses)
         # Optional stuff, maybe split that up too
         newclaims['date'] = self.handleDate(mediaid, currentdata, filepage)
-        newclaims['coordinates'] = self.handleCoordinates(mediaid, currentdata, filepage)
+        newclaims['coordinates'] = self.handlePointOfViewCoordinates(mediaid, currentdata, filepage)
+        newclaims['object coordinates'] = self.handleObjectCoordinates(mediaid, currentdata, filepage)
 
         addedclaims = []
 
@@ -368,25 +369,22 @@ class OwnWorkBot:
                    }
         return [toclaim,]
 
-    def handleCoordinates(self, mediaid, currentdata, filepage):
+    def handlePointOfViewCoordinates(self, mediaid, currentdata, filepage):
         """
-        Handle the date on the filepage. If it matches an ISO date (YYYY-MM-DD) (with or without time), add a date claim
+        Handle the point of view coordinates on the file page
         :param filepage:
         :return:
         """
         if currentdata.get('statements') and currentdata.get('statements').get('P1259'):
             return False
 
-        cameraregex = u'\{\{[lL]ocation(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|heading\:(?P<heading>\d+))?\}\}'
-        objectregex = u'\{\{[oO]bject location(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)\}\}'
-
+        cameraregex = u'\{\{[lL]ocation(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:[^_]+)?(_?heading\:(?P<heading>\d+(\.\d+)?))?(\|prec\=\d+)?\}\}'
         cameramatch = re.search(cameraregex, filepage.text)
-        objectmatch = re.search(objectregex, filepage.text)
 
-        if not cameramatch and not objectmatch:
+        if not cameramatch:
             return False
 
-        if cameramatch and not cameramatch.group('heading'):
+        if cameramatch:
             coordinateText = u'%s %s' % (cameramatch.group('lat'), cameramatch.group('lon'), )
 
             request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
@@ -421,10 +419,22 @@ class OwnWorkBot:
                                          }
             return [toclaim,]
 
-        elif objectmatch:
-            if currentdata.get('statements') and currentdata.get('statements').get('P625'):
-                return False
+    def handleObjectCoordinates(self, mediaid, currentdata, filepage):
+        """
+        Handle the object coordinates on the file page
+        :param filepage:
+        :return:
+        """
+        if currentdata.get('statements') and currentdata.get('statements').get('P625'):
+            return False
 
+        objectregex = u'\{\{[oO]bject location(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:[^_]+)?(_?heading\:(?P<heading>\d+(\.\d+)?))?(\|prec\=\d+)?\}\}'
+        objectmatch = re.search(objectregex, filepage.text)
+
+        if not objectmatch:
+            return False
+
+        if objectmatch:
             coordinateText = u'%s %s' % (objectmatch.group('lat'), objectmatch.group('lon'), )
 
             request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
@@ -446,7 +456,6 @@ class OwnWorkBot:
                        'rank': 'normal',
                        }
             return [toclaim,]
-
 
     def addClaimJson(self, mediaid, pid, qid):
         """
