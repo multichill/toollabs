@@ -173,7 +173,11 @@ class OwnWorkBot:
                         }
 
             request = self.site._simple_request(**postdata)
-            data = request.submit()
+            try:
+                data = request.submit()
+            except pywikibot.data.api.APIError:
+                pywikibot.output('Got an API error while saving page. Sleeping and skipping')
+                time.sleep(120)
             return
 
     def isOwnWorkFile(self, filepage):
@@ -351,9 +355,10 @@ class OwnWorkBot:
             return False
 
         request = self.site._simple_request(action='wbparsevalue', datatype='time', values=dateString)
-        data = request.submit()
-        # Not sure if this works or that I get an exception.
-        if data.get('error'):
+        try:
+            data = request.submit()
+        except AssertionError:
+            # This will break at some point in the future
             return False
         postvalue = data.get(u'results')[0].get('value')
 
