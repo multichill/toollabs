@@ -26,7 +26,7 @@ class OwnWorkBot:
     """
     Bot to add structured data statements on Commons
     """
-    def __init__(self, gen):
+    def __init__(self, gen, loose=False):
         """
         Grab generator based on search to work on.
         """
@@ -37,6 +37,7 @@ class OwnWorkBot:
 
         self.validLicenses = self.getLicenseTemplates()
         self.generator = gen
+        self.loose = loose
 
     def getLicenseTemplates(self):
         """
@@ -68,6 +69,8 @@ class OwnWorkBot:
                    'cc-by-sa 4.0' : 'Q18199165',
                    'cc-by-sa-4.0' : 'Q18199165',
                    'cc-by-sa-4.0,3.0,2.5,2.0,1.0' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
+                   'cc-by-sa-all' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
+                   'fal' : 'Q152332',
                    'gfdl' : 'Q50829104',
                    'gfdl-1.2' : 'Q26921686',
                    }
@@ -113,30 +116,38 @@ class OwnWorkBot:
             return
 
         # Check if the file is own work
-        if not self.isOwnWorkFile(filepage):
+        ownwork = self.isOwnWorkFile(filepage)
+        if not ownwork and not self.loose:
             pywikibot.output(u'No own and self templates found on %s, skipping' % (filepage.title(),))
             return
 
         # Get the author
         authorInfo = self.getAuthor(filepage)
-        if not authorInfo:
+        if not authorInfo and not self.loose:
             pywikibot.output(u'Unable to extract author on %s, skipping' % (filepage.title(),))
             return
-        (authorPage, authorName) = authorInfo
 
         # Get one or more licenses
         licenses = self.getSelfLicenses(filepage)
-        if not licenses:
+        if not licenses and not self.loose:
             pywikibot.output(u'Unable to extract licenses on %s, skipping' % (filepage.title(),))
             return
+
+        # Need to have found something to continue in loose mode
+        if self.loose and not ownwork and not authorInfo and not licenses:
+            pywikibot.output(u'Loose mode, but did not find anything on %s, skipping' % (filepage.title(),))
 
         # Here we're collecting
         newclaims = {}
 
         # We got all the needed info, let's add it
-        newclaims['source'] = self.addSourceOwn(mediaid, currentdata)
-        newclaims['author'] = self.addAuthor(mediaid, currentdata, authorPage, authorName)
-        newclaims['copyright'] = self.addLicenses(mediaid, currentdata, licenses)
+        if ownwork:
+            newclaims['source'] = self.addSourceOwn(mediaid, currentdata)
+        if authorInfo:
+            (authorPage, authorName) = authorInfo
+            newclaims['author'] = self.addAuthor(mediaid, currentdata, authorPage, authorName)
+        if licenses:
+            newclaims['copyright'] = self.addLicenses(mediaid, currentdata, licenses)
         # Optional stuff, maybe split that up too
         newclaims['date'] = self.handleDate(mediaid, currentdata, filepage)
         newclaims['coordinates'] = self.handlePointOfViewCoordinates(mediaid, currentdata, filepage)
@@ -248,6 +259,10 @@ class OwnWorkBot:
                             result.extend(licenseqid)
                         else:
                             result.append(self.validLicenses.get(license.lower()))
+                    elif license.startswith('author='):
+                        continue
+                    elif license.startswith('attribution='):
+                        continue
                     elif license.lower()=='migration=redundant':
                         continue
                     else:
@@ -490,13 +505,16 @@ class OwnWorkBot:
 def main(*args):
     gen = None
     genFactory = pagegenerators.GeneratorFactory()
+    loose = False
 
     for arg in pywikibot.handle_args(args):
-        if genFactory.handleArg(arg):
+        if arg == '-loose':
+            loose = True
+        elif genFactory.handleArg(arg):
             continue
     gen = genFactory.getCombinedGenerator(gen, preload=True)
 
-    ownWorkBot = OwnWorkBot(gen)
+    ownWorkBot = OwnWorkBot(gen, loose)
     ownWorkBot.run()
 
 if __name__ == "__main__":
