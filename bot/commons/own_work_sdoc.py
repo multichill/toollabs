@@ -143,6 +143,7 @@ class OwnWorkBot:
         # Need to have found something to continue in loose mode
         if self.loose and not ownwork and not authorInfo and not licenses:
             pywikibot.output(u'Loose mode, but did not find anything on %s, skipping' % (filepage.title(),))
+            return
 
         # Here we're collecting
         newclaims = {}
@@ -209,13 +210,17 @@ class OwnWorkBot:
 
         ownTemplates = ['Template:Own',
                         'Template:Own photograph',
+                        'Template:Own work by original uploader',
                         'Template:Self-photographed',
                         ]
+        selfTemplates = ['Template:Self',
+                         'Template:PD-self',
+                         ]
 
         for template in filepage.itertemplates():
             if template.title() in ownTemplates:
                 ownfound = True
-            elif template.title()==u'Template:Self':
+            elif template.title() in selfTemplates:
                 selfFound = True
 
         if ownfound and selfFound:
