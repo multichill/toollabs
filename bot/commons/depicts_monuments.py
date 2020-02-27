@@ -46,30 +46,37 @@ class DepictsMonumentsBot:
             self.generator = gen
         else:
             self.generator = pagegenerators.PreloadingGenerator(pagegenerators.SearchPageGenerator(self.search, namespaces=6, site=self.site))
-        self.monuments = self.getMonumentsOnWikidata(self.property, self.designation)
+        (self.monuments, self.monumentsLocations) = self.getMonumentsOnWikidata(self.property, self.designation)
 
     def getMonumentsOnWikidata(self, property, designation=None):
         """
         Get the monuments currently on Wikidata. Keep the id as a string.
         :return:
         """
-        result = {}
+        resultMonuments = {}
+        resultLocations = {}
         if designation:
-            query = u'''SELECT ?item ?id WHERE {
+            query = u'''SELECT ?item ?id ?location WHERE {
   ?item wdt:P1435 wd:%s .
   ?item wdt:%s ?id .
+  OPTIONAL { ?item wdt:P131 ?location } . 
   } ORDER BY ?id''' % (designation, property, )
         else:
-            query = u'''SELECT ?item ?id WHERE {
+            query = u'''SELECT ?item ?id ?location WHERE {
   ?item wdt:%s ?id .
+  OPTIONAL { ?item wdt:P131 ?location } .
   } ORDER BY ?id''' % (property, )
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
         for resultitem in queryresult:
             qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            result[resultitem.get('id')] = qid
-        return result
+            resultMonuments[resultitem.get('id')] = qid
+            if resultitem.get('location'):
+                locationqid = resultitem.get('location').replace(u'http://www.wikidata.org/entity/', u'')
+                resultLocations [resultitem.get('id')] = locationqid
+
+        return (resultMonuments, resultLocations)
 
     def run(self):
         """
@@ -115,6 +122,7 @@ class DepictsMonumentsBot:
 
         summarytoadd = []
         depictstoadd = []
+        locationstoadd = []
 
         # First collect the matches to add
         for match in matches:
@@ -127,11 +135,14 @@ class DepictsMonumentsBot:
             if (monumentid, qid) not in summarytoadd:
                 summarytoadd.append((monumentid, qid))
                 depictstoadd.append(qid)
+            if monumentid in self.monumentsLocations:
+                locationstoadd.append(self.monumentsLocations.get(monumentid))
 
         # Here we're collecting
         newclaims = {}
 
         newclaims['depicts'] = self.addDepicts(mediaid, currentdata, depictstoadd)
+        newclaims['location'] = self.addLocation(mediaid, currentdata, locationstoadd)
 
         for (monumentid, qid) in summarytoadd:
             if len(summarytoadd)==1:
@@ -148,7 +159,7 @@ class DepictsMonumentsBot:
                                                                                                                                              self.propertyname,
                                                                                                                                              self.property,
                                                                                                                                              qid,
-                                                                                                                                             len(summarytoadd-1))
+                                                                                                                                             len(summarytoadd)-1)
         addedclaims = []
 
         itemdata = {u'claims' : [] }
@@ -197,6 +208,23 @@ class DepictsMonumentsBot:
         for depicts in depictstoadd:
             result.extend(self.addClaimJson(mediaid, u'P180', depicts))
         return result
+
+    def addLocation(self, mediaid, currentdata, locationstoadd):
+        """
+        Add the author info to filepage
+        :param mediaid: Media ID of the file
+        :param currentdata: What's currently on the fiel
+        :param depictstoadd: List of Q id's to add
+        :return:
+        """
+        if currentdata.get('statements'):
+            if currentdata.get('statements').get('P1071'):
+                return False
+
+        locationstoadd = list(set(locationstoadd))
+        if len(locationstoadd) !=1:
+            return False
+        return self.addClaimJson(mediaid, u'P1071', locationstoadd[0])
 
     def addClaimJson(self, mediaid, pid, qid):
         """
