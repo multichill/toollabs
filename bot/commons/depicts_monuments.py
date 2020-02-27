@@ -25,6 +25,8 @@ class DepictsMonumentsBot:
 
         """
         self.site = pywikibot.Site(u'commons', u'commons')
+        self.site.login()
+        self.site.get_tokens('csrf')
         self.repo = self.site.data_repository()
 
         # From the config at https://commons.wikimedia.org/wiki/User:ErfgoedBot/Depicts_monuments.js
@@ -74,9 +76,27 @@ class DepictsMonumentsBot:
         Run on the items
         """
         for filepage in self.generator:
-            self.handleMonument(filepage)
+            if not filepage.exists():
+                continue
+            # Probably want to get this all in a preloading generator to make it faster
+            mediaid = u'M%s' % (filepage.pageid,)
+            currentdata = self.getCurrentMediaInfo(mediaid)
+            self.handleMonument(filepage, mediaid, currentdata)
 
-    def handleMonument(self, filepage):
+    def getCurrentMediaInfo(self, mediaid):
+        """
+        Check if the media info exists. If that's the case, return that so we can expand it.
+        Otherwise return an empty dict
+        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
+        :return: json
+            """
+        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
+        data = request.submit()
+        if data.get(u'entities').get(mediaid).get(u'pageid'):
+            return data.get(u'entities').get(mediaid)
+        return {}
+
+    def handleMonument(self, filepage, mediaid, currentdata):
         """
         Handle a single monument. Try to extract the template, look up the id and add the Q if no mediainfo is present.
 
@@ -93,7 +113,8 @@ class DepictsMonumentsBot:
             pywikibot.output(u'No matches found on %s, skipping' % (filepage.title(),))
             return
 
-        toadd = []
+        summarytoadd = []
+        depictstoadd = []
 
         # First collect the matches to add
         for match in matches:
@@ -103,15 +124,17 @@ class DepictsMonumentsBot:
                 return
             qid = self.monuments.get(monumentid)
             # Some cases the template is in the file text multiple times
-            if (monumentid, qid) not in toadd:
-                toadd.append((monumentid, qid))
+            if (monumentid, qid) not in summarytoadd:
+                summarytoadd.append((monumentid, qid))
+                depictstoadd.append(qid)
 
-        mediaid = u'M%s' % (filepage.pageid,)
-        if self.mediaInfoHasStatement(mediaid, u'P180'):
-            return
-        i = 1
-        for (monumentid, qid) in toadd:
-            if len(toadd)==1:
+        # Here we're collecting
+        newclaims = {}
+
+        newclaims['depicts'] = self.addDepicts(mediaid, currentdata, depictstoadd)
+
+        for (monumentid, qid) in summarytoadd:
+            if len(summarytoadd)==1:
                 summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[:d:%s]]' % (self.template,
                                                                                                                                      monumentid,
                                                                                                                                      self.property,
@@ -119,18 +142,63 @@ class DepictsMonumentsBot:
                                                                                                                                      self.property,
                                                                                                                                      qid, )
             else:
-                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[:d:%s]] (%s/%s)' % (self.template,
+                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[:d:%s]] (and %s more)' % (self.template,
                                                                                                                                              monumentid,
                                                                                                                                              self.property,
                                                                                                                                              self.propertyname,
                                                                                                                                              self.property,
                                                                                                                                              qid,
-                                                                                                                                             i,
-                                                                                                                                             len(toadd))
-            self.addClaim(mediaid, u'P180', qid, summary)
-            i +=1
+                                                                                                                                             len(summarytoadd-1))
+        addedclaims = []
 
-    def addClaim(self, mediaid, pid, qid, summary=''):
+        itemdata = {u'claims' : [] }
+
+        for newclaim in newclaims:
+            if newclaims.get(newclaim):
+                itemdata['claims'].extend(newclaims.get(newclaim))
+                addedclaims.append(newclaim)
+
+        if len(addedclaims) > 0:
+            # Flush it
+            pywikibot.output(summary)
+
+            token = self.site.tokens['csrf']
+            postdata = {u'action' : u'wbeditentity',
+                        u'format' : u'json',
+                        u'id' : mediaid,
+                        u'data' : json.dumps(itemdata),
+                        u'token' : token,
+                        u'summary' : summary,
+                        u'bot' : True,
+                        }
+
+            request = self.site._simple_request(**postdata)
+            try:
+                data = request.submit()
+            except pywikibot.data.api.APIError:
+                pywikibot.output('Got an API error while saving page. Sleeping and skipping')
+                time.sleep(120)
+
+    def addDepicts(self, mediaid, currentdata, depictstoadd):
+        """
+        Add the author info to filepage
+        :param mediaid: Media ID of the file
+        :param currentdata: What's currently on the fiel
+        :param depictstoadd: List of Q id's to add
+        :return:
+        """
+        if currentdata.get('statements'):
+            if currentdata.get('statements').get('P180'):
+                return False
+
+        result = []
+
+        # Add the different licenses
+        for depicts in depictstoadd:
+            result.extend(self.addClaimJson(mediaid, u'P180', depicts))
+        return result
+
+    def addClaimJson(self, mediaid, pid, qid):
         """
         Add a claim to a mediaid
 
@@ -140,59 +208,19 @@ class DepictsMonumentsBot:
         :param summary: The summary to add in the edit
         :return: Nothing, edit in place
         """
-        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, qid, mediaid, summary))
+        toclaim = {'mainsnak': { 'snaktype':'value',
+                                 'property': pid,
+                                 'datavalue': { 'value': { 'numeric-id': qid.replace(u'Q', u''),
+                                                           'id' : qid,
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-
-        postvalue = {"entity-type":"item","numeric-id": qid.replace(u'Q', u'')}
-
-        postdata = {u'action' : u'wbcreateclaim',
-                    u'format' : u'json',
-                    u'entity' : mediaid,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-
-    def mediaInfoExists(self, mediaid):
-        """
-        Check if the media info exists or not
-        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
-        :return: True if it exists, otherwise False
-        """
-        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M72643194
-        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
-        data = request.submit()
-        if data.get(u'entities').get(mediaid).get(u'pageid'):
-            return True
-        return False
-
-    def mediaInfoHasStatement(self, mediaid, property):
-        """
-        Check if the media info exists or not
-        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
-        :param property: The property ID to check for (like P180)
-        :return: True if it exists, otherwise False
-        """
-        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M72643194
-        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
-        data = request.submit()
-        # No structured data at all is no pageid
-        if not data.get(u'entities').get(mediaid).get(u'pageid'):
-            return False
-        # Has structured data, but the list of statements is empty
-        if not data.get(u'entities').get(mediaid).get(u'statements'):
-            return False
-        if property in data.get(u'entities').get(mediaid).get(u'statements'):
-            return True
-        return False
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        return [toclaim,]
 
 def getDepictsMonumentsConfig():
     """
