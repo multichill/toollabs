@@ -19,7 +19,7 @@ class DepictsMonumentsBot:
     """
     Bot to add depicts statements on Commons
     """
-    def __init__(self, config):
+    def __init__(self, config, gen=None):
         """
         Grab generator based on search to work on.
 
@@ -40,7 +40,10 @@ class DepictsMonumentsBot:
         # This was everything in the category. Search is only the ones we still need to work on
         # monumentcat = pywikibot.Category(self.site, title=u'Category:Rijksmonumenten_with_known_IDs')
 
-        self.generator = pagegenerators.PreloadingGenerator(pagegenerators.SearchPageGenerator(self.search, namespaces=6, site=self.site))
+        if gen:
+            self.generator = gen
+        else:
+            self.generator = pagegenerators.PreloadingGenerator(pagegenerators.SearchPageGenerator(self.search, namespaces=6, site=self.site))
         self.monuments = self.getMonumentsOnWikidata(self.property, self.designation)
 
     def getMonumentsOnWikidata(self, property, designation=None):
@@ -208,6 +211,8 @@ def getDepictsMonumentsConfig():
 
 def main(*args):
     monumentproperty = None
+    gen = None
+    genFactory = pagegenerators.GeneratorFactory()
     for arg in pywikibot.handle_args(args):
         if arg.startswith('-monumentproperty:'):
             if len(arg) == 18:
@@ -215,13 +220,17 @@ def main(*args):
                         u'Please enter the property you want to work on:')
             else:
                 monumentproperty = arg[18:]
+        elif genFactory.handleArg(arg):
+            continue
+
     config = getDepictsMonumentsConfig()
+    gen = genFactory.getCombinedGenerator(gen, preload=True)
     if monumentproperty:
         if monumentproperty not in config.keys():
             pywikibot.output(u'%s is not a valid property to work on!' % (monumentproperty,))
             pywikibot.output(u'See https://commons.wikimedia.org/wiki/User:ErfgoedBot/Depicts_monuments.js')
             return
-        depictsMonumentsBot = DepictsMonumentsBot(config.get(monumentproperty))
+        depictsMonumentsBot = DepictsMonumentsBot(config.get(monumentproperty), gen=gen)
         depictsMonumentsBot.run()
     else:
         for monumentproperty in config.keys():
