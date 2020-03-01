@@ -420,7 +420,11 @@ class OwnWorkBot:
             coordinateText = u'%s %s' % (cameramatch.group('lat'), cameramatch.group('lon'), )
 
             request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
-            data = request.submit()
+            try:
+                data = request.submit()
+            except AssertionError:
+                # This will break at some point in the future
+                return False
             # Not sure if this works or that I get an exception.
             if data.get('error'):
                 return False
@@ -470,7 +474,11 @@ class OwnWorkBot:
             coordinateText = u'%s %s' % (objectmatch.group('lat'), objectmatch.group('lon'), )
 
             request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
-            data = request.submit()
+            try:
+                data = request.submit()
+            except AssertionError:
+                # This will break at some point in the future
+                return False
             # Not sure if this works or that I get an exception.
             if data.get('error'):
                 return False
