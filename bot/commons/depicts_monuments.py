@@ -10,8 +10,7 @@ Should be switched to a more general Pywikibot implementation.
 import pywikibot
 import re
 import pywikibot.data.sparql
-import datetime
-from pywikibot.comms import http
+import time
 import json
 from pywikibot import pagegenerators
 
