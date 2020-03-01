@@ -388,9 +388,11 @@ class GeographSDOCBot:
                        'rank': 'normal',
                        }
             if cameramatch.group('heading'):
+                # Strip off any noise
+                heading = int(cameramatch.group('heading'))
                 toclaim['qualifiers'] = {'P7787' : [ {'snaktype': 'value',
                                                       'property': 'P7787',
-                                                      'datavalue': { 'value': { 'amount': '+%s' % (cameramatch.group('heading'),),
+                                                      'datavalue': { 'value': { 'amount': '+%s' % (heading,),
                                                                                 #'unit' : '1',
                                                                                 'unit' : 'http://www.wikidata.org/entity/Q28390',
                                                                                 },
