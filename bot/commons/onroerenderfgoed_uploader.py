@@ -367,6 +367,14 @@ class OnroerendUploaderBot:
         return toclaim
 
 def getOnroerenderfgoedGenerator(startpage=1):
+    """
+    You can force it to spit out JSON:
+curl 'https://beeldb2F4.0%2F&page=1629' -H 'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0' -H 'Accept: application/json' -H 'Accept-Language: en-US,en;q=0.5' --compressed -H 'Referer: https://inventaris.onroerenderfgoed.be/erfgoedobjecten/56629' -H 'Content-Type: application/json' -H 'Cache-Control: no-cache,no-store, max-age=0' -H 'Origin: https://inventaris.onroerenderfgoed.be' -H 'Connection: keep-alive'
+curl 'https://beeldbank.onroerenderfgoed.be/images/27869' -H 'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0' -H 'Accept: application/json' -H 'Accept-Language: en-US,en;q=0.5' --compressed -H 'Referer: https://inventaris.onroerenderfgoed.be/erfgoedobjecten/56629' -H 'Content-Type: application/json' -H 'Cache-Control: no-cache,no-store, max-age=0' -H 'Origin: https://inventaris.onroerenderfgoed.be' -H 'Connection: keep-alive'
+
+    :param startpage:
+    :return:
+    """
     htmlparser = HTMLParser()
     endpage = 19643
     for i in range(startpage, endpage):
