@@ -110,7 +110,7 @@ class ViafImportBot:
                         pywikibot.output(u'The NTA item has a link to the viaf url %s' % (ntaviafurl,))
                         ntaviafpage = requests.get(ntaviafurl)
                         if ntaviafpage.url==u'https://viaf.org/viaf/%s/' % (viafid,):
-                            print ntaviafpage.url
+                            print (ntaviafpage.url)
                             validviaffound = True
                             pywikibot.output('Adding National Thesaurus for Author Names ID %s claim to %s (based on bidirectional viaf<->nta links, with a NTA redirect to viaf)' % (ntaid, item.title(),) )
                             summary = u'based on VIAF %s (with bidirectional viaf<->nta links (NTA links to redirected viaf %s)' % (viafid, ntaviafurl)
