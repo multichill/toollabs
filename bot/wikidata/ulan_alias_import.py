@@ -150,6 +150,8 @@ class UlanImportBot:
                 item.editLabels(wdlabels, summary=summary)
             except pywikibot.data.api.APIError:
                 pywikibot.output(u'Couldn\'t update the labels, conflicts with another item')
+            except pywikibot.exceptions.OtherPageSaveError:
+                pywikibot.output(u'Couldn\'t update the labels, conflicts with another item')
         return currentlabel
 
     def updateEnglishAliases(self, item, currentlabel, allLabels, ulanid):
@@ -174,7 +176,12 @@ class UlanImportBot:
         if aliaseschanged:
             summary = u'Added %s missing aliases in English based on ULAN %s' % (aliaseschanged,ulanid)
             pywikibot.output(summary)
-            item.editAliases({u'en' : aliases}, summary=summary)
+            try:
+                item.editAliases({u'en' : aliases}, summary=summary)
+            except pywikibot.data.api.APIError:
+                pywikibot.output(u'Couldn\'t update the aliases, item is probably already in conflicted state')
+            except pywikibot.exceptions.OtherPageSaveError:
+                pywikibot.output(u'Couldn\'t update the aliases, item is probably already in conflicted state')
         return aliaseschanged
 
 def main(*args):
