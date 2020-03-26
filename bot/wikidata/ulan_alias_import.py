@@ -25,9 +25,9 @@ class UlanImportBot:
         self.generator = pagegenerators.PreloadingItemGenerator(generator)
 
     def run (self):
-        '''
+        """
         Work on all items
-        '''
+        """
 
         for item in self.generator:
             if not item.exists():
@@ -87,8 +87,12 @@ class UlanImportBot:
                         prefLabel = self.normalizeName(templabel)
                 elif binding.get(u'Predicate').get(u'type')==u'uri' and binding.get(u'Predicate').get(u'value')==u'http://www.w3.org/2000/01/rdf-schema#label':
                     templabel = binding.get(u'Object').get(u'value')
-                    if self.checkLatin(templabel):
+                    if not binding.get(u'Object').get(u'xml:lang'):
+                        if self.checkLatin(templabel):
+                            allLabels.append(self.normalizeName(templabel))
+                    elif binding.get(u'Object').get(u'xml:lang') and binding.get(u'Object').get(u'xml:lang')=='en':
                         allLabels.append(self.normalizeName(templabel))
+
         return (prefLabel, allLabels)
 
     def checkLatin(self, label):
@@ -110,9 +114,9 @@ class UlanImportBot:
                 return False
 
     def normalizeName(self, name):
-        '''
+        """
         Helper function to normalize the name
-        '''
+        """
         if u',' in name:
             (surname, sep, firstname) = name.partition(u',')
             name = u'%s %s' % (firstname.strip(), surname.strip(),)
@@ -157,7 +161,7 @@ class UlanImportBot:
     def updateEnglishAliases(self, item, currentlabel, allLabels, ulanid):
         """
         Update the Wikidata aliases on the item based on allLabels. Will skip the currentlabel.
-        Returns the numer of updated aliases
+        Returns the number of updated aliases
         """
         # Only do this in English
         data = item.get()
