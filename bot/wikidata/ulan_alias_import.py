@@ -206,14 +206,19 @@ def main(*args):
 
     if fullrun:
         pywikibot.output(u'Doing a full run')
-        query = u'SELECT DISTINCT ?item WHERE { ?item wdt:P245 [] . ?item wdt:P31 wd:Q5 }'
+        query = u"""SELECT DISTINCT ?item WHERE { 
+  ?item wdt:P245 [] . 
+  ?item wdt:P31 wd:Q5 .
+  ?item wdt:P106/wdt:P279* wd:Q3391743  . 
+}"""
     else:
         pywikibot.output(u'Doing a run on the items modified in the last %s days' % (days,) )
         query = u"""SELECT DISTINCT ?item {
   ?item wdt:P245 [] . ?item wdt:P31 wd:Q5 .
   ?item schema:dateModified ?date_modified .
   BIND (now() - ?date_modified as ?date_range)
-  FILTER (?date_range < %s)
+  FILTER (?date_range < %s) .
+  ?item wdt:P106/wdt:P279* wd:Q3391743 
 }""" % (days,)
 
     repo = pywikibot.Site().data_repository()
