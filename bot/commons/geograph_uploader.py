@@ -107,7 +107,7 @@ class GeographUploaderBot:
                     uploadsuccess = False
             if uploadsuccess:
                 pywikibot.output('Uploaded a file, now grabbing structured data')
-                itemdata = {u'claims' : self.getStructuredData(metadata) }
+                itemdata = self.getStructuredData(metadata)
                 # Also add the title
                 #if metadata.get('title'):
                 #    itemdata['labels']
@@ -130,6 +130,9 @@ class GeographUploaderBot:
                 request = self.site._simple_request(**postdata)
                 data = request.submit()
                 pywikibot.output(data)
+                # A gentle touch to show the structured data we just added
+                #imagefile.touch()
+                imagefile.put(imagefile.text)
 
     def reverseGeocode(self, metadata):
         """
@@ -205,7 +208,13 @@ class GeographUploaderBot:
         :param metadata:
         :return:
         """
-        result = []
+        result = {}
+        if metadata.get('title'):
+            result['labels'] = {'en' : { 'language' : 'en',
+                                         'value' : metadata.get('title'),
+                                         }
+                                }
+        claims = []
         # Copyright status -> copyrighted
         toclaim = {'mainsnak': { 'snaktype': 'value',
                                  'property': 'P6216',
@@ -219,8 +228,40 @@ class GeographUploaderBot:
                    'type': 'statement',
                    'rank': 'normal',
                    }
-        result.append(toclaim)
-        # License -> cc-by-2.0
+        claims.append(toclaim)
+        toclaim = self.getLicense(metadata)
+        if toclaim:
+            claims.append(toclaim)
+        toclaim = self.getSource(metadata)
+        if toclaim:
+            claims.append(toclaim)
+        toclaim = self.getAuthor(metadata)
+        if toclaim:
+            claims.append(toclaim)
+        toclaim = self.getDate(metadata)
+        if toclaim:
+            claims.append(toclaim)
+        toclaim = self.getPhotographerCoordinates(metadata)
+        if toclaim:
+            claims.append(toclaim)
+        toclaim = self.getObjectCoordinates(metadata)
+        if toclaim:
+            claims.append(toclaim)
+        toclaims = self.getDepicts(metadata)
+        if toclaims:
+            claims.extend(toclaims)
+        toclaim = self.getLocation(metadata)
+        if toclaim:
+            claims.append(toclaim)
+        result['claims'] = claims
+        return result
+
+    def getLicense(self, metadata):
+        """
+        Get the license (cc-by-2.0) with the title and author name qualifiers
+        :param metadata:
+        :return:
+        """
         toclaim = {'mainsnak': { 'snaktype': 'value',
                                  'property': 'P275',
                                  'datavalue': { 'value': { 'numeric-id': 19068220,
@@ -232,25 +273,24 @@ class GeographUploaderBot:
                                  },
                    'type': 'statement',
                    'rank': 'normal',
+                   'qualifiers' : {'P1476' : [ {'snaktype': 'value',
+                                                'property': 'P1476',
+                                                'datavalue': { 'value': { 'text': metadata.get('title'),
+                                                                          'language' : 'en',
+                                                                          },
+                                                               'type' : 'monolingualtext',
+                                                               },
+                                                } ],
+                                   'P2093' : [ {'snaktype': 'value',
+                                                'property': 'P2093',
+                                                'datavalue': { 'value': metadata.get('realname'),
+                                                               'type' : 'string',
+                                                               },
+                                                } ],
+
+                                   },
                    }
-        result.append(toclaim)
-        toclaim = self.getSource(metadata)
-        if toclaim:
-            result.append(toclaim)
-        toclaim = self.getAuthor(metadata)
-        if toclaim:
-            result.append(toclaim)
-        toclaim = self.getDate(metadata)
-        if toclaim:
-            result.append(toclaim)
-        toclaim = self.getPhotographerCoordinates(metadata)
-        if toclaim:
-            result.append(toclaim)
-        toclaim = self.getObjectCoordinates(metadata)
-        if toclaim:
-            result.append(toclaim)
-        # TODO: Add depicts and location
-        return result
+        return toclaim
 
     def getSource(self, metadata):
         """
@@ -375,7 +415,7 @@ class GeographUploaderBot:
         :param metadata:
         :return:
         """
-        if not metadata.get('photographer_lat') or not metadata.get('photographer_lon'):
+        if not metadata.get('photographer_lat') or not metadata.get('photographer_lon') or not metadata.get('photographer_precision'):
             return False
 
         toclaim = {'mainsnak': { 'snaktype':'value',
@@ -383,7 +423,7 @@ class GeographUploaderBot:
                                  'datavalue': { 'value': { 'latitude': metadata.get('photographer_lat'),
                                                            'longitude':metadata.get('photographer_lon'),
                                                            'altitude': None,
-                                                           'precision':1.0e-6,
+                                                           'precision': metadata.get('photographer_precision'),
                                                            'globe':'http://www.wikidata.org/entity/Q2'},
                                                 'type' : 'globecoordinate',
                                                 }
@@ -411,7 +451,7 @@ class GeographUploaderBot:
         :param metadata:
         :return:
         """
-        if not metadata.get('object_lat') or not metadata.get('object_lon'):
+        if not metadata.get('object_lat') or not metadata.get('object_lon') or not metadata.get('object_precision'):
             return False
 
         toclaim = {'mainsnak': { 'snaktype':'value',
@@ -419,9 +459,58 @@ class GeographUploaderBot:
                                  'datavalue': { 'value': { 'latitude': metadata.get('object_lat'),
                                                            'longitude':metadata.get('object_lon'),
                                                            'altitude': None,
-                                                           'precision':1.0e-6,
+                                                           'precision': metadata.get('object_precision'),
                                                            'globe':'http://www.wikidata.org/entity/Q2'},
                                                 'type' : 'globecoordinate',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        return toclaim
+
+    def getDepicts(self, metadata):
+        """
+
+        :param metadata:
+        :return:
+        """
+        if not metadata.get('depictsqids'):
+            return False
+
+        result = []
+        for depictsqid in metadata.get('depictsqids'):
+            toclaim = {'mainsnak': { 'snaktype': 'value',
+                                     'property': 'P180',
+                                     'datavalue': { 'value': { 'numeric-id': depictsqid.replace('Q', ''),
+                                                               'id' : depictsqid,
+                                                               },
+                                                    'type' : 'wikibase-entityid',
+                                                    }
+
+                                     },
+                       'type': 'statement',
+                       'rank': 'normal',
+                       }
+            result.append(toclaim)
+        return result
+
+    def getLocation(self, metadata):
+        """
+
+        :param metadata:
+        :return:
+        """
+        if not metadata.get('locationqid'):
+            return False
+
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P1071',
+                                 'datavalue': { 'value': { 'numeric-id': metadata.get('locationqid').replace('Q', ''),
+                                                           'id' : metadata.get('locationqid'),
+                                                           },
+                                                'type' : 'wikibase-entityid',
                                                 }
 
                                  },
@@ -522,7 +611,8 @@ def getGeographGenerator(startid, endid):
     :param startpage:
     :return:
     """
-    htmlparser = HTMLParser()
+    tags = getGeographTags()
+    print (tags)
     limit = 100
 
     for i in range(startid, endid, limit):
@@ -547,13 +637,71 @@ def getGeographGenerator(startid, endid):
                 metadata['photographer_lat'] = math.degrees(float(row.get('vlat')))
             if row.get('vlong'):
                 metadata['photographer_lon'] = math.degrees(float(row.get('vlong')))
+            if row.get('vgrlen'):
+                if int(row.get('vgrlen')) == 0:
+                    metadata['photographer_precision'] = None
+                elif int(row.get('vgrlen')) <= 4:
+                    metadata['photographer_precision'] = 0.01
+                elif int(row.get('vgrlen')) <= 6:
+                    metadata['photographer_precision'] = 0.001
+                elif int(row.get('vgrlen')) <= 8:
+                    metadata['photographer_precision'] = 0.0001
+                elif int(row.get('vgrlen')) > 8:
+                    metadata['photographer_precision'] = 0.00001
             if row.get('wgs84_lat'):
                 metadata['object_lat'] = math.degrees(float(row.get('wgs84_lat')))
             if row.get('wgs84_long'):
                 metadata['object_lon'] = math.degrees(float(row.get('wgs84_long')))
+            if row.get('natgrlen'):
+                if int(row.get('natgrlen')) == 0:
+                    metadata['object_precision'] = None
+                elif int(row.get('natgrlen')) <= 4:
+                    metadata['object_precision'] = 0.01
+                elif int(row.get('natgrlen')) <= 6:
+                    metadata['object_precision'] = 0.001
+                elif int(row.get('natgrlen')) <= 8:
+                    metadata['object_precision'] = 0.0001
+                elif int(row.get('natgrlen')) > 8:
+                    metadata['object_precision'] = 0.00001
+            metadata['depictsqids'] = []
+            if row.get('tags'):
+                for tag in row.get('tags').split('_SEP_'):
+                    tag = tag.strip().lower()
+                    print (tag)
+                    if tag in tags:
+                        depictsqid = tags.get(tag)
+                        if depictsqid not in metadata.get('depictsqids'):
+                            metadata['depictsqids'].append(depictsqid)
+            if row.get('subjects'):
+                for tag in row.get('subjects').split('_SEP_'):
+                    tag = tag.strip().lower()
+                    print (tag)
+                    if tag in tags:
+                        depictsqid = tags.get(tag)
+                        if depictsqid not in metadata.get('depictsqids'):
+                            metadata['depictsqids'].append(depictsqid)
+            print (metadata.get('depictsqids'))
 
-            yield row
+            if metadata.get('depictsqids'):
+                yield row
     return
+
+def getGeographTags():
+    """
+    Get the Geograph tags and subjects. Just merge them into one.
+    :return:
+    """
+    page = pywikibot.Page(pywikibot.Site('commons', 'commons'), title='User:GeographBot/Tags')
+    text = page.get()
+    regex = u'^\*\s*https\:\/\/www\.geograph\.org\.uk\/tagged\/(?P<tag>[^\s]+)\s*-\s*\{\{Q\|(?P<qid>Q\d+)\}\}.*$'
+    result = {}
+
+    for match in re.finditer(regex, text, flags=re.M):
+        tag = match.group('tag').replace('+', ' ').lower()
+        if match.group('tag').startswith('subject:'):
+            tag = tag.replace('subject:', u'')
+        result[tag] = match.group('qid')
+    return result
 
 def main(*args):
     startid = None
