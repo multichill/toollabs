@@ -49,7 +49,11 @@ class GeographUploaderBot:
         Process the metadata and if suitable, upload the painting
         """
         pywikibot.output(metadata)
-        metadata = self.reverseGeocode(metadata)
+        try:
+            metadata = self.reverseGeocode(metadata)
+        except json.decoder.JSONDecodeError:
+            time.sleep(60)
+            return
         description = self.getDescription(metadata)
         title = self.cleanUpTitle(self.getTitle(metadata))
 
@@ -99,7 +103,7 @@ class GeographUploaderBot:
                     return
                 imagefile.text=description
 
-                comment = u'Uploading geograph.org.uk image from %(imageurl)s' % metadata
+                comment = u'Uploading geograph.org.uk image from %(sourceurl)s' % metadata
                 try:
                     uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment) # chunk_size=1000000)
                 except pywikibot.data.api.APIError:
@@ -142,6 +146,7 @@ class GeographUploaderBot:
         """
         result = metadata
         url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (metadata.get('object_lat'), metadata.get('object_lon'))
+        print (url)
         page = requests.get(url)
         json = page.json()
         print (json)
@@ -298,8 +303,6 @@ class GeographUploaderBot:
         :param metadata:
         :return:
         """
-        geographid = metadata.get('id')
-        geographUrl = u'https://www.geograph.org.uk/photo/%s' % (geographid, )
         toclaim = {'mainsnak': { 'snaktype': 'value',
                                  'property': 'P7482',
                                  'datavalue': { 'value': { 'numeric-id': 74228490,
@@ -321,13 +324,13 @@ class GeographUploaderBot:
                                                } ],
                                    'P7384' : [ {'snaktype': 'value',
                                                 'property': 'P7384',
-                                                'datavalue': { 'value': geographid,
+                                                'datavalue': { 'value': metadata.get('id'),
                                                                'type' : 'string',
                                                                },
                                                 } ],
                                    'P973' : [ {'snaktype': 'value',
                                                'property': 'P973',
-                                               'datavalue': { 'value': geographUrl,
+                                               'datavalue': { 'value': metadata.get('sourceurl'),
                                                               'type' : 'string',
                                                               },
                                                } ],
@@ -432,7 +435,7 @@ class GeographUploaderBot:
                    'type': 'statement',
                    'rank': 'normal',
                    }
-        if metadata.get('direction') and not metadata.get('direction')=='0':
+        if metadata.get('direction') and not metadata.get('direction')=='Unknown' and not metadata.get('direction')=='0':
             toclaim['qualifiers'] = {'P7787' : [ {'snaktype': 'value',
                                                   'property': 'P7787',
                                                   'datavalue': { 'value': { 'amount': '+%s' % (metadata.get('direction'),),
@@ -626,6 +629,7 @@ def getGeographGenerator(startid, endid):
         for row in searchpage.json().get('rows'):
             metadata = row
             metadata['imageurl'] = u'https://www.geograph.org.uk/reuse.php?id=%s&download=%s&size=largest' % (row.get('id'), row.get('hash'))
+            metadata['sourceurl'] = u'https://www.geograph.org.uk/photo/%s' % (row.get('id'), )
 
             if row.get('takenday'):
                 dateregex = '^(\d\d\d\d)(\d\d)(\d\d)$'
