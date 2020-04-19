@@ -1,9 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import missing OSM relation links to Wikidata for parishes in England
+Bot to import missing OSM relation links to Wikidata for parishes in Ireland
 
-It uses a dump from overpass ( http://overpass-turbo.eu/s/SJI ) and ref:gss or wikidata to make the match
+It uses a dump from overpass ( http://overpass-turbo.eu/s/T15 ) and logainm:ref or wikidata to make the match
 
 Could easily be adapted to work on another subset.
 """
@@ -25,7 +25,7 @@ class OsmToWikidataBot:
         Arguments: None
         """
         self.wikidata_parishes = None
-        self.gss_to_wikidata = None
+        self.logainm_to_wikidata = None
         self.osm_to_wikidata = None
         self.wikidata_to_osm = None
         self.getWikidataLookupTables()
@@ -38,15 +38,15 @@ class OsmToWikidataBot:
         Fill the lookup tables
         """
         wikidata_parishes = []
-        gss_to_wikidata = {}
+        logainm_to_wikidata = {}
         osm_to_wikidata = {}
         wikidata_to_osm = {}
 
-        query = u"""SELECT ?item ?gss ?osm WHERE {
-  ?instance ps:P31 wd:Q1115575 .
+        query = u"""SELECT ?item ?logainm ?osm WHERE {
+  ?instance ps:P31 wd:Q3910694 .
   ?item p:P31 ?instance .
   MINUS { ?instance pq:P582 [] } . 
-  OPTIONAL { ?item wdt:P836 ?gss }.
+  OPTIONAL { ?item wdt:P5097 ?logainm }.
   OPTIONAL { ?item wdt:P402 ?osm } 
 } LIMIT 20000"""
         sq = pywikibot.data.sparql.SparqlQuery()
@@ -54,17 +54,17 @@ class OsmToWikidataBot:
 
         for resultitem in queryresult:
             qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            gss = resultitem.get('gss')
+            logainm = resultitem.get('logainm')
             osm = resultitem.get('osm')
             wikidata_parishes.append(qid)
-            if gss:
-                gss_to_wikidata[gss] = qid
+            if logainm:
+                logainm_to_wikidata[logainm] = qid
             if osm:
                 osm_to_wikidata[osm] = qid
                 wikidata_to_osm[qid] = osm
 
         self.wikidata_parishes = wikidata_parishes
-        self.gss_to_wikidata = gss_to_wikidata
+        self.logainm_to_wikidata = logainm_to_wikidata
         self.osm_to_wikidata = osm_to_wikidata
         self.wikidata_to_osm = wikidata_to_osm
 
@@ -73,7 +73,7 @@ class OsmToWikidataBot:
         Get a generator returning relation objects
         :yield: Element
         """
-        with open('/home/mdammers/temp/England_all_parishes_OSM_rel.json') as json_file:
+        with open('/home/mdammers/temp/Ireland_all_parishes_OSM_rel.json') as json_file:
             data = json.load(json_file)
             for element in data.get('elements'):
                 yield element
@@ -97,12 +97,13 @@ class OsmToWikidataBot:
         :return: Edit in place if needed
         """
         osmid = str(osm_relation.get('id'))
-        gssid = None
+        logainmid = None
         qid = None
-        if osm_relation.get('tags').get('ref:gss'):
-            gssid = osm_relation.get('tags').get('ref:gss')
+        if osm_relation.get('tags').get('logainm:ref'):
+            logainmid = osm_relation.get('tags').get('logainm:ref')
         if osm_relation.get('tags').get('wikidata'):
             qid = osm_relation.get('tags').get('wikidata')
+        osmname = osm_relation.get('tags').get('name')
 
         if self.osm_to_wikidata.get(osmid):
             # Too verbose
@@ -119,24 +120,29 @@ class OsmToWikidataBot:
                 else:
                     pywikibot.output('OSM %s links to Wikidata %s, but Wikidata links to %s' % (osmid, qid, self.wikidata_to_osm.get(qid)))
             if qid in self.wikidata_parishes:
-                if gssid:
-                    if gssid in self.gss_to_wikidata:
-                        if self.gss_to_wikidata.get(gssid)==qid:
-                            summary = u'based on backlink from OSM %s and same GSS %s' % (osmid, gssid)
+                if logainmid:
+                    if logainmid in self.logainm_to_wikidata:
+                        if self.logainm_to_wikidata.get(logainmid)==qid:
+                            summary = u'based on backlink from OSM %s with name "%s" and same Logainm ID %s' % (osmid, osmname, logainmid)
                             self.addOsmRelation(qid, osmid, summary)
                 else:
-                    summary = u'based on backlink from OSM %s' % (osmid,)
+                    summary = u'based on backlink from OSM %s with name "%s"' % (osmid, osmname)
                     self.addOsmRelation(qid, osmid, summary)
             else:
                 print('OSM %s links to Wikidata %s, but I don\'t have that item' % (osmid,qid))
             return
 
-        if gssid:
-            if gssid in self.gss_to_wikidata:
-                qid = self.gss_to_wikidata.get(gssid)
-                summary = u'based on same GSS %s on Wikidata and OSM %s' % (gssid, osmid)
+        if logainmid:
+            if logainmid in self.logainm_to_wikidata:
+                qid = self.logainm_to_wikidata.get(logainmid)
+                summary = u'based on same Logainm ID %s on Wikidata and OSM %s with name "%s"' % (logainmid, osmid, osmname)
                 self.addOsmRelation(qid, osmid, summary)
-                return
+            else:
+                pywikibot.output('No match found for OSM %s and Logainm ID %s with name "%s"' % (osmid, logainmid, osmname))
+            return
+
+
+        pywikibot.output('No match found for OSM %s with name "%s"' % (osmid, osmname))
 
     def addOsmRelation(self, qid, osmid, summary):
         """
