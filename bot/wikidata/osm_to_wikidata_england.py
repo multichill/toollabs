@@ -73,10 +73,11 @@ class OsmToWikidataBot:
         Get a generator returning relation objects
         :yield: Element
         """
-        with open('/home/mdammers/temp/England_all_parishes_OSM_rel.json') as json_file:
-            data = json.load(json_file)
-            for element in data.get('elements'):
-                yield element
+        url = 'http://overpass-api.de/api/interpreter?data=%5Btimeout%3A600%5D%5Bout%3Ajson%5D%3B%0Aarea%5Bname%3D%22England%22%5D%3B%0Arel%28area%29%5Bdesignation%3D%22civil_parish%22%5D%3B%0Aout%20tags%3B'
+        page = requests.get(url)
+        json = page.json()
+        for element in json.get('elements'):
+            yield element
 
     def run(self):
         """
