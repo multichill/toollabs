@@ -111,6 +111,8 @@ class GeographDescribeBot:
             time.sleep(60)
             return
 
+        if not metadata:
+            return
         print(json.dumps(metadata))
 
         depictsclaims = self.getDepicts(currentdata, metadata)
@@ -119,6 +121,8 @@ class GeographDescribeBot:
         currentcategory = False
         for category in filepage.categories():
             if category.title(with_ns=False)==metadata.get('commonscat'):
+                currentcategory = True
+            elif metadata.get('objectcommonscat') and category.title(with_ns=False)==metadata.get('objectcommonscat'):
                 currentcategory = True
 
         ## For now only add items for which we already have a category
@@ -174,15 +178,25 @@ class GeographDescribeBot:
         for template in filepage.itertemplates():
             if template.title()==u'Template:Geograph':
                 templateFound = True
+            elif template.title()==u'Template:Also geograph':
+                templateFound = True
         if not templateFound:
             return False
 
         regex = u'\{\{[gG]eograph\|(\d+)\|[^\}]+\}\}'
+
         match = re.search(regex, filepage.text)
-        if not match:
-            # TODO: Try to extract it from structured data (currentdata)
-            return False
-        return match.group(1)
+        if match:
+            return match.group(1)
+
+        alsoregex = u'\{\{[aA]lso[ _]geograph\|(\d+)\}\}'
+        alsomatch = re.search(alsoregex, filepage.text)
+        if alsomatch:
+            return alsomatch.group(1)
+
+        # TODO: Try to extract it from structured data (currentdata)
+        return False
+
 
     def getGeographMetadata(self, geographid):
         """
@@ -194,10 +208,13 @@ class GeographDescribeBot:
         try:
             searchpage = requests.get(searchurl)
         except requests.exceptions.ConnectionError:
-            pywikibot.output(u'Got a connection error on %s. Sleeping 5 minutes' (searchurl,))
+            pywikibot.output(u'Got a connection error on %s. Sleeping 5 minutes' % (searchurl,))
             time.sleep(300)
             searchpage = requests.get(searchurl)
-        row = searchpage.json().get('rows')[0]
+        if searchpage.json().get('rows'):
+            row = searchpage.json().get('rows')[0]
+        else:
+            return False
         metadata = row
 
         # For the reverse geocoding
@@ -238,12 +255,35 @@ class GeographDescribeBot:
         :return:
         """
         result = metadata
+        # Based on the photographer
         if metadata.get('photographer_lat') and metadata.get('photographer_lon'):
             url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (metadata.get('photographer_lat'),
                                                                      metadata.get('photographer_lon'))
-        elif metadata.get('object_lat') and metadata.get('object_lon'):
+            page = requests.get(url)
+            json = page.json()
+            if not json.get('missing'):
+                if json.get('wikidata'):
+                    result['locationqid'] = json.get('wikidata')
+                if json.get('commons_cat') and json.get('commons_cat').get('title'):
+                    result['commonscat'] = json.get('commons_cat').get('title')
+
+        # Based on the object
+        if metadata.get('object_lat') and metadata.get('object_lon'):
             url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (metadata.get('object_lat'),
                                                                      metadata.get('object_lon'))
+            page = requests.get(url)
+            json = page.json()
+            if not json.get('missing'):
+                if json.get('wikidata'):
+                    if not result.get('locationqid'):
+                        result['locationqid'] = json.get('wikidata')
+                    elif result.get('locationqid') != json.get('wikidata'):
+                        result['depictslocationqid'] = json.get('wikidata')
+                if json.get('commons_cat') and json.get('commons_cat').get('title'):
+                    if not result.get('commonscat'):
+                        result['commonscat'] = json.get('commons_cat').get('title')
+                    elif result.get('commonscat') != json.get('commons_cat').get('title'):
+                        result['objectcommonscat'] = json.get('commons_cat').get('title')
         else:
             return result
         print (url)
@@ -264,13 +304,19 @@ class GeographDescribeBot:
         :param metadata:
         :return:
         """
-        if not metadata.get('depictsqids'):
-            return False
         if currentdata.get('statements') and currentdata.get('statements').get('P180'):
             return False
 
+        depictstoadd = []
+        if metadata.get('depictsqids'):
+            depictstoadd.extend(metadata.get('depictsqids'))
+        if metadata.get('depictslocationqid'):
+            depictstoadd.append(metadata.get('depictslocationqid'))
+        if not depictstoadd:
+            return False
+
         result = []
-        for depictsqid in metadata.get('depictsqids'):
+        for depictsqid in depictstoadd:
             toclaim = {'mainsnak': { 'snaktype': 'value',
                                      'property': 'P180',
                                      'datavalue': { 'value': { 'numeric-id': depictsqid.replace('Q', ''),
