@@ -10,6 +10,7 @@ Should be switched to a more general Pywikibot implementation.
 """
 
 import pywikibot
+import pywikibot.data.sparql
 from pywikibot.comms import http
 import json
 from pywikibot import pagegenerators
@@ -26,7 +27,24 @@ class DepictsInstanceBot:
         self.site.get_tokens('csrf')
         self.repo = self.site.data_repository()
         self.depictsclass = depictsclass
+        self.depictssubclasses = self.getDepictsSubclasses(depictsclass)
         self.generator = gen
+
+    def getDepictsSubclasses(self, depictsclass):
+        """
+        Get the subclasses of the depictsclass
+        :return:
+        """
+        result = []
+        query = '''SELECT ?item WHERE { ?item wdt:P279+ wd:Q16970 } LIMIT 2500'''
+
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            result.append(qid)
+        return result
 
     def run(self):
         """
@@ -77,12 +95,13 @@ class DepictsInstanceBot:
         foundClassStatementId = False
 
         for statement in currentdata.get('statements').get('P180'):
-            if statement.get('mainsnak').get('datavalue').get('value').get('id')==self.depictsclass:
-                foundClassStatementId = statement.get('id')
-                if statement.get('qualifiers'):
-                    # I can't handle qualifiers, skip it.
-                    return
-                break
+            if statement.get('mainsnak').get('datavalue'):
+                if statement.get('mainsnak').get('datavalue').get('value').get('id')==self.depictsclass:
+                    foundClassStatementId = statement.get('id')
+                    if statement.get('qualifiers'):
+                        # I can't handle qualifiers, skip it.
+                        return
+                    break
 
         instanceqid = self.getInstanceFromCategories(filepage)
 
@@ -91,8 +110,9 @@ class DepictsInstanceBot:
 
         # Check to make sure that the statement isn't already on the file
         for statement in currentdata.get('statements').get('P180'):
-            if statement.get('mainsnak').get('datavalue').get('value').get('id')==instanceqid:
-                return
+            if statement.get('mainsnak').get('datavalue'):
+                if statement.get('mainsnak').get('datavalue').get('value').get('id')==instanceqid:
+                    return
 
         summary = 'adding specific instance for [[d:Special:EntityPage/%s]] based on category' % (self.depictsclass,)
 
@@ -142,9 +162,11 @@ class DepictsInstanceBot:
 
         foundcategory = False
         for claim in claims.get('P31'):
-            if claim.getTarget().getID()==self.depictsclass:
+            if claim.getTarget().getID() == self.depictsclass:
                 return item.getID()
-            elif claim.getTarget().getID()=='Q4167836':
+            elif claim.getTarget().getID() in self.depictssubclasses:
+                return item.getID()
+            elif claim.getTarget().getID() == 'Q4167836':
                 foundcategory = True
                 break
 
