@@ -48,12 +48,27 @@ class GeographUploaderBot:
         """
         Process the metadata and if suitable, upload the painting
         """
+
+        # Do the reverse geocoding to enrich the metadata
+        if metadata.get('photographer_lat') and metadata.get('photographer_lon'):
+            (locationqid, locationcc) = self.reverseGeocode(metadata.get('photographer_lat'),
+                                                            metadata.get('photographer_lon'), )
+            if locationqid:
+                metadata['locationqid'] = locationqid
+            if locationcc:
+                metadata['commonscat'] = locationcc
+
+        if metadata.get('object_lat') and metadata.get('object_lon'):
+            (objectqid, objectcc) = self.reverseGeocode(metadata.get('object_lat'),
+                                                        metadata.get('object_lon'), )
+            if objectqid:
+                if not metadata.get('locationqid'):
+                    metadata['locationqid'] = objectqid
+                metadata['depictsqids'].append(objectqid)
+            if objectcc:
+                metadata['objectcommonscat'] = objectcc
+
         pywikibot.output(metadata)
-        try:
-            metadata = self.reverseGeocode(metadata)
-        except json.decoder.JSONDecodeError:
-            time.sleep(60)
-            return
         description = self.getDescription(metadata)
         title = self.cleanUpTitle(self.getTitle(metadata))
 
@@ -70,8 +85,6 @@ class GeographUploaderBot:
         print (json.dumps(metadata, sort_keys=True, indent=4))
         print (description)
         print (json.dumps(self.getStructuredData(metadata), sort_keys=True, indent=4))
-
-
 
         if response.status_code == 200:
             hashObject = hashlib.sha1()
@@ -138,25 +151,28 @@ class GeographUploaderBot:
                 #imagefile.touch()
                 imagefile.put(imagefile.text)
 
-    def reverseGeocode(self, metadata):
+    def reverseGeocode(self, lat, lon):
         """
-        Do reverse geocoding based on the metadata and return the metadata with extra fields
-        :param metadata:
-        :return:
+        Do reverse geocoding based on photographer and return Wikidata item and Commons category
+        :param metadata: The Geograph metadata to work on
+        :return: Tuple of Wikidata item and Commons category
         """
-        result = metadata
-        url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (metadata.get('object_lat'), metadata.get('object_lon'))
-        print (url)
-        page = requests.get(url)
-        json = page.json()
-        print (json)
-        if json.get('missing'):
-            return result
-        if json.get('wikidata'):
-            result['locationqid'] = json.get('wikidata')
-        if json.get('commons_cat') and json.get('commons_cat').get('title'):
-            result['commonscat'] = json.get('commons_cat').get('title')
-        return result
+        qid = None
+        commonscat = None
+
+        url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (lat, lon)
+        try:
+            page = requests.get(url)
+            json = page.json()
+        except json.decoder.JSONDecodeError:
+            time.sleep(60)
+            return (qid, commonscat)
+        if not json.get('missing'):
+            if json.get('wikidata'):
+                qid = json.get('wikidata')
+            if json.get('commons_cat') and json.get('commons_cat').get('title'):
+                commonscat = json.get('commons_cat').get('title')
+        return (qid, commonscat)
 
     def getDescription(self, metadata):
         """
@@ -220,6 +236,20 @@ class GeographUploaderBot:
                                          }
                                 }
         claims = []
+        # Instance of -> photograph
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P31',
+                                 'datavalue': { 'value': { 'numeric-id': 125191,
+                                                           'id' : 'Q125191',
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        claims.append(toclaim)
         # Copyright status -> copyrighted
         toclaim = {'mainsnak': { 'snaktype': 'value',
                                  'property': 'P6216',
@@ -684,10 +714,7 @@ def getGeographGenerator(startid, endid):
                         depictsqid = tags.get(tag)
                         if depictsqid not in metadata.get('depictsqids'):
                             metadata['depictsqids'].append(depictsqid)
-            print (metadata.get('depictsqids'))
-
-            if metadata.get('depictsqids'):
-                yield row
+            yield row
     return
 
 def getGeographTags():
