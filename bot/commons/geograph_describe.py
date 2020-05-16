@@ -4,8 +4,9 @@
 Bot to describe Geograph images using SDoC (structured data on Commons).
 
 Bot will extract the id and retrieve the metadata from geograph. It will try to add:
-*  depicts (P180) based on the mappings at https://commons.wikimedia.org/wiki/User:GeographBot/Tags
-*  location of creation (P1071) based on reverse geocoding at http://edwardbetts.com/geocode/
+* location of creation (P1071) based on reverse geocoding at http://edwardbetts.com/geocode/
+* depicts (P180) based on the mappings at https://commons.wikimedia.org/wiki/User:GeographBot/Tags
+* depicts (P180) based on the object location and reverse geocoding
 
 Should be switched to a more general Pywikibot implementation.
 """
@@ -39,7 +40,7 @@ class GeographDescribeBot:
     def getGeographTags(self):
         """
         Get the Geograph tags and subjects. Just merge them into one.
-        :return:
+        :return: Dict
         """
         page = pywikibot.Page(self.site , title='User:GeographBot/Tags')
         text = page.get()
@@ -113,21 +114,17 @@ class GeographDescribeBot:
 
         if not metadata:
             return
-        print(json.dumps(metadata))
+        #print(json.dumps(metadata))
 
         depictsclaims = self.getDepicts(currentdata, metadata)
         locationclaim = self.getLocation(currentdata, metadata)
 
         currentcategory = False
         for category in filepage.categories():
-            if category.title(with_ns=False)==metadata.get('commonscat'):
+            if metadata.get('commonscat') and category.title(with_ns=False)==metadata.get('commonscat'):
                 currentcategory = True
             elif metadata.get('objectcommonscat') and category.title(with_ns=False)==metadata.get('objectcommonscat'):
                 currentcategory = True
-
-        ## For now only add items for which we already have a category
-        #if not currentcategory:
-        #    return
 
         claims = []
         if depictsclaims and locationclaim:
@@ -161,8 +158,6 @@ class GeographDescribeBot:
                     u'summary' : summary,
                     u'bot' : True,
                     }
-
-        print (json.dumps(postdata))
         request = self.site._simple_request(**postdata)
         data = request.submit()
 
@@ -245,58 +240,45 @@ class GeographDescribeBot:
                     depictsqid = self.tags.get(tag)
                     if depictsqid not in metadata.get('depictsqids'):
                         metadata['depictsqids'].append(depictsqid)
-        return self.reverseGeocode(metadata)
 
-
-    def reverseGeocode(self, metadata):
-        """
-        Do reverse geocoding based on the metadata and return the metadata with extra fields
-        :param metadata:
-        :return:
-        """
-        result = metadata
-        # Based on the photographer
         if metadata.get('photographer_lat') and metadata.get('photographer_lon'):
-            url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (metadata.get('photographer_lat'),
-                                                                     metadata.get('photographer_lon'))
-            page = requests.get(url)
-            json = page.json()
-            if not json.get('missing'):
-                if json.get('wikidata'):
-                    result['locationqid'] = json.get('wikidata')
-                if json.get('commons_cat') and json.get('commons_cat').get('title'):
-                    result['commonscat'] = json.get('commons_cat').get('title')
+            (locationqid, locationcc) = self.reverseGeocode(metadata.get('photographer_lat'),
+                                                            metadata.get('photographer_lon'), )
+            if locationqid:
+                metadata['locationqid'] = locationqid
+            if locationcc:
+                metadata['commonscat'] = locationcc
 
-        # Based on the object
         if metadata.get('object_lat') and metadata.get('object_lon'):
-            url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (metadata.get('object_lat'),
-                                                                     metadata.get('object_lon'))
-            page = requests.get(url)
-            json = page.json()
-            if not json.get('missing'):
-                if json.get('wikidata'):
-                    if not result.get('locationqid'):
-                        result['locationqid'] = json.get('wikidata')
-                    elif result.get('locationqid') != json.get('wikidata'):
-                        result['depictslocationqid'] = json.get('wikidata')
-                if json.get('commons_cat') and json.get('commons_cat').get('title'):
-                    if not result.get('commonscat'):
-                        result['commonscat'] = json.get('commons_cat').get('title')
-                    elif result.get('commonscat') != json.get('commons_cat').get('title'):
-                        result['objectcommonscat'] = json.get('commons_cat').get('title')
-        else:
-            return result
-        print (url)
+            (objectqid, objectcc) = self.reverseGeocode(metadata.get('object_lat'),
+                                                        metadata.get('object_lon'), )
+            if objectqid:
+                if not metadata.get('locationqid'):
+                    metadata['locationqid'] = objectqid
+                metadata['depictsqids'].append(objectqid)
+            if objectcc:
+                metadata['objectcommonscat'] = objectcc
+
+        return metadata
+
+    def reverseGeocode(self, lat, lon):
+        """
+        Do reverse geocoding based on photographer and return Wikidata item and Commons category
+        :param metadata: The Geograph metadata to work on
+        :return: Tuple of Wikidata item and Commons category
+        """
+        qid = None
+        commonscat = None
+
+        url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (lat, lon)
         page = requests.get(url)
         json = page.json()
-        print (json)
-        if json.get('missing'):
-            return result
-        if json.get('wikidata'):
-            result['locationqid'] = json.get('wikidata')
-        if json.get('commons_cat') and json.get('commons_cat').get('title'):
-            result['commonscat'] = json.get('commons_cat').get('title')
-        return result
+        if not json.get('missing'):
+            if json.get('wikidata'):
+                qid = json.get('wikidata')
+            if json.get('commons_cat') and json.get('commons_cat').get('title'):
+                commonscat = json.get('commons_cat').get('title')
+        return (qid, commonscat)
 
     def getDepicts(self, currentdata, metadata):
         """
