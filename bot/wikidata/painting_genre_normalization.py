@@ -27,6 +27,7 @@ class PaintingGenreBot(WikidataBot):
                         u'Q11766730' : u'Q2839016', # allegorical painting (Q11766730) -> allegory (art genre)
                         u'Q11766734' : u'Q158607', # marine painting (Q11766734) -> marine art (Q158607)
                         u'Q3368492' : u'Q390001', # pastorale in painting (Q3368492) -> pastoral (Q390001)
+                        u'Q2302151' : u'Q16875712', #  animal painting (Q2302151) ->  animal art (Q16875712)
                         }
         self.generator = self.getGenerator()
 
