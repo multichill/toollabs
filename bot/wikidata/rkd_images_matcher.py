@@ -323,11 +323,14 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
 
     imagedict = {}
     for rkdimageid in gen:
-        if not rkdimageid.get(u'invnum') in imagedict:
-            imagedict[rkdimageid.get(u'invnum')] = []
-        imagedict[rkdimageid.get(u'invnum')].append(rkdimageid)
+        invnum = rkdimageid.get(u'invnum')
+        if not invnum:
+            invnum = ''
+        if not invnum in imagedict:
+            imagedict[invnum] = []
+        imagedict[invnum].append(rkdimageid)
 
-    for invnum in sorted(imagedict.keys()):
+    for invnum in sorted(list(imagedict.keys())):
         for rkdimageid in imagedict.get(invnum):
             totalimages = totalimages + 1
             # We found a match, just not sure how solid it is
@@ -1131,6 +1134,10 @@ def main(*args):
                 u'Q2362660' : { u'collectienaam' : u'M – Museum Leuven',
                                 u'replacements' : [],
                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/M – Museum Leuven',
+                                },
+                u'Q29908492' : { u'collectienaam' : u'Museum Flehite',
+                                u'replacements' : [],
+                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Flehite',
                                 },
                 #u'Q768717' : { u'collectienaam' : u'Private collection', # Probably still too big
                 #                u'replacements' : [],
