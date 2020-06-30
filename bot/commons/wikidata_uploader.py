@@ -40,8 +40,10 @@ class WikidataUploaderBot:
         self.generatorDied95Creators = self.getGeneratorDied95Creators()
         self.generatorPre1850Works = self.getGeneratorPre1850Works()
         self.generatorDied70Produced95Works = self.getGeneratorDied70Produced95Works()
-        self.repo = pywikibot.Site().data_repository()
         self.site = pywikibot.Site(u'commons', u'commons')
+        self.site.login()
+        self.site.get_tokens('csrf')
+        self.repo = self.site.data_repository()
         self.duplicates = []
 
     def getGeneratorDied95Creators(self):
@@ -254,7 +256,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                 imagefile = pywikibot.FilePage(self.site, title=title)
                 imagefile.text=description
 
-                comment = u'Uploading based on Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata
+                comment = u'Uploading based on Wikidata item [[d:Special:EntityPage/%(item)s]] from %(downloadurl)s' % metadata
                 try:
                     uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment) # chunk_size=1000000)
                 except pywikibot.data.api.APIError:
@@ -266,10 +268,21 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                 time.sleep(15)
                 self.addImageToWikidata(metadata, imagefile, summary = u'Uploaded the image')
                 mediaid = u'M%s' % (imagefile.pageid,)
-                summary = u'this newly uploaded file depicts and is a digital representation of [[:d:%s]]' % (metadata.get(u'item'),)
-                self.addClaim(mediaid, u'P180', metadata.get(u'item'), summary)
-                self.addClaim(mediaid, u'P6243', metadata.get(u'item'), summary)
-                self.addSource(mediaid, metadata)
+                itemdata = self.getStructuredData(metadata)
+                summary = u'this newly uploaded file depicts and is a digital representation of [[d:Special:EntityPage/%s]]' % (metadata.get(u'item'),)
+
+                token = self.site.tokens['csrf']
+                postdata = {u'action' : u'wbeditentity',
+                            u'format' : u'json',
+                            u'id' : mediaid,
+                            u'data' : json.dumps(itemdata),
+                            u'token' : token,
+                            u'summary' : summary,
+                            u'bot' : True,
+                            }
+                #print (json.dumps(postdata, sort_keys=True, indent=4))
+                request = self.site._simple_request(**postdata)
+                data = request.submit()
                 imagefile.touch()
 
     def addImageToWikidata(self, metadata, imagefile, summary=u'Added the image'):
@@ -415,109 +428,75 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         title = title.replace(u" ", u"_")
         return title
 
-    def addClaim(self, mediaid, pid, qid, summary=''):
+    def getStructuredData(self, metadata):
         """
-
-        :param mediaid:
-        :param pid:
-        :param qid:
-        :param summary:
+        Just like getting the description, but now in structured form
+        :param metadata:
         :return:
         """
-        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, qid, mediaid, summary))
+        claims = []
 
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
+        itemid = metadata.get('item').replace('Q', '')
+        # digital representation of -> item
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P6243',
+                                 'datavalue': { 'value': { 'numeric-id': itemid,
+                                                           'id' : metadata.get('item'),
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        claims.append(toclaim)
+        # depicts -> item
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P180',
+                                 'datavalue': { 'value': { 'numeric-id': itemid,
+                                                           'id' : metadata.get('item'),
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        postvalue = {"entity-type":"item","numeric-id": qid.replace(u'Q', u'')}
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        claims.append(toclaim)
+        # Source
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P7482',
+                                 'datavalue': { 'value': { 'numeric-id': 74228490,
+                                                           'id' : 'Q74228490',
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
 
-        postdata = {u'action' : u'wbcreateclaim',
-                    u'format' : u'json',
-                    u'entity' : mediaid,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-
-    def addSource(self, mediaid, metadata):
-        """
-        :return:
-        """
-        pid = u'P7482'
-        qid =  u'Q74228490'
-
-        summary = u'Adding source of file'
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-
-        postvalue = {"entity-type":"item","numeric-id": qid.replace(u'Q', u'')}
-
-        postdata = {u'action' : u'wbcreateclaim',
-                    u'format' : u'json',
-                    u'entity' : mediaid,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-
-        revison = json.loads(apipage.text).get(u'pageinfo').get(u'lastrevid')
-        claim = json.loads(apipage.text).get(u'claim').get(u'id')
-
-        # Add the described at URL (P973) where we got it from
-        # FIXME: Don't think addQualifier returns the revision id
-        revison = self.addQualifier(claim, u'P973', metadata.get('sourceurl'), u'string', revison, summary)
-
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   'qualifiers' : {'P973' : [ {'snaktype': 'value',
+                                               'property': 'P973',
+                                               'datavalue': { 'value': metadata.get('sourceurl'),
+                                                              'type' : 'string',
+                                                              },
+                                               } ],
+                                   },
+                   }
         if metadata.get('operator'):
-            # Add the operator (P137) where we got it from if it's available
-            revison = self.addQualifier(claim, u'P137', metadata.get('operator'), u'item', revison, summary)
-        return
-
-    def addQualifier(self, claim, pid, value, entityType, baserevid, summary=u''):
-        """
-
-        :param claim:
-        :param pid:
-        :param value:
-        :param entityType:
-        :param baserevid:
-        :return:
-        """
-        pywikibot.output(u'Adding %s->%s to %s. %s' % (pid, value, claim, summary))
-
-        tokenrequest = http.fetch(u'https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&type=csrf&format=json')
-
-        tokendata = json.loads(tokenrequest.text)
-        token = tokendata.get(u'query').get(u'tokens').get(u'csrftoken')
-
-        if entityType==u'item':
-            postvalue = {"entity-type":"item","numeric-id": value.replace(u'Q', u'')}
-        else:
-            postvalue = value
-
-        postdata = {u'action' : u'wbsetqualifier',
-                    u'format' : u'json',
-                    u'claim' : claim,
-                    u'property' : pid,
-                    u'snaktype' : u'value',
-                    u'value' : json.dumps(postvalue),
-                    u'token' : token,
-                    u'summary' : summary,
-                    u'baserevid' : baserevid,
-                    u'bot' : True,
-                    }
-        apipage = http.fetch(u'https://commons.wikimedia.org/w/api.php', method='POST', data=postdata)
-        return apipage
+            operatorid = metadata.get('operator').replace('Q', '')
+            toclaim['qualifiers']['P137'] = [ {'snaktype': 'value',
+                                               'property': 'P137',
+                                               'datavalue': { 'value': { 'numeric-id': operatorid,
+                                                                         'id' : metadata.get('operator'),
+                                                                         },
+                                                              'type' : 'wikibase-entityid',
+                                                              },
+                                               } ]
+        claims.append(toclaim)
+        return {'claims' : claims}
 
     def reportDuplicates(self):
         """
