@@ -25,24 +25,7 @@ class RKDimagesPublicDomain():
 
         """
         self.generator = generator
-        #self.currentrkd = self.rkdArtistsOnWikidata()
         self.repo = pywikibot.Site().data_repository()
-
-    def rkdArtistsOnWikidata(self):
-        '''
-        Just return all the RKD images as a dict
-        :return: Dict
-        '''
-        result = {}
-        sq = pywikibot.data.sparql.SparqlQuery()
-        query = u'SELECT ?item ?id WHERE { ?item wdt:P650 ?id }'
-        sq = pywikibot.data.sparql.SparqlQuery()
-        queryresult = sq.select(query)
-
-        for resultitem in queryresult:
-            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            result[int(resultitem.get('id'))] = qid
-        return result
 
     def run(self):
         """
@@ -59,7 +42,7 @@ class RKDimagesPublicDomain():
 
             # Do some checks so we are sure we found exactly one inventory number and one collection
             if u'P350' not in claims:
-                pywikibot.output(u'No RKDArtists found, skipping')
+                pywikibot.output(u'No RKDimages found, skipping')
                 continue
 
             if u'P18' in claims:
