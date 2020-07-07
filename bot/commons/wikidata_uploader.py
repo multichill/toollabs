@@ -101,7 +101,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?image pq:P2701 ?format .
   ?image pq:P2699 ?sourceurl .
   ?image pq:P1476 ?title .
-  ?image pq:P2093 ?creatorname .
+  OPTIONAL { ?image pq:P2093 ?creatorname }.
   ?item wdt:P170 wd:Q4233718 .
   OPTIONAL { ?image pq:P275 ?license } .
   OPTIONAL { ?image pq:P137 ?operator } .
@@ -123,6 +123,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             if resultitem.get('operator'):
                 resultitem['operator'] = resultitem.get('operator').replace(u'http://www.wikidata.org/entity/', u'')
             resultitem['creator'] = u'Q4233718' # Item for anonymous
+            if not resultitem.get('creatorname'):
+                resultitem['creatorname'] = u'anonymous'
             yield resultitem
 
     def getGeneratorDied70Produced95Works(self):
