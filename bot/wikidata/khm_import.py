@@ -14,7 +14,7 @@ import pywikibot
 import requests
 import re
 import time
-import HTMLParser
+from html.parser import HTMLParser
 
 def getKHMGenerator():
     """
@@ -23,14 +23,14 @@ def getKHMGenerator():
     firsturl = u'https://www.khm.at/objektdb/?fq[facet_classification][]=Gem%C3%A4lde'
     #searchurl = u'https://www.khm.at/objektdb/?fq%5Bfacet_classification%5D%5B0%5D=Gem%C3%A4lde&cHash=f5cd712d07b7d8f2a5a63edad3389fd0&rand=0.22487490502052188&type=686&listOnly=1&page=203'
     basesearchurl = u'https://www.khm.at/objektdb/?fq%%5Bfacet_classification%%5D%%5B0%%5D=Gem%%C3%%A4lde&cHash=f5cd712d07b7d8f2a5a63edad3389fd0&rand=0.22487490502052188&type=686&listOnly=1&page=%s'
-    htmlparser = HTMLParser.HTMLParser()
+    htmlparser = HTMLParser()
 
     session = requests.Session()
 
     for i in range(0, 206):
         searchurl = basesearchurl % (i,)
 
-        print searchurl
+        print (searchurl)
         searchPage = session.get(searchurl, headers={'X-Requested-With' : 'XMLHttpRequest',
                                                      'referer' : firsturl,
                                                      })
@@ -48,7 +48,7 @@ def getKHMGenerator():
         for url in urls:
             metadata = {}
 
-            print url
+            print (url)
 
             itempage = requests.get(url)
             metadata['url'] = url
@@ -91,7 +91,11 @@ def getKHMGenerator():
             permaregex = u'\<span class\=\"icon-permalink\"\>\<\/span\>\s*Permalink \(zitierbarer Link\) zu dieser Seite\: \<a target\=\"_top\" href\=\"https?\:\/\/(www\.khm\.at\/de\/object\/[^\"]+\/)\"\>'
             permamatch = re.search(permaregex, itempage.text)
 
-            metadata['describedbyurl'] = u'https://%s' % (permamatch.group(1).strip(),)
+            if permamatch:
+                metadata['describedbyurl'] = u'https://%s' % (permamatch.group(1).strip(),)
+            else:
+                # Sometimes missing, see for example https://www.khm.at/objektdb/detail/2370/
+                metadata['describedbyurl'] = url
 
             titleregex = u'\<meta property\=\"og:title\" content\=\"([^\"]+)\"\s*\/\>'
             titlematch = re.search(titleregex, itempage.text)
@@ -155,9 +159,9 @@ def getKHMGenerator():
             circashortperiodmatch = re.search(circashortperiodregex, itempage.text)
             otherdatematch = re.search(otherdateregex, itempage.text)
             if datematch:
-                metadata['inception'] = htmlparser.unescape(datematch.group(1).strip())
+                metadata['inception'] = int(htmlparser.unescape(datematch.group(1).strip()))
             elif datecircamatch:
-                metadata['inception'] = htmlparser.unescape(datecircamatch.group(1).strip())
+                metadata['inception'] = int(htmlparser.unescape(datecircamatch.group(1).strip()))
                 metadata['inceptioncirca'] = True
             elif periodmatch:
                 metadata['inceptionstart'] = int(periodmatch.group(1),)
@@ -193,6 +197,14 @@ def getKHMGenerator():
                     metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
                     metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
 
+            imageregex = 'href\=\"(\/objektdb\/detail\/download\/\?detailID\=[^\"]+)\"\>\s*Datei herunterladen\s*\<span'
+            imagematch = re.search(imageregex, itempage.text)
+            if imagematch:
+                metadata[u'imageurl'] = 'https://www.khm.at%s' % htmlparser.unescape(imagematch.group(1),)
+                metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                metadata[u'imageoperatedby'] = u'Q95569'
+                # Used this to add suggestions everywhere
+                # metadata[u'imageurlforce'] = True
             yield metadata
 
 def main():
