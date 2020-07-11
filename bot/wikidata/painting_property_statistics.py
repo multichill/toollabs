@@ -36,6 +36,8 @@ class PaintingPropertyStatistics:
         self.properties[u'P1476'] = u'[[Property:P1476|title]]'
         self.properties[u'P6216'] = u'[[Property:P6216|copyright status]]'
         self.propertyData = {}
+        self.averageStatements = {}
+        self.sumSitelinks = {}
 
     def getCollectionInfo(self):
         """
@@ -87,7 +89,51 @@ LIMIT 1000""" % (prop, self.property_threshold)
             result[qid] = int(resultitem.get('count'))
         return result
 
-    def getPaintingTotals(self, prop=None):
+    def getAverageStatements(self):
+        """
+        Get the average number of statements per collection
+
+        :return: (Ordered) dictionary with the counts per collection
+        """
+        query = """SELECT ?item (ROUND(AVG(?statements)) as ?count) WHERE {
+  ?painting wdt:P31 wd:Q3305213 ; 
+            wdt:P195 ?item ;
+            wikibase:statements ?statements . 
+} GROUP BY ?item
+ORDER BY DESC(?count)"""
+
+        result = collections.OrderedDict()
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            result[qid] = int(resultitem.get('count'))
+        return result
+
+    def getSumSitelinks(self):
+        """
+        Get the total number of sitelinks  per collection
+
+        :return: (Ordered) dictionary with the counts per collection
+        """
+        query = """SELECT ?item (SUM(?sitelinks) as ?count) WHERE {
+  ?painting wdt:P31 wd:Q3305213 ; 
+            wdt:P195 ?item ;
+            wikibase:sitelinks ?sitelinks . 
+} GROUP BY ?item
+ORDER BY DESC(?count)"""
+
+        result = collections.OrderedDict()
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            result[qid] = int(resultitem.get('count'))
+        return result
+
+    def getPaintingTotals(self, prop=None, counts=None):
         """
         Get the painting totals
         :param prop:  Wikidata Pid of the property. If set, just get the count of paintings with that property
@@ -98,6 +144,16 @@ LIMIT 1000""" % (prop, self.property_threshold)
   ?item wdt:P31 wd:Q3305213 .
   FILTER EXISTS { ?item p:%s [] } .
 }""" % (prop,)
+        elif counts and counts=='statements':
+            query = """SELECT (ROUND(AVG(?statements)) as ?count) WHERE {
+  ?painting wdt:P31 wd:Q3305213 ; 
+            wikibase:statements ?statements . 
+}"""
+        elif counts and counts=='sitelinks':
+            query = """SELECT (SUM(?sitelinks) as ?count) WHERE {
+  ?painting wdt:P31 wd:Q3305213 ; 
+            wikibase:sitelinks ?sitelinks . 
+}"""
         else:
             query = """SELECT (COUNT(?item) as ?count) WHERE {
   ?item wdt:P31 wd:Q3305213 .
@@ -115,6 +171,8 @@ LIMIT 1000""" % (prop, self.property_threshold)
         (collectionsCounts, collectionCountries) = self.getCollectionInfo()
         for prop in self.properties:
             self.propertyData[prop] = self.getPropertyInfo(prop)
+        self.averageStatements = self.getAverageStatements()
+        self.sumSitelinks = self.getSumSitelinks()
 
         text = u'{{/Header}}\n{| class="wikitable sortable"\n'
         text += u'! colspan="3" |[[Wikidata:WikiProject sum of all paintings/Top collections|Top Collections]] (Minimum %s paintings)\n' % (self.collection_threshold, )
@@ -125,6 +183,8 @@ LIMIT 1000""" % (prop, self.property_threshold)
         text += u'! Count\n'
         for prop in self.properties:
             text += u'! data-sort-type="number"|%s\n' % self.properties.get(prop)
+        text += u'! Statements (average)\n'
+        text += u'! Sitelinks (total)\n'
 
         for collection in collectionsCounts:
             countrycode = collectionCountries.get(collection)
@@ -143,6 +203,8 @@ LIMIT 1000""" % (prop, self.property_threshold)
                     propcount = 0
                 percentage = round(1.0 * propcount / max(workcount, 1) * 100, 2)
                 text += u'| {{/Cell|%s|%s}}\n' % (percentage, propcount)
+            text += u'| %s \n' % (self.averageStatements.get(collection), )
+            text += u'| %s \n' % (self.sumSitelinks.get(collection), )
 
         # Get the totals
         totalworks = self.getPaintingTotals()
@@ -152,6 +214,8 @@ LIMIT 1000""" % (prop, self.property_threshold)
             totalprop = self.getPaintingTotals(prop=prop)
             percentage = round(1.0 * totalprop / totalworks * 100, 2)
             text += u'| {{/Cell|%s|%s}}\n' % (percentage, totalprop)
+        text += u'| %s \n' % (self.getPaintingTotals(counts='statements'), )
+        text += u'| %s \n' % (self.getPaintingTotals(counts='sitelinks'), )
         text += u'|}\n'
         text += u'{{/Footer}}\n'
         text += u'[[Category:WikiProject sum of all paintings|Property statistics]]\n'
