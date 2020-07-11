@@ -34,6 +34,7 @@ class PaintingPropertyStatistics:
         self.properties[u'P180'] = u'[[Property:P180|depicts]]'
         self.properties[u'P921'] = u'[[Property:P921|main subject]]'
         self.properties[u'P1476'] = u'[[Property:P1476|title]]'
+        self.properties[u'P6216'] = u'[[Property:P6216|copyright status]]'
         self.propertyData = {}
 
     def getCollectionInfo(self):
