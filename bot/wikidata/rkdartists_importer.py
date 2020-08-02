@@ -278,6 +278,17 @@ class RKDArtistsImporterBot:
                 pywikibot.output(u'No RKDArtists found, skipping')
                 continue
 
+            # Check if instance of (P31) -> human (Q5) is set
+            if u'P31' not in claims:
+                pywikibot.output(u'No instance of (P31) found, skipping')
+                continue
+            if not claims.get(u'P31')[0].getTarget():
+                pywikibot.output(u'Weird instance of (P31) found, skipping')
+                continue
+            if claims.get(u'P31')[0].getTarget().title()!=u'Q5':
+                pywikibot.output(u'Instance of (P31) is not set to human (Q5), skipping')
+                continue
+
             rkdartistsid = claims.get(u'P650')[0].getTarget()
             rkdartistsurl = u'https://api.rkd.nl/api/record/artists/%s?format=json' % (rkdartistsid,)
             refurl = u'https://rkd.nl/explore/artists/%s' % (rkdartistsid,)
@@ -811,18 +822,18 @@ class RKDArtistsImporterBot:
 
         :return:
         """
-        print u'The top 50 places that are missing in this run:'
+        print ('The top 50 places that are missing in this run:')
         for identifier in sorted(self.missingPlaces, key=self.missingPlaces.get, reverse=True)[:50]:
-            print u'* https://rkd.nl/en/explore/thesaurus?term=%s - %s'  % (identifier, self.missingPlaces[identifier])
+            print ('* https://rkd.nl/en/explore/thesaurus?term=%s - %s' % (identifier, self.missingPlaces[identifier]))
 
     def reportMissingBooks(self):
         """
 
         :return:
         """
-        print u'The top 50 books that are missing in this run:'
+        print ('The top 50 books that are missing in this run:')
         for identifier in sorted(self.missingRkdLibrary, key=self.missingRkdLibrary.get, reverse=True)[:50]:
-            print u'* https://rkd.nl/explore/library/%s - %s'  % (identifier, self.missingRkdLibrary[identifier])
+            print ('* https://rkd.nl/explore/library/%s - %s'  % (identifier, self.missingRkdLibrary[identifier]))
 
 
     def addItemStatement(self, item, pid, qid):
@@ -908,10 +919,10 @@ class RKDArtistsCreatorBot:
         for i in range(start, end, limit):
 
             url = baseurl % (limit, i)
-            #print url
+            #print (url)
             rkdartistsApiPage = requests.get(url, verify=False)
             rkdartistsApiPageJson = rkdartistsApiPage.json()
-            #print rkdartistsApiPageJson
+            #print (rkdartistsApiPageJson)
             if rkdartistsApiPageJson.get('content') and rkdartistsApiPageJson.get('content').get('message'):
                 pywikibot.output(u'Something went wrong')
                 continue
@@ -935,7 +946,7 @@ class RKDArtistsCreatorBot:
                 rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar'):
                 number = rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar').get('count')
                 if number > 0:
-                    print rkdartistsdocs.get('kwalificatie')
+                    print (rkdartistsdocs.get('kwalificatie'))
                     if u'schilder' in rkdartistsdocs.get('kwalificatie'):
                         yield rkdartistsdocs
 
@@ -950,7 +961,7 @@ class RKDArtistsCreatorBot:
             pywikibot.output(u'Already got %s on %s' % (rkdartistsdocs.get('priref'),
                                                         self.currentrkd.get(rkdartistsdocs.get('priref'))))
             return False
-        print rkdartistsdocs.get('priref')
+        print (rkdartistsdocs.get('priref'))
         number = -1
         if rkdartistsdocs.get(u'results_in_other_databases') and \
                 rkdartistsdocs.get(u'results_in_other_databases').get(u'images_kunstenaar').get('count'):
@@ -1027,7 +1038,7 @@ class RKDArtistsCreatorBot:
                     for alias in aliases:
                         data['aliases'][lang].append({'language': lang, 'value': alias})
 
-            print data
+            print (data)
 
         priref = rkdartistsdocs.get('priref')
 
