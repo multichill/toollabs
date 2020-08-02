@@ -324,8 +324,18 @@ class RKDArtistsImporterBot:
                 self.addDateOfDeath(itempage, rkdartistsdocs, refurl)
             elif len(claims.get(u'P570'))==1:
                 self.addDateOfDeath(itempage, rkdartistsdocs, refurl, claim=claims.get(u'P570')[0])
-            # TODO: Add work period start
-            # TODO: Add work period end
+            if u'P2031' not in claims:
+                self.addWorkPeriodStart(itempage, rkdartistsdocs, refurl)
+            elif len(claims.get(u'P2031'))==1:
+                self.addWorkPeriodStart(itempage, rkdartistsdocs, refurl, claim=claims.get(u'P2031')[0])
+            if u'P2032' not in claims:
+                self.addWorkPeriodEnd(itempage, rkdartistsdocs, refurl)
+            elif len(claims.get(u'P2032'))==1:
+                self.addWorkPeriodEnd(itempage, rkdartistsdocs, refurl, claim=claims.get(u'P2032')[0])
+            if u'P1317' not in claims:
+                self.addFloruit(itempage, rkdartistsdocs, refurl)
+            elif len(claims.get(u'P1317'))==1:
+                self.addFloruit(itempage, rkdartistsdocs, refurl, claim=claims.get(u'P1317')[0])
             if u'P19' not in claims:
                 self.addPlaceOfBirth(itempage, rkdartistsdocs, refurl)
             if u'P20' not in claims:
@@ -510,6 +520,94 @@ class RKDArtistsImporterBot:
                                              removesource=removesource)
             else:
                 self.addDateProperty(itempage, datestring, u'P570', refurl)
+
+    def addWorkPeriodStart(self, itempage, rkdartistsdocs, refurl, claim=None):
+        '''
+        Will add the work period start date
+        :param itempage: The ItemPage to update
+        :param rkdartistsdocs: The json with the RKD information
+        :param refurl: The url to add as reference
+        :param clams: Existing claim to update (more precise and/or source it)
+        :return:
+        '''
+        if rkdartistsdocs.get('werkzame_periode_begin'):
+            if rkdartistsdocs.get('werkzame_periode_eind') and \
+                    rkdartistsdocs.get('werkzame_periode_begin')[0]==rkdartistsdocs.get('werkzame_periode_eind')[0]:
+                # Use floruit instead
+                return
+            datestring = rkdartistsdocs.get('werkzame_periode_begin')[0]
+            if claim:
+                if len(claim.getSources())==0:
+                    self.addDateProperty(itempage, datestring, u'P2031', refurl, claim=claim)
+                if len(claim.getSources())==1:
+                    removesource = self.isRemovableSource(claim.getSources()[0])
+                    if removesource:
+                        self.addDateProperty(itempage,
+                                             datestring,
+                                             u'P2031',
+                                             refurl,
+                                             claim=claim,
+                                             removesource=removesource)
+            else:
+                self.addDateProperty(itempage, datestring, u'P2031', refurl)
+
+    def addWorkPeriodEnd(self, itempage, rkdartistsdocs, refurl, claim=None):
+        '''
+        Will add the work period end date
+        :param itempage: The ItemPage to update
+        :param rkdartistsdocs: The json with the RKD information
+        :param refurl: The url to add as reference
+        :param clams: Existing claim to update (more precise and/or source it)
+        :return:
+        '''
+        if rkdartistsdocs.get('werkzame_periode_eind'):
+            if rkdartistsdocs.get('werkzame_periode_begin') and \
+                    rkdartistsdocs.get('werkzame_periode_begin')[0]==rkdartistsdocs.get('werkzame_periode_eind')[0]:
+                # Use floruit instead
+                return
+            datestring = rkdartistsdocs.get('werkzame_periode_eind')[0]
+            if claim:
+                if len(claim.getSources())==0:
+                    self.addDateProperty(itempage, datestring, u'P2032', refurl, claim=claim)
+                if len(claim.getSources())==1:
+                    removesource = self.isRemovableSource(claim.getSources()[0])
+                    if removesource:
+                        self.addDateProperty(itempage,
+                                             datestring,
+                                             u'P2032',
+                                             refurl,
+                                             claim=claim,
+                                             removesource=removesource)
+            else:
+                self.addDateProperty(itempage, datestring, u'P2032', refurl)
+
+    def addFloruit(self, itempage, rkdartistsdocs, refurl, claim=None):
+        '''
+        Will add the floruit date (point in time when someone was active)
+        :param itempage: The ItemPage to update
+        :param rkdartistsdocs: The json with the RKD information
+        :param refurl: The url to add as reference
+        :param clams: Existing claim to update (more precise and/or source it)
+        :return:
+        '''
+        if rkdartistsdocs.get('werkzame_periode_begin') and \
+                rkdartistsdocs.get('werkzame_periode_eind') and \
+                rkdartistsdocs.get('werkzame_periode_begin')[0]==rkdartistsdocs.get('werkzame_periode_eind')[0]:
+            datestring = rkdartistsdocs.get('werkzame_periode_begin')[0]
+            if claim:
+                if len(claim.getSources())==0:
+                    self.addDateProperty(itempage, datestring, u'P1317', refurl, claim=claim)
+                if len(claim.getSources())==1:
+                    removesource = self.isRemovableSource(claim.getSources()[0])
+                    if removesource:
+                        self.addDateProperty(itempage,
+                                             datestring,
+                                             u'P1317',
+                                             refurl,
+                                             claim=claim,
+                                             removesource=removesource)
+            else:
+                self.addDateProperty(itempage, datestring, u'P1317', refurl)
 
     def isRemovableSource(self, source):
         '''
