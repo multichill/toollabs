@@ -295,11 +295,12 @@ class RKDArtistsImporterBot:
 
             # Do some checking if it actually exists
             rkdartistsPage = requests.get(rkdartistsurl, verify=False)
-            try:
-                rkdartistsJson = rkdartistsPage.json()
-            except simplejson.scanner.JSONDecodeError:
-                pywikibot.output(u'Got invalid JSON so that RKDartists entry is probably deleted, skipping')
+
+            # Check if we got json
+            if not rkdartistsPage.headers.get('content-type')=='application/json':
+                pywikibot.output(u'I did not get JSON back from RKD api, skipping')
                 continue
+            rkdartistsJson = rkdartistsPage.json()
 
             if rkdartistsJson.get('content') and rkdartistsJson.get('content').get('message'):
                 pywikibot.output(u'Something went wrong, got "%s" for %s, skipping' % (rkdartistsJson.get('content').get('message'),
