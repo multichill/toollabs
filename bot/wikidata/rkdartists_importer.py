@@ -293,9 +293,13 @@ class RKDArtistsImporterBot:
             rkdartistsurl = u'https://api.rkd.nl/api/record/artists/%s?format=json' % (rkdartistsid,)
             refurl = u'https://rkd.nl/explore/artists/%s' % (rkdartistsid,)
 
-            # Do some checking if it actually exists?
+            # Do some checking if it actually exists
             rkdartistsPage = requests.get(rkdartistsurl, verify=False)
-            rkdartistsJson = rkdartistsPage.json()
+            try:
+                rkdartistsJson = rkdartistsPage.json()
+            except simplejson.scanner.JSONDecodeError:
+                pywikibot.output(u'Got invalid JSON so that RKDartists entry is probably deleted, skipping')
+                continue
 
             if rkdartistsJson.get('content') and rkdartistsJson.get('content').get('message'):
                 pywikibot.output(u'Something went wrong, got "%s" for %s, skipping' % (rkdartistsJson.get('content').get('message'),
