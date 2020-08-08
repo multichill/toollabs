@@ -16,13 +16,19 @@ import requests
 import re
 import time
 import json
+from html.parser import HTMLParser
 
 def getRoyalCollectionGenerator():
     """
     Generator to return Royal Collection paintings
     """
+    htmlparser = HTMLParser()
     apiurl = u'https://api.royalcollection.org.uk/collection/search-api'
+    apiurl = 'https://www.rct.uk/collection/search-api'
+    # All paintings
     postjson = u'{"searchTerm":"","hasImages":false,"orderBy":"relevancy","orderDirection":"desc","page":%s,"searchType":{"who":[],"what":{"object_category":[[{"id":"18","name":"Object category","type":"object_category"},{"id":"49367","name":"Paintings"}]]},"where":[],"when":[],"more":{}},"themeSubject":[],"themePeople":[],"themeType":"","whatsOn":[],"whatsOnDate":"","whatsOnEndDateIsPast":false,"whatsOnAccess":"","excludeNode":"","conservationProcesses":[],"conservationTypes":[],"exhibitionReference":[],"residenceReference":[],"itemsPerPage":8}'
+    # All paintings with images before 1900
+    # postjson = u'{"searchTerm":"","hasImages":true,"orderBy":"relevancy","orderDirection":"desc","page":%s,"searchType":{"who":[],"what":{"object_category":[[{"id":"18","name":"Object category","type":"object_category"},{"id":"49367","name":"Paintings"}]]},"where":[],"when":[{"start":"0","end":"1900","name":"0 AD - 1900 AD","type":"custom"}],"more":{}},"themeSubject":[],"themePeople":[],"themeType":"","whatsOn":[],"whatsOnDate":"","whatsOnEndDateIsPast":false,"whatsOnAccess":"","excludeNode":"","conservationProcesses":[],"conservationTypes":[],"exhibitionReference":[],"residenceReference":[],"itemsPerPage":8}'
 
     firstpage = requests.post(apiurl, data=postjson % (1,))
 
@@ -51,7 +57,8 @@ def getRoyalCollectionGenerator():
             #No need to check, I'm actually searching for paintings.
             metadata['instanceofqid'] = u'Q3305213'
 
-            metadata['id'] = u'RCIN %s' % (item.get('inventoryNumber'),)
+            # They seem to have added the missing RCIN prefix
+            metadata['id'] = '%s' % (item.get('inventoryNumber'),)
             metadata['idpid'] = u'P217'
 
             title = item.get('title').strip()
@@ -66,12 +73,13 @@ def getRoyalCollectionGenerator():
             creatormatch = re.match(creatorregex, item.get('creator'))
             if creatormatch:
                 name = creatormatch.group(1).strip()
-                metadata['creatorname'] = name
+                metadata['creatorname'] = htmlparser.unescape(item.get('creator')).strip().replace('\n', '') # For the image uploads
                 metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', name,),
                                             u'en' : u'%s by %s' % (u'painting', name,),
                                             }
             else:
-                name = item.get('creator')
+                name = htmlparser.unescape(item.get('creator')).strip()
+                metadata['creatorname'] = name # For the image uploads
                 metadata['description'] = { u'en' : u'%s by %s' % (u'painting', name,),
                                             }
                 metadata['creatorqid'] = u'Q4233718'
@@ -111,11 +119,11 @@ def getRoyalCollectionGenerator():
             circaveryshortperiodmatch = re.search(circaveryshortperiodregex, item.get('creationDate'), flags=re.IGNORECASE)
             #inception = re.sub(u'signed and dated\s*', u'', item.get('creationDate'), flags=re.IGNORECASE).strip()
             if datematch:
-                metadata['inception'] = datematch.group(2)
+                metadata['inception'] = int(datematch.group(2))
             elif simpledatematch:
-                metadata['inception'] = simpledatematch.group(1)
+                metadata['inception'] = int(simpledatematch.group(1))
             elif datecircamatch:
-                metadata['inception'] = datecircamatch.group(2)
+                metadata['inception'] = int(datecircamatch.group(2))
                 metadata['inceptioncirca'] = True
             elif periodmatch:
                 metadata['inceptionstart'] = int(periodmatch.group(1),)
@@ -169,10 +177,13 @@ def getRoyalCollectionGenerator():
                         metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
                         metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
 
-            # Add type and filter for year maybe? They claim copyright
-            #if not u'placeholder' in item.get('primaryLargeImage'):
-            #    metadata[u'imageurl'] = u'https:%s' % (item.get('primaryLargeImage'),)
-
+            # We're filtering for items with images that are from before 1900
+            if item.get('primaryLargeImage') and not 'placeholder' in item.get('primaryLargeImage'):
+                metadata[u'imageurl'] = u'https:%s' % (item.get('primaryLargeImage'),)
+                metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                metadata[u'imageoperatedby'] = u'Q1459037'
+                # Used this to add suggestions everywhere
+                metadata[u'imageurlforce'] = True
             yield metadata
 
 
@@ -182,7 +193,7 @@ def main():
     #for painting in dictGen:
     #    print(painting)
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
+    artDataBot = artdatabot.ArtDataBot(dictGen, create=False)
     artDataBot.run()
 
 if __name__ == "__main__":
