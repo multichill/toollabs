@@ -197,6 +197,8 @@ class OwnWorkBot:
             except pywikibot.data.api.APIError:
                 pywikibot.output('Got an API error while saving page. Sleeping and skipping')
                 time.sleep(120)
+                # Reload the tokens to be sure
+                self.site.get_tokens('csrf')
             return
 
     def isOwnWorkFile(self, filepage):
