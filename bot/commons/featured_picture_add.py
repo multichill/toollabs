@@ -77,6 +77,9 @@ class FeaturedPictureBot:
         pywikibot.output(u'Working on %s' % (filepage.title(),))
         if not filepage.exists():
             return
+        if not filepage.has_permission():
+            # Featured pictures are often protected
+            return
 
         if currentdata.get('statements') and currentdata.get('statements').get('P6731'):
             for statement in currentdata.get('statements').get('P6731'):
