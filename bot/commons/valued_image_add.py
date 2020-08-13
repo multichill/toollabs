@@ -6,37 +6,49 @@ Bot to add valued image claim to SDC.
 Loop over https://commons.wikimedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:Valued_images_sorted_by_promotion_date&cmprop=ids|sortkey|sortkeyprefix|timestamp|title|type&cmtype=file&cmlimit=100&format=json
 
 Pageid with M is the entity id, the sortkeyprefix is a unix time stamp needed for the start time.
+
+By default the bot runs on the files promoted in the last 2 weeks.
 """
 
 import pywikibot
 import time
 import json
-import datetime
+from datetime import datetime
+from datetime import timedelta
 
 class ValuedImageBot:
     """
     Bot to add structured data statements on Commons
     """
-    def __init__(self):
+    def __init__(self, fullrun=False):
         """
-        Grab generator based on search to work on.
+        Setup the bot
         """
         self.site = pywikibot.Site(u'commons', u'commons')
         self.site.login()
         self.site.get_tokens('csrf')
         self.repo = self.site.data_repository()
+        self.fullrun = fullrun
 
-        self.generator = self.getGenerator()
+        self.generator = self.getGenerator(fullrun)
 
-    def getGenerator(self):
+    def getGenerator(self, fullrun):
         """
-        Get the generator to work on. Yields dict with these fields:
+        Get the generator to work on. Looks in the promotion date category. By default starts 14 days ago.
+
+        Yields dict with these fields:
         * page
         * mediaid
         * starttime
         """
         continuemore = True
         cmcontinue = None
+
+        if fullrun:
+            cmstartsortkeyprefix = '0'
+        else:
+            cmstartsortkeyprefix = int((datetime.utcnow() + timedelta(days=-14)).timestamp())
+
         while continuemore:
             postdata = {'action' : 'query',
                         'format' : 'json',
@@ -45,11 +57,10 @@ class ValuedImageBot:
                         'cmprop' : 'ids|sortkey|sortkeyprefix|timestamp|title|type',
                         'cmtype' : 'file',
                         'cmlimit' : 100,
-                        'cmcontinue' : cmcontinue
+                        'cmcontinue' : cmcontinue,
+                        'cmstartsortkeyprefix' : cmstartsortkeyprefix,
                         }
 
-            if cmcontinue:
-                postdata['postdata'] = postdata
             request = self.site._simple_request(**postdata)
             data = request.submit()
             if data.get('query-continue') and data.get('query-continue').get('categorymembers') \
@@ -62,7 +73,7 @@ class ValuedImageBot:
                 try:
                     yield { 'page' : pywikibot.FilePage(self.site, title=categorymember.get('title')),
                             'mediaid' : 'M%s' % (categorymember.get('pageid')),
-                            'starttime' : datetime.datetime.utcfromtimestamp(int(categorymember.get('sortkeyprefix'))).strftime('%Y-%m-%d'),
+                            'starttime' : datetime.utcfromtimestamp(int(categorymember.get('sortkeyprefix'))).strftime('%Y-%m-%d'),
                             }
                 except ValueError:
                     # Some dates are not correctly formatted
@@ -72,8 +83,6 @@ class ValuedImageBot:
         """
         Run on the items
         """
-        alreadydonecounter = 0
-
         for pagedict in self.generator:
             filepage = pagedict.get('page')
             mediaid = pagedict.get('mediaid')
@@ -83,12 +92,6 @@ class ValuedImageBot:
                 continue
 
             currentdata = self.getCurrentMediaInfo(mediaid)
-            alreadydone = self.handleValuedImage(filepage, mediaid, currentdata, starttime)
-            #if alreadydone:
-            #    alreadydonecounter +=1
-            # Later I can change to reverse sorting and use this in a cronjob
-            #if alreadydonecounter > 250:
-            #    return
 
 
     def getCurrentMediaInfo(self, mediaid):
@@ -181,7 +184,14 @@ class ValuedImageBot:
 
 
 def main(*args):
-    valuedImageBot = ValuedImageBot()
+
+    fullrun = False
+
+    for arg in pywikibot.handle_args(args):
+        if arg == '-fullrun':
+            fullrun = True
+
+    valuedImageBot = ValuedImageBot(fullrun=fullrun)
     valuedImageBot.run()
 
 if __name__ == "__main__":
