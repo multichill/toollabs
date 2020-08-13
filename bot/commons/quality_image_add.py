@@ -16,7 +16,7 @@ class QualityImageBot:
     """
     Bot to add structured data statements on Commons
     """
-    def __init__(self, fullrun=False):
+    def __init__(self, gen=None, fullrun=False):
         """
         Grab generator based on search to work on.
         """
@@ -26,7 +26,10 @@ class QualityImageBot:
         self.repo = self.site.data_repository()
         self.fullrun = fullrun
 
-        self.generator = self.getGenerator(fullrun)
+        if gen:
+            self.generator = gen
+        else:
+            self.generator = self.getGenerator(fullrun)
 
     def getGenerator(self, fullrun):
         """
@@ -76,6 +79,9 @@ class QualityImageBot:
         """
         pywikibot.output(u'Working on %s' % (filepage.title(),))
         if not filepage.exists():
+            return
+        if not filepage.has_permission():
+            # Picture might be protected
             return
 
         if currentdata.get('statements') and currentdata.get('statements').get('P6731'):
@@ -130,13 +136,18 @@ class QualityImageBot:
 
 def main(*args):
 
+    gen = None
+    genFactory = pagegenerators.GeneratorFactory()
     fullrun = False
 
     for arg in pywikibot.handle_args(args):
         if arg == '-fullrun':
             fullrun = True
+        elif genFactory.handleArg(arg):
+            continue
+    gen = genFactory.getCombinedGenerator(gen, preload=True)
 
-    qualityImageBot = QualityImageBot(fullrun=fullrun)
+    qualityImageBot = QualityImageBot(gen=gen, fullrun=fullrun)
     qualityImageBot.run()
 
 if __name__ == "__main__":
