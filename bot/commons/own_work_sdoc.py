@@ -36,6 +36,7 @@ class OwnWorkBot:
         self.repo = self.site.data_repository()
 
         self.validLicenses = self.getLicenseTemplates()
+        self.exifCameraMakeModel = self.getExifCameraMakeModel()
         self.generator = gen
         self.loose = loose
         self.fileownwork = fileownwork
@@ -86,6 +87,24 @@ class OwnWorkBot:
                    'gfdl' : 'Q50829104',
                    'gfdl-1.2' : 'Q26921686',
                    }
+        return result
+
+    def getExifCameraMakeModel(self):
+        """
+        Do a SPARQL query to get the exif make and model lookup table
+        :return: Dict with (make, model) as keys
+        """
+        query = """SELECT ?item ?make ?model WHERE {
+  ?item wdt:P2010 ?make ;
+        wdt:P2009 ?model ;
+        }"""
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+        result = {}
+
+        for resultitem in queryresult:
+            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            result[(resultitem.get('make'),resultitem.get('model'))] = qid
         return result
 
     def run(self):
@@ -171,6 +190,7 @@ class OwnWorkBot:
         newclaims['date'] = self.handleDate(mediaid, currentdata, filepage)
         newclaims['coordinates'] = self.handlePointOfViewCoordinates(mediaid, currentdata, filepage)
         newclaims['object coordinates'] = self.handleObjectCoordinates(mediaid, currentdata, filepage)
+        newclaims['camera'] = self.handleCameraMakeModel(mediaid, currentdata, filepage)
 
         addedclaims = []
 
@@ -406,9 +426,15 @@ class OwnWorkBot:
                 result.extend(self.addClaimJson(mediaid, u'P275', license))
 
         if not currentdata.get('statements') or not currentdata.get('statements').get('P6216'):
+            # Add the fact that the file is copyrighted only if a license has been found
             if currentlicenses or licenses:
-                # Add the fact that the file is copyrighted only if a license has been found
-                result.extend(self.addClaimJson(mediaid, u'P6216', u'Q50423863'))
+                # Crude check for cc-zero
+                if 'Q6938433' in currentlicenses or 'Q6938433' in licenses:
+                    # Add copyrighted, dedicated to the public domain by copyright holder
+                    result.extend(self.addClaimJson(mediaid, u'P6216', u'Q88088423'))
+                else:
+                    # Add copyrighted, won't be reached is a file is both cc-zero and some other license
+                    result.extend(self.addClaimJson(mediaid, u'P6216', u'Q50423863'))
         return result
 
     def handleDate(self, mediaid, currentdata, filepage):
@@ -550,6 +576,38 @@ class OwnWorkBot:
                        }
             return [toclaim,]
 
+    def handleCameraMakeModel(self, mediaid, currentdata, filepage):
+        """
+        Get the exif metadata and see if we can add a camera model
+        :param mediaid:
+        :param currentdata:
+        :param filepage:
+        :return:
+        """
+        if currentdata.get('statements') and currentdata.get('statements').get('P4082'):
+            return False
+
+        if not filepage.latest_file_info.metadata:
+            return False
+        metadata = filepage.latest_file_info.metadata
+
+        cameramake = None
+        cameramodel = None
+
+        for namevalue in metadata:
+            if namevalue.get('name')=='Make':
+                cameramake = namevalue.get('value').strip()
+            elif namevalue.get('name')=='Model':
+                cameramodel = namevalue.get('value').strip()
+
+        if not cameramake or not cameramodel:
+            return False
+
+        cameraqid = self.exifCameraMakeModel.get((cameramake, cameramodel))
+        if not cameraqid:
+            return False
+        return self.addClaimJson(mediaid, 'P4082', cameraqid)
+
     def addClaimJson(self, mediaid, pid, qid):
         """
         Add a claim to a mediaid
@@ -600,7 +658,7 @@ def main(*args):
             filelicenses.append(arg[13:])
         elif genFactory.handleArg(arg):
             continue
-    gen = genFactory.getCombinedGenerator(gen, preload=True)
+    gen = pagegenerators.PageClassGenerator(genFactory.getCombinedGenerator(gen, preload=True))
 
     ownWorkBot = OwnWorkBot(gen, loose, fileownwork, authorpage, authorname, authorqid, filelicenses)
     ownWorkBot.run()
