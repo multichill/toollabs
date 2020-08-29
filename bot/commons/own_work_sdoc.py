@@ -36,6 +36,8 @@ class OwnWorkBot:
         self.repo = self.site.data_repository()
 
         self.validLicenses = self.getLicenseTemplates()
+        self.participantTemplates = self.getParticipantTemplates()
+        self.sponsorTemplates = self.getSponsorTemplates()
         self.exifCameraMakeModel = self.getExifCameraMakeModel()
         self.generator = gen
         self.loose = loose
@@ -47,8 +49,9 @@ class OwnWorkBot:
 
     def getLicenseTemplates(self):
         """
-        Get the monuments currently on Wikidata. Keep the id as a string.
-        :return:
+        Get the template to qid mappings for license templates
+        Everything all lowercase and spaces instead of underscores
+        :return: dict()
         """
         # FIXME: Do query later
         result = { 'cc-zero' : 'Q6938433',
@@ -86,6 +89,51 @@ class OwnWorkBot:
                    'fal' : 'Q152332',
                    'gfdl' : 'Q50829104',
                    'gfdl-1.2' : 'Q26921686',
+                   }
+        return result
+
+    def getParticipantTemplates(self):
+        """
+        Get the template to qid mappings for participation templates
+        Everything all lowercase and spaces instead of underscores
+        :return: dict()
+        """
+        result = { 'wiki loves earth 2015' : 'Q23953679',
+                   'wiki loves earth 2016' : 'Q23946940',
+                   'wiki loves earth 2017' : 'Q98751859',
+                   'wiki loves earth 2018' : 'Q98751978',
+                   'wiki loves earth 2019' : 'Q98752118',
+                   'wiki loves earth 2020' : 'Q97331615',
+                   'wiki loves monuments 2010' : 'Q20890568',
+                   'wiki loves monuments 2011' : 'Q8168264',
+                   'wiki loves monuments 2012' : 'Q13390164',
+                   'wiki loves monuments 2013' : 'Q14568386',
+                   'wiki loves monuments 2014' : 'Q15975254',
+                   'wiki loves monuments 2015' : 'Q19833396',
+                   'wiki loves monuments 2016' : 'Q26792317',
+                   'wiki loves monuments 2017' : 'Q30015204',
+                   'wiki loves monuments 2018' : 'Q56165596',
+                   'wiki loves monuments 2019' : 'Q56427997',
+                   'wiki loves monuments 2020' : 'Q66975112',
+                   }
+        return result
+
+    def getSponsorTemplates(self):
+        """
+        Get the template to qid mappings for participation templates
+        Everything all lowercase and spaces instead of underscores
+        :return: dict()
+        """
+        result = { 'supported by wikimedia argentina' : 'Q18559618',
+                   'supported by wikimedia armenia' : 'Q20515521',
+                   'supported by wikimedia ch' : 'Q15279140',
+                   'supported by wikimedia deutschland' : 'Q8288',
+                   'supported by wikimedia españa' : 'Q14866877',
+                   'supported by wikimedia france' : 'Q8423370',
+                   'supported by wikimedia israel' : 'Q16130851',
+                   'supported by wikimedia österreich' : 'Q18559623',
+                   'supported by wikimedia polska' : 'Q9346299',
+                   'supported by wikimedia uk' : 'Q7999857',
                    }
         return result
 
@@ -188,9 +236,12 @@ class OwnWorkBot:
             newclaims['copyright'] = self.addLicenses(mediaid, currentdata, licenses)
         # Optional stuff, maybe split that up too
         newclaims['date'] = self.handleDate(mediaid, currentdata, filepage)
+        # TODO: Consider adding date from exif DateTimeOriginal if nothing is found
         newclaims['coordinates'] = self.handlePointOfViewCoordinates(mediaid, currentdata, filepage)
         newclaims['object coordinates'] = self.handleObjectCoordinates(mediaid, currentdata, filepage)
         newclaims['camera'] = self.handleCameraMakeModel(mediaid, currentdata, filepage)
+        newclaims['participant'] = self.handleParticipant(mediaid, currentdata, filepage)
+        newclaims['sponsor'] = self.handleSponsor(mediaid, currentdata, filepage)
 
         addedclaims = []
 
@@ -328,7 +379,7 @@ class OwnWorkBot:
                         if isinstance(licenseqid, list):
                             result.extend(licenseqid)
                         else:
-                            result.append(self.validLicenses.get(license.lower()))
+                            result.append(licenseqid)
                     elif license.startswith('author='):
                         continue
                     elif license.startswith('attribution='):
@@ -338,6 +389,15 @@ class OwnWorkBot:
                     else:
                         return False
                 break
+        # When we reach this point it means we didn't find an invalid self template or no self at all
+        for template in filepage.templates():
+            lowertemplate = template.title(underscore=False, with_ns=False).lower()
+            if lowertemplate in self.validLicenses:
+                licenseqid = self.validLicenses.get(lowertemplate)
+                if isinstance(licenseqid, list):
+                    result.extend(licenseqid)
+                else:
+                    result.append(licenseqid)
         return list(set(result))
 
     def addSourceOwn(self, mediaid, currentdata):
@@ -607,6 +667,35 @@ class OwnWorkBot:
         if not cameraqid:
             return False
         return self.addClaimJson(mediaid, 'P4082', cameraqid)
+
+    def handleParticipant(self, mediaid, currentdata, filepage):
+        """
+        Add the participant in based on template usage
+        :return:
+        """
+        if currentdata.get('statements') and currentdata.get('statements').get('P1344'):
+            return False
+        for template in filepage.templates():
+            lowertemplate = template.title(underscore=False, with_ns=False).lower()
+            if lowertemplate in self.participantTemplates:
+                qid = self.participantTemplates.get(lowertemplate)
+                return self.addClaimJson(mediaid, 'P1344', qid)
+        return False
+
+    def handleSponsor(self, mediaid, currentdata, filepage):
+        """
+        Add the sponsor based on template usage
+        :return:
+        """
+        if currentdata.get('statements') and currentdata.get('statements').get('P859'):
+            return False
+        for template in filepage.templates():
+            lowertemplate = template.title(underscore=False, with_ns=False).lower()
+            if lowertemplate in self.sponsorTemplates:
+                qid = self.sponsorTemplates.get(lowertemplate)
+                print (qid)
+                return self.addClaimJson(mediaid, 'P859', qid)
+        return False
 
     def addClaimJson(self, mediaid, pid, qid):
         """
