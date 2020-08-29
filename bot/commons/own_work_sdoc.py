@@ -26,7 +26,7 @@ class OwnWorkBot:
     """
     Bot to add structured data statements on Commons
     """
-    def __init__(self, gen, loose=False):
+    def __init__(self, gen, loose, fileownwork, authorpage, authorname, authorqid, filelicenses):
         """
         Grab generator based on search to work on.
         """
@@ -38,6 +38,11 @@ class OwnWorkBot:
         self.validLicenses = self.getLicenseTemplates()
         self.generator = gen
         self.loose = loose
+        self.fileownwork = fileownwork
+        self.authorpage = authorpage
+        self.authorname = authorname
+        self.authorqid = authorqid
+        self.filelicenses = filelicenses
 
     def getLicenseTemplates(self):
         """
@@ -122,6 +127,10 @@ class OwnWorkBot:
         if not filepage.exists():
             return
 
+        if not filepage.has_permission():
+            # Picture might be protected
+            return
+
         # Check if the file is own work
         ownwork = self.isOwnWorkFile(filepage)
         if not ownwork and not self.loose:
@@ -130,7 +139,7 @@ class OwnWorkBot:
 
         # Get the author
         authorInfo = self.getAuthor(filepage)
-        if not authorInfo and not self.loose:
+        if not authorInfo and not self.authorqid and not self.loose:
             pywikibot.output(u'Unable to extract author on %s, skipping' % (filepage.title(),))
             return
 
@@ -141,7 +150,7 @@ class OwnWorkBot:
             return
 
         # Need to have found something to continue in loose mode
-        if self.loose and not ownwork and not authorInfo and not licenses:
+        if self.loose and not ownwork and (not authorInfo or not self.authorqid) and not licenses:
             pywikibot.output(u'Loose mode, but did not find anything on %s, skipping' % (filepage.title(),))
             return
 
@@ -151,7 +160,9 @@ class OwnWorkBot:
         # We got all the needed info, let's add it
         if ownwork:
             newclaims['source'] = self.addSourceOwn(mediaid, currentdata)
-        if authorInfo:
+        if self.authorqid:
+            newclaims['author'] = self.addAuthorQid(mediaid, currentdata, self.authorqid)
+        elif authorInfo:
             (authorPage, authorName) = authorInfo
             newclaims['author'] = self.addAuthor(mediaid, currentdata, authorPage, authorName)
         if licenses:
@@ -194,12 +205,17 @@ class OwnWorkBot:
             request = self.site._simple_request(**postdata)
             try:
                 data = request.submit()
-            except pywikibot.data.api.APIError:
+                # Always touch the page to flush it
+                filepage.touch()
+            except (pywikibot.data.api.APIError, pywikibot.exceptions.OtherPageSaveError):
                 pywikibot.output('Got an API error while saving page. Sleeping and skipping')
-                time.sleep(120)
-                # Reload the tokens to be sure
+                # Print the offending token
+                print (token)
+                time.sleep(30)
+                # FIXME: T261050 Trying to reload tokens here, but that doesn't seem to work
                 self.site.get_tokens('csrf')
-            return
+                # This should be a new token
+                print (self.site.tokens['csrf'])
 
     def isOwnWorkFile(self, filepage):
         """
@@ -207,6 +223,9 @@ class OwnWorkBot:
         :param filepage: The page of the file to work on.
         :return:
         """
+        if self.fileownwork:
+            pywikibot.output(u'Own work forced!')
+            return True
         ownfound = False
         selfFound = False
 
@@ -236,6 +255,12 @@ class OwnWorkBot:
         :param filepage: The page of the file to work on.
         :return: Tuple with a User and a string
         """
+        if self.authorpage and self.authorname:
+            return (pywikibot.User(self.site, self.authorpage), self.authorname)
+        elif self.authorpage:
+            return (pywikibot.User(self.site, self.authorpage), self.authorpage)
+        elif self.authorname:
+            return (pywikibot.User(self.site, self.authorname), self.authorname)
 
         authorRegex = u'^\s*[aA]uthor\s*\=\s*\[\[[uU]ser\:([^\|^\]]+)\|([^\|^\]]+)\]\](\s*\(\s*\[\[[uU]ser talk\:[^\|^\]]+\|[^\|^\]]+\]\]\s*\)\s*)?\s*$'
 
@@ -264,6 +289,17 @@ class OwnWorkBot:
         """
         result = []
 
+        if self.filelicenses:
+            for license in self.filelicenses:
+                if license.lower() in self.validLicenses:
+                    licenseqid = self.validLicenses.get(license.lower())
+                    if isinstance(licenseqid, list):
+                        result.extend(licenseqid)
+                    else:
+                        result.append(self.validLicenses.get(license.lower()))
+                else:
+                    return False
+
         for template, parameters in filepage.templatesWithParams():
             if template.title()==u'Template:Self':
                 for license in parameters:
@@ -282,7 +318,7 @@ class OwnWorkBot:
                     else:
                         return False
                 break
-        return result
+        return list(set(result))
 
     def addSourceOwn(self, mediaid, currentdata):
         """
@@ -291,8 +327,18 @@ class OwnWorkBot:
         """
         if currentdata.get('statements') and currentdata.get('statements').get('P7482'):
             return False
-        return self.addClaimJson(mediaid, u'P7482', u'Q66458942')
+        return self.addClaimJson(mediaid, 'P7482', 'Q66458942')
 
+    def addAuthorQid(self, mediaid, currentdata, authorqid):
+        """
+        Add an author that has a qid
+        :param mediaid:
+        :param currentdata:
+        :return:
+        """
+        if currentdata.get('statements') and currentdata.get('statements').get('P170'):
+            return False
+        return self.addClaimJson(mediaid, 'P170', authorqid)
 
     def addAuthor(self, mediaid, currentdata, authorPage, authorName):
         """
@@ -331,7 +377,7 @@ class OwnWorkBot:
                                                 } ],
                                    'P2699' : [ {'snaktype': 'value',
                                                 'property': 'P2699',
-                                                'datavalue': { 'value': u'https://commons.wikimedia.org/wiki/%s' % (authorPage.title(underscore=True), ),
+                                                'datavalue': { 'value': u'https://commons.wikimedia.org/wiki/user:%s' % (authorPage.title(underscore=True, with_ns=False, as_url=True), ),
                                                                'type' : 'string',
                                                                },
                                                 } ],
@@ -346,18 +392,23 @@ class OwnWorkBot:
         :param authorName:
         :return:
         """
-        if currentdata.get('statements'):
-            if currentdata.get('statements').get('P6216'):
-                return False
-            if currentdata.get('statements').get('P275'):
-                return False
+        result = []
 
-        # Add the fact that the file is copyrighted
-        result = self.addClaimJson(mediaid, u'P6216', u'Q50423863')
+        currentlicenses = []
+        if currentdata.get('statements') and currentdata.get('statements').get('P275'):
+            for licensestatement in currentdata.get('statements').get('P275'):
+                if licensestatement.get('mainsnak').get('datavalue'):
+                    currentlicenses.append(licensestatement.get('mainsnak').get('datavalue').get('value').get('id'))
 
         # Add the different licenses
         for license in licenses:
-            result.extend(self.addClaimJson(mediaid, u'P275', license))
+            if license not in currentlicenses:
+                result.extend(self.addClaimJson(mediaid, u'P275', license))
+
+        if not currentdata.get('statements') or not currentdata.get('statements').get('P6216'):
+            if currentlicenses or licenses:
+                # Add the fact that the file is copyrighted only if a license has been found
+                result.extend(self.addClaimJson(mediaid, u'P6216', u'Q50423863'))
         return result
 
     def handleDate(self, mediaid, currentdata, filepage):
@@ -528,15 +579,30 @@ def main(*args):
     gen = None
     genFactory = pagegenerators.GeneratorFactory()
     loose = False
+    fileownwork = None
+    authorpage = None
+    authorname = None
+    authorqid = None
+    filelicenses = []
 
     for arg in pywikibot.handle_args(args):
         if arg == '-loose':
             loose = True
+        elif arg == '-fileownwork':
+            fileownwork = True
+        elif arg.startswith('-authorpage'):
+            authorpage = arg[12:]
+        elif arg.startswith('-authorname'):
+            authorname = arg[12:]
+        elif arg.startswith('-authorqid'):
+            authorqid = arg[11:]
+        elif arg.startswith('-filelicense'):
+            filelicenses.append(arg[13:])
         elif genFactory.handleArg(arg):
             continue
     gen = genFactory.getCombinedGenerator(gen, preload=True)
 
-    ownWorkBot = OwnWorkBot(gen, loose)
+    ownWorkBot = OwnWorkBot(gen, loose, fileownwork, authorpage, authorname, authorqid, filelicenses)
     ownWorkBot.run()
 
 if __name__ == "__main__":
