@@ -21,6 +21,7 @@ class QualityImageBot:
         Grab generator based on search to work on.
         """
         self.site = pywikibot.Site(u'commons', u'commons')
+        self.qualitycat = pywikibot.Category(self.site, 'Category:Quality images')
         self.site.login()
         self.site.get_tokens('csrf')
         self.repo = self.site.data_repository()
@@ -79,6 +80,8 @@ class QualityImageBot:
         """
         pywikibot.output(u'Working on %s' % (filepage.title(),))
         if not filepage.exists():
+            return
+        if self.qualitycat not in filepage.categories():
             return
         if not filepage.has_permission():
             # Picture might be protected
