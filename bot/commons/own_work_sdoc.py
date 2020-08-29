@@ -57,16 +57,31 @@ class OwnWorkBot:
         result = { 'cc-zero' : 'Q6938433',
                    'cc-by-1.0' : 'Q30942811',
                    'cc-by-2.0' : 'Q19125117',
+                   'cc-by-2.0-de' : 'Q75466259',
                    'cc-by-2.0-fr' : 'Q75470422',
+                   'cc-by-2.1-jp' : 'Q26116436',
                    'cc-by-2.5' : 'Q18810333',
+                   'cc-by-2.5-ar' : 'Q75491630',
+                   'cc-by-2.5-au' : 'Q75494411',
+                   'cc-by-2.5-dk' : 'Q75665696',
                    'cc-by-3.0' : 'Q14947546',
+                   'Cc-by-3.0-at' : 'Q75768706',
+                   'cc-by-3.0-au' : 'Q52555753',
+                   'cc-by-3.0-br' : 'Q75770766',
+                   'cc-by-3.0-de' : 'Q62619894',
+                   'cc-by-3.0-us' : 'Q18810143',
                    'cc-by-3.0,2.5,2.0,1.0' : ['Q14947546', 'Q18810333', 'Q19125117', 'Q30942811'],
                    'cc-by 4.0' : 'Q20007257',
                    'cc-by-4.0' : 'Q20007257',
                    'cc-by-sa-1.0' : 'Q47001652',
                    'cc-by-sa-2.0' : 'Q19068220',
+                   'cc-by-sa-2.0-de' : 'Q77143083',
                    'cc-by-sa-2.0-fr' : 'Q77355872',
+                   'cc-by-sa-2.1-jp' : 'Q77367349',
                    'cc-by-sa-2.5' : 'Q19113751',
+                   'cc-by-sa-2.5-hu' : 'Q98755330',
+                   'cc-by-sa-2.5-nl' : 'Q18199175',
+                   'cc-by-sa-2.5-pl' : 'Q98755337',
                    'cc-by-sa-2.5,2.0,1.0' : ['Q19113751', 'Q19068220', 'Q47001652'],
                    'cc-by-sa 3.0' : 'Q14946043',
                    'cc-by-sa-3.0' : 'Q14946043',
@@ -74,14 +89,21 @@ class OwnWorkBot:
                    'cc-by-sa-3.0-migrated' : 'Q14946043', # Just cc-by-sa-3.0
                    'cc-by-sa-3.0-at' : 'Q80837139',
                    'cc-by-sa-3.0-au' : 'Q86239208',
+                   'cc-by-sa-3.0-br' : 'Q98755369',
+                   'cc-by-sa-3.0-cz' : 'Q98755321',
                    'cc-by-sa-3.0-de' : 'Q42716613',
                    'cc-by-sa-3.0-ee' : 'Q86239559',
                    'cc-by-sa-3.0-es' : 'Q86239991',
                    'cc-by-sa-3.0-fr' : 'Q86240326',
+                   'cc-by-sa-3.0-igo' : 'Q56292840',
+                   'cc-by-sa-3.0-it' : 'Q98755364',
                    'cc-by-sa-3.0-lu' : 'Q86240624',
                    'cc-by-sa-3.0-nl' : 'Q18195572',
+                   'cc-by-sa-3.0-no' : 'Q63340742',
                    'cc-by-sa-3.0-pl' : 'Q80837607',
                    'cc-by-sa-3.0-ro' : 'Q86241082',
+                   'cc-by-sa-3.0-rs' : 'Q98755344',
+                   'cc-by-sa-3.0-us' : 'Q18810341',
                    'cc-by-sa 4.0' : 'Q18199165',
                    'cc-by-sa-4.0' : 'Q18199165',
                    'cc-by-sa-4.0,3.0,2.5,2.0,1.0' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
@@ -284,7 +306,7 @@ class OwnWorkBot:
                 print (token)
                 time.sleep(30)
                 # FIXME: T261050 Trying to reload tokens here, but that doesn't seem to work
-                self.site.get_tokens('csrf')
+                self. site.tokens.load_tokens(['csrf'])
                 # This should be a new token
                 print (self.site.tokens['csrf'])
 
