@@ -35,6 +35,9 @@ class OwnWorkBot:
         self.site.get_tokens('csrf')
         self.repo = self.site.data_repository()
 
+        self.informationTemplates = ['information',
+                                     'photograph',
+                                     'specimen']
         self.validLicenses = self.getLicenseTemplates()
         self.participantTemplates = self.getParticipantTemplates()
         self.sponsorTemplates = self.getSponsorTemplates()
@@ -55,6 +58,8 @@ class OwnWorkBot:
         """
         # FIXME: Do query later
         result = { 'cc-zero' : 'Q6938433',
+                   'cc0' : 'Q6938433',
+                   'cc-0' : 'Q6938433',
                    'cc-by-1.0' : 'Q30942811',
                    'cc-by-2.0' : 'Q19125117',
                    'cc-by-2.0-de' : 'Q75466259',
@@ -64,13 +69,16 @@ class OwnWorkBot:
                    'cc-by-2.5-ar' : 'Q75491630',
                    'cc-by-2.5-au' : 'Q75494411',
                    'cc-by-2.5-dk' : 'Q75665696',
+                   'cc-by-2.5-hu' : 'Q75759387',
+                   'cc-by 3.0' : 'Q14947546',
                    'cc-by-3.0' : 'Q14947546',
-                   'Cc-by-3.0-at' : 'Q75768706',
+                   'cc-by-3.0-at' : 'Q75768706',
                    'cc-by-3.0-au' : 'Q52555753',
                    'cc-by-3.0-br' : 'Q75770766',
                    'cc-by-3.0-de' : 'Q62619894',
                    'cc-by-3.0-us' : 'Q18810143',
                    'cc-by-3.0,2.5,2.0,1.0' : ['Q14947546', 'Q18810333', 'Q19125117', 'Q30942811'],
+                   'cc by 4.0' : 'Q20007257',
                    'cc-by 4.0' : 'Q20007257',
                    'cc-by-4.0' : 'Q20007257',
                    'cc-by-sa-1.0' : 'Q47001652',
@@ -79,6 +87,7 @@ class OwnWorkBot:
                    'cc-by-sa-2.0-fr' : 'Q77355872',
                    'cc-by-sa-2.1-jp' : 'Q77367349',
                    'cc-by-sa-2.5' : 'Q19113751',
+                   'cc-by-sa-2.5-ca' : 'Q24331618',
                    'cc-by-sa-2.5-hu' : 'Q98755330',
                    'cc-by-sa-2.5-nl' : 'Q18199175',
                    'cc-by-sa-2.5-pl' : 'Q98755337',
@@ -108,9 +117,14 @@ class OwnWorkBot:
                    'cc-by-sa-4.0' : 'Q18199165',
                    'cc-by-sa-4.0,3.0,2.5,2.0,1.0' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
                    'cc-by-sa-all' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
+                   'cecill' : 'Q1052189',
                    'fal' : 'Q152332',
                    'gfdl' : 'Q50829104',
+                   'bild-gfdl-neu' : 'Q50829104',
                    'gfdl-1.2' : 'Q26921686',
+                   'pd-author' : 'Q98592850',
+                   'pd-self' : 'Q98592850', #  released into the public domain by the copyright holder (Q98592850)
+                   'pd-user' : 'Q98592850',
                    }
         return result
 
@@ -120,7 +134,9 @@ class OwnWorkBot:
         Everything all lowercase and spaces instead of underscores
         :return: dict()
         """
-        result = { 'wiki loves earth 2015' : 'Q23953679',
+        result = { 'wiki loves earth 2013' : 'Q98768417',
+                   'wiki loves earth 2014' : 'Q15978259',
+                   'wiki loves earth 2015' : 'Q23953679',
                    'wiki loves earth 2016' : 'Q23946940',
                    'wiki loves earth 2017' : 'Q98751859',
                    'wiki loves earth 2018' : 'Q98751978',
@@ -301,7 +317,7 @@ class OwnWorkBot:
                 # Always touch the page to flush it
                 filepage.touch()
             except (pywikibot.data.api.APIError, pywikibot.exceptions.OtherPageSaveError):
-                pywikibot.output('Got an API error while saving page. Sleeping and skipping')
+                pywikibot.output('Got an API error while saving page. Sleeping, getting a new token and skipping')
                 # Print the offending token
                 print (token)
                 time.sleep(30)
@@ -358,7 +374,8 @@ class OwnWorkBot:
         authorRegex = u'^\s*[aA]uthor\s*\=\s*\[\[[uU]ser\:([^\|^\]]+)\|([^\|^\]]+)\]\](\s*\(\s*\[\[[uU]ser talk\:[^\|^\]]+\|[^\|^\]]+\]\]\s*\)\s*)?\s*$'
 
         for template, parameters in filepage.templatesWithParams():
-            if template.title()==u'Template:Information':
+            lowertemplate = template.title(underscore=False, with_ns=False).lower()
+            if lowertemplate in self.informationTemplates:
                 for field in parameters:
                     if field.lower().startswith(u'author'):
                         match = re.match(authorRegex, field)
@@ -402,11 +419,13 @@ class OwnWorkBot:
                             result.extend(licenseqid)
                         else:
                             result.append(licenseqid)
-                    elif license.startswith('author='):
+                    elif license=='':
                         continue
-                    elif license.startswith('attribution='):
+                    elif license.lower().strip().startswith('author='):
                         continue
-                    elif license.lower()=='migration=redundant':
+                    elif license.lower().strip().startswith('attribution='):
+                        continue
+                    elif license.lower().strip().startswith('migration='):
                         continue
                     else:
                         return False
@@ -510,8 +529,9 @@ class OwnWorkBot:
         if not currentdata.get('statements') or not currentdata.get('statements').get('P6216'):
             # Add the fact that the file is copyrighted only if a license has been found
             if currentlicenses or licenses:
-                # Crude check for cc-zero
-                if 'Q6938433' in currentlicenses or 'Q6938433' in licenses:
+                # Crude check for cc-zero or released into the public domain by the copyright holder
+                if 'Q6938433' in currentlicenses or 'Q6938433' in licenses \
+                        or 'Q98592850' in currentlicenses or 'Q98592850' in licenses:
                     # Add copyrighted, dedicated to the public domain by copyright holder
                     result.extend(self.addClaimJson(mediaid, u'P6216', u'Q88088423'))
                 else:
@@ -528,16 +548,21 @@ class OwnWorkBot:
         if currentdata.get('statements') and currentdata.get('statements').get('P571'):
             return False
 
-        dateRegex = u'^\s*[dD]ate\s*\=\s*(\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
+        dateRegex = u'^\s*[dD]ate\s*\=\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
+        takenRegex = u'^\s*date\s*\=\s*\{\{taken on\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\|\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\}\}\s*$'
         dateString = None
 
         for template, parameters in filepage.templatesWithParams():
-            if template.title()==u'Template:Information':
+            lowertemplate = template.title(underscore=False, with_ns=False).lower()
+            if lowertemplate in self.informationTemplates:
                 for field in parameters:
                     if field.lower().startswith(u'date'):
-                        match = re.match(dateRegex, field)
-                        if match:
-                            dateString = match.group(1).strip()
+                        datematch = re.match(dateRegex, field, flags=re.IGNORECASE)
+                        takenmatch = re.match(takenRegex, field, flags=re.IGNORECASE)
+                        if datematch:
+                            dateString = datematch.group('date').strip()
+                        elif takenmatch:
+                            dateString = takenmatch.group('date').strip()
                         break
         if not dateString:
             return False
@@ -715,7 +740,6 @@ class OwnWorkBot:
             lowertemplate = template.title(underscore=False, with_ns=False).lower()
             if lowertemplate in self.sponsorTemplates:
                 qid = self.sponsorTemplates.get(lowertemplate)
-                print (qid)
                 return self.addClaimJson(mediaid, 'P859', qid)
         return False
 
