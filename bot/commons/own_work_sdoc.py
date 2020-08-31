@@ -39,6 +39,10 @@ class OwnWorkBot:
                                      'photograph',
                                      'specimen']
         self.validLicenses = self.getLicenseTemplates()
+        self.pubDedication = ['Q6938433',
+                              'Q98592850',
+                              'Q152481'
+                              ]
         self.participantTemplates = self.getParticipantTemplates()
         self.sponsorTemplates = self.getSponsorTemplates()
         self.exifCameraMakeModel = self.getExifCameraMakeModel()
@@ -125,6 +129,7 @@ class OwnWorkBot:
                    'pd-author' : 'Q98592850',
                    'pd-self' : 'Q98592850', #  released into the public domain by the copyright holder (Q98592850)
                    'pd-user' : 'Q98592850',
+                   'wtfpl' : 'Q152481',
                    }
         return result
 
@@ -529,10 +534,8 @@ class OwnWorkBot:
         if not currentdata.get('statements') or not currentdata.get('statements').get('P6216'):
             # Add the fact that the file is copyrighted only if a license has been found
             if currentlicenses or licenses:
-                # Crude check for cc-zero or released into the public domain by the copyright holder
-                if 'Q6938433' in currentlicenses or 'Q6938433' in licenses \
-                        or 'Q98592850' in currentlicenses or 'Q98592850' in licenses:
-                    # Add copyrighted, dedicated to the public domain by copyright holder
+                # Check if current or new licenses are a public domain dedication license like CC0
+                if (set(currentlicenses) | set(licenses) ) & set(self.pubDedication):
                     result.extend(self.addClaimJson(mediaid, u'P6216', u'Q88088423'))
                 else:
                     # Add copyrighted, won't be reached is a file is both cc-zero and some other license
