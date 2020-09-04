@@ -26,7 +26,7 @@ class OwnWorkBot:
     """
     Bot to add structured data statements on Commons
     """
-    def __init__(self, gen, loose, fileownwork, authorpage, authorname, authorqid, filelicenses):
+    def __init__(self, gen, loose, alwaystouch, fileownwork, authorpage, authorname, authorqid, filelicenses):
         """
         Grab generator based on search to work on.
         """
@@ -48,6 +48,7 @@ class OwnWorkBot:
         self.exifCameraMakeModel = self.getExifCameraMakeModel()
         self.generator = gen
         self.loose = loose
+        self.alwaystouch = alwaystouch
         self.fileownwork = fileownwork
         self.authorpage = authorpage
         self.authorname = authorname
@@ -79,6 +80,7 @@ class OwnWorkBot:
                    'cc-by-3.0-at' : 'Q75768706',
                    'cc-by-3.0-au' : 'Q52555753',
                    'cc-by-3.0-br' : 'Q75770766',
+                   'cc-by-3.0-cl' : 'Q75771874',
                    'cc-by-3.0-de' : 'Q62619894',
                    'cc-by-3.0-us' : 'Q18810143',
                    'cc-by-3.0,2.5,2.0,1.0' : ['Q14947546', 'Q18810333', 'Q19125117', 'Q30942811'],
@@ -86,6 +88,7 @@ class OwnWorkBot:
                    'cc-by 4.0' : 'Q20007257',
                    'cc-by-4.0' : 'Q20007257',
                    'cc-by-sa-1.0' : 'Q47001652',
+                   'cc-by-sa-old' : 'Q47001652',
                    'cc-by-sa-2.0' : 'Q19068220',
                    'cc-by-sa-2.0-de' : 'Q77143083',
                    'cc-by-sa-2.0-fr' : 'Q77355872',
@@ -330,6 +333,13 @@ class OwnWorkBot:
                 self. site.tokens.load_tokens(['csrf'])
                 # This should be a new token
                 print (self.site.tokens['csrf'])
+        elif self.alwaystouch:
+            try:
+                filepage.touch()
+            except:
+                pywikibot.output('Got an API error while touching page. Sleeping, getting a new token and skipping')
+                self. site.tokens.load_tokens(['csrf'])
+
 
     def isOwnWorkFile(self, filepage):
         """
@@ -481,14 +491,14 @@ class OwnWorkBot:
                                  },
                    'type': 'statement',
                    'rank': 'normal',
-                   'qualifiers' : {'P3831' : [ {'snaktype': 'value',
-                                                'property': 'P3831',
-                                                'datavalue': { 'value': { 'numeric-id': '33231',
-                                                                          'id' : 'Q33231',
-                                                                          },
-                                                               'type' : 'wikibase-entityid',
-                                                               },
-                                                } ],
+                   'qualifiers' : {#'P3831' : [ {'snaktype': 'value',
+                                   #             'property': 'P3831',
+                                   #             'datavalue': { 'value': { 'numeric-id': '33231',
+                                   #                                       'id' : 'Q33231',
+                                   #                                       },
+                                   #                            'type' : 'wikibase-entityid',
+                                   #                            },
+                                   #             } ],
                                    'P2093' : [ {'snaktype': 'value',
                                                 'property': 'P2093',
                                                 'datavalue': { 'value': authorName,
@@ -553,6 +563,8 @@ class OwnWorkBot:
 
         dateRegex = u'^\s*[dD]ate\s*\=\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
         takenRegex = u'^\s*date\s*\=\s*\{\{taken on\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\|\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\}\}\s*$'
+        exifRegex = u'^\s*date\s*\=\s*\{\{According to Exif(\s*data)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\|\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\}\}\s*$'
+
         dateString = None
 
         for template, parameters in filepage.templatesWithParams():
@@ -562,10 +574,13 @@ class OwnWorkBot:
                     if field.lower().startswith(u'date'):
                         datematch = re.match(dateRegex, field, flags=re.IGNORECASE)
                         takenmatch = re.match(takenRegex, field, flags=re.IGNORECASE)
+                        exifmatch = re.match(exifRegex, field, flags=re.IGNORECASE)
                         if datematch:
                             dateString = datematch.group('date').strip()
                         elif takenmatch:
                             dateString = takenmatch.group('date').strip()
+                        elif exifmatch:
+                            dateString = exifmatch.group('date').strip()
                         break
         if not dateString:
             return False
@@ -775,6 +790,7 @@ def main(*args):
     gen = None
     genFactory = pagegenerators.GeneratorFactory()
     loose = False
+    alwaystouch = False
     fileownwork = None
     authorpage = None
     authorname = None
@@ -784,6 +800,8 @@ def main(*args):
     for arg in pywikibot.handle_args(args):
         if arg == '-loose':
             loose = True
+        elif arg == '-alwaystouch':
+            alwaystouch = True
         elif arg == '-fileownwork':
             fileownwork = True
         elif arg.startswith('-authorpage'):
@@ -798,7 +816,7 @@ def main(*args):
             continue
     gen = pagegenerators.PageClassGenerator(genFactory.getCombinedGenerator(gen, preload=True))
 
-    ownWorkBot = OwnWorkBot(gen, loose, fileownwork, authorpage, authorname, authorqid, filelicenses)
+    ownWorkBot = OwnWorkBot(gen, loose, alwaystouch, fileownwork, authorpage, authorname, authorqid, filelicenses)
     ownWorkBot.run()
 
 if __name__ == "__main__":
