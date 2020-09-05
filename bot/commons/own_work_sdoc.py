@@ -62,7 +62,9 @@ class OwnWorkBot:
         :return: dict()
         """
         # FIXME: Do query later
-        result = { 'cc-zero' : 'Q6938433',
+        result = { 'attribution only license' : 'Q98923445',
+                   'attribution' : 'Q98923445',
+                   'cc-zero' : 'Q6938433',
                    'cc0' : 'Q6938433',
                    'cc-0' : 'Q6938433',
                    'cc-by-1.0' : 'Q30942811',
@@ -89,7 +91,9 @@ class OwnWorkBot:
                    'cc-by-4.0' : 'Q20007257',
                    'cc-by-sa-1.0' : 'Q47001652',
                    'cc-by-sa-old' : 'Q47001652',
+                   'cc-by-sa-1.0+' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
                    'cc-by-sa-2.0' : 'Q19068220',
+                   'cc-by-sa-2.0+' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220'],
                    'cc-by-sa-2.0-de' : 'Q77143083',
                    'cc-by-sa-2.0-fr' : 'Q77355872',
                    'cc-by-sa-2.1-jp' : 'Q77367349',
@@ -278,6 +282,12 @@ class OwnWorkBot:
         elif authorInfo:
             (authorPage, authorName) = authorInfo
             newclaims['author'] = self.addAuthor(mediaid, currentdata, authorPage, authorName)
+        # Try alternatives for sourcing like Flickr, Geograph and Panoramico
+        if not ownwork and not self.authorqid and not authorInfo:
+            othersource = self.getOtherSource(mediaid, currentdata, filepage)
+            if othersource:
+                (othersourcename, othersouceclaims) = othersource
+                newclaims[othersourcename] = othersouceclaims
         if licenses:
             newclaims['copyright'] = self.addLicenses(mediaid, currentdata, licenses)
         # Optional stuff, maybe split that up too
@@ -404,6 +414,102 @@ class OwnWorkBot:
                             pywikibot.output(field)
                         break
 
+        return False
+
+    def getOtherSource(self, mediaid, currentdata, filepage):
+        """
+        The file is not some standard own work file. Try to extract other sources like Flickr
+        :return: Tuple with (type of source, list of statements)
+        """
+        operators = { 'flickr' : 'Q103204', }
+        authordpids = { 'flickr' : 'P3267',  }
+        sourceregexes = { 'flickr' : '^\s*source\s*\=\s*\[(?P<url>https?\:\/\/www\.flickr\.com\/photos\/[^\s]+\/[^\s]+\/)\s+(?P<title>[^\]]+)\]\s*$'}
+        authorregexes = { 'flickr' : '^\s*author\s*\=\s*\[(?P<url>https?:\/\/www\.flickr\.com\/people\/(?P<id>\d{5,11}@N\d{2}))\s+(?P<authorname>[^\]]+)\].*$'}
+        sourcefound = {}
+        authorfound = {}
+        for template, parameters in filepage.templatesWithParams():
+            lowertemplate = template.title(underscore=False, with_ns=False).lower()
+            if lowertemplate in self.informationTemplates:
+                for field in parameters:
+                    if field.lower().startswith('source'):
+                        for operator in sourceregexes:
+                            match = re.match(sourceregexes.get(operator), field, flags=re.IGNORECASE)
+                            if match:
+                                sourcefound[operator] = match.groupdict()
+                    elif field.lower().startswith('author'):
+                        for operator in authorregexes:
+                            match = re.match(authorregexes.get(operator), field, flags=re.IGNORECASE)
+                            if match:
+                                authorfound[operator] = match.groupdict()
+        # Check if we got one match for both
+        if sourcefound and authorfound and len(sourcefound)==1 and sourcefound.keys()==authorfound.keys():
+            result = []
+            operator = next(iter(sourcefound))
+            operatorqid = operators.get(operator)
+            operatornumid = operatorqid.replace('Q', '')
+            if not currentdata.get('statements') or not currentdata.get('statements').get('P7482'):
+                sourceurl = sourcefound.get(operator).get('url')
+                sourceclaim = {'mainsnak': { 'snaktype': 'value',
+                                             'property': 'P7482',
+                                             'datavalue': { 'value': { 'numeric-id': 74228490,
+                                                                       'id' : 'Q74228490',
+                                                                       },
+                                                            'type' : 'wikibase-entityid',
+                                                            }
+                                             },
+                               'type': 'statement',
+                               'rank': 'normal',
+                               'qualifiers' : {'P137' : [ {'snaktype': 'value',
+                                                           'property': 'P137',
+                                                           'datavalue': { 'value': { 'numeric-id': operatornumid,
+                                                                                     'id' : operatorqid,
+                                                                                     },
+                                                                          'type' : 'wikibase-entityid',
+                                                                          },
+                                                       } ],
+                                               'P973' : [ {'snaktype': 'value',
+                                                           'property': 'P973',
+                                                           'datavalue': { 'value': sourceurl,
+                                                                          'type' : 'string',
+                                                                          },
+                                                           } ],
+                                               },
+                               }
+                result.append(sourceclaim)
+            if not currentdata.get('statements') or not currentdata.get('statements').get('P170'):
+                authordpid = authordpids.get(operator)
+                authorid = authorfound.get(operator).get('id')
+                authorname = authorfound.get(operator).get('authorname')
+                authorurl = authorfound.get(operator).get('url')
+                authorclaim = {'mainsnak': { 'snaktype':'somevalue',
+                                             'property': 'P170',
+                                             },
+                               'type': 'statement',
+                               'rank': 'normal',
+                               'qualifiers' : {'P2093' : [ {'snaktype': 'value',
+                                                            'property': 'P2093',
+                                                            'datavalue': { 'value': authorname,
+                                                                           'type' : 'string',
+                                                                           },
+                                                            } ],
+                                               'P2699' : [ {'snaktype': 'value',
+                                                            'property': 'P2699',
+                                                            'datavalue': { 'value': authorurl,
+                                                                           'type' : 'string',
+                                                                           },
+                                                            } ],
+                                               },
+                               }
+                if authordpid and authorid:
+                    authorclaim['qualifiers'][authordpid] = [ {'snaktype': 'value',
+                                                               'property': authordpid,
+                                                               'datavalue': { 'value': authorid,
+                                                                              'type' : 'string',
+                                                                              },
+                                                               } ]
+                result.append(authorclaim)
+            if result:
+                return (operator, result)
         return False
 
     def getSelfLicenses(self, filepage):
