@@ -84,6 +84,7 @@ class OwnWorkBot:
                    'cc-by-3.0-br' : 'Q75770766',
                    'cc-by-3.0-cl' : 'Q75771874',
                    'cc-by-3.0-de' : 'Q62619894',
+                   'cc-by-3.0-nl' : 'Q53859967',
                    'cc-by-3.0-us' : 'Q18810143',
                    'cc-by-3.0,2.5,2.0,1.0' : ['Q14947546', 'Q18810333', 'Q19125117', 'Q30942811'],
                    'cc by 4.0' : 'Q20007257',
@@ -100,6 +101,7 @@ class OwnWorkBot:
                    'cc-by-sa-2.5' : 'Q19113751',
                    'cc-by-sa-2.5-ca' : 'Q24331618',
                    'cc-by-sa-2.5-hu' : 'Q98755330',
+                   'cc-by-sa-2.5-it' : 'Q98929925',
                    'cc-by-sa-2.5-nl' : 'Q18199175',
                    'cc-by-sa-2.5-pl' : 'Q98755337',
                    'cc-by-sa-2.5,2.0,1.0' : ['Q19113751', 'Q19068220', 'Q47001652'],
@@ -131,6 +133,8 @@ class OwnWorkBot:
                    'cecill' : 'Q1052189',
                    'fal' : 'Q152332',
                    'gfdl' : 'Q50829104',
+                   'gfdl-disclaimers' : 'Q50829104',
+                   'gfdl-with-disclaimers' : 'Q50829104',
                    'bild-gfdl-neu' : 'Q50829104',
                    'gfdl-1.2' : 'Q26921686',
                    'pd-author' : 'Q98592850',
@@ -534,6 +538,7 @@ class OwnWorkBot:
         for template, parameters in filepage.templatesWithParams():
             if template.title()==u'Template:Self':
                 for license in parameters:
+                    cleanlicense = license.lower().strip().replace(' =', '=')
                     if license.lower() in self.validLicenses:
                         licenseqid = self.validLicenses.get(license.lower())
                         if isinstance(licenseqid, list):
@@ -542,13 +547,17 @@ class OwnWorkBot:
                             result.append(licenseqid)
                     elif license=='':
                         continue
-                    elif license.lower().strip().startswith('author='):
+                    elif cleanlicense.startswith('author='):
                         continue
-                    elif license.lower().strip().startswith('attribution='):
+                    elif cleanlicense.startswith('attribution='):
                         continue
-                    elif license.lower().strip().startswith('migration='):
+                    elif cleanlicense.startswith('migration='):
+                        continue
+                    elif cleanlicense.startswith('user:'):
+                        # Funky user templates
                         continue
                     else:
+                        pywikibot.output('Unable to parse self field: "%s"' % (cleanlicense,))
                         return False
                 break
         # When we reach this point it means we didn't find an invalid self template or no self at all
@@ -751,10 +760,10 @@ class OwnWorkBot:
                        'type': 'statement',
                        'rank': 'normal',
                        }
-            if cameramatch.group('heading'):
+            if cameramatch.group('heading') and cameramatch.group('heading').lstrip('0'):
                 toclaim['qualifiers'] = {'P7787' : [ {'snaktype': 'value',
                                                       'property': 'P7787',
-                                                      'datavalue': { 'value': { 'amount': '+%s' % (cameramatch.group('heading'),),
+                                                      'datavalue': { 'value': { 'amount': '+%s' % (cameramatch.group('heading').lstrip('0'),),
                                                                                 #'unit' : '1',
                                                                                 'unit' : 'http://www.wikidata.org/entity/Q28390',
                                                                                 },
@@ -818,9 +827,13 @@ class OwnWorkBot:
         if currentdata.get('statements') and currentdata.get('statements').get('P4082'):
             return False
 
-        if not filepage.latest_file_info.metadata:
+        try:
+            if not filepage.latest_file_info.metadata:
+                return False
+            metadata = filepage.latest_file_info.metadata
+        except pywikibot.exceptions.PageRelatedError:
+            pywikibot.output('No file on %s, skipping' % (filepage.title(),))
             return False
-        metadata = filepage.latest_file_info.metadata
 
         cameramake = None
         cameramodel = None
