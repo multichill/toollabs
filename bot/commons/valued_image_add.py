@@ -92,6 +92,7 @@ class ValuedImageBot:
                 continue
 
             currentdata = self.getCurrentMediaInfo(mediaid)
+            self.handleValuedImage(filepage, mediaid, currentdata, starttime)
 
 
     def getCurrentMediaInfo(self, mediaid):
