@@ -218,6 +218,7 @@ class OwnWorkBot:
                    'cc-by-sa-3.0' : 'Q14946043',
                    'cc-by-sa-3.0,2.5,2.0,1.0' : ['Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
                    'cc-by-sa-3.0-migrated' : 'Q14946043', # Just cc-by-sa-3.0
+                   'cc-by-sa-3.0-migrated-with-disclaimers' : 'Q14946043',
                    'cc-by-sa-3.0-at' : 'Q80837139',
                    'cc-by-sa-3.0-au' : 'Q86239208',
                    'cc-by-sa-3.0-br' : 'Q98755369',
@@ -246,6 +247,7 @@ class OwnWorkBot:
                    'fal' : 'Q152332',
                    'gfdl' : 'Q50829104',
                    'gfdl-disclaimers' : 'Q50829104',
+                   'gfdl-disclamers' : 'Q50829104',
                    'gfdl-with-disclaimers' : 'Q50829104',
                    'gfdl-el' : 'Q50829104',
                    'gfdl-en' : 'Q50829104',
