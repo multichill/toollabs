@@ -297,6 +297,9 @@ class OwnWorkBot:
                    'gplv3 only' : 'Q10513445',
                    'gplv3' : 'Q27016754',
                    'agpl' : 'Q27020062',
+                   'lgplv2.1+' : 'Q27016757',
+                   'lgpl' : 'Q27016757',
+                   'lgplv3' : 'Q27016762',
                    'pd-author' : 'Q98592850',
                    'pd-self' : 'Q98592850', #  released into the public domain by the copyright holder (Q98592850)
                    'pd-user' : 'Q98592850',
@@ -486,14 +489,17 @@ class OwnWorkBot:
             pywikibot.output(summary)
 
             token = self.site.tokens['csrf']
-            postdata = {u'action' : u'wbeditentity',
-                        u'format' : u'json',
-                        u'id' : mediaid,
-                        u'data' : json.dumps(itemdata),
-                        u'token' : token,
-                        u'summary' : summary,
-                        u'bot' : True,
+            postdata = {'action' : u'wbeditentity',
+                        'format' : u'json',
+                        'id' : mediaid,
+                        'data' : json.dumps(itemdata),
+                        'token' : token,
+                        'summary' : summary,
+                        'bot' : True,
                         }
+            if currentdata:
+                # This only works when the entity has been created
+                postdata['baserevid'] = currentdata.get('lastrevid')
 
             request = self.site._simple_request(**postdata)
             try:
