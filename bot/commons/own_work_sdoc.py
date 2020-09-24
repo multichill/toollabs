@@ -278,6 +278,7 @@ class OwnWorkBot:
                    'cecill' : 'Q1052189',
                    'copyrighted free use' : 'Q99578078',
                    'fal' : 'Q152332',
+                   'flickr-no known copyright restrictions' : 'Q99263261',
                    'gfdl' : 'Q50829104',
                    'gfdl-no-disclaimers' : 'Q50829104',
                    'gfdl-disclaimers' : 'Q50829104',
@@ -831,6 +832,9 @@ class OwnWorkBot:
                 # Check if current or new licenses are a public domain dedication license like CC0
                 if (set(currentlicenses) | set(licenses) ) & set(self.pubDedication):
                     result.extend(self.addClaimJson(mediaid, u'P6216', u'Q88088423'))
+                if 'Q99263261' in (set(currentlicenses) | set(licenses) ):
+                    # Flickr no known copyright restrictions junk
+                    result.extend(self.addClaimJson(mediaid, u'P6216', u'Q99263261'))
                 else:
                     # Add copyrighted, won't be reached is a file is both cc-zero and some other license
                     result.extend(self.addClaimJson(mediaid, u'P6216', u'Q50423863'))
@@ -898,7 +902,7 @@ class OwnWorkBot:
         if currentdata.get('statements') and currentdata.get('statements').get('P1259'):
             return False
 
-        cameraregex = '\{\{[lL]ocation(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:[^_]+)?(_?heading\:(?P<heading>\d+(\.\d+)?))?(\|prec\=\d+)?\}\}'
+        cameraregex = '\{\{[lL]ocation(\s*dec)?\|(1\=)?(?P<lat>-?\d+\.?\d*)\|(2\=)?(?P<lon>-?\d+\.?\d*)(\|)?(_?source:[^_]+)?(_?heading\:(?P<heading>\d+(\.\d+)?))?(\|prec\=\d+)?\}\}'
         exifcameregex = '\{\{[lL]ocation\|(\d+)\|(\d+\.?\d*)\|(\d+\.?\d*)\|(N|S)\|(\d+)\|(\d+\.?\d*)\|(\d+\.?\d*)\|(E|W)\|alt\:(\d+\.?\d*|\?)_source:exif_heading:(\d+\.?\d*|\?)}}'
         cameramatch = re.search(cameraregex, filepage.text)
         exifcameramatch = re.search(exifcameregex, filepage.text)
