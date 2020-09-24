@@ -276,6 +276,7 @@ class OwnWorkBot:
                    'cc-sa-1.0' : 'Q75209430',
                    'cc-sa' : 'Q75209430',
                    'cecill' : 'Q1052189',
+                   'copyrighted free use' : 'Q99578078',
                    'fal' : 'Q152332',
                    'gfdl' : 'Q50829104',
                    'gfdl-no-disclaimers' : 'Q50829104',
@@ -897,15 +898,31 @@ class OwnWorkBot:
         if currentdata.get('statements') and currentdata.get('statements').get('P1259'):
             return False
 
-        cameraregex = u'\{\{[lL]ocation(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:[^_]+)?(_?heading\:(?P<heading>\d+(\.\d+)?))?(\|prec\=\d+)?\}\}'
+        cameraregex = '\{\{[lL]ocation(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:[^_]+)?(_?heading\:(?P<heading>\d+(\.\d+)?))?(\|prec\=\d+)?\}\}'
+        exifcameregex = '\{\{[lL]ocation\|(\d+)\|(\d+\.?\d*)\|(\d+\.?\d*)\|(N|S)\|(\d+)\|(\d+\.?\d*)\|(\d+\.?\d*)\|(E|W)\|alt\:(\d+\.?\d*|\?)_source:exif_heading:(\d+\.?\d*|\?)}}'
         cameramatch = re.search(cameraregex, filepage.text)
+        exifcameramatch = re.search(exifcameregex, filepage.text)
+        heading = None
+        # altitude is in the spec, but doesn't seem to be in use
 
-        if not cameramatch:
+        if not cameramatch and not exifcameramatch:
             return False
+        elif cameramatch:
+            coordinateText = '%s %s' % (cameramatch.group('lat'), cameramatch.group('lon'), )
+            if cameramatch.group('heading') and not cameramatch.group('heading') == '?':
+                heading = cameramatch.group('heading')
+        elif exifcameramatch:
+            lat_dec = round((float(exifcameramatch.group(1)) * 3600.0 + float(exifcameramatch.group(2)) * 60.0 + float(exifcameramatch.group(3)) ) / 3600.0 , 6)
+            lon_dec = round((float(exifcameramatch.group(5)) * 3600.0 + float(exifcameramatch.group(6)) * 60.0 + float(exifcameramatch.group(7)) ) / 3600.0 , 6)
+            if exifcameramatch.group(4)=='S':
+                lat_dec = -lat_dec
+            if exifcameramatch.group(8)=='W':
+                lon_dec = -lon_dec
+            coordinateText = '%s %s' % (lat_dec, lon_dec, )
+            if exifcameramatch.group(10) and not exifcameramatch.group(10) == '?':
+                heading = exifcameramatch.group(10)
 
-        if cameramatch:
-            coordinateText = u'%s %s' % (cameramatch.group('lat'), cameramatch.group('lon'), )
-
+        if coordinateText:
             request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
             try:
                 data = request.submit()
@@ -928,19 +945,22 @@ class OwnWorkBot:
                        'type': 'statement',
                        'rank': 'normal',
                        }
-            # FIXME: Wrong approach, try to make a float and if it doesn't fail, use it
-            if cameramatch.group('heading') and cameramatch.group('heading').lstrip('0'):
-                toclaim['qualifiers'] = {'P7787' : [ {'snaktype': 'value',
-                                                      'property': 'P7787',
-                                                      'datavalue': { 'value': { 'amount': '+%s' % (cameramatch.group('heading').lstrip('0'),),
-                                                                                #'unit' : '1',
-                                                                                'unit' : 'http://www.wikidata.org/entity/Q28390',
-                                                                                },
-                                                                     'type' : 'quantity',
-                                                                     },
-                                                      },
-                                                     ],
-                                         }
+            if heading:
+                try:
+                    toclaim['qualifiers'] = {'P7787' : [ {'snaktype': 'value',
+                                                          'property': 'P7787',
+                                                          'datavalue': { 'value': { 'amount': '+%s' % (float(heading),),
+                                                                                    #'unit' : '1',
+                                                                                    'unit' : 'http://www.wikidata.org/entity/Q28390',
+                                                                                    },
+                                                                         'type' : 'quantity',
+                                                                         },
+                                                          },
+                                                         ],
+                                             }
+                except ValueError:
+                    # Weird heading
+                    pass
             return [toclaim,]
 
     def handleObjectCoordinates(self, mediaid, currentdata, filepage):
@@ -1000,7 +1020,7 @@ class OwnWorkBot:
             if not filepage.latest_file_info.metadata:
                 return False
             metadata = filepage.latest_file_info.metadata
-        except pywikibot.exceptions.PageRelatedError:
+        except (pywikibot.exceptions.PageRelatedError, AttributeError):
             pywikibot.output('No file on %s, skipping' % (filepage.title(),))
             return False
 
