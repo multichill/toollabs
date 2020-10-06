@@ -64,6 +64,7 @@ class OwnWorkBot:
         # FIXME: Do query later
         result = { 'attribution only license' : 'Q98923445',
                    'attribution' : 'Q98923445',
+                   'bild-by' : 'Q98923445',
                    'bsd' : 'Q191307', # One template and tracker category for multiple versions
                    'cc-zero' : 'Q6938433',
                    'cc0' : 'Q6938433',
@@ -277,6 +278,7 @@ class OwnWorkBot:
                    'cc-sa' : 'Q75209430',
                    'cecill' : 'Q1052189',
                    'copyrighted free use' : 'Q99578078',
+                   'copyrightedfreeuse' : 'Q99578078',
                    'fal' : 'Q152332',
                    'flickr-no known copyright restrictions' : 'Q99263261',
                    'gfdl' : 'Q50829104',
@@ -302,6 +304,10 @@ class OwnWorkBot:
                    'lgplv2.1+' : 'Q27016757',
                    'lgpl' : 'Q27016757',
                    'lgplv3' : 'Q27016762',
+                   'godl-india' : 'Q99891295',
+                   'ogl' : 'Q99891660',
+                   'ogl2' : 'Q99891692',
+                   'ogl3' : 'Q99891702',
                    'pd-author' : 'Q98592850',
                    'pd-self' : 'Q98592850', #  released into the public domain by the copyright holder (Q98592850)
                    'pd-user' : 'Q98592850',
@@ -832,7 +838,7 @@ class OwnWorkBot:
                 # Check if current or new licenses are a public domain dedication license like CC0
                 if (set(currentlicenses) | set(licenses) ) & set(self.pubDedication):
                     result.extend(self.addClaimJson(mediaid, u'P6216', u'Q88088423'))
-                if 'Q99263261' in (set(currentlicenses) | set(licenses) ):
+                elif 'Q99263261' in (set(currentlicenses) | set(licenses) ):
                     # Flickr no known copyright restrictions junk
                     result.extend(self.addClaimJson(mediaid, u'P6216', u'Q99263261'))
                 else:
