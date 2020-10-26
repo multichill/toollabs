@@ -331,6 +331,8 @@ class OwnWorkBot:
                    'pd-user-at-project' : 'Q98592850',
                    'pd-user-w' : 'Q98592850',
                    'pd-retouched-user' : 'Q98592850',
+                   'pdmark-owner' : 'Q98592850', # Idiots
+                   'cc-pd' : 'Q98592850', # More crap
                    'wtfpl' : 'Q152481',
                    }
         return result
