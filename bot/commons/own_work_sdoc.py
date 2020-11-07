@@ -41,7 +41,8 @@ class OwnWorkBot:
         self.validLicenses = self.getLicenseTemplates()
         self.pubDedication = ['Q6938433',
                               'Q98592850',
-                              'Q152481'
+                              'Q152481',
+                              'Q10249'
                               ]
         self.participantTemplates = self.getParticipantTemplates()
         self.sponsorTemplates = self.getSponsorTemplates()
@@ -66,9 +67,11 @@ class OwnWorkBot:
                    'attribution' : 'Q98923445',
                    'bild-by' : 'Q98923445',
                    'bsd' : 'Q191307', # One template and tracker category for multiple versions
+                   'beerware' : 'Q10249',
                    'cc-zero' : 'Q6938433',
                    'cc0' : 'Q6938433',
                    'cc-0' : 'Q6938433',
+                   'careware' : 'Q6938433',
                    'cc-by-1.0' : 'Q30942811',
                    'cc-by-1.0-fi' : 'Q75446635',
                    'cc-by-1.0-il' : 'Q75446609',
@@ -242,6 +245,7 @@ class OwnWorkBot:
                    'cc-by-sa-3.0-cr' : 'Q99458659',
                    'cc-by-sa-3.0-cz' : 'Q98755321',
                    'cc-by-sa-3.0-de' : 'Q42716613',
+                   'bild-cc-by-sa/3.0/de' : 'Q42716613',
                    'cc-by-sa-3.0-ec' : 'Q99458819',
                    'cc-by-sa-3.0-ee' : 'Q86239559',
                    'cc-by-sa-3.0-es' : 'Q86239991',
@@ -272,6 +276,7 @@ class OwnWorkBot:
                    'cc-by-sa-3.0-za' : 'Q99460515',
                    'cc-by-sa 4.0' : 'Q18199165',
                    'cc-by-sa-4.0' : 'Q18199165',
+                   'cc by-sa 4.0' : 'Q18199165',
                    'cc-by-sa-4.0,3.0,2.5,2.0,1.0' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
                    'cc-by-sa-all' : ['Q18199165', 'Q14946043', 'Q19113751', 'Q19068220', 'Q47001652'],
                    'cc-sa-1.0' : 'Q75209430',
@@ -299,6 +304,7 @@ class OwnWorkBot:
                    'gfdl-user-w' : 'Q50829104',
                    'gfdl-1.2' : 'Q26921686',
                    'gfdl 1.2' : 'Q26921686',
+                   'gfdl-1.2-en' : 'Q26921686',
                    'gfdl 1.2 or cc-by-nc-2.0' : 'Q26921686',
                    'cc-by-nc-2.0-dual' : 'Q26921686',
                    'gfdl 1.2 or cc-by-nc-3.0' : 'Q26921686',
@@ -306,6 +312,7 @@ class OwnWorkBot:
                    'gfdl-1.3' : 'Q27019786',
                    'gfdl 1.3' : 'Q27019786',
                    'gfdl-1.3-only' : 'Q26921691',
+                   'gfdl-1.1,1.2,1.3' : ['Q26921685', 'Q26921686', 'Q26921691'],
                    'gplv2 only' : 'Q10513450',
                    'gplv2' : 'Q10513450',
                    'gplv2+' : 'Q27016752',
@@ -679,7 +686,7 @@ class OwnWorkBot:
             if not currentdata.get('statements') or not currentdata.get('statements').get('P170'):
                 authordpid = authordpids.get(operator)
                 authorid = authorfound.get(operator).get('id')
-                authorname = authorfound.get(operator).get('authorname')
+                authorname = authorfound.get(operator).get('authorname').strip()
                 authorurl = authorfound.get(operator).get('url')
                 authorclaim = {'mainsnak': { 'snaktype':'somevalue',
                                              'property': 'P170',
