@@ -17,7 +17,7 @@ import csv
 import string
 from html.parser import HTMLParser
 
-class DaliPaintingDataBot(artdatabot.ArtDataBot):
+class MondrianArtDataBot(artdatabot.ArtDataBot):
     """
     Subclass of ArtDataBot because that one has logic completely based on collections
     """
@@ -32,7 +32,7 @@ class DaliPaintingDataBot(artdatabot.ArtDataBot):
         self.repo = pywikibot.Site().data_repository()
         self.create = create
 
-        self.idProperty = 'P6595'
+        self.idProperty = 'P350'
         self.artworkIds = self.fillCache()
 
     def fillCache(self):
@@ -40,7 +40,10 @@ class DaliPaintingDataBot(artdatabot.ArtDataBot):
         Build an ID cache so we can quickly look up the id's for property
         """
         result = {}
-        query = """SELECT ?item ?id WHERE { ?item wdt:P6595 ?id }"""
+        query = """SELECT ?item ?id WHERE {
+  ?item p:P170/ps:P170 wd:Q151803;
+    wdt:P350 ?id.
+}"""
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
@@ -113,8 +116,8 @@ class DaliPaintingDataBot(artdatabot.ArtDataBot):
 
         artworkItemTitle = result.get(u'entity').get('id')
 
-        # Make a backup to the Wayback Machine when we have to wait anyway
-        self.doWaybackup(metadata)
+        ## Make a backup to the Wayback Machine when we have to wait anyway
+        #self.doWaybackup(metadata)
 
         # Wikidata is sometimes lagging. Wait for additional 5 seconds before trying to actually use the item
         time.sleep(5)
@@ -265,35 +268,118 @@ def getMondrianCatalogArtworkGenerator():
 
 
         for itemurlmatch in longitemurlmatches:
-            longrkdid.append(itemurlmatch.group('id'))
+            rkdid = itemurlmatch.group('id')
+            longrkdid.append(rkdid)
             metadata = {}
             metadata['instanceofqid'] = 'Q838948' # Artwork, will overwrite
             metadata['creatorname'] = 'Piet Mondrian'
             metadata['creatorqid'] = 'Q151803'
             metadata['artworkidpid'] = metadata['idpid'] = 'P350'
-            metadata['artworkid'] = metadata['id'] = '%s' % (itemurlmatch.group('id'),)
-            metadata['url'] = 'https://rkd.nl/explore/images/%s' % (itemurlmatch.group('id'),)
-            metadata['refurl'] = '%s/#%s' % (pageurl, itemurlmatch.group('id'))
+            metadata['artworkid'] = metadata['id'] = '%s' % (rkdid,)
+            metadata['url'] = 'https://rkd.nl/explore/images/%s' % (rkdid,)
+            metadata['refurl'] = '%s/#%s' % (pageurl, rkdid)
 
             artist = htmlparser.unescape(itemurlmatch.group('artist')).strip().replace('\xa0', ' ').replace('\n', '').replace('\t', '').replace('   ', ' ')
             title = htmlparser.unescape(itemurlmatch.group('title')).strip().replace('\n', '').replace('\t', '').replace('   ', ' ')
-            metadata['title'] = title
+            metadata['mmtitle'] = title
+            metadata['title'] = { 'en' : title, }
             date = htmlparser.unescape(itemurlmatch.group('date')).strip().replace('\n', '').replace('\t', '').replace('   ', ' ')
+            metadata['date'] = date
+
+            # TODO: Add date logic here
+            # Try to extract the date
+            dateregex = '^(dated\s*)?(?P<date>\d\d\d\d)$'
+            datecircaregex = '^c\.\s*(\d\d\d\d)$'
+            periodregex = '^(\d\d\d\d)-(\d\d\d\d)$'
+            circaperiodregex = '^c\.\s*(\d\d\d\d)-(\d\d\d\d)$'
+
+            datematch = re.match(dateregex, metadata.get('date'))
+            datecircamatch = re.match(datecircaregex, metadata.get('date'))
+            periodmatch = re.match(periodregex, metadata.get('date'))
+            circaperiodmatch = re.match(circaperiodregex, metadata.get('date'))
+
+            if datematch:
+                metadata['inception'] = int(datematch.group('date'))
+            elif datecircamatch:
+                metadata['inception'] = int(datecircamatch.group(1))
+                metadata['inceptioncirca'] = True
+            elif periodmatch:
+                metadata['inceptionstart'] = int(periodmatch.group(1),)
+                metadata['inceptionend'] = int(periodmatch.group(2),)
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
+                metadata['inceptionend'] = int(circaperiodmatch.group(2),)
+                metadata['inceptioncirca'] = True
+            else:
+                print (u'Could not parse date: "%s"' % (metadata.get('date'),))
+
             medium = htmlparser.unescape(itemurlmatch.group('medium')).strip().replace('\xa0', ' ').replace('\n', '').replace('\t', '').replace('   ', ' ')
 
             if 'oil' in medium and 'canvas' in medium:
                 metadata['instanceofqid'] = 'Q3305213'
+                metadata['medium'] = 'oil on canvas'
+
+            rkdapipage = session.get('https://api.rkd.nl/api/record/images/%s?format=json' % (rkdid,))
+            rkddata = rkdapipage.json()
+
+            objectcategorie = rkddata.get('response').get('docs')[0].get('objectcategorie')[0]
+            #import json
+            #print (json.dumps(rkddata.get('response').get('docs')[0], indent = 2, separators=(',', ': '), sort_keys=True))
+
+            print (objectcategorie)
+
+            cats = { 'schilderij' : 'Q3305213',
+                     'tekening' : 'Q93184',
+                     'prent' : 'Q11060274',
+                     'aquarel (schildering)' : 'Q18761202',
+                     'olieverfschets' : 'Q3305213',
+                     }
+            if objectcategorie in cats:
+                metadata['instanceofqid'] = cats.get(objectcategorie)
+
+            if metadata.get('instanceofqid') == 'Q3305213':
+                metadata['description'] = { 'ca' : 'pintura de Piet Mondrian',
+                                            'en' : 'painting by Piet Mondrian',
+                                            'es' : 'pintura de Piet Mondrian',
+                                            'de' : 'Gemälde von Piet Mondrian',
+                                            'fr' : 'peinture de Piet Mondrian',
+                                            'nl' : 'schilderij van Piet Mondriaan',
+                                            }
+            elif metadata.get('instanceofqid') == 'Q93184':
+                metadata['description'] = { 'en' : 'drawing by Piet Mondrian',
+                                            'nl' : 'tekening van Piet Mondriaan',
+                                            }
+            elif metadata.get('instanceofqid') == 'Q11060274':
+                metadata['description'] = { 'en' : 'print by Piet Mondrian',
+                                            'nl' : 'prent van Piet Mondriaan',
+                                            }
+            elif metadata.get('instanceofqid') == 'Q18761202':
+                metadata['description'] = { 'en' : 'watercolor painting by Piet Mondrian',
+                                            'nl' : 'aquarel van Piet Mondriaan',
+                                            }
 
             mmdescription = '%s / %s' % (artist, date)
 
             if itemurlmatch.group('provenance'):
                 provenance = htmlparser.unescape(itemurlmatch.group('provenance')).strip().replace('\xa0', ' ').replace('\n', '').replace('\t', '').replace('   ', ' ')
                 mmdescription += ' / %s' % (provenance,)
+
+                if provenance.lower().startswith('private collection'):
+                    metadata['collectionqid'] = 'Q768717'
+                elif provenance.startswith('Kunstmuseum Den Haag'):
+                    metadata['collectionqid'] = metadata['locationqid'] ='Q1499958'
+                elif provenance.startswith('Stedelijk Museum Amsterdam'):
+                    metadata['collectionqid'] = metadata['locationqid'] = 'Q924335'
+                elif provenance.startswith('Solomon R. Guggenheim Museum'):
+                    metadata['collectionqid'] = metadata['locationqid'] = 'Q201469'
+
             catalogcode = htmlparser.unescape(itemurlmatch.group('catalogcode')).strip()
+
+            metadata['catalogcode'] = catalogcode
+            metadata['catalogqid'] = 'Q50383647'
 
             mmdescription += ' / %s/ %s' % (medium,catalogcode,)
             metadata['mmdescription'] = mmdescription
-
 
             #mmdescription = '%s : %s / %s / %s / %s' % (artist, title, date, medium, catalogcode)
 
@@ -309,128 +395,6 @@ def getMondrianCatalogArtworkGenerator():
 
     return
 
-    urlpattern = 'https://www.salvador-dali.org/en/artwork/catalogue-raisonne-paintings/obra/%s/'
-    caurlpattern = 'https://www.salvador-dali.org/en/artwork/catalogue-raisonne-paintings/obra/%s/'
-    esurlpattern = 'https://www.salvador-dali.org/en/artwork/catalogue-raisonne-paintings/obra/%s/'
-    frurlpattern = 'https://www.salvador-dali.org/en/artwork/catalogue-raisonne-paintings/obra/%s/'
-
-
-    collections =  { 'Fundació Gala-Salvador Dalí, Figueres. Dalí bequest' : 'Q1143722',
-                     'Fundació Gala-Salvador Dalí, Figueres' : 'Q1143722',
-                     'Museo Nacional Centro de Arte Reina Sofía, Madrid. Dalí bequest' : 'Q460889',
-                     'Museo Nacional Centro de Arte Reina Sofía, Madrid' : 'Q460889',
-                     'The Dali Museum, St. Petersburg (Florida)' : 'Q674427',
-                     }
-
-
-    for i in range(760,1220):
-        metadata = {}
-        metadata['instanceofqid'] = 'Q3305213'
-        metadata['creatorname'] = 'Salvador Dalí'
-        metadata['creatorqid'] = 'Q5577'
-        metadata['artworkidpid'] = metadata['idpid'] = 'P6595'
-        metadata['artworkid'] = metadata['id'] = '%s' % (i,)
-
-        metadata['catalogcode'] = 'P %s' % (i,)
-        metadata['catalogqid'] = 'Q24009539'
-
-        url = urlpattern % (i,)
-        metadata['url'] = url
-        page = session.get(url)
-        if page.status_code == 404:
-            # Ok, that one didn't exist
-            print('No painting found for %s at %s' % (i, url))
-            continue
-
-        refurlregex = '\<link rel\=\"canonical\" href\="(%s[^\"]*)\" \/\>' % (url,)
-        refurlmatch = re.search(refurlregex, page.text)
-        metadata['refurl'] = refurlmatch.group(1)
-
-        titleregex = '\<title\>([^\|]+)\s*\| Fundació Gala - Salvador Dalí\<\/title\>'
-        titlematch = re.search(titleregex, page.text)
-        metadata['title'] = { 'en' :htmlparser.unescape(titlematch.group(1)).strip(), }
-
-        # TODO: Add title in the other languages too
-
-        dateregex = '\<dt\>Date\:\<\/dt\>[\s\r\n\t]*\<dd\>\<a href\=\"[^\"]*\"\>([^\<]+)\<\/a\>\<\/dd\>'
-        datematch = re.search(dateregex, page.text)
-        metadata['date'] = htmlparser.unescape(datematch.group(1)).strip()
-
-        # TODO: Add date logic here
-        # Try to extract the date
-        dateregex = '^(\d\d\d\d)$'
-        datecircaregex = '^c\.\s*(\d\d\d\d)$'
-        periodregex = '^(\d\d\d\d)-(\d\d\d\d)$'
-
-        datematch = re.match(dateregex, metadata.get('date'))
-        datecircamatch = re.match(datecircaregex, metadata.get('date'))
-        periodmatch = re.match(periodregex, metadata.get('date'))
-
-        if datematch:
-            metadata['inception'] = int(datematch.group(1))
-        elif datecircamatch:
-            metadata['inception'] = int(datecircamatch.group(1))
-            metadata['inceptioncirca'] = True
-        elif periodmatch:
-            metadata['inceptionstart'] = int(periodmatch.group(1),)
-            metadata['inceptionend'] = int(periodmatch.group(2),)
-        else:
-            print (u'Could not parse date: "%s"' % (metadata.get('date'),))
-
-
-
-        mediumregex = '\<dt\>Technique\:\<\/dt\>[\s\r\n\t]*\<dd\>([^\<]+)\<\/dd\>'
-        mediummatch = re.search(mediumregex, page.text)
-        metadata['medium'] = htmlparser.unescape(mediummatch.group(1)).strip().lower()
-
-        dimensionregex = '\<dt\>Dimensions\:\<\/dt\>[\s\r\n\t]*\<dd\>([^\<]+)\<'
-        dimensionmatch = re.search(dimensionregex, page.text)
-        if dimensionmatch:
-            metadata['dimension'] = htmlparser.unescape(dimensionmatch.group(1)).strip()
-
-            regex_2d = '^(?P<height>\d+(\.\d+)?) x (?P<width>\d+(\.\d+)?) cm$'
-            match_2d = re.match(regex_2d, metadata.get('dimension'))
-            if match_2d:
-                metadata['heightcm'] = match_2d.group('height').replace(',', '.')
-                metadata['widthcm'] = match_2d.group('width').replace(',', '.')
-
-        locationregex = '\<dt\>Location\:\<\/dt\>[\s\r\n\t]*\<dd\>\<a href\=\"[^\"]*\"\>([^\<]+)\<\/a\>\<\/dd\>'
-        locationmatch = re.search(locationregex, page.text)
-        if locationmatch:
-            metadata['location'] = htmlparser.unescape(locationmatch.group(1)).strip()
-            metadata['collectionshort'] = metadata.get('location')
-
-            if metadata.get('location').startswith('Private collection'):
-                metadata['collectionqid'] = 'Q768717'
-            elif metadata.get('location') in collections:
-                metadata['collectionqid'] = collections.get(metadata.get('location'))
-                metadata['locationqid'] = collections.get(metadata.get('location'))
-
-        # Build the description
-        if metadata.get('collectionqid'):
-            metadata['description'] = { 'ca' : 'pintura de Salvador Dalí',
-                                        'en' : 'painting by Salvador Dalí',
-                                        'es' : 'pintura de Salvador Dalí',
-                                        'de' : 'Gemälde von Salvador Dalí',
-                                        'fr' : 'peinture de Salvador Dalí',
-                                        'nl' : 'schilderij van Salvador Dalí',
-                                        }
-        else:
-            metadata['description'] = { 'ca' : 'pintura de Salvador Dalí',
-                                        'en' : 'painting by Salvador Dalí (%s)' % (metadata.get('location')),
-                                        'es' : 'pintura de Salvador Dalí',
-                                        'de' : 'Gemälde von Salvador Dalí',
-                                        'fr' : 'peinture de Salvador Dalí',
-                                        'nl' : 'schilderij van Salvador Dalí',
-                                        }
-
-
-        metadata['mmdescription'] = 'Date: %s Technique: %s Dimensions: %s Location: %s' % (metadata.get('date'),
-                                                                                            metadata.get('medium'),
-                                                                                            metadata.get('dimension'),
-                                                                                            metadata.get('location'),)
-        yield metadata
-
 
 def main():
     #repo = pywikibot.Site().data_repository()
@@ -439,9 +403,9 @@ def main():
     #for artwork in artworkGenerator:
     #    print(artwork)
 
-    #artDataBot = DaliPaintingDataBot(paintingGenerator, create=True)
-    #artDataBot.run()
-
+    artDataBot = MondrianArtDataBot(artworkGenerator, create=True)
+    artDataBot.run()
+    """
     with open('/tmp/mondriaan_cat_rkdimages.tsv', 'w') as tsvfile:
         fieldnames = [u'Entry ID', # (your alphanumeric identifier; must be unique within the catalog)
                       u'Entry name', # (will also be used for the search in mix'n'match later)
@@ -458,13 +422,13 @@ def main():
         for painting in artworkGenerator:
             print (painting)
             paintingdict = {'Entry ID' : painting['id'],
-                            'Entry name' : painting['title'],
+                            'Entry name' : painting['mmtitle'],
                             'Entry description' : painting['mmdescription'],
                             'Entry type' : painting['instanceofqid'],
                             'Entry URL': painting['url'],
                             }
             writer.writerow(paintingdict)
-
+    """
 
 if __name__ == "__main__":
     main()
