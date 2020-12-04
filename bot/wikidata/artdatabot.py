@@ -755,10 +755,13 @@ class ArtDataBot:
         """
         claims = item.get().get('claims')
 
-        if metadata.get(u'artworkidpid'):
-            if metadata.get(u'artworkidpid') not in claims:
-                newclaim = pywikibot.Claim(self.repo, metadata.get(u'artworkidpid') )
-                newclaim.setTarget(metadata[u'artworkid'])
+        if metadata.get('artworkidpid'):
+            if metadata.get('artworkidpid') == metadata.get('idpid'):
+                # It's the lookup key so should always be set already. Prevents duplicates at creation
+                return
+            if metadata.get('artworkidpid') not in claims:
+                newclaim = pywikibot.Claim(self.repo, metadata.get('artworkidpid') )
+                newclaim.setTarget(metadata['artworkid'])
                 pywikibot.output('Adding artwork id claim to %s' % item)
                 item.addClaim(newclaim)
         # Described at url
