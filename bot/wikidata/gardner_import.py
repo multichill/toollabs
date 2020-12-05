@@ -29,7 +29,6 @@ def getGardnerGenerator():
         print (searchurl)
         searchPage = requests.get(searchurl)
 
-        #workurlregex = '\<h3 class\=\"piece__title\"\>[\r\n\s\t]*\<a href\=\"\/experience\/collection\/(\d+)\"\>'
         workurlregex = '\<h4 class\=\"piece__pre-title\"\>[\r\n\s\t]*([^\<]+)[\r\n\s\t]*\<\/h4\>[\r\n\s\t]*\<h3 class\=\"piece__title\"\>[\r\n\s\t]*\<a href\=\"\/experience\/collection\/(\d+)\"\>'
         matches = re.finditer(workurlregex, searchPage.text)
 
@@ -48,17 +47,10 @@ def getGardnerGenerator():
 
             #No need to check, I'm actually searching for paintings.
             metadata['instanceofqid'] = 'Q3305213'
-
             metadata['idpid'] = u'P217'
-
 
             invregex = '\<h2\>Accession number\<\/h2\>[\r\n\s\t]*\<p\>([^\<]+)\<\/p\>'
             invmatch = re.search(invregex, itempage.text)
-            #if not invmatch:
-            #    # Some pages are empty ( https://emuseum.ringling.org/emuseum/objects/21096/evening-street )
-            #    print (u'No inventory number found')
-            #    continue
-            # Not sure if I need to replace space here
             metadata['id'] = htmlparser.unescape(invmatch.group(1)).strip()
 
             titleregex = '\<meta property\=\"og\:title\" content\=\"([^\"]+)\"\s*\/\>'
@@ -71,10 +63,6 @@ def getGardnerGenerator():
                 title = title[0:200]
             metadata['title'] = { u'en' : title,
                                   }
-
-            #creatorregex = '\<h3 class\=\"title-card__pre-title\"\>\s*([^\<]+)\s*\<\/h3\>'
-            #creatormatch = re.search(creatorregex, itempage.text)
-            #creatorname = htmlparser.unescape(creatormatch.group(1)).strip()
 
             metadata['creatorname'] = creatorname
             metadata['description'] = { 'nl' : '%s van %s' % ('schilderij', metadata.get('creatorname'),),
@@ -121,11 +109,6 @@ def getGardnerGenerator():
                 metadata['inceptioncirca'] = True
             elif otherdatematch:
                 print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
-                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
-                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
-                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
-                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
-                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
 
             ## Credit line is too difficult to parse
             #acquisitiondateregex = u'\<div class\=\"detailField creditlineField\"\>\<span class\=\"detailFieldLabel\"\>Credit Line\:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>[^\<]+ (\d\d\d\d)\<\/span\>\<\/div\>'
@@ -136,26 +119,26 @@ def getGardnerGenerator():
             mediumregex = '\<div class\=\"title-card__content-block\"\>[\r\n\s\t]+\<div class\=\"title-card__text\"\>[\r\n\s\t]+\<p\>Oil on canvas,'
             mediummatch = re.search(mediumregex, itempage.text)
             if mediummatch:
-                metadata['medium'] = u'oil on canvas'
+                metadata['medium'] = 'oil on canvas'
 
             ## Dimensions are messy and in inches + cm
-            # measurementsregex = u'\<div class\=\"detailField dimensionsField\"\>\<span class\=\"detailFieldLabel\"\>Dimensions\:\<\/span\>\<span class\="detailFieldValue"><div>31 x 41 1/4 in. (78.7 x 104.8 cm)</div>'
-            #measurementsmatch = re.search(measurementsregex, itempage.text)
-            #if measurementsmatch:
-            #    measurementstext = measurementsmatch.group(1)
-            #    regex_2d = u'^(?P<height>\d+(\.\d+)?)\s*×\s*(?P<width>\d+(\.\d+)?)\s*cm$'
-            #    match_2d = re.match(regex_2d, measurementstext)
-            #    if match_2d:
-            #        metadata['heightcm'] = match_2d.group(u'height').replace(u',', u'.')
-            #        metadata['widthcm'] = match_2d.group(u'width').replace(u',', u'.')
+            measurementsregex = '\<div class\=\"title-card__content-block\"\>[\r\n\s\t]+\<div class\=\"title-card__text\"\>[\r\n\s\t]+\<p\>[^,]+,\s*([^\<]+cm)'
+            measurementsmatch = re.search(measurementsregex, itempage.text)
+            if measurementsmatch:
+                measurementstext = measurementsmatch.group(1)
+                regex_2d = '^(?P<height>\d+(\.\d+)?)\s*[×x]\s*(?P<width>\d+(\.\d+)?)\s*cm$'
+                match_2d = re.match(regex_2d, measurementstext)
+                if match_2d:
+                    metadata['heightcm'] = match_2d.group('height').replace(',', '.')
+                    metadata['widthcm'] = match_2d.group('width').replace(',', '.')
 
             # They provide images under cc-by-nc-4.0. Good enough for me. Just take the first one
-            imageregex = '\<a class\=\"header-thumbnail-carousel__item has-background-image\" href\=\"(https\:\/\/www\.gardnermuseum\.org\/sites\/default\/files\/images\/art\/\d+\.jpg)\" target=\"_blank\"\>'
-            imagematch = re.search(imageregex, itempage.text)
+            imageregex = '\<a class\=\"header-thumbnail-carousel__item has-background-image\" href\=\"(https\:\/\/www\.gardnermuseum\.org\/sites\/default\/files\/images\/art\/[^\"]+\.jpg)\" target=\"_blank\"\>'
+            imagematch = re.search(imageregex, itempage.text, re.IGNORECASE)
             if imagematch:
                 metadata['imageurl'] = imagematch.group(1)
                 metadata['imageurlformat'] = 'Q2195' #JPEG
-            #    metadata['imageurllicense'] = u'Q18199165' # cc-by-sa.40
+            #    metadata['imageurllicense'] = 'Q18199165' # cc-by-sa.40
                 metadata['imageoperatedby'] = 'Q49135'
                 # Used this to add suggestions everywhere
                 metadata['imageurlforce'] = True
