@@ -15,7 +15,7 @@ import re
 import time
 from html.parser import HTMLParser
 
-def getRinglingGenerator():
+def getReadingGenerator():
     """
     Generator to return Reading paintings
     """
@@ -47,20 +47,12 @@ def getRinglingGenerator():
 
             #No need to check, I'm actually searching for paintings.
             metadata['instanceofqid'] = 'Q3305213'
-
             metadata['idpid'] = 'P217'
-
 
             invregex = u'\<div class\=\"detailField invnoField\"\>\<span class\=\"detailFieldLabel\"\>Object number\:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>\<\/div\>'
             invmatch = re.search(invregex, itempage.text)
-            #if not invmatch:
-            #    # Some pages are empty ( https://emuseum.ringling.org/emuseum/objects/21096/evening-street )
-            #    print (u'No inventory number found')
-            #    continue
             # Not sure if I need to replace space here
             metadata['id'] = htmlparser.unescape(invmatch.group(1).replace('&nbsp;', ' ')).strip()
-
-
 
             titleregex = u'\<meta content\=\"([^\"]+)\" name\=\"og\:title\"\>'
             titlematch = re.search(titleregex, itempage.text)
@@ -105,8 +97,6 @@ def getRinglingGenerator():
                                             'de' : '%s von %s' % ('Gemälde', metadata.get('creatorname'), ),
                                             'fr' : '%s de %s' % ('peinture', metadata.get('creatorname'), ),
                                             }
-
-
 
             # Let's see if we can extract some dates. Date in meta fields is provided
             dateregex = '\<meta content\=\"(\d\d\d\d)\" property\=\"schema\:dateCreated\" itemprop\=\"dateCreated\"\>'
@@ -205,7 +195,7 @@ def getRinglingGenerator():
 
 
 def main():
-    dictGen = getRinglingGenerator()
+    dictGen = getReadingGenerator()
 
     #for painting in dictGen:
     #    print (painting)
