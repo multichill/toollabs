@@ -28,8 +28,8 @@ def getCrystalBridgesGenerator():
     session.get('https://collection.crystalbridges.org/collections')
     session.get('https://collection.crystalbridges.org/advancedsearch')
 
-    # 456 hits, 24 per page.
-    for i in range(1, 20):
+    # 456 hits, 10 per page.
+    for i in range(0, 48):
         searchurl = basesearchurl % (i,)
 
         print (searchurl)
