@@ -39,7 +39,7 @@ class WebUmeniaArtistsImporterBot:
         yields the json as returned by the Elasticsearch API
         """
 
-        baseSearchUrl = u'http://api.webumenia.sk/authorities/_search?q=role:maliar&from=%s&size=%s'
+        baseSearchUrl = 'https://www.webumenia.sk/api/authorities_sk/_search?q=role:maliar&from=%s&size=%s'
         size = 100
         i = 0
         session = requests.Session()
@@ -123,14 +123,16 @@ class WebUmeniaArtistsImporterBot:
 
         print (data)
 
-        summary = u'Creating item based on https://www.webumenia.sk/autor/%s' % (itemjson.get(u'identifier'),)
+        webumeniaid = '%s' % (itemjson.get('identifier'),)
+
+        summary = 'Creating item based on https://www.webumenia.sk/autor/%s' % (webumeniaid,)
 
         identification = {}
         pywikibot.output(summary)
 
         # No need for duplicate checking
         result = self.repo.editEntity(identification, data, summary=summary)
-        artistTitle = result.get(u'entity').get('id')
+        artistTitle = result.get('entity').get('id')
 
         # Wikidata is sometimes lagging. Wait for 10 seconds before trying to actually use the item
         time.sleep(10)
@@ -138,7 +140,7 @@ class WebUmeniaArtistsImporterBot:
         artistItem = pywikibot.ItemPage(self.repo, title=artistTitle)
 
         # Add to self.artworkIds so that we don't create dupes
-        self.webumeniaArtists[itemjson.get(u'identifier')]=artistTitle
+        self.webumeniaArtists[webumeniaid]=artistTitle
 
         # Add human
         humanitem = pywikibot.ItemPage(self.repo,u'Q5')
@@ -148,7 +150,7 @@ class WebUmeniaArtistsImporterBot:
 
         # Add the id to the item so we can get back to it later
         newclaim = pywikibot.Claim(self.repo, u'P4887')
-        newclaim.setTarget(itemjson.get(u'identifier'))
+        newclaim.setTarget(webumeniaid)
         pywikibot.output('Adding new Webumenia creator ID claim to %s' % artistItem)
         artistItem.addClaim(newclaim)
 
@@ -281,9 +283,9 @@ class WebUmeniaArtistsImporterBot:
             self.addReference(artistItem, newclaim, refurl)
 
     def addItemStatement(self, item, pid, qid):
-        '''
+        """
         Helper function to add a statement
-        '''
+        """
         if not qid:
             return False
 
