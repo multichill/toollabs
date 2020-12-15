@@ -13,6 +13,7 @@ import artdatabot
 import pywikibot
 import requests
 import re
+import json
 
 def getRijksmuseumGenerator():
     """
@@ -34,12 +35,16 @@ def getRijksmuseumGenerator():
         for searchrecord in searchJson.get('artObjects'):
             metadata = {}
             itemurl = searchrecord.get('links').get('self') + appendurl % (apikey,)
-            url =  searchrecord.get('links').get('web')
+            url =  searchrecord.get('links').get('web').replace(u'http:', u'https:')
 
             metadata['url'] = url
-
             itempage = requests.get(itemurl)
-            itemjson = itempage.json()
+            try:
+                itemjson = itempage.json()
+            except json.decoder.JSONDecodeError:
+                print (u'No JSON found on %s'  %(itemurl,))
+                continue
+
             record = itemjson.get('artObject')
 
             metadata['collectionqid'] = u'Q190804'
@@ -98,16 +103,20 @@ def getRijksmuseumGenerator():
             if record.get('dating') and \
                 record.get('dating').get('sortingDate'):
                 proddate = record.get('dating').get('sortingDate')
-                if proddate == record.get('dating').get('yearEarly') == record.get('dating').get('yearLate'):
-                    metadata['inception'] = proddate
-                else:
-                    if 1000 < record.get('dating').get('yearEarly') < 2500 and \
-                                            1000 < record.get('dating').get('yearLate') < 2500:
-                        metadata['inceptionstart'] = record.get('dating').get('yearEarly')
-                        metadata['inceptionend'] = record.get('dating').get('yearLate')
+                if record.get('dating').get('yearEarly') and record.get('dating').get('yearLate'):
+                    if proddate == record.get('dating').get('yearEarly') == record.get('dating').get('yearLate'):
+                        metadata['inception'] = proddate
+                    else:
+                        if 1000 < record.get('dating').get('yearEarly') < 2500 and \
+                                                1000 < record.get('dating').get('yearLate') < 2500:
+                            metadata['inceptionstart'] = record.get('dating').get('yearEarly')
+                            metadata['inceptionend'] = record.get('dating').get('yearLate')
+                elif record.get('dating').get('yearEarly') and proddate == record.get('dating').get('yearEarly'):
+                    if record.get('dating').get('yearEarly')=='ca. %s' % (proddate,):
+                        metadata['inception'] = proddate
+                        metadata['inceptioncirca'] = True
 
             # Provenance.
-            # TODO: Test and update artdatabot to actually use it.
             if record.get('acquisition'):
                 if record.get('acquisition').get('date'):
                     # This is not going to work yet. Artdatabot only understands years
@@ -145,6 +154,7 @@ def getRijksmuseumGenerator():
                 imageurl = record.get(u'webImage').get(u'url')
                 metadata[u'imageurl'] = imageurl
                 metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                metadata['imageoperatedby'] = 'Q190804'
             yield metadata
     return
     
