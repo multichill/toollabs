@@ -26,7 +26,7 @@ def getNPGAGenerator():
     persons = npgPersonsOnWikidata()
 
     # 536 hits, 12 per page.
-    for i in range(37, 552, 12):
+    for i in range(1, 552, 12):
         searchurl = basesearchurl % (i,)
 
         print (searchurl)
@@ -56,7 +56,8 @@ def getNPGAGenerator():
 
             titlelinknameregex = '\<h1\s*\>([^\<]+)\<\/h1\>[\r\n\s\t]*\<h2\s*\>[\r\n\s\t]*<span style\=\"white-space\:nowrap;\"\>\<a href\=\"\/people\/([^\"]+)\"\>([^\<]+)\<\/a\>\<\/span\>'
             titlenameregex = '\<h1\s*\>([^\<]+)\<\/h1\>[\r\n\s\t]*\<h2\s*\>[\r\n\s\t]*<span style\=\"white-space\:nowrap;\"\>([^\<]+)\<\/span\>'
-            titleregex = '\<h1\s*\>([^\<]+)\<\/h1\>[\r\n\s\t]*\<h2\s*\>'
+            #titleregex = '\<h1\s*\>([^\<]+)\<\/h1\>[\r\n\s\t]*\<h2\s*\>'
+            titleregex = '\<meta property\=\"og\:title\" content\=\"([^\"]+)\" \/\>'
 
             titlenlinkamematch = re.search(titlelinknameregex, itempage.text)
             titlenamematch = re.search(titlenameregex, itempage.text)
