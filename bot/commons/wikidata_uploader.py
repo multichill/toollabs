@@ -256,6 +256,10 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                 t.flush()
 
                 imagefile = pywikibot.FilePage(self.site, title=title)
+                # For some reason sometimes the duplicate detection doesn't work
+                if imagefile.exists():
+                    pywikibot.output('The file with the name "%s" already exists, skipping' % (title,))
+                    return
                 imagefile.text=description
 
                 comment = u'Uploading based on Wikidata item [[d:Special:EntityPage/%(item)s]] from %(downloadurl)s' % metadata
@@ -339,32 +343,35 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
     def getLicenseTemplate(self, metadata):
         """
         Construct the license template to be used
+
+        https://w.wiki/rok gives a quick overview
         """
         # FIXME: Add more or different implementation
-        licenses = { u'Q6938433' : u'Cc-zero',
-                     u'Q18199165' : u'cc-by-sa-4.0'}
+        licenses = { 'Q6938433' : 'Cc-zero',
+                     'Q20007257' : 'cc-by-4.0',
+                     'Q18199165' : 'cc-by-sa-4.0'}
 
-        if metadata.get(u'license'):
-            result = u'{{Licensed-PD-Art'
+        if metadata.get('license'):
+            result = '{{Licensed-PD-Art'
         else:
-            result = u'{{PD-Art'
+            result = '{{PD-Art'
 
-        if metadata.get(u'deathyear'):
-            result += u'|PD-old-auto-expired'
+        if metadata.get('deathyear'):
+            result += '|PD-old-auto-expired'
         else:
-            result += u'|PD-old-100-expired'
+            result += '|PD-old-100-expired'
 
-        if metadata.get(u'license'):
-            if metadata.get(u'license') not in licenses:
-                pywikibot.output(u'Found a license I do not understand: %(license)s' % metadata)
+        if metadata.get('license'):
+            if metadata.get('license') not in licenses:
+                pywikibot.output('Found a license I do not understand: %(license)s' % metadata)
                 return False
-            licensetemplate = licenses.get(metadata.get(u'license'))
-            result += u'|%s' % (licensetemplate,)
+            licensetemplate = licenses.get(metadata.get('license'))
+            result += '|%s' % (licensetemplate,)
 
-        if metadata.get(u'deathyear'):
-            result += u'|deathyear=%s' % (metadata.get(u'deathyear'),)
+        if metadata.get('deathyear'):
+            result += '|deathyear=%s' % (metadata.get('deathyear'),)
 
-        result += u'}}\n'
+        result += '}}\n'
         return result
 
     def getCategories(self, metadata):
