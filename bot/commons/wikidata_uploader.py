@@ -288,7 +288,25 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                             }
                 #print (json.dumps(postdata, sort_keys=True, indent=4))
                 request = self.site._simple_request(**postdata)
-                data = request.submit()
+                try:
+                    data = request.submit()
+                except pywikibot.data.api.APIError:
+                    # If the database is lagging a lot, this might give a Invalid entity ID.
+                    pywikibot.output('API error. Waiting a minute and trying again')
+                    time.sleep(60)
+                    token = self.site.tokens['csrf']
+                    postdata = {'action' : 'wbeditentity',
+                                'format' : 'json',
+                                'id' : mediaid,
+                                'data' : json.dumps(itemdata),
+                                'token' : token,
+                                'summary' : summary,
+                                'bot' : True,
+                                }
+                    request = self.site._simple_request(**postdata)
+                    # If it goes wrong again, just crash
+                    data = request.submit()
+
                 imagefile.touch()
 
     def addImageToWikidata(self, metadata, imagefile, summary=u'Added the image'):
