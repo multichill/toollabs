@@ -9,6 +9,7 @@ The bot will decide if it's publid domain because:
 * Painter is known and died more than 95 years ago
 * Painter is anonymous or low on metadata, but painting is dated before 1850
 * Painting is by a known painter who died between 70-95 years ago and the painting was produced more than 95 years ago
+* Painting is marked as public domain with the qualifiers that the creator died at least 100 years ago
 That should be a safe enough margin.
 
 """
@@ -38,20 +39,22 @@ class WikidataUploaderBot:
 
         """
         self.generatorDied95Creators = self.getGeneratorDied95Creators()
-        self.generatorPre1850Works = self.getGeneratorPre1850Works()
+        self.generatorPre1850AnonymousWorks = self.getGeneratorPre1850AnonymousWorks()
         self.generatorDied70Produced95Works = self.getGeneratorDied70Produced95Works()
-        self.site = pywikibot.Site(u'commons', u'commons')
+        self.generatorPublicDomain100pma = self.getGeneratorPublicDomain100pma()
+        self.site = pywikibot.Site('commons', 'commons')
         self.site.login()
         self.site.get_tokens('csrf')
         self.repo = self.site.data_repository()
         self.duplicates = []
+        self.processeditems = []
 
     def getGeneratorDied95Creators(self):
         """
         Get the generator of items with known painter died more than 95 years ago
         """
-        query = u"""
-SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
+        query = """
+SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatorcategory WHERE {
   ?item p:P4765 ?image .
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
@@ -70,7 +73,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?creator wdt:P570 ?dod . BIND(YEAR(?dod) AS ?deathyear)
   FILTER(?deathyear < (YEAR(NOW())-95)) .
   ?creator schema:dateModified ?creatordate .
-  OPTIONAL { ?creator wdt:P1472 ?creatortemplate } .
   OPTIONAL { ?creator wdt:P373 ?creatorcategory } .
   } ORDER BY DESC(?itemdate)
   LIMIT 15000"""
@@ -78,20 +80,20 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         queryresult = sq.select(query)
 
         for resultitem in queryresult:
-            resultitem['item'] = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            resultitem['format'] = resultitem.get('format').replace(u'http://www.wikidata.org/entity/', u'')
+            resultitem['item'] = resultitem.get('item').replace('http://www.wikidata.org/entity/', '')
+            resultitem['format'] = resultitem.get('format').replace('http://www.wikidata.org/entity/', '')
             if resultitem.get('license'):
-                resultitem['license'] = resultitem.get('license').replace(u'http://www.wikidata.org/entity/', u'')
+                resultitem['license'] = resultitem.get('license').replace('http://www.wikidata.org/entity/', '')
             if resultitem.get('operator'):
-                resultitem['operator'] = resultitem.get('operator').replace(u'http://www.wikidata.org/entity/', u'')
-            resultitem['creator'] = resultitem.get('creator').replace(u'http://www.wikidata.org/entity/', u'')
+                resultitem['operator'] = resultitem.get('operator').replace('http://www.wikidata.org/entity/', '')
+            resultitem['creator'] = resultitem.get('creator').replace('http://www.wikidata.org/entity/', '')
             yield resultitem
 
-    def getGeneratorPre1850Works(self):
+    def getGeneratorPre1850AnonymousWorks(self):
         """
         Get the generator of items which were made before 1850 to consider
         """
-        query = u"""
+        query = """
 SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory WHERE {
   ?item p:P4765 ?image .
   ?item schema:dateModified ?itemdate .
@@ -116,15 +118,15 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         queryresult = sq.select(query)
 
         for resultitem in queryresult:
-            resultitem['item'] = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            resultitem['format'] = resultitem.get('format').replace(u'http://www.wikidata.org/entity/', u'')
+            resultitem['item'] = resultitem.get('item').replace('http://www.wikidata.org/entity/', '')
+            resultitem['format'] = resultitem.get('format').replace('http://www.wikidata.org/entity/', '')
             if resultitem.get('license'):
-                resultitem['license'] = resultitem.get('license').replace(u'http://www.wikidata.org/entity/', u'')
+                resultitem['license'] = resultitem.get('license').replace('http://www.wikidata.org/entity/', '')
             if resultitem.get('operator'):
-                resultitem['operator'] = resultitem.get('operator').replace(u'http://www.wikidata.org/entity/', u'')
-            resultitem['creator'] = u'Q4233718' # Item for anonymous
+                resultitem['operator'] = resultitem.get('operator').replace('http://www.wikidata.org/entity/', '')
+            resultitem['creator'] = 'Q4233718' # Item for anonymous
             if not resultitem.get('creatorname'):
-                resultitem['creatorname'] = u'anonymous'
+                resultitem['creatorname'] = 'anonymous'
             yield resultitem
 
     def getGeneratorDied70Produced95Works(self):
@@ -132,8 +134,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         Get the generator of items with known painter who died between 70 and 95 years ago and painting was made
         more than 95 years ago.
         """
-        query = u"""
-SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatortemplate ?creatorcategory WHERE {
+        query = """
+SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatorcategory WHERE {
   ?item p:P4765 ?image .
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
@@ -155,7 +157,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?item wdt:P571 ?inception .
   FILTER(YEAR(?inception) < (YEAR(NOW())-95) && ?dob < ?inception ) .
   ?creator schema:dateModified ?creatordate .
-  OPTIONAL { ?creator wdt:P1472 ?creatortemplate } .
   OPTIONAL { ?creator wdt:P373 ?creatorcategory } .
   } ORDER BY DESC(?itemdate)
   LIMIT 15000"""
@@ -163,13 +164,51 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         queryresult = sq.select(query)
 
         for resultitem in queryresult:
-            resultitem['item'] = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            resultitem['format'] = resultitem.get('format').replace(u'http://www.wikidata.org/entity/', u'')
+            resultitem['item'] = resultitem.get('item').replace('http://www.wikidata.org/entity/', '')
+            resultitem['format'] = resultitem.get('format').replace('http://www.wikidata.org/entity/', '')
             if resultitem.get('license'):
-                resultitem['license'] = resultitem.get('license').replace(u'http://www.wikidata.org/entity/', u'')
+                resultitem['license'] = resultitem.get('license').replace('http://www.wikidata.org/entity/', '')
             if resultitem.get('operator'):
-                resultitem['operator'] = resultitem.get('operator').replace(u'http://www.wikidata.org/entity/', u'')
-            resultitem['creator'] = resultitem.get('creator').replace(u'http://www.wikidata.org/entity/', u'')
+                resultitem['operator'] = resultitem.get('operator').replace('http://www.wikidata.org/entity/', '')
+            resultitem['creator'] = resultitem.get('creator').replace('http://www.wikidata.org/entity/', '')
+            yield resultitem
+
+    def getGeneratorPublicDomain100pma(self):
+        """
+        Get the generator of items which are marked as being in the public domain because creator died 100+ years ago
+        """
+        query = """
+SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory WHERE {
+  ?item p:P4765 ?image .
+  ?item schema:dateModified ?itemdate .
+  ?item wdt:P31 wd:Q3305213 .
+  ?item wdt:P217 ?inv .
+  ?image ps:P4765 ?downloadurl .
+  ?image pq:P2701 ?format .
+  ?image pq:P2699 ?sourceurl .
+  ?image pq:P1476 ?title .
+  ?image pq:P2093 ?creatorname .
+  OPTIONAL { ?image pq:P275 ?license } .
+  OPTIONAL { ?image pq:P137 ?operator } .
+  ?item wdt:P195 ?collection .
+  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
+  ?collection wdt:P373 ?collectioncategory .
+  ?item p:P6216 ?copyrightstatement .
+  ?copyrightstatement ps:P6216 wd:Q19652 .
+  ?copyrightstatement pq:P1001 wd:Q60332278 .
+  ?copyrightstatement pq:P459 wd:Q29940705
+  } ORDER BY DESC(?itemdate)
+  LIMIT 15000"""
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            resultitem['item'] = resultitem.get('item').replace('http://www.wikidata.org/entity/', '')
+            resultitem['format'] = resultitem.get('format').replace('http://www.wikidata.org/entity/', '')
+            if resultitem.get('license'):
+                resultitem['license'] = resultitem.get('license').replace('http://www.wikidata.org/entity/', '')
+            if resultitem.get('operator'):
+                resultitem['operator'] = resultitem.get('operator').replace('http://www.wikidata.org/entity/', '')
             yield resultitem
 
     def run(self):
@@ -179,10 +218,13 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         for metadata in self.generatorDied95Creators:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
-        for metadata in self.generatorPre1850Works:
+        for metadata in self.generatorPre1850AnonymousWorks:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
         for metadata in self.generatorDied70Produced95Works:
+            if self.isReadyToUpload(metadata):
+                self.uploadPainting(metadata)
+        for metadata in self.generatorPublicDomain100pma:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
         self.reportDuplicates()
@@ -193,13 +235,14 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         """
         format = u'%Y-%m-%dT%H:%M:%SZ'
         now = datetime.datetime.utcnow()
-        itemdelta = now - datetime.datetime.strptime(metadata.get(u'itemdate'), format)
-        creatordelta = 0
-        if metadata.get(u'creatordate'):
-            creatordelta = now - datetime.datetime.strptime(metadata.get(u'creatordate'), format)
+        itemdelta = now - datetime.datetime.strptime(metadata.get('itemdate'), format)
+        if metadata.get('creatordate'):
+            creatordelta = now - datetime.datetime.strptime(metadata.get('creatordate'), format)
+        else:
+            creatordelta = datetime.timedelta(days=999) # Just something high for if it isn't set.
 
         # Both item and creator should at least be 2 days old
-        if itemdelta.days > 2 and (metadata.get(u'creator')==u'Q4233718' or creatordelta.days > 2):
+        if itemdelta.days > 2 and creatordelta.days > 2:
             return True
         return False
 
@@ -208,16 +251,22 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         Process the metadata and if suitable, upload the painting
         """
         pywikibot.output(metadata)
+        if metadata.get('item') in self.processeditems:
+            pywikibot.output('Already worked on %s, skipping' % (metadata.get('item'),))
+            return
         description = self.getDescription(metadata)
         title = self.cleanUpTitle(self.getTitle(metadata))
         if not description or not title:
             return
         pywikibot.output(title)
         pywikibot.output(description)
+
+        # To prevent processing the same item twice:
+        self.processeditems.append(metadata.get('item'))
         try:
-            response = requests.get(metadata.get(u'downloadurl'), verify=False) # Museums and valid SSL.....
+            response = requests.get(metadata.get('downloadurl'), verify=False) # Museums and valid SSL.....
         except requests.exceptions.ConnectionError:
-            pywikibot.output(u'Got a connection error for Wikidata item [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
+            pywikibot.output('Got a connection error for Wikidata item [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
             return False
 
         if response.status_code == 200:
@@ -226,15 +275,15 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             sha1base64 = base64.b16encode(hashObject.digest())
             duplicates = list(self.site.allimages(sha1=sha1base64))
             if duplicates:
-                pywikibot.output(u'Found a duplicate, trying to add it')
+                pywikibot.output('Found a duplicate, trying to add it')
                 imagefile = duplicates[0]
-                self.addImageToWikidata(metadata, imagefile, summary = u'Adding already uploaded image')
-                duplicate = { u'title' : title,
-                              u'qid' : metadata.get(u'item'),
-                              u'downloadurl' : metadata.get(u'downloadurl'),
-                              u'sourceurl' : metadata.get(u'sourceurl'),
-                              u'duplicate' : imagefile.title(withNamespace=False),
-                              u'description' : description,
+                self.addImageToWikidata(metadata, imagefile, summary = 'Adding already uploaded image')
+                duplicate = { 'title' : title,
+                              'qid' : metadata.get('item'),
+                              'downloadurl' : metadata.get('downloadurl'),
+                              'sourceurl' : metadata.get('sourceurl'),
+                              'duplicate' : imagefile.title(withNamespace=False),
+                              'description' : description,
                               }
                 self.duplicates.append(duplicate)
                 return
@@ -254,6 +303,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             with tempfile.NamedTemporaryFile() as t:
                 t.write(response.content)
                 t.flush()
+                filesize = len(response.content)
+                chunkedfilesize = 80000000
 
                 imagefile = pywikibot.FilePage(self.site, title=title)
                 # For some reason sometimes the duplicate detection doesn't work
@@ -262,37 +313,42 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                     return
                 imagefile.text=description
 
-                comment = u'Uploading based on Wikidata item [[d:Special:EntityPage/%(item)s]] from %(downloadurl)s' % metadata
+                comment = 'Uploading based on Wikidata item [[d:Special:EntityPage/%(item)s]] from %(downloadurl)s' % metadata
                 try:
-                    uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment) # chunk_size=1000000)
+                    if filesize > chunkedfilesize:
+                        pywikibot.output('File size %s is larger than %s so trying chunked uploading' % (filesize, chunkedfilesize))
+                        uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment, chunk_size=10000000)
+                    else:
+                        pywikibot.output('File size %s is smaller than %s so no using chunked uploading' % (filesize, chunkedfilesize))
+                        uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment)
                 except pywikibot.data.api.APIError:
-                    pywikibot.output(u'Failed to upload image for Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata)
+                    pywikibot.output('Failed to upload image for Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata)
                     uploadsuccess = False
 
             if uploadsuccess:
                 pywikibot.output('Uploaded a file, sleeping a bit so I don\'t run into lagging databases')
                 time.sleep(15)
-                self.addImageToWikidata(metadata, imagefile, summary = u'Uploaded the image')
+                self.addImageToWikidata(metadata, imagefile, summary = 'Uploaded the image')
                 imagefile.clear_cache() # Clear the cache otherwise the pageid is 0.
                 mediaid = 'M%s' % (imagefile.pageid,)
                 itemdata = self.getStructuredData(metadata)
-                summary = u'this newly uploaded file depicts and is a digital representation of [[d:Special:EntityPage/%s]]' % (metadata.get(u'item'),)
+                summary = 'this newly uploaded file depicts and is a digital representation of [[d:Special:EntityPage/%s]]' % (metadata.get('item'),)
 
                 token = self.site.tokens['csrf']
-                postdata = {u'action' : u'wbeditentity',
-                            u'format' : u'json',
-                            u'id' : mediaid,
-                            u'data' : json.dumps(itemdata),
-                            u'token' : token,
-                            u'summary' : summary,
-                            u'bot' : True,
+                postdata = {'action' : 'wbeditentity',
+                            'format' : 'json',
+                            'id' : mediaid,
+                            'data' : json.dumps(itemdata),
+                            'token' : token,
+                            'summary' : summary,
+                            'bot' : True,
                             }
                 #print (json.dumps(postdata, sort_keys=True, indent=4))
                 request = self.site._simple_request(**postdata)
                 data = request.submit()
                 imagefile.touch()
 
-    def addImageToWikidata(self, metadata, imagefile, summary=u'Added the image'):
+    def addImageToWikidata(self, metadata, imagefile, summary='Added the image'):
         """
         Add the image to the Wikidata item. This might add an extra image if the item already has one
         """
@@ -331,14 +387,14 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         """
         Construct the description for the file to be uploaded
         """
-        artworkinfo = u'{{Artwork}}\n' # All structured data on Commons!
+        artworkinfo = '{{Artwork}}\n' # All structured data on Commons!
         licenseinfo = self.getLicenseTemplate(metadata)
         categoryinfo =  self.getCategories(metadata)
         if artworkinfo and licenseinfo and categoryinfo:
-            description = u'== {{int:filedesc}} ==\n'
+            description = '== {{int:filedesc}} ==\n'
             description = description + artworkinfo
-            description = description + u'\n=={{int:license-header}}==\n'
-            description = description + licenseinfo + u'\n' + categoryinfo
+            description = description + '\n=={{int:license-header}}==\n'
+            description = description + licenseinfo + '\n' + categoryinfo
             return description
 
     def getLicenseTemplate(self, metadata):
@@ -348,7 +404,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         https://w.wiki/rok gives a quick overview
         """
         # FIXME: Add more or different implementation
-        licenses = { 'Q6938433' : 'Cc-zero',
+        licenses = { 'Q6938433' : 'cc-zero',
                      'Q20007257' : 'cc-by-4.0',
                      'Q18199165' : 'cc-by-sa-4.0'}
 
@@ -386,31 +442,31 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
 
         Only add a creatorcategory if it's available (not the case for anonymous works)
         """
-        result = u'{{subst:#ifexist:Category:Paintings in the %(collectioncategory)s|[[Category:Paintings in the %(collectioncategory)s]]|{{subst:#ifexist:Category:Paintings in %(collectioncategory)s|[[Category:Paintings in %(collectioncategory)s]]|[[Category:%(collectioncategory)s]]}}}}\n' % metadata
-        if metadata.get(u'creatorcategory'):
-            result = result + u'{{subst:#ifexist:Category:Paintings by %(creatorcategory)s|[[Category:Paintings by %(creatorcategory)s]]|[[Category:%(creatorcategory)s]]}}' % metadata
+        result = '{{subst:#ifexist:Category:Paintings in the %(collectioncategory)s|[[Category:Paintings in the %(collectioncategory)s]]|{{subst:#ifexist:Category:Paintings in %(collectioncategory)s|[[Category:Paintings in %(collectioncategory)s]]|[[Category:%(collectioncategory)s]]}}}}\n' % metadata
+        if metadata.get('creatorcategory'):
+            result = result + '{{subst:#ifexist:Category:Paintings by %(creatorcategory)s|[[Category:Paintings by %(creatorcategory)s]]|[[Category:%(creatorcategory)s]]}}' % metadata
         return result
 
     def getTitle(self, metadata):
         """
         Construct the title to be used for the upload
         """
-        formats = { u'Q2195' : u'jpg',
-                    #u'Q215106' : u'tiff',
+        formats = { 'Q2195' : u'jpg',
+                    #'Q215106' : u'tiff',
                     }
-        if not metadata.get(u'format') or metadata.get(u'format') not in formats:
-            return u''
+        if not metadata.get('format') or metadata.get('format') not in formats:
+            return ''
 
-        metadata[u'ext'] = formats.get(metadata.get(u'format'))
+        metadata['ext'] = formats.get(metadata.get('format'))
 
-        fmt = u'%(creatorname)s - %(title)s - %(inv)s - %(collectionLabel)s.%(ext)s'
+        fmt = '%(creatorname)s - %(title)s - %(inv)s - %(collectionLabel)s.%(ext)s'
         title = fmt % metadata
         if len(title) < 200:
             return title
         else:
-            title = u'%(creatorname)s - ' % metadata
-            title = title + metadata.get(u'title')[0:100].strip()
-            title = title + u' - %(inv)s - %(collectionLabel)s.jpg' % metadata
+            title = '%(creatorname)s - ' % metadata
+            title = title + metadata.get('title')[0:100].strip()
+            title = title + ' - %(inv)s - %(collectionLabel)s.jpg' % metadata
             return title
 
     def cleanUpTitle(self, title):
