@@ -140,22 +140,24 @@ def getNTGenerator():
                                         }
 
             # Only match on years
-            dateregex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*(\d\d\d\d)\s*(\(signed and dated\))?\<\/p\>'
+            dateregex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*(\d\d\d\d)\s*(\(signed and dated\)[^\<]*)?\<\/p\>'
             circadateregex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*circa (\d\d\d\d)\s*\<\/p\>'
             periodregex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*(\d\d\d\d)\s*-\s*(\d\d\d\d)\s*\<\/p\>'
-            circaperiodegex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*circa\s*(\d\d\d\d)\s*-\s*(\d\d\d\d)\s*\<\/p\>'
+            circaperiodregex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*circa\s*(\d\d\d\d)\s*-\s*(\d\d\d\d)\s*[^\<]*\<\/p\>'
+            circaperiod2regex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*circa\s*(\d\d\d\d)\s*-\s*circa\s*(\d\d\d\d)\s*[^\<]*\<\/p\>'
             otherdateregex = u'\<h4\>Date\<\/h4\>[\r\n\t\s]*\<p\>\s*([^\<]+)\s*\<\/p\>'
 
             datematch = re.search(dateregex, itemPageData)
             circadatematch = re.search(circadateregex, itemPageData)
             periodmatch = re.search(periodregex, itemPageData)
-            circaperiodmatch = re.search(circaperiodegex, itemPageData)
+            circaperiodmatch = re.search(circaperiodregex, itemPageData)
+            circaperiod2match = re.search(circaperiod2regex, itemPageData)
             otherdatematch = re.search(otherdateregex, itemPageData)
 
             if datematch:
-                metadata['inception'] = htmlparser.unescape(datematch.group(1))
+                metadata['inception'] = int(htmlparser.unescape(datematch.group(1)))
             elif circadatematch:
-                metadata['inception'] = htmlparser.unescape(circadatematch.group(1))
+                metadata['inception'] = int(htmlparser.unescape(circadatematch.group(1)))
                 metadata['inceptioncirca'] = True
             elif periodmatch:
                 metadata['inceptionstart'] = int(periodmatch.group(1),)
@@ -164,8 +166,15 @@ def getNTGenerator():
                 metadata['inceptionstart'] = int(circaperiodmatch.group(1))
                 metadata['inceptionend'] = int(circaperiodmatch.group(2))
                 metadata['inceptioncirca'] = True
+            elif circaperiod2match:
+                metadata['inceptionstart'] = int(circaperiod2match.group(1))
+                metadata['inceptionend'] = int(circaperiod2match.group(2))
+                metadata['inceptioncirca'] = True
             elif otherdatematch:
-                print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
+                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
+                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
+                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
+                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
 
             # acquisitiondate not available
             # acquisitiondateRegex = u'\<em\>Acknowledgement\<\/em\>\:\s*.+(\d\d\d\d)[\r\n\t\s]*\<br\>'
@@ -298,14 +307,23 @@ def nationalTrustLocationsOnWikidata():
         result[identifier] = qid
     return result
 
-def main():
+def main(*args):
     dictGen = getNTGenerator()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    #    print (painting)
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 if __name__ == "__main__":
     main()
