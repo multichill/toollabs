@@ -11,7 +11,7 @@ import pywikibot
 import requests
 import re
 import time
-import HTMLParser
+from html.parser import HTMLParser
 import os
 import json
 import logging
@@ -25,15 +25,15 @@ def getBavarianGenerator():
     Problem is that over 200 pages will return server errors. So have to work on different subsets.
 
     """
-    basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei"}'
+    basesearchurl = 'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei"}'
     #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"yearRange":{"min":1900,"max":2100},"genre":"malerei"}'
     #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"publicDomain":true,"genre":"malerei"}'
     #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"onDisplay":true,"genre":"malerei"}'
     # For the image upload
     #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"genre":"malerei","publicDomain":true}' # 1- 185
     #basesearchurl = u'https://www.sammlung.pinakothek.de/api/search?&page=%s&filters={"publicDomain":true,"genre":"malerei"}'
-    origin = u'https://www.sammlung.pinakothek.de'
-    referer = u'https://www.sammlung.pinakothek.de/de/genre/malerei'
+    origin = 'https://www.sammlung.pinakothek.de'
+    referer = 'https://www.sammlung.pinakothek.de/de/genre/malerei'
 
     #logging.basicConfig()
     #logging.getLogger().setLevel(logging.DEBUG)
@@ -41,7 +41,7 @@ def getBavarianGenerator():
     #requests_log.setLevel(logging.DEBUG)
     #requests_log.propagate = True
 
-    htmlparser = HTMLParser.HTMLParser()
+    htmlparser = HTMLParser()
 
     # Not sure what is wrong with the website, but HTTPS setup is really slow and getting the wrong certificate
     # Just put everything in one session to not have to do that each time
@@ -49,9 +49,8 @@ def getBavarianGenerator():
 
     # Just loop over the pages
     for i in range(1, 200):
-        print i
         searchurl = basesearchurl % (i,)
-        print searchurl
+        print (searchurl,)
         searchPage = session.get(searchurl, headers={'X-Requested-With' : 'XMLHttpRequest',
                                                       'referer' : referer,
                                                       'origin' : origin,
@@ -61,27 +60,41 @@ def getBavarianGenerator():
         searchJson = searchPage.json()
         for record in searchJson.get('items'):
             metadata = {}
-            # ID is not the inventory number!
-            url = record.get(u'url').replace(u'sammlung.pinakothek.de/de/artist/', u'sammlung.pinakothek.de/en/artist/')
-            print url
+            #print (record)
+            urlregex = '^https\:\/\/www\.sammlung\.pinakothek\.de\/de\/artwork\/([^\/]+)\/(.+)$'
+            urlmatch = re.match(urlregex, record.get('url'))
+
+            url = 'https://www.sammlung.pinakothek.de/en/artwork/%s/%s' % (urlmatch.group(1), urlmatch.group(2))
+
+            ## ID is not the inventory number!
+            #
+            #url = record.get('url').replace(u'sammlung.pinakothek.de/de/artwork/', u'sammlung.pinakothek.de/en/artwork/')
+            print (url)
             itempage = session.get(url, verify=False)
             metadata['url'] = url
 
-            metadata['collectionqid'] = u'Q812285'
-            metadata['collectionshort'] = u'BStGS'
+
+            metadata['collectionqid'] = 'Q812285'
+            metadata['collectionshort'] = 'BStGS'
 
             #No need to check, I'm actually searching for paintings.
-            metadata['instanceofqid'] = u'Q3305213'
+            metadata['instanceofqid'] = 'Q3305213'
+
+            metadata['idpid'] = 'P217'
+            metadata['id'] = '%s' % (record.get('inventoryId'))
+            metadata['artworkidpid'] = 'P8948'
+            metadata['artworkid'] = '%s' % (urlmatch.group(1),)
+
 
             # Figure this part out, this seems to give a scaled image
             #if record.get(u'imageAvailable')==u'available' and record.get(u'image'):
             #    if record.get(u'image').get(u'url'):
             #        metadata['imageurl'] = record.get(u'image').get(u'url')
 
-            titleregex = u'\<h1 class\=\"artwork__title\"\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/h1\>'
+            titleregex = '\<h1 class\=\"artwork__title\"\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/h1\>'
             titlematch = re.search(titleregex, itempage.text)
             if not titlematch:
-                print(u'No title found, probably something went wrong. Skipping and sleeping for 2 minutes')
+                print('No title found, probably something went wrong. Skipping and sleeping for 2 minutes')
                 time.sleep(120)
                 continue
             title = htmlparser.unescape(titlematch.group(1).strip()) # This didn't work and included attributed to junk: record.get('title')
@@ -90,49 +103,76 @@ def getBavarianGenerator():
             if len(title) > 220:
                 title = title[0:200]
 
-            metadata['title'] = { u'de' : title,
+            metadata['title'] = { 'de' : title,
                                   }
 
             #  record.get('artistInfo').get('fullName') didn't include the attribution part
-            creatorregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Artist[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<a href\=\"[^\"]+\"\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/a\>[\s\t\r\n]*\<\/div\>'
+            creatorregex = '\<div class\=\"label-header\"\>[\s\t\r\n]*Artist[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<a href\=\"[^\"]+\"\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/a\>[\s\t\r\n]*\<\/div\>'
             creatormatch = re.search(creatorregex, itempage.text)
             metadata['creatorname'] = htmlparser.unescape(creatormatch.group(1).strip())
 
-            metadata['description'] = { u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'),),
-                                        u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
-                                        u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+            metadata['description'] = { 'de' : '%s von %s' % ('Gemälde', metadata.get('creatorname'),),
+                                        'nl' : '%s van %s' % ('schilderij', metadata.get('creatorname'),),
+                                        'en' : '%s by %s' % ('painting', metadata.get('creatorname'),),
                                         }
-            creatordobregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Birth year of the artist[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<a href\=\"https\:\/\/www\.sammlung\.pinakothek\.de\/en\/year\/(\d\d\d\d)\"\>'
-            creatordodregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Year the artist deceased[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<a href\=\"https\:\/\/www\.sammlung\.pinakothek\.de\/en\/year\/(\d\d\d\d)\"\>'
+            creatordobregex = '\<div class\=\"label-header\"\>[\s\t\r\n]*Birth year of the artist[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<a href\=\"https\:\/\/www\.sammlung\.pinakothek\.de\/en\/year\/(\d\d\d\d)\"\>'
+            creatordodregex = '\<div class\=\"label-header\"\>[\s\t\r\n]*Year the artist deceased[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<a href\=\"https\:\/\/www\.sammlung\.pinakothek\.de\/en\/year\/(\d\d\d\d)\"\>'
 
             creatordobmatch = re.search(creatordobregex, itempage.text)
             creatordodmatch = re.search(creatordodregex, itempage.text)
 
             # This will get the date field if it's filled
-            if record.get(u'date'):
-                circaperiodregex = u'^um (\d\d)(\d\d)\/(\d\d)$'
-                circaregex = u'^um (\d\d\d\d)$'
+            if record.get('date'):
+                dateregex = '^(\d\d\d\d)$'
+                datecircaregex = '^(um|ca\.)\s*(\d\d\d\d)$'
+                periodregex = '^\s*(\d\d\d\d)\s*[-\/]\s*(\d\d\d\d)\s*$'
+                shortperiodregex = '^\s*(\d\d)(\d\d)\s*[-\/]\s*(\d\d)\s*$'
+                circaperiodregex = '^um\s*(\d\d\d\d)\s*[-\/]\s*(\d\d\d\d)$'
+                circashortperiodregex = '^um\s*(\d\d)(\d\d)\s*[-\/]\s*(\d\d)$'
 
-                circaperiodmatch = re.match(circaperiodregex, record.get(u'date'))
-                circamatch = re.match(circaregex, record.get(u'date'))
+                datematch = re.match(dateregex, record.get('date'))
+                datecircamatch = re.match(datecircaregex, record.get('date'))
+                periodmatch = re.match(periodregex, record.get('date'))
+                shortperiodmatch = re.match(shortperiodregex, record.get('date'))
+                circaperiodmatch = re.match(circaperiodregex, record.get('date'))
+                circashortperiodmatch = re.match(circashortperiodregex, record.get('date'))
 
-                if circaperiodmatch:
-                    metadata['inceptionstart'] = int(u'%s%s' % (circaperiodmatch.group(1), circaperiodmatch.group(2)))
-                    metadata['inceptionend'] = int(u'%s%s' % (circaperiodmatch.group(1), circaperiodmatch.group(3)))
+                if datematch:
+                    metadata['inception'] = int(datematch.group(1))
+                elif datecircamatch:
+                    metadata['inception'] = int(datecircamatch.group(2))
                     metadata['inceptioncirca'] = True
-                elif circamatch:
-                    metadata['inception'] = circamatch.group(1)
+                elif periodmatch:
+                    metadata['inceptionstart'] = int(periodmatch.group(1))
+                    metadata['inceptionend'] = int(periodmatch.group(2))
+                elif shortperiodmatch:
+                    metadata['inceptionstart'] = int('%s%s' % (shortperiodmatch.group(1), shortperiodmatch.group(2)))
+                    metadata['inceptionend'] = int('%s%s' % (shortperiodmatch.group(1), shortperiodmatch.group(3)))
+                elif circaperiodmatch:
+                    metadata['inceptionstart'] = int(circaperiodmatch.group(1))
+                    metadata['inceptionend'] = int(circaperiodmatch.group(2))
+                    metadata['inceptioncirca'] = True
+                elif circashortperiodmatch:
+                    metadata['inceptionstart'] = int('%s%s' % (circashortperiodmatch.group(1), circashortperiodmatch.group(2)))
+                    metadata['inceptionend'] = int('%s%s' % (circashortperiodmatch.group(1), circashortperiodmatch.group(3)))
                     metadata['inceptioncirca'] = True
                 else:
-                    metadata['inception'] = record.get(u'date')
+                    print ('Could not parse date: "%s"' % record.get(u'date'))
+                    print ('Could not parse date: "%s"' % record.get(u'date'))
+                    print ('Could not parse date: "%s"' % record.get(u'date'))
+                    print ('Could not parse date: "%s"' % record.get(u'date'))
             elif creatordobmatch and creatordodmatch:
                 metadata['inceptionstart'] = int(creatordobmatch.group(1))
                 metadata['inceptionend'] = int(creatordodmatch.group(1))
 
-            metadata['idpid'] = u'P217'
-            invregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Inventory Number[\s\t\r\n]*\<\/div\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/div\>'
-            invmatch = re.search(invregex, itempage.text)
-            metadata['id'] = invmatch.group(1).strip()
+
+            # We already got the inventory number earlier
+            #metadata['idpid'] = 'P217'
+            #invregex = '\<div class\=\"label-header\"\>[\s\t\r\n]*Inventory Number[\s\t\r\n]*\<\/div\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/div\>'
+            #invmatch = re.search(invregex, itempage.text)
+            #if invmatch.group(1).strip()!=metadata.get('id'):
+            #    print('FOUND TWO DIFFERENT INVENTORY NUMBERS')
+
 
             # Figure out later
             #locations = { u'Nicht ausgestellt' : u'Q123',
@@ -200,14 +240,24 @@ def getBavarianGenerator():
                 metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa.40
             yield metadata
 
+
 def main(*args):
     dictGen = getBavarianGenerator()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    #    print painting
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 if __name__ == "__main__":
     main()
