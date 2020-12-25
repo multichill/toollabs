@@ -7,7 +7,7 @@ Bot uses files that have https://www.wikidata.org/wiki/Property:P4765
 
 The bot will decide if it's publid domain because:
 * Painter is known and died more than 95 years ago
-* Painter is anonymous or low on metadata, but painting is dated before 1850
+* Painter is anonymous or low on metadata, but painting is dated before 1890
 * Painting is by a known painter who died between 70-95 years ago and the painting was produced more than 95 years ago
 * Painting is marked as public domain with the qualifiers that the creator died at least 100 years ago
 That should be a safe enough margin.
@@ -39,7 +39,7 @@ class WikidataUploaderBot:
 
         """
         self.generatorDied95Creators = self.getGeneratorDied95Creators()
-        self.generatorPre1850AnonymousWorks = self.getGeneratorPre1850AnonymousWorks()
+        self.generatorPre1890AnonymousWorks = self.getGeneratorPre1890AnonymousWorks()
         self.generatorDied70Produced95Works = self.getGeneratorDied70Produced95Works()
         self.generatorPublicDomain100pma = self.getGeneratorPublicDomain100pma()
         self.site = pywikibot.Site('commons', 'commons')
@@ -89,9 +89,9 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
             resultitem['creator'] = resultitem.get('creator').replace('http://www.wikidata.org/entity/', '')
             yield resultitem
 
-    def getGeneratorPre1850AnonymousWorks(self):
+    def getGeneratorPre1890AnonymousWorks(self):
         """
-        Get the generator of items which were made before 1850 to consider
+        Get the generator of items which were made before 1890 to consider
         """
         query = """
 SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory WHERE {
@@ -111,7 +111,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
   ?collection wdt:P373 ?collectioncategory .
   ?item wdt:P571 ?inception . BIND(YEAR(?inception) AS ?inceptionyear)
-  FILTER(?inceptionyear < 1850) .
+  FILTER(?inceptionyear < 1890) .
   } ORDER BY DESC(?itemdate)
   LIMIT 15000"""
         sq = pywikibot.data.sparql.SparqlQuery()
@@ -218,7 +218,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         for metadata in self.generatorDied95Creators:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
-        for metadata in self.generatorPre1850AnonymousWorks:
+        for metadata in self.generatorPre1890AnonymousWorks:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
         for metadata in self.generatorDied70Produced95Works:
