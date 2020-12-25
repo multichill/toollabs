@@ -108,7 +108,7 @@ def getRISDGenerator():
             #    metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
             #    metadata['inceptioncirca'] = True
             elif otherdatematch:
-                print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
+                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
 
             # No data, could do a trick with the inventory number
             # metadata['acquisitiondate'] = acquisitiondatematch.group(1)
@@ -147,15 +147,22 @@ def getRISDGenerator():
 
             yield metadata
 
-
-def main():
+def main(*args):
     dictGen = getRISDGenerator()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    #    print (painting)
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
-
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 if __name__ == "__main__":
     main()
