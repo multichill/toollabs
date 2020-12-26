@@ -27,29 +27,30 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
     * locationqid - qid of the location (usually same as collection) to fill the dict
     """
 
-    baseSearchUrl = u'http://api.webumenia.sk/items/_search'
+    baseSearchUrl = 'https://www.webumenia.sk/api/items_sk/_search'
+
     session = requests.Session()
     #session.auth = ('', '') set in your .netrc file, see https://www.labkey.org/Documentation/wiki-page.view?name=netrc
 
     # Topics to genre
-    topics = { u'portrét' : u'Q134307', # https://www.webumenia.sk/en/katalog?topic=portr%C3%A9t -> portrait
-               u'náboženský motív' : u'Q2864737', # https://www.webumenia.sk/en/katalog?topic=n%C3%A1bo%C5%BEensk%C3%BD%20mot%C3%ADv -> religious art
-               u'krajina' : u'Q191163', # https://www.webumenia.sk/en/katalog?work_type=maliarstvo&topic=krajina -> landscape art
+    topics = { 'portrét' : 'Q134307', # https://www.webumenia.sk/en/katalog?topic=portr%C3%A9t -> portrait
+               'náboženský motív' : 'Q2864737', # https://www.webumenia.sk/en/katalog?topic=n%C3%A1bo%C5%BEensk%C3%BD%20mot%C3%ADv -> religious art
+               'krajina' : 'Q191163', # https://www.webumenia.sk/en/katalog?work_type=maliarstvo&topic=krajina -> landscape art
                }
 
     # Use the returned number in the API
     size = 100
     i = 0
     while True:
-        searchdata = { u'size' : size,
-                       u'from' : i,
-                       u'query': { u'bool': { u'must': [
-                           { u'match': { u'gallery': collectioninfo.get(u'gallery') }},
-                           { u'match': { u'work_type': u'maliarstvo' }},
+        searchdata = { 'size' : size,
+                       'from' : i,
+                       'query': { 'bool': { 'must': [
+                           { 'match': { 'gallery': collectioninfo.get('gallery') }},
+                           { 'match': { 'work_type': 'maliarstvo' }},
                        ] } },}
+
         data = json.dumps(searchdata)
-        page = session.get(baseSearchUrl, data=data)
-        #print (json.dumps(page.json(), indent = 2, separators=(',', ': ')))
+        page = session.get(baseSearchUrl, data=data, headers = { 'Content-Type' : 'application/json'})
 
         # Stop condition for the loop
         if not page.json().get(u'hits'):
@@ -71,17 +72,17 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             metadata['locationqid'] = collectioninfo['locationqid']
 
             # Search is for paintings
-            metadata['instanceofqid'] = u'Q3305213'
+            metadata['instanceofqid'] = 'Q3305213'
 
-            title = item.get(u'title')
+            title = item.get(u'title').strip()
 
             if len(title) > 220:
                 title = title[0:200]
-            metadata['title'] = { u'sk' : title,
+            metadata['title'] = { 'sk' : title,
                                   }
 
             # I had one item with missing identifier, wonder if it shows up here too
-            metadata['idpid'] = u'P217'
+            metadata['idpid'] = 'P217'
             if not item.get('identifier'):
                 # Few rare items without an inventory number, just skip them
                 continue
@@ -141,9 +142,10 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             #        metadata['heightcm'] = match_2d.group(u'height')
             #        metadata['widthcm'] = match_2d.group(u'width')
 
-            if item.get(u'has_image') and item.get(u'is_free') and item.get(u'has_iip'):
-                metadata[u'imageurl'] = u'https://www.webumenia.sk/dielo/%s/stiahnut' % (item.get('id'),)
-                metadata[u'imageurlformat'] = u'Q2195' #JPEG
+            if item.get('has_image') and item.get('is_free') and item.get('has_iip'):
+                metadata['imageurl'] = 'https://www.webumenia.sk/dielo/%s/stiahnut' % (item.get('id'),)
+                metadata['imageurlformat'] = 'Q2195' #JPEG
+                metadata['imageoperatedby'] = 'Q50828580'
             #elif item.get(u'has_image') and item.get(u'has_iip') and item.get(u'date_latest') < 1900:
             #    # Work around for some of the missing images that are not marked as free
             #    #print (item.get(u'is_free'))
@@ -180,96 +182,97 @@ def processCollection(collectioninfo, webumeniaArtists, dryrun=False, create=Fal
 
 
 def main(*args):
-    collections = { u'Q1744024': { u'name' : u'Slovak National Gallery',
-                                   u'gallery' : u'Slovenská národná galéria, SNG',
-                                   u'collectionqid' : u'Q1744024',
-                                   u'collectionshort' : u'SNG',
-                                   u'locationqid' : u'Q1744024',
+    collections = { 'Q1744024': { 'name' : 'Slovak National Gallery',
+                                  'gallery' : 'Slovenská národná galéria, SNG',
+                                  'collectionqid' : 'Q1744024',
+                                  'collectionshort' : 'SNG',
+                                  'locationqid' : 'Q1744024',
                                    },
-                    u'Q50751848': { u'name' : u'Orava Gallery',
-                                    u'gallery' : u'Oravská galéria, OGD',
-                                    u'collectionqid' : u'Q50751848',
-                                    u'collectionshort' : u'Orava',
-                                    u'locationqid' : u'Q50751848',
+                    'Q50751848': { 'name' : 'Orava Gallery',
+                                   'gallery' : 'Oravská galéria, OGD',
+                                   'collectionqid' : 'Q50751848',
+                                   'collectionshort' : 'Orava',
+                                   'locationqid' : 'Q50751848',
                                     },
-                    u'Q30676307': { u'name' : u'Ernest Zmeták Art Gallery',
-                                    u'gallery' : u'Galéria umenia Ernesta Zmetáka, GNZ',
-                                    u'collectionqid' : u'Q30676307',
-                                    u'collectionshort' : u'GNZ',
-                                    u'locationqid' : u'Q30676307',
-                                    },
-                    u'Q50762402': { u'name' : u'Liptov Gallery of Peter Michal Bohúň',
-                                    u'gallery' : u'Liptovská galéria Petra Michala Bohúňa, GPB',
-                                    u'collectionqid' : u'Q50762402',
-                                    u'collectionshort' : u'GPB',
-                                    u'locationqid' : u'Q50762402',
-                                    },
-                    u'Q913415': { u'name' : u'Bratislava City Gallery',
-                                    u'gallery' : u'Galéria mesta Bratislavy, GMB',
-                                    u'collectionqid' : u'Q913415',
-                                    u'collectionshort' : u'GMB',
-                                    u'locationqid' : u'Q913415',
-                                    },
-                    u'Q12766245': { u'name' : u'Miloš Alexander Bazovský Gallery',
-                                    u'gallery' : u'Galéria Miloša Alexandra Bazovského, GBT',
-                                    u'collectionqid' : u'Q12766245',
-                                    u'collectionshort' : u'MABG',
-                                    u'locationqid' : u'Q12766245',
-                                    },
-                    u'Q50800751': { u'name' : u'Nitra Gallery',
-                                    u'gallery' : u'Nitrianska galéria, NGN',
-                                    u'collectionqid' : u'Q50800751',
-                                    u'collectionshort' : u'NGN',
-                                    u'locationqid' : u'Q50800751',
-                                    },
-                    u'Q16517556': { u'name' : u'Central Slovakian Gallery',
-                                    u'gallery' : u'Stredoslovenská galéria, SGB',
-                                    u'collectionqid' : u'Q16517556',
-                                    u'collectionshort' : u'SGB',
-                                    u'locationqid' : u'Q16517556',
-                                    },
-                    u'Q50797802': { u'name' : u'Gallery of Spiš Artists',
-                                    u'gallery' : u'Galéria umelcov Spiša, GUS',
-                                    u'collectionqid' : u'Q50797802',
-                                    u'collectionshort' : u'GUS',
-                                    u'locationqid' : u'Q50797802',
-                                    },
-                    u'Q3094617': { u'name' : u'Moravian Gallery in Brno', # This one is in Czech Republic
-                                    u'gallery' : u'Moravská galerie, MG',
-                                    u'collectionqid' : u'Q3094617',
-                                    u'collectionshort' : u'MG',
-                                    u'locationqid' : u'Q3094617',
-                                    },
-                    u'Q24705922': { u'name' : u'Šariš Gallery',
-                                   u'gallery' : u'Šarišská galéria, SGP',
-                                   u'collectionqid' : u'Q24705922',
-                                   u'collectionshort' : u'SGP',
-                                   u'locationqid' : u'Q24705922',
+                    'Q30676307': { 'name' : 'Ernest Zmeták Art Gallery',
+                                   'gallery' : 'Galéria umenia Ernesta Zmetáka, GNZ',
+                                   'collectionqid' : 'Q30676307',
+                                   'collectionshort' : 'GNZ',
+                                   'locationqid' : 'Q30676307',
                                    },
-                    u'Q4120060': { u'name' : u'Andy Warhol Museum of Modern Art',
-                                    u'gallery' : u'Múzeum moderného umenia A. Warhola, MAW',
-                                    u'collectionqid' : u'Q4120060',
-                                    u'collectionshort' : u'MAW',
-                                    u'locationqid' : u'Q4120060',
+                    'Q50762402': { 'name' : 'Liptov Gallery of Peter Michal Bohúň',
+                                   'gallery' : 'Liptovská galéria Petra Michala Bohúňa, GPB',
+                                   'collectionqid' : 'Q50762402',
+                                   'collectionshort' : 'GPB',
+                                   'locationqid' : 'Q50762402',
+                                   },
+                    'Q913415': { 'name' : 'Bratislava City Gallery',
+                                 'gallery' : 'Galéria mesta Bratislavy, GMB',
+                                 'collectionqid' : 'Q913415',
+                                 'collectionshort' : 'GMB',
+                                 'locationqid' : 'Q913415',
+                                 },
+                    'Q12766245': { 'name' : 'Miloš Alexander Bazovský Gallery',
+                                   'gallery' : 'Galéria Miloša Alexandra Bazovského, GBT',
+                                   'collectionqid' : 'Q12766245',
+                                   'collectionshort' : 'MABG',
+                                   'locationqid' : 'Q12766245',
+                                   },
+                    'Q50800751': { 'name' : 'Nitra Gallery',
+                                   'gallery' : 'Nitrianska galéria, NGN',
+                                   'collectionqid' : 'Q50800751',
+                                   'collectionshort' : 'NGN',
+                                   'locationqid' : 'Q50800751',
+                                   },
+                    'Q16517556': { 'name' : 'Central Slovakian Gallery',
+                                   'gallery' : 'Stredoslovenská galéria, SGB',
+                                   'collectionqid' : 'Q16517556',
+                                   'collectionshort' : 'SGB',
+                                   'locationqid' : 'Q16517556',
                                     },
-                    u'Q3094652' : { u'name' : u'East Slovak Gallery',
-                                    u'gallery' : u'Východoslovenská galéria, VSG',
-                                    u'collectionqid' : u'Q3094652',
-                                    u'collectionshort' : u'VSG',
-                                    u'locationqid' : u'Q3094652',
+                    'Q50797802': { 'name' : 'Gallery of Spiš Artists',
+                                   'gallery' : 'Galéria umelcov Spiša, GUS',
+                                   'collectionqid' : 'Q50797802',
+                                   'collectionshort' : 'GUS',
+                                   'locationqid' : 'Q50797802',
+                                   },
+                    'Q3094617': { 'name' : 'Moravian Gallery in Brno', # This one is in Czech Republic
+                                  'gallery' : 'Moravská galerie, MG',
+                                  'collectionqid' : 'Q3094617',
+                                  'collectionshort' : 'MG',
+                                  'locationqid' : 'Q3094617',
+                                  },
+                    'Q24705922': { 'name' : 'Šariš Gallery',
+                                   'gallery' : 'Šarišská galéria, SGP',
+                                   'collectionqid' : 'Q24705922',
+                                   'collectionshort' : 'SGP',
+                                   'locationqid' : 'Q24705922',
+                                   },
+                    'Q4120060': { 'name' : 'Andy Warhol Museum of Modern Art',
+                                  'gallery' : 'Múzeum moderného umenia A. Warhola, MAW',
+                                  'collectionqid' : 'Q4120060',
+                                  'collectionshort' : 'MAW',
+                                  'locationqid' : 'Q4120060',
+                                  },
+                    'Q3094652' : { 'name' : 'East Slovak Gallery',
+                                    'gallery' : 'Východoslovenská galéria, VSG',
+                                    'collectionqid' : 'Q3094652',
+                                    'collectionshort' : 'VSG',
+                                    'locationqid' : 'Q3094652',
                                     },
-                    u'Q62430225' : { u'name' : u'Tatra Gallery',
-                                    u'gallery' : u'Tatranská galéria, TGP', # For some reason this doesn't work
-                                    u'collectionqid' : u'Q62430225',
-                                    u'collectionshort' : u'TGP',
-                                    u'locationqid' : u'Q62430225',
+                    'Q62430225' : { 'name' : 'Tatra Gallery',
+                                    'gallery' : 'Tatranská galéria, TGP', # For some reason didn't work
+                                    'collectionqid' : 'Q62430225',
+                                    'collectionshort' : 'TGP',
+                                    'locationqid' : 'Q62430225',
                                     },
-                    u'Q12774288' : { u'name' : u'Považská galéria umenia',
-                                     u'gallery' : u'Považská galéria umenia, PGU',
-                                     u'collectionqid' : u'Q12774288',
-                                     u'collectionshort' : u'PGU',
-                                     u'locationqid' : u'Q12774288',
-                                     },
+                    'Q12774288' : { 'name' : 'Považská galéria umenia',
+                                    'gallery' : 'Považská galéria umenia, PGU',
+                                    'collectionqid' : 'Q12774288',
+                                    'collectionshort' : 'PGU',
+                                    'locationqid' : 'Q12774288',
+                                    },
+                    # Nezaradená inštitúcia alebo súkromná osoba, NIS
                  }
     collectionid = None
     dryrun = False
@@ -295,7 +298,7 @@ def main(*args):
             return
         processCollection(collections[collectionid], webumeniaArtists, dryrun=dryrun, create=create)
     else:
-        collectionlist = collections.keys()
+        collectionlist = list(collections.keys())
         random.shuffle(collectionlist) # Different order every time we run
         for collectionid in collectionlist:
             processCollection(collections[collectionid], webumeniaArtists, dryrun=dryrun, create=create)
