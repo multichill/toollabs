@@ -244,7 +244,7 @@ def rkdImagesArtistGenerator(aristname):
             if len(rkdimage.get(u'collectie')) > 0 :
                 for collectie in rkdimage.get(u'collectie'):
                     if collectie.get('collectienaam'):
-                        if isinstance(collectie.get('collectienaam'), basestring):
+                        if isinstance(collectie.get('collectienaam'), str):
                             # For some reason I sometimes get a list.
                             collection = collection + collectie.get('collectienaam')
                         else:
