@@ -11,6 +11,7 @@ import pywikibot
 import requests
 import pywikibot.data.sparql
 import re
+import json
 
 class RecentRKDimagesBot:
     def __init__(self):
@@ -82,14 +83,14 @@ class RecentRKDimagesBot:
     def getRKDrecentidgenerator(self):
         # Take the highest image and go up 200
         for i in range(self.highestrkdimage+200, 1, -1):
-            print i
+            print (i)
             if i not in self.currentrkdimages:
                 yield i
 
     def getRKDoldestidgenerator(self):
         # Take the highest image and go up 200
         for i in range(1, self.lowestrkdimage, 1):
-            print i
+            print (i)
             if i not in self.currentrkdimages:
                 yield i
 
@@ -98,23 +99,23 @@ class RecentRKDimagesBot:
         for rkdimageid in self.getRKDrecentidgenerator():
             rkdinfo = self.getRkdInfo(rkdimageid)
             if rkdinfo:
-                print rkdinfo
+                print (rkdinfo)
                 foundrecentimages.append(rkdinfo)
                 if len(foundrecentimages) >= self.maxlength:
                     self.lowestrkdimage = rkdinfo.get('id')
                     break
-        print foundrecentimages
-        print self.lowestrkdimage
+        print (foundrecentimages)
+        print (self.lowestrkdimage)
         foundoldestimages = []
         for rkdimageid in self.getRKDoldestidgenerator():
             rkdinfo = self.getRkdInfo(rkdimageid)
             if rkdinfo:
-                print rkdinfo
+                print (rkdinfo)
                 foundoldestimages.append(rkdinfo)
                 if len(foundoldestimages) >= self.maxlength:
                     self.highestolddimage = rkdinfo.get('id')
                     break
-        print foundoldestimages
+        print (foundoldestimages)
         self.outputReportRecent(foundrecentimages)
         self.outputReportOldest(foundoldestimages)
 
@@ -125,10 +126,13 @@ class RecentRKDimagesBot:
         """
         imageinfo = {}
         baseurl = u'https://api.rkd.nl/api/record/images/%s?format=json&language=nl'
-        print baseurl % (rkdimageid,)
+        print (baseurl % (rkdimageid,))
         rkdpage = requests.get(baseurl % (rkdimageid,), verify=False)
         # Try and return
-        searchJson = rkdpage.json()
+        try:
+            searchJson = rkdpage.json()
+        except json.decoder.JSONDecodeError:
+            return None
         if not searchJson.get('response'):
             return None
         rkdimage = searchJson.get('response').get('docs')[0]
@@ -156,23 +160,23 @@ class RecentRKDimagesBot:
         imageinfo[u'url'] = u'https://rkd.nl/explore/images/%s'  % (rkdimageid,)
 
         imageinfo[u'artistqid'] = None
-        print imageinfo.get(u'rkdartistid')
+        print (imageinfo.get(u'rkdartistid'))
         if imageinfo.get(u'rkdartistid') in self.currentrkdartists:
             imageinfo[u'artistqid'] = self.currentrkdartists.get(imageinfo.get(u'rkdartistid'))
-            print imageinfo[u'artistqid']
+            print (imageinfo[u'artistqid'])
 
         imageinfo[u'collectienaam'] = None
         imageinfo[u'invnum'] = None
         #This will just overwrite the collection with the last one
         if rkdimage.get(u'collectie'):
             for collectie in rkdimage.get(u'collectie'):
-                print collectie
+                print (collectie)
                 #First we have to extract the collection name. This can be a string or a dict
                 collectienaam = None
                 if collectie.get('collectienaam'):
 
-                    print collectie.get('collectienaam')
-                    if isinstance(collectie.get('collectienaam'), unicode):
+                    print (collectie.get('collectienaam'))
+                    if isinstance(collectie.get('collectienaam'), str):
                         collectienaam = collectie.get('collectienaam')
                     elif collectie.get('collectienaam')[0].get('collectienaam'):
                         collectienaam = collectie.get('collectienaam')[0].get('collectienaam')
@@ -218,7 +222,7 @@ class RecentRKDimagesBot:
         basesearchurl = u'https://api.rkd.nl/api/search/images?filters[collectienaam]=%s&filters[objectcategorie][]=schilderij&format=json&start=%s&rows=%s'
         #while True:
         searchUrl = basesearchurl % (collectienaam.replace(u' ', u'+'), start, rows)
-        print searchUrl
+        print (searchUrl)
         searchPage = requests.get(searchUrl, verify=False)
         searchJson = searchPage.json()
         numfound = searchJson.get('response').get('numFound')
@@ -237,17 +241,17 @@ class RecentRKDimagesBot:
                     foundcollections[collection] = 0
                 foundcollections[collection]+=1
 
-        print foundcollections
+        print (foundcollections)
 
         if len(foundcollections.keys())==1:
-            collectionqid = foundcollections.keys()[0]
+            collectionqid = list(foundcollections.keys())[0]
             if foundcollections.get(collectionqid) > 1:
                 return collectionqid
         elif len(foundcollections.keys())==2:
-            if foundcollections.keys()[0] < foundcollections.keys()[1]:
-                collectionqid = foundcollections.keys()[1]
+            if list(foundcollections.keys())[0] < list(foundcollections.keys())[1]:
+                collectionqid = list(foundcollections.keys())[1]
             else:
-                collectionqid = foundcollections.keys()[0]
+                collectionqid = list(foundcollections.keys())[0]
             if foundcollections.get(collectionqid) > 2:
                 return collectionqid
         return None
@@ -616,7 +620,7 @@ def rkdImagesArtistGenerator(aristname):
             if len(rkdimage.get(u'collectie')) > 0 :
                 for collectie in rkdimage.get(u'collectie'):
                     if collectie.get('collectienaam'):
-                        if isinstance(collectie.get('collectienaam'), basestring):
+                        if isinstance(collectie.get('collectienaam'), str):
                             # For some reason I sometimes get a list.
                             collection = collection + collectie.get('collectienaam')
                         else:
