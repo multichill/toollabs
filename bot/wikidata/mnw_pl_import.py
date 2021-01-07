@@ -69,7 +69,7 @@ def getMNWGenerator():
             # They seem to provide two inventory numbers? That's going to be fun.....
             metadata['idpid'] = 'P217'
             metadata['id'] = endata.get('extraNumPatterns')[0].get('number')
-            #metadata['extraid'] = endata.get('noEvidence')
+            #metadata['extraid'] = endata.get('noEvidence') # NO, that does not work!!!!
             #metadata['extracollectionqid'] = 'Q153306'
 
             if endata.get('authors'):
@@ -88,7 +88,7 @@ def getMNWGenerator():
                     creatorname = '%s %s' % (creatormatch2.group(2).strip(), creatormatch2.group(1).strip(),)
 
 
-                metadata['creatorname'] = creatorname
+                metadata['creatorname'] = creatorname.strip()
                 metadata['description'] = { 'nl' : '%s van %s' % ('schilderij', metadata.get('creatorname'),),
                                             'en' : '%s by %s' % ('painting', metadata.get('creatorname'),),
                                             'de' : '%s von %s' % ('Gemälde', metadata.get('creatorname'), ),
@@ -176,12 +176,12 @@ def getMNWGenerator():
                     metadata['widthcm'] = match_2d.group('width').replace(',', '.')
 
             # Everything is marked as public domain, but also as restricted?
-            if False and endata.get('copyrights') and endata.get('copyrights')[0].get('id')==29351:
+            if endata.get('copyrights') and endata.get('copyrights')[0].get('id')==29351:
                 if endata.get('image') and endata.get('image').get('filePath') and endata.get('image').get('extension')=='jpg':
                     recentinception = False
-                    if metadata.get('inception') and metadata.get('inception') > 1924:
+                    if metadata.get('inception') and metadata.get('inception') > 1925:
                         recentinception = True
-                    if metadata.get('inceptionend') and metadata.get('inceptionend') > 1924:
+                    if metadata.get('inceptionend') and metadata.get('inceptionend') > 1925:
                         recentinception = True
                     if not recentinception:
                         filepath = endata.get('image').get('filePath')
@@ -190,7 +190,7 @@ def getMNWGenerator():
                         metadata['imageoperatedby'] = 'Q153306'
                     #   metadata['imageurllicense'] = 'Q6938433' # No license, just public domain
                     ## Use this to add suggestions everywhere
-                    #   metadata['imageurlforce'] = True
+                    #    metadata['imageurlforce'] = True
             yield metadata
 
 def main(*args):
