@@ -18,9 +18,9 @@ import pywikibot.data.sparql
 import json
 import copy
 from operator import itemgetter
-import cv2
-import numpy as np
-from scipy.stats import pearsonr
+# import cv2 # python3 and opencv seems to be a thing
+# import numpy as np # than I don't need this one either
+# from scipy.stats import pearsonr # Also not needed
 import tempfile
 import os
 
@@ -66,42 +66,42 @@ class PaintingsMatchBot:
 
         self.getCommonsWithoutLookupTables()
 
-        print 'self.commonsNoLink %s' % (len(self.commonsNoLink),)
-        print 'self.commonsWithoutCIA %s' % (len(self.commonsWithoutCIA),)
-        print 'self.commonsWithoutCI %s' % (len(self.commonsWithoutCI),)
-        print 'self.commonsWithoutIA %s' % (len(self.commonsWithoutIA),)
-        print 'self.commonsWithoutCA %s' % (len(self.commonsWithoutCA),)
+        print ('self.commonsNoLink %s' % (len(self.commonsNoLink),))
+        print ('self.commonsWithoutCIA %s' % (len(self.commonsWithoutCIA),))
+        print ('self.commonsWithoutCI %s' % (len(self.commonsWithoutCI),))
+        print ('self.commonsWithoutIA %s' % (len(self.commonsWithoutIA),))
+        print ('self.commonsWithoutCA %s' % (len(self.commonsWithoutCA),))
 
-        self.getCommonsWithLookupTables()
+        #self.getCommonsWithLookupTables()
 
-        print 'self.commonsLink %s' % (len(self.commonsLink),)
-        print 'self.commonsWithCIA %s' % (len(self.commonsWithCIA),)
-        print 'self.commonsWithCI %s' % (len(self.commonsWithCI),)
-        print 'self.commonsWithIA %s' % (len(self.commonsWithIA),)
-        print 'self.commonsWithCA %s' % (len(self.commonsWithCA),)
+        print ('self.commonsLink %s' % (len(self.commonsLink),))
+        print ('self.commonsWithCIA %s' % (len(self.commonsWithCIA),))
+        print ('self.commonsWithCI %s' % (len(self.commonsWithCI),))
+        print ('self.commonsWithIA %s' % (len(self.commonsWithIA),))
+        print ('self.commonsWithCA %s' % (len(self.commonsWithCA),))
 
-        self.getBetterImageSuggestions()
+        #self.getBetterImageSuggestions()
 
-        print 'self.bettersuggestions %s' % (len(self.bettersuggestions),)
+        print ('self.bettersuggestions %s' % (len(self.bettersuggestions),))
 
         self.getWikidataLookupTables()
 
-        print 'self.wikidataNoImages %s' % (len(self.wikidataNoImages),)
-        print 'self.wikidataWithoutCIA %s' % (len(self.wikidataWithoutCIA),)
-        print 'self.wikidataWithoutCI %s' % (len(self.wikidataWithoutCI),)
-        print 'self.wikidataWithoutIA %s' % (len(self.wikidataWithoutIA),)
-        print 'self.wikidataWithoutCA %s' % (len(self.wikidataWithoutCA),)
+        print ('self.wikidataNoImages %s' % (len(self.wikidataNoImages),))
+        print ('self.wikidataWithoutCIA %s' % (len(self.wikidataWithoutCIA),))
+        print ('self.wikidataWithoutCI %s' % (len(self.wikidataWithoutCI),))
+        print ('self.wikidataWithoutIA %s' % (len(self.wikidataWithoutIA),))
+        print ('self.wikidataWithoutCA %s' % (len(self.wikidataWithoutCA),))
 
-        print 'self.wikidataImages %s' % (len(self.wikidataImages),)
-        print 'self.wikidataWithImages %s' % (len(self.wikidataWithImages),)
-        print 'self.wikidataWithCIA %s' % (len(self.wikidataWithCIA),)
-        print 'self.wikidataWithCI %s' % (len(self.wikidataWithCI),)
-        print 'self.wikidataWithIA %s' % (len(self.wikidataWithIA),)
-        print 'self.wikidataWithCA %s' % (len(self.wikidataWithCA),)
+        print ('self.wikidataImages %s' % (len(self.wikidataImages),))
+        print ('self.wikidataWithImages %s' % (len(self.wikidataWithImages),))
+        print ('self.wikidataWithCIA %s' % (len(self.wikidataWithCIA),))
+        print ('self.wikidataWithCI %s' % (len(self.wikidataWithCI),))
+        print ('self.wikidataWithIA %s' % (len(self.wikidataWithIA),))
+        print ('self.wikidataWithCA %s' % (len(self.wikidataWithCA),))
 
         self.getCommonsCategorySuggestions()
 
-        print 'self.categorysuggestions %s' % (len(self.categorysuggestions),)
+        print ('self.categorysuggestions %s' % (len(self.categorysuggestions),))
 
     def run(self):
         """
@@ -109,18 +109,18 @@ class PaintingsMatchBot:
         """
         #self.addWikidataSuggestions()
         self.publishAllWikidataSuggestions()
-        self.publishBetterImageSuggestions()
+        #self.publishBetterImageSuggestions()
         self.addMissingCommonsWikidataLinks()
         self.publishAllCommonsSuggestions()
-        self.publishCommonsNoTracker()
+        #self.publishCommonsNoTracker()
 
     def getCommonsWithoutLookupTables(self):
-        '''
+        """
         Get the dicts for the images on Commons without a link to Wikidata
-        '''
-        url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_all.txt'
-        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<creator>Q\d+|None) - (?P<institution>Q\d+|None) - (?P<invnum>.+)$'
-        invurlregex = u'^\[(http[^\s]+)\s(.+)\]$'
+        """
+        url = 'http://tools.wmflabs.org/multichill/queries2/commons/paintings_from_completely_indexed_collections.txt'
+        regex = '^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<creator>Q\d+|None) - (?P<institution>Q\d+|None) - (?P<invnum>.+)$'
+        invurlregex = '^\[(http[^\s]+)\s(.+)\]$'
         queryPage = requests.get(url)
         for match in re.finditer(regex, queryPage.text, flags=re.M):
             image = match.group("image")
@@ -173,9 +173,9 @@ class PaintingsMatchBot:
                 self.commonsWithoutCA[cakey].append(image)
 
     def getCommonsWithLookupTables(self):
-        '''
-        Get the dicts for the images on Commons with a link to Wikidata
-        '''
+        """
+        DISABLED: Get the dicts for the images on Commons with a link to Wikidata
+        """
         url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_with_wikidata_all.txt'
         regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] -\s*(?P<paintingitem>Q\d+) - (?P<creator>Q\d+) - (?P<institution>Q\d+) - (?P<invnum>.+)$'
         invurlregex = u'^\[(http[^\s]+)\s(.+)\]$'
@@ -241,7 +241,7 @@ class PaintingsMatchBot:
 
     def getBetterImageSuggestions(self):
         """
-        Download the file at the url and produce a list of images that could be replaced on Wikidata
+        DISABLED: Download the file at the url and produce a list of images that could be replaced on Wikidata
         """
         url = u'https://tools.wmflabs.org/multichill/queries2/commons/wikidata_image_sizes.txt'
         regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] -\s*(?P<qidlink>Q\d+|None) - (?P<size>\d+) - (?P<width>\d+) - (?P<height>\d+) -\s*(?P<qidused>Q\d+|None)$'
@@ -303,7 +303,7 @@ class PaintingsMatchBot:
         return None
 
     def getWikidataLookupTables(self):
-        '''
+        """
         Query to make 10 lookup tables.
         These 4 lookup tables for with and without images:
         * CIA : Creator, institution & accession number
@@ -313,22 +313,15 @@ class PaintingsMatchBot:
         And also:
         * Wikidata id -> url table(?)
         * Filename -> wikidata id
-        '''
-        query = u"""SELECT ?item ?image ?creator ?institution ?invnum ?location ?url ?idurl WHERE {
-        ?item wdt:P31 wd:Q3305213 . # /wdt:P279* wd:Q3305213 .
+        """
+        query = """SELECT ?item ?image ?creator ?institution ?invnum ?location ?url ?idurl WHERE { 
+        ?item wdt:P31 wd:Q3305213 . 
         OPTIONAL { ?item wdt:P18 ?image } .
         OPTIONAL { ?item wdt:P170 ?creator } .
         OPTIONAL { ?item wdt:P195 ?institution } .
         OPTIONAL { ?item wdt:P217 ?invnum } .
         OPTIONAL { ?item wdt:P276 ?location } .
         OPTIONAL { ?item wdt:P973 ?url } .
-        #This seems to break the query. Disabled for now.
-        #OPTIONAL { ?item ?identifierproperty ?identifier .
-        #           ?property wikibase:directClaim ?identifierproperty .
-        #           ?property wikibase:propertyType wikibase:ExternalId .
-        #           ?property wdt:P1630 ?formatterurl .
-        #           BIND(IRI(REPLACE(?identifier, '^(.+)$', ?formatterurl)) AS ?idurl).
-        #            }
 }"""
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
@@ -456,8 +449,8 @@ class PaintingsMatchBot:
         """
         Download the file at the url and produce a list of suggestions based on the category images are in
         """
-        url = u'https://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_in_painting_category.txt'
-        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<qid>Q\d+) - (?P<category>.+)$'
+        url = 'https://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_in_painting_category.txt'
+        regex = '^\* \[\[:File:(?P<image>[^\]]+)\]\] - (?P<qid>Q\d+) - (?P<category>.+)$'
         queryPage = requests.get(url)
 
         suggestions = []
@@ -500,7 +493,7 @@ class PaintingsMatchBot:
 
     def publishWikidataSuggestions(self, commonsdict, wikidatadict, pageTitle, samplesize=300, maxlines=1000):
         matchesKeys = set(commonsdict.keys()) & set(wikidatadict.keys())
-        print u'Found %s matches for %s' % (len(matchesKeys), pageTitle)
+        print ('Found %s matches for %s' % (len(matchesKeys), pageTitle))
 
         if len(matchesKeys) > samplesize:
             publishKeys = random.sample(matchesKeys, samplesize)
@@ -656,7 +649,7 @@ class PaintingsMatchBot:
         for matchkey in matchesKeys:
             if not matchkey[0]==matchkey[1]:
                 filteredKeys.add(matchkey)
-        print u'Found %s matches for %s' % (len(filteredKeys), pageTitle)
+        print ('Found %s matches for %s' % (len(filteredKeys), pageTitle))
 
         opencvfilter = False
         if len(filteredKeys) > samplesize:
@@ -677,6 +670,7 @@ class PaintingsMatchBot:
             for imagewithout in withoutdict.get(key):
                 for withinfodict in withdict.get(key):
                     if line < maxlines and not imagewithout in self.commonsLink:
+                        opencvfilter = False
                         if not opencvfilter or self.opencvmatch(withinfodict.get('image'), imagewithout):
                             thisline = u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=%s}} Add] || %s<BR/>%s\n' % (withinfodict.get('image'),
                                                                                                                                                                                                                                                     imagewithout,
@@ -703,6 +697,7 @@ class PaintingsMatchBot:
 
     def opencvmatch(self, filea, fileb):
         """
+        DISABLED, packages not available
         Returns false if both files are probably not the same.
         Returns True if not sure or it is the same
         """
@@ -799,12 +794,12 @@ class PaintingsMatchBot:
         page.put(text, summary)
 
     def addMissingCommonsWikidataLinks(self):
-        '''
+        """
         Add missing links from Commons to Wikidata and report for which files it didn't work
-        '''
-        pageTitle = u'User:Multichill/Unable to add Wikidata link'
+        """
+        pageTitle = 'User:Multichill/Unable to add Wikidata link'
         page = pywikibot.Page(self.commons, title=pageTitle)
-        text = u'{{/header}}\n'
+        text = '{{/header}}\n'
 
         missingCommonsLinks = set(self.wikidataImages.keys()) & set(self.commonsNoLink)
         for filename in missingCommonsLinks:
