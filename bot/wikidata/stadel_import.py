@@ -21,36 +21,36 @@ def getStadelGenerator():
     Generator to return Städel Museum paintings
     """
 
-    motifs = { 26 : u'Q134307', # portrait
-               44 : u'Q191163', # landscape -> landscape art
-               1955 : u'Q2864737', # altarpiece-> religious art
-               2437 : u'Q170571', # still life
-               2957 : u'Q1047337', # genre art
-               3657 : u'Q2864737', # devotional image -> religious art
-               3706 : u'Q40446', # nude
-               3796 : u'Q158607', # Seascape -> marine art
-               3901 : u'Q2839016', # allegory
-               8730 : u'Q128115', # abstration -> abstract art
-               14293 : u'Q2864737', # Biblical portrayal-> religious art
-               16679 : u'Q3374376', # mythological representation -> mythological painting
+    motifs = { 26 : 'Q134307', # portrait
+               44 : 'Q191163', # landscape -> landscape art
+               1955 : 'Q2864737', # altarpiece-> religious art
+               2437 : 'Q170571', # still life
+               2957 : 'Q1047337', # genre art
+               3657 : 'Q2864737', # devotional image -> religious art
+               3706 : 'Q40446', # nude
+               3796 : 'Q158607', # Seascape -> marine art
+               3901 : 'Q2839016', # allegory
+               8730 : 'Q128115', # abstration -> abstract art
+               14293 : 'Q2864737', # Biblical portrayal-> religious art
+               16679 : 'Q3374376', # mythological representation -> mythological painting
                }
 
     stadelArtists = getStadelArtistsOnWikidata()
-    basesearchurl = u'https://sammlung.staedelmuseum.de/en/search/%s?q=term(48:object)&scope=all'
+    basesearchurl = 'https://sammlung.staedelmuseum.de/en/search/%s?q=term(48:object)&scope=all'
     htmlparser = HTMLParser()
 
-    for i in range(1, 14):
+    for i in range(1, 15):
         searchurl = basesearchurl % (i,)
 
         print (searchurl)
         searchPage = requests.get(searchurl)
 
-        workurlregex = u'\<a class\=\"dsSearchResultItem__link\" href\=\"\/en\/work\/([^\"]+)\"\>'
+        workurlregex = '\<a class\=\"dsSearchResultItem__link\" href\=\"\/en\/work\/([^\"]+)\"\>'
         matches = re.finditer(workurlregex, searchPage.text)
 
         for match in matches:
             # Just drop the slug
-            url = u'https://sammlung.staedelmuseum.de/en/work/%s' % (match.group(1),)
+            url = 'https://sammlung.staedelmuseum.de/en/work/%s' % (match.group(1),)
             metadata = {}
 
             itempage = requests.get(url)
@@ -58,37 +58,37 @@ def getStadelGenerator():
 
             metadata['url'] = url
 
-            deurlregex = u'\<link rel\=\"alternate\" hreflang\=\"de\" href\=\"\/\/sammlung\.staedelmuseum\.de\/de\/werk\/([^\"]+)\" \/\>'
+            deurlregex = '\<link rel\=\"alternate\" hreflang\=\"de\" href\=\"https:\/\/sammlung\.staedelmuseum\.de\/de\/werk\/([^\"]+)\" \/\>'
             deurlmatch = re.search(deurlregex, itempage.text)
 
-            deurl = u'https://sammlung.staedelmuseum.de/de/werk/%s' % (deurlmatch.group(1),)
+            deurl = 'https://sammlung.staedelmuseum.de/de/werk/%s' % (deurlmatch.group(1),)
             deitempage = requests.get(deurl)
             pywikibot.output(deurl)
 
-            metadata['collectionqid'] = u'Q163804'
-            metadata['collectionshort'] = u'Städel'
-            metadata['locationqid'] = u'Q163804'
+            metadata['collectionqid'] = 'Q163804'
+            metadata['collectionshort'] = 'Städel'
+            metadata['locationqid'] = 'Q163804'
 
             #No need to check, I'm actually searching for paintings.
-            metadata['instanceofqid'] = u'Q3305213'
+            metadata['instanceofqid'] = 'Q3305213'
 
             #metadata['artworkidpid'] = u'P9999'
             #metadata['artworkid'] = workid
 
             metadata['idpid'] = u'P217'
 
-            invregex = u'\<dt class\=\"dsProperty__caption\"\>Inventory Number\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*([^\<]+)\<\/dd\>'
+            invregex = '\<dt class\=\"dsProperty__caption\"\>Inventory Number\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*([^\<]+)\<\/dd\>'
             invmatch = re.search(invregex, itempage.text)
-            metadata['id'] = htmlparser.unescape(invmatch.group(1).replace(u'&nbsp;', u' ')).strip()
+            metadata['id'] = htmlparser.unescape(invmatch.group(1).replace('&nbsp;', u' ')).strip()
 
             # When it's a work with multiple parts, they add "Object Number". Overwrite the inventory number based on that
-            objectnumberregex = u'\<dt class\=\"dsProperty__caption\"\>Object Number\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*([^\<]+)\<\/dd\>'
+            objectnumberregex = '\<dt class\=\"dsProperty__caption\"\>Object Number\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*([^\<]+)\<\/dd\>'
             objectnumbermatch = re.search(objectnumberregex, itempage.text)
             if objectnumbermatch:
-                metadata['id'] = htmlparser.unescape(objectnumbermatch.group(1).replace(u'&nbsp;', u' ')).strip()
+                metadata['id'] = htmlparser.unescape(objectnumbermatch.group(1).replace('&nbsp;', ' ')).strip()
 
             #titleregex = u'\<meta content\=\"([^\"]+)\" name\=\"og\:title\"\>'
-            titleregex = u'\<meta property\=\"og:title\" content\=\"([^\"]+)\" \/\>'
+            titleregex = '\<meta property\=\"og:title\" content\=\"([^\"]+)\" \/\>'
             entitlematch = re.search(titleregex, itempage.text)
             detitlematch = re.search(titleregex, deitempage.text)
 
@@ -100,13 +100,13 @@ def getStadelGenerator():
                 entitle = entitle[0:200]
             if len(detitle) > 220:
                 detitle = detitle[0:200]
-            metadata['title'] = { u'en' : entitle,
-                                  u'de' : detitle,
+            metadata['title'] = { 'en' : entitle,
+                                  'de' : detitle,
                                   }
 
-            creatoregex = u'\<p class\=\"dsArtwork__titleCreators\"\>[\r\n\t\s]*\<a class\=\"dsArtwork__titleCreator\" href\=\"\/(?P<lang>en|de)\/person\/(?P<id>[^\"]+)\" ontouchstart\=\"\"\>\<span class\=\"dsArtwork__titleCreatorName\"\>(?P<name>[^\<]+)\<\/span\>'
-            derolecreatoregex = u'\<p class\=\"dsArtwork__titleCreators\"\>[\r\n\t\s]*\<a class\=\"dsArtwork__titleCreator\" href\=\"\/(?P<lang>en|de)\/person\/(?P<id>[^\"]+)\" ontouchstart\=\"\"\>\<span class\=\"dsArtwork__titleCreatorText\"\>(?P<role>[^\<]+)\<\/span\>\<span class\=\"dsArtwork__titleCreatorName\">(?P<name>[^\<]+)\<\/span\>'
-            deroleregex = u'\<span class\=\"dsArtwork__titleCreatorText\"\>\s*(?P<role>[^\<]+)\<\/span\>'
+            creatoregex = '\<p class\=\"dsArtwork__titleCreators\"\>[\r\n\t\s]*\<a class\=\"dsArtwork__titleCreator\" href\=\"\/(?P<lang>en|de)\/person\/(?P<id>[^\"]+)\" ontouchstart\=\"\"\>\<span class\=\"dsArtwork__titleCreatorName\"\>(?P<name>[^\<]+)\<\/span\>'
+            derolecreatoregex = '\<p class\=\"dsArtwork__titleCreators\"\>[\r\n\t\s]*\<a class\=\"dsArtwork__titleCreator\" href\=\"\/(?P<lang>en|de)\/person\/(?P<id>[^\"]+)\" ontouchstart\=\"\"\>\<span class\=\"dsArtwork__titleCreatorText\"\>(?P<role>[^\<]+)\<\/span\>\<span class\=\"dsArtwork__titleCreatorName\">(?P<name>[^\<]+)\<\/span\>'
+            deroleregex = '\<span class\=\"dsArtwork__titleCreatorText\"\>\s*(?P<role>[^\<]+)\<\/span\>'
 
             encratormatch = re.search(creatoregex, itempage.text)
             decratormatch = re.search(creatoregex, deitempage.text)
@@ -168,9 +168,9 @@ def getStadelGenerator():
             otherdatematch = re.search(otherdateregex, itempage.text)
 
             if datematch:
-                metadata['inception'] = datematch.group(1).strip()
+                metadata['inception'] = int(datematch.group(1).strip())
             elif datecircamatch:
-                metadata['inception'] = datecircamatch.group(1).strip()
+                metadata['inception'] = int(datecircamatch.group(1).strip())
                 metadata['inceptioncirca'] = True
             elif periodmatch:
                 metadata['inceptionstart'] = int(periodmatch.group(1))
@@ -180,11 +180,11 @@ def getStadelGenerator():
                 metadata['inceptionend'] = int(circaperiodmatch.group(2))
                 metadata['inceptioncirca'] = True
             elif shortperiodmatch:
-                metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
-                metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
+                metadata['inceptionstart'] = int('%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
+                metadata['inceptionend'] = int('%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
             elif circashortperiodmatch:
-                metadata['inceptionstart'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
-                metadata['inceptionend'] = int(u'%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+                metadata['inceptionstart'] = int('%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
+                metadata['inceptionend'] = int('%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
                 metadata['inceptioncirca'] = True
             elif otherdatematch:
                 print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
@@ -235,7 +235,16 @@ def getStadelGenerator():
                     metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
                     metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
 
-            # No free images or IIIF
+            ## Download is interesting
+            #downloadregex = '\<button class\=\"dsArtworkActions__button\" data-action\=\"download\" data-target\=\"(\/en\/work\/[^\"]+\/download)\"\>'
+            #downloadmatch = re.search(downloadregex, itempage.text)
+            #if downloadmatch:
+            #    downloadurl = 'https://sammlung.staedelmuseum.de%s' % (downloadmatch.group(1),)
+            #    postdata = {'command': 'download', 'sources[]' : '__default__'}
+            #    downloadpage = requests.post(downloadurl, data=postdata)
+            #    print (downloadpage.json())
+            # This does contain the download url in the json, but the website will throw an error at you
+
 
             yield metadata
 
@@ -256,14 +265,22 @@ def getStadelArtistsOnWikidata():
     return result
 
 
-def main():
+def main(*args):
     dictGen = getStadelGenerator()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    #    print (painting)
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
-
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 if __name__ == "__main__":
     main()
