@@ -266,7 +266,13 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         try:
             response = requests.get(metadata.get('downloadurl'), verify=False) # Museums and valid SSL.....
         except requests.exceptions.ConnectionError:
-            pywikibot.output('Got a connection error for Wikidata item [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
+            pywikibot.output('ERROR: Got a connection error for Wikidata item [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
+            return False
+        except requests.exceptions.ChunkedEncodingError:
+            pywikibot.output('ERROR: Got a chunked encoding error for Wikidata item [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
+            return False
+        except requests.exceptions.RequestException:
+            pywikibot.output('ERROR: Got a requests error for Wikidata item [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
             return False
 
         if response.status_code == 200:
@@ -319,7 +325,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                         pywikibot.output('File size %s is larger than %s so trying chunked uploading' % (filesize, chunkedfilesize))
                         uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment, chunk_size=10000000)
                     else:
-                        pywikibot.output('File size %s is smaller than %s so no using chunked uploading' % (filesize, chunkedfilesize))
+                        pywikibot.output('File size %s is smaller than %s so not using chunked uploading' % (filesize, chunkedfilesize))
                         uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment)
                 except pywikibot.data.api.APIError:
                     pywikibot.output('Failed to upload image for Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata)
