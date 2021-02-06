@@ -214,13 +214,13 @@ class PaintingBot:
                         
 
     def getCreator(self, creator):
-        '''
+        """
         Find the painter with the name in creator
 
         First check if the name is already in the self.creators cache
         Second, do a search
         If a hit is found, update the cache in self.creators
-        '''
+        """
 
         # First use the cache
         if creator in self.creators:
@@ -228,7 +228,7 @@ class PaintingBot:
 
         # Search Wikidata for a suitable candidate, tell the search to only return humans
         searchstring = u'%s haswbstatement:P31=Q5' % (creator,)
-        creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
+        creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
 
         for creatoritem in creategen:
             if creatoritem.isRedirectPage():
@@ -254,9 +254,9 @@ class PaintingBot:
         return None
 
     def replaceableCreator(self, oldCreatorItem):
-        '''
+        """
         Figure out if we should replace this or not
-        '''
+        """
 
         # If I encounter these, I'm skipping it
         skiplist = [ u'Q1028181', # painter, doh!

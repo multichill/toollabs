@@ -142,7 +142,7 @@ class PortraitPaintingsBot:
         """
         # Search Wikidata for a suitable candidate, tell the search to only return humans
         searchstring = u'"%s" haswbstatement:P31=Q5' % (name,)
-        persongen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
+        persongen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
 
         foundperson = False
 
