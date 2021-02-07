@@ -22,7 +22,7 @@ def getMunchMuseumGenerator():
     """
     Generator to return Munch Museum paintings
     """
-    basesearchurl = 'https://munch.emuseum.com/en/advancedsearch/objects/mediumEN%%3AOil%%20on%%20canvas/images?page=%s'
+    basesearchurl = 'https://munch.emuseum.com/en/search/*/objects/images?filter=classificationsEN%%3APaintings&page=%s'
     htmlparser = HTMLParser()
 
     # Stupid Emuseum junk
@@ -58,7 +58,6 @@ def getMunchMuseumGenerator():
             metadata['idpid'] = 'P217'
 
             # The website also contains paintings outside of the collection.
-            invregex = '\<div class\=\"detailField invnoField\"\>\<span class\=\"detailFieldLabel\"\>Accession number\:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>\<\/div\>'
             invregex = '\<div class\=\"detailField invnoField\"\>\<span class\=\"detailFieldValue\"\>\<span\>Munch-museet\<\/span\>\<span\>,\s*\<\!-- ref\.--\>\<\/span\>\<span\>([^\<]+)\<\/span\>'
             invmatch = re.search(invregex, itempage.text)
 
@@ -166,8 +165,8 @@ def getMunchMuseumGenerator():
                 metadata['imageurlformat'] = 'Q2195' #JPEG
             #    metadata['imageurllicense'] = 'Q18199165' # cc-by-sa.40
                 metadata['imageoperatedby'] = 'Q844926'
-                # Used this to add suggestions everywhere
-                metadata['imageurlforce'] = True
+            #    # Used this to add suggestions everywhere
+            #    metadata['imageurlforce'] = True
 
             yield metadata
 
