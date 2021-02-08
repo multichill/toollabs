@@ -3,9 +3,7 @@
 """
 Bot to import paintngs from the Museum of Fine Arts, Budapest (Szépművészeti Múzeum)
 
-* Loop over http://www.szepmuveszeti.hu/lista_eng?classification=68&only_pictures=on (only_pictures is turned around)
-* Grab individual paintings like http://www.szepmuveszeti.hu/adatlap_eng/portrait_of_man_frans_9237
-* Also grab the Hungarian title at http://www.szepmuveszeti.hu/adatlap/9237
+Just a copy of Hungarian National Gallery with the target changed
 
 Use artdatabot to upload it to Wikidata
 
@@ -23,80 +21,154 @@ except ImportError:
 def getMFABudapestGenerator():
     """
     Generator to return Museum of Fine Arts, Budapest (Szépművészeti Múzeum) paintings
-    
     """
     htmlparser = HTMLParser()
-    baseSearchUrl = u'http://www.szepmuveszeti.hu/lista_eng?ajax=1&block=gyujtemeny_oldal_doboz_eng&classification%%5B%%5D=68&page=%s&search_text=&only_pictures=on&style=grid-text&search_inventory_number='
+    # They switched to Wordpress so I have to ask Wordpress for a list of relevant posts
+    baseSearchUrl = 'https://www.mfab.hu/wp/wp-admin/admin-ajax.php'
 
-    for i in range(1, 102):
-        searchUrl = baseSearchUrl % (i,)
-        print (searchUrl)
+    session = requests.Session()
 
-        searchPage = requests.get(searchUrl)
+    step = 10
+
+    # 2334, 10 per page
+    for i in range(1, 235):
+        offset = ( i * step ) - step
+        print('Working on page %s and offset %s on %s' % (i, offset, baseSearchUrl))
+
+        postdata = { 'action' : 'post_filter',
+                     'post_type' : 'artwork',
+                     'list_mode' : 'grid',
+                     'filter_object[per_page]' : step,
+                     'filter_object[offset]' :  offset,
+                     'filter_object[current_page]' : i,
+                     'filter_object[orderby]' : 'author',
+                     'filter_object[order]' : 'asc',
+                     'filter_object[artwork_type][0]' : 'painting',
+                     'filter_object[artwork_type][1]' : 'panel-painting'
+                     }
+
+        searchPage = session.post(baseSearchUrl, data=postdata)
         searchPageData = searchPage.text
-        searchRegex = u'\<a class\=\"mutargy_megtekintese\" href\=\"\/adatlap_eng\/([^\"]+)_(\d+)\"\>([^\<]+)\<\/a\>'
+        searchRegex = '\<div class\=\"card card--artwork-x\"\>[\s\t\r\n]*\<a href\=\"(https\:\/\/www\.mfab\.hu\/artworks\/[^\"]+\/)\" class\=\"card__link\"\>'
 
         for match in re.finditer(searchRegex, searchPageData):
-            url = u'http://www.szepmuveszeti.hu/adatlap_eng/%s_%s' % (match.group(1),match.group(2))
-            url_hu = u'http://www.szepmuveszeti.hu/adatlap/%s_%s' % (match.group(1),match.group(2))
-            #title = htmlparser.unescape(match.group(3))
-
+            url = match.group(1)
             print (url)
 
             itemPage = requests.get(url)
             itemPageData = itemPage.text
 
-            itemPageHu = requests.get(url_hu)
-            itemPageHuData = itemPageHu.text
-
             metadata = {}
             metadata['url'] = url
 
-            metadata['collectionqid'] = u'Q840886'
-            metadata['collectionshort'] = u'Szépművészeti'
-            metadata['locationqid'] = u'Q840886'
+            metadata['collectionqid'] = 'Q840886'
+            metadata['collectionshort'] = 'Szépművészeti'
+            metadata['locationqid'] = 'Q840886'
+
+            objecttyperegex = '\<th\>Object type\<\/th\>[\s\t\r\n]*\<td\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/td\>'
+            objecttypematch = re.search(objecttyperegex, itemPageData)
+            objecttype = htmlparser.unescape(objecttypematch.group(1)).strip()
 
             # Search is for paintings
-            metadata['instanceofqid'] = u'Q3305213'
+            if objecttype=='panel painting' or objecttype=='painting':
+                metadata['instanceofqid'] = 'Q3305213'
+            else:
+                # Just to be sure
+                print('Found a unexpected object type: %s!!!!' % (objecttype,))
+                continue
+
+            titlecreatorregex = '\<h1 class\=\"headline__title\"\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<span class\=\"author\"\>[\s\t\r\n]*\<span class\=\"author__name\"\>([^\<]+)\<\/span\>'
+            titlecreatormatch = re.search(titlecreatorregex, itemPageData)
+
+            titleregex = '\<h1 class\=\"headline__title\"\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/h1>'
+            titlematch = re.search(titleregex, itemPageData)
+
+            if titlecreatormatch:
+                title = htmlparser.unescape(titlecreatormatch.group(1)).strip()
+                name = htmlparser.unescape(titlecreatormatch.group(2)).strip()
+            else:
+                title = htmlparser.unescape(titlematch.group(1)).strip()
+                name = None
+
+            if len(title) > 220:
+                title = title[0:200]
+            metadata['title'] = { 'en' : title,
+                                  }
+
+            if name:
+                metadata['creatorname'] = name
+                metadata['description'] = { 'nl' : '%s van %s' % ('schilderij', metadata.get('creatorname'),),
+                                            'en' : '%s by %s' % ('painting', metadata.get('creatorname'),),
+                                            'de' : '%s von %s' % ('Gemälde', metadata.get('creatorname'), ),
+                                            'fr' : '%s de %s' % ('peinture', metadata.get('creatorname'), ),
+                                            }
+            else:
+                metadata['creatorname'] = 'anonymous'
+                metadata['description'] = { 'nl' : 'schilderij van anonieme schilder',
+                                            'en' : 'painting by anonymous painter',
+                                            }
+                metadata['creatorqid'] = 'Q4233718'
+
+            # That seems to work. Delete this part later
+            #if titleMatch:
+            #    title = htmlparser.unescape(titleMatch.group(1)).strip()
+            #else:
+            #    title = u'(without title)'
+
+            #artistRegex = u'\<td class\=\"data-label\"\>artist\:\<\/td\>[\r\n\t\s]*\<td\>[\r\n\t\s]*([^\<]+)\<br\>'
+            #artistMatch = re.search(artistRegex, itemPageData)
+            #if artistMatch:
+            #    name = htmlparser.unescape(artistMatch.group(1)).strip()
+            #else:
+            #    name = u'anonymous'
+            #metadata['creatorname'] = name
+            #metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
+            #                            u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+            #                            }
 
             metadata['idpid'] = u'P217'
-            invRegex = u'\<td\>Inventory Number\:\<\/td\>[\r\n\t\s]*\<td\>([^\<]+)\<\/td\>'
+            invRegex = '\<th\>Inventory number\<\/th\>[\s\t\r\n]*\<td\>([^\<]+)\<\/td\>'
             invMatch = re.search(invRegex, itemPageData)
             metadata['id'] = invMatch.group(1).strip()
 
-            titleRegex = u'\<td colspan\=\"2\"\>[\r\n\t\s]*\<h1\>([^\<]+)\<'
+            # Find different types of dates
+            dateregex = '\<th\>Date\<\/th\>[\s\t\r\n]*\<td\>(\d\d\d\d)\<\/td\>'
+            datecircaregex = '\<th\>Date\<\/th\>[\s\t\r\n]*\<td\>ca\.\s*(\d\d\d\d)\<\/td\>'
+            periodregex = '\<th\>Date\<\/th\>[\s\t\r\n]*\<td\>(\d\d\d\d)\s*[-–]\s*(\d\d\d\d)\<\/td\>'
+            circaperiodregex = '\<th\>Date\<\/th\>[\s\t\r\n]*\<td\>ca\.\s*(\d\d\d\d)\s*[-–]\s*(\d\d\d\d)\<\/td\>'
+            shortperiodregex = '\<th\>Date\<\/th\>[\s\t\r\n]*\<td\>(\d\d)(\d\d)\s*[-–]\s*(\d\d)\<\/td\>'
+            circashortperiodregex = '\<th\>Date\<\/th\>[\s\t\r\n]*\<td\>ca\.\s*(\d\d)(\d\d)\s*[-–]\s*(\d\d)\<\/td\>'
+            otherdateregex = '\<th\>Date\<\/th\>[\s\t\r\n]*\<td\>([^\<]+)\<\/td\>'
 
-            titleMatch = re.search(titleRegex, itemPageData)
-            titleHuMatch = re.search(titleRegex, itemPageHuData)
+            datematch = re.search(dateregex, itemPageData)
+            datecircamatch = re.search(datecircaregex, itemPageData)
+            periodmatch = re.search(periodregex, itemPageData)
+            circaperiodmatch = re.search(circaperiodregex, itemPageData)
+            shortperiodmatch = re.search(shortperiodregex, itemPageData)
+            circashortperiodmatch = re.search(circashortperiodregex, itemPageData)
+            otherdatematch = re.search(otherdateregex, itemPageData)
 
-            title = htmlparser.unescape(titleMatch.group(1)).strip()
-            title_hu = htmlparser.unescape(titleHuMatch.group(1)).strip()
-            # Chop chop, several very long titles
-            if len(title) > 220:
-                title = title[0:200]
-            if len(title_hu) > 220:
-                title_hu = title_hu[0:200]
-            metadata['title'] = { u'en' : title,
-                                  u'hu' : title_hu,
-                              }
-
-            artistRegex = u'\<td\>[\r\n\t\s]*Artist[s]?\:[\r\n\t\s]*\<\/td\>[\r\n\t\s]*\<td\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<br \/\>'
-            artistMatch = re.search(artistRegex, itemPageData)
-
-            if artistMatch:
-                name = htmlparser.unescape(artistMatch.group(1)).strip()
-            else:
-                name = u'anonymous'
-            metadata['creatorname'] = name
-            metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
-                                        u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
-                                        }
-
-            # Only match on years
-            dateRegex = u'\<td\>Date\:\s*\<\/td\>[\r\n\t\s]*\<td\>\s*(\d\d\d\d)\s*\<\/td\>'
-            dateMatch = re.search(dateRegex, itemPageData)
-            if dateMatch:
-                metadata['inception'] = htmlparser.unescape(dateMatch.group(1))
+            if datematch:
+                metadata['inception'] = int(datematch.group(1).strip())
+            elif datecircamatch:
+                metadata['inception'] = int(datecircamatch.group(1).strip())
+                metadata['inceptioncirca'] = True
+            elif periodmatch:
+                metadata['inceptionstart'] = int(periodmatch.group(1))
+                metadata['inceptionend'] = int(periodmatch.group(2))
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1))
+                metadata['inceptionend'] = int(circaperiodmatch.group(2))
+                metadata['inceptioncirca'] = True
+            elif shortperiodmatch:
+                metadata['inceptionstart'] = int('%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
+                metadata['inceptionend'] = int('%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
+            elif circashortperiodmatch:
+                metadata['inceptionstart'] = int('%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
+                metadata['inceptionend'] = int('%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+                metadata['inceptioncirca'] = True
+            elif otherdatematch:
+                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
 
             # acquisitiondate not available
             # acquisitiondateRegex = u'\<em\>Acknowledgement\<\/em\>\:\s*.+(\d\d\d\d)[\r\n\t\s]*\<br\>'
@@ -104,19 +176,18 @@ def getMFABudapestGenerator():
             #if acquisitiondateMatch:
             #    metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
 
-            mediumRegex = u'\<td\>Medium\:\<\/td\>[\r\n\t\s]*\<td\>oil on canvas\<\/td\>'
+            mediumRegex = '\<th\>Medium, technique\<\/th\>[\s\t\r\n]*\<td\>(oil on canvas|canvas, oil)\<\/td\>'
             mediumMatch = re.search(mediumRegex, itemPageData)
 
             if mediumMatch:
                 metadata['medium'] = u'oil on canvas'
 
-            dimensionRegex = u'\<td\>Dimensions\:\<\/td\>[\r\n\t\s]*\<td\>([^\<]+)\<'
+            dimensionRegex = '\<th\>Dimensions\<\/th\>[\s\t\r\n]*\<td\>\<p\>([^\<]+)\<\/p\>'
             dimensionMatch = re.search(dimensionRegex, itemPageData)
 
-            # TODO: Check http://www.szepmuveszeti.hu/adatlap_eng/madonna_and_child_with_10006
             if dimensionMatch:
                 dimensiontext = dimensionMatch.group(1).strip()
-                regex_2d = u'^(?P<height>\d+(\.\d+)?)\s*(x|×)\s*(?P<width>\d+(\.\d+)?)\s*cm.*$'
+                regex_2d = '^(?P<height>\d+(\.\d+)?)\s*(x|×)\s*(?P<width>\d+(\.\d+)?)\s*cm$'
                 #regex_3d = u'^.+\((?P<height>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<width>\d+(\.\d+)?)\s*(cm\s*)?(x|×)\s*(?P<depth>\d+(\.\d+)?)\s*cm\)$'
                 match_2d = re.match(regex_2d, dimensiontext, re.DOTALL)
                 #match_3d = re.match(regex_3d, dimensiontext)
@@ -133,18 +204,25 @@ def getMFABudapestGenerator():
             #if imageMatch:
             #    metadata[u'imageurl'] = imageMatch.group(1)
             #    metadata[u'imageurlformat'] = u'Q2195' #JPEG
-
             yield metadata
 
-
-def main():
+def main(*args):
     dictGen = getMFABudapestGenerator()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    #    print (painting)
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 if __name__ == "__main__":
     main()
