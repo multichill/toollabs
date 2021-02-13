@@ -29,22 +29,41 @@ class TouchPaintingBot:
         """
         Get the generator to work on.
         """
-        datapage = pywikibot.Page(self.site, 'Data:Completely_indexed_painting_collections.tab')
-        collectionjson = json.loads(datapage.text)
-        query = 'SELECT ?item ?institution WHERE { VALUES ?item {'
-        count = 0
-        for collectioninfo in collectionjson.get('data'):
-            query += ' wd:%s' % (collectioninfo[0],)
-        query +=' }  ?item wdt:P1612 ?institution }'
-        sq = pywikibot.data.sparql.SparqlQuery()
-        queryresult = sq.select(query)
+        coldatapage = pywikibot.Page(self.site, 'Data:Completely_indexed_painting_collections.tab')
+        collectionjson = json.loads(coldatapage.text)
+        colquery = 'SELECT ?item ?institution WHERE { VALUES ?item {'
 
-        for resultitem in queryresult:
+        for collectioninfo in collectionjson.get('data'):
+            colquery += ' wd:%s' % (collectioninfo[0],)
+        colquery +=' }  ?item wdt:P1612 ?institution }'
+        colsq = pywikibot.data.sparql.SparqlQuery()
+        colqueryresult = colsq.select(colquery)
+
+        for resultitem in colqueryresult:
             institution = resultitem.get('institution').replace(' ', '_')
             query = 'file: hastemplate:Institution:%s incategory:Paintings_without_Wikidata_item -incategory:Paintings_from_completely_indexed_collections' % (institution,)
             gen = pagegenerators.SearchPageGenerator(query, total=1000, namespaces=6, site=self.site)
             for filepage in gen:
                 yield filepage
+
+        creatordatapage = pywikibot.Page(self.site, 'Data:Completely_indexed_painters.tab')
+        creatorjson = json.loads(creatordatapage.text)
+        creatorquery = 'SELECT ?item ?creator WHERE { VALUES ?item {'
+
+        for creatorinfo in creatorjson.get('data'):
+            creatorquery += ' wd:%s' % (creatorinfo[0],)
+        creatorquery +=' }  ?item wdt:P1472 ?creator }'
+        creatorsq = pywikibot.data.sparql.SparqlQuery()
+        creatorqueryresult = creatorsq.select(creatorquery)
+
+        for resultitem in creatorqueryresult:
+            creator = resultitem.get('creator').replace(' ', '_')
+            query = 'file: hastemplate:Creator:%s incategory:Paintings_without_Wikidata_item -incategory:Paintings_by_completely_indexed_painters' % (creator,)
+            gen = pagegenerators.SearchPageGenerator(query, total=1000, namespaces=6, site=self.site)
+            for filepage in gen:
+                yield filepage
+
+
 
     def run(self):
         """
