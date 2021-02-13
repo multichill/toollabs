@@ -69,7 +69,6 @@ class PaintingBot:
                          u'Yao people' : anonymous,
                          u'Rajasthan, India' : anonymous,
                          u'pupil of Joseph Mallord William Turner' : anonymous,
-                         u'Attributed to Corneille de Lyon' : anonymous,
                          u'Jaipur, Rajasthan, India' : anonymous,
                          u'Pierre Henri de Valenciennes or Circle' : anonymous,
                          u'French 19th Century' : anonymous,
@@ -243,7 +242,7 @@ class PaintingBot:
                             return creatoritem
 
         # Regex that should match all the anonymous work stuff that isn't covered by the list
-        anonymousRegex = u'^(Attributed to|Workshop of|Follower of|Circle of|Manner of|Forgery after|School of|After|Unidentified Artist|School of)\s.*$'
+        anonymousRegex = '^(Workshop of|Follower of|Circle of|Manner of|Forgery after|School of|After|Unidentified Artist|School of)\s.*$'
         anonymousMatch = re.match(anonymousRegex, creator, flags=re.I)
         if anonymousMatch:
             self.creators[creator] = self.creators.get('anonymous')
