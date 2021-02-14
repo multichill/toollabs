@@ -18,6 +18,8 @@ import time
 import requests
 import json
 import math
+import csv
+from contextlib import closing
 from html.parser import HTMLParser
 from pyproj import Proj, transform
 
@@ -181,8 +183,12 @@ class GeographUploaderBot:
         desc  = '{{Geograph from structured data}}\n'
         if metadata.get('commonscat'):
             desc += '[[Category:%s]]\n' % (metadata.get('commonscat'),)
+            if metadata.get('objectcommonscat') and metadata.get('objectcommonscat')!=metadata.get('commonscat'):
+                desc += '[[Category:%s]]\n' % (metadata.get('objectcommonscat'),)
+        elif metadata.get('objectcommonscat'):
+            desc += '[[Category:%s]]\n' % (metadata.get('objectcommonscat'),)
         else:
-            desc += '{{Subst:Unc}}\n'
+            desc += '{{Uncategorized-Geograph|year={{subst:CURRENTYEAR}}|month={{subst:CURRENTMONTHNAME}}|day={{subst:CURRENTDAY}}|gridref=%s}}\n' % (metadata.get('grid_reference'))
         return desc
 
     def getTitle(self, metadata):
@@ -488,7 +494,7 @@ class GeographUploaderBot:
             return False
 
         toclaim = {'mainsnak': { 'snaktype':'value',
-                                 'property': 'P625',
+                                 'property': 'P9149',
                                  'datavalue': { 'value': { 'latitude': metadata.get('object_lat'),
                                                            'longitude':metadata.get('object_lon'),
                                                            'altitude': None,
@@ -724,14 +730,31 @@ def getGeographTags():
     """
     page = pywikibot.Page(pywikibot.Site('commons', 'commons'), title='User:GeographBot/Tags')
     text = page.get()
-    regex = u'^\*\s*https\:\/\/www\.geograph\.org\.uk\/tagged\/(?P<tag>[^\s]+)\s*-\s*\{\{Q\|(?P<qid>Q\d+)\}\}.*$'
+    regex = u'^\*\s*https\:\/\/www\.geograph\.org\.uk\/tagged\/(?P<tag>[^\s]+)\s*-\s*(?P<text>(\{\{Q\|(?P<qid>Q\d+)\}\})?.*)$'
     result = {}
+    skipped = {}
 
     for match in re.finditer(regex, text, flags=re.M):
-        tag = match.group('tag').replace('+', ' ').lower()
+        tag = match.group('tag').replace('+', ' ').replace('%28', '(').replace('%29', ')').lower()
         if match.group('tag').startswith('subject:'):
             tag = tag.replace('subject:', u'')
-        result[tag] = match.group('qid')
+        if match.group('qid'):
+            result[tag] = match.group('qid')
+        else:
+            skipped[tag] = match.group('text')
+
+    subjectsurl = 'https://www.geograph.org.uk/tags/prefix.php?prefix=subject&output=csv'
+    #subjectpage = requests.get(subjectsurl)
+    #csvreader = csv.DictReader(subjectpage.iter_lines())
+    #for subject in csvreader:
+    #    if subject.get('tag') not in result and subject.get('tag') not in skipped:
+    #        print (subject)
+    with closing(requests.get(subjectsurl, stream=True)) as r:
+        lines = (line.decode('utf-8') for line in r.iter_lines())
+        for subject in csv.DictReader(lines):
+            tag = subject.get('tag').lower()
+            if tag not in result and tag not in skipped and int(subject.get('images')) > 99:
+                print ('* https://www.geograph.org.uk/tagged/subject:%s - ' % (tag.replace(' ', '+'),))
     return result
 
 def main(*args):
