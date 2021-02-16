@@ -1004,10 +1004,12 @@ class OwnWorkBot:
         """
         Handle the object coordinates on the file page
         :param filepage:
-        :return:
+        :return: #
         """
-        if currentdata.get('statements') and currentdata.get('statements').get('P625'):
+        if currentdata.get('statements') and currentdata.get('statements').get('P9149'):
             return False
+        elif currentdata.get('statements') and currentdata.get('statements').get('P625'):
+            return self.replaceObjectCoordinates(mediaid, currentdata, filepage)
 
         objectregex = u'\{\{[oO]bject location(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:[^_]+)?(_?heading\:(?P<heading>\d+(\.\d+)?))?(\|prec\=\d+)?\}\}'
         objectmatch = re.search(objectregex, filepage.text)
@@ -1031,7 +1033,7 @@ class OwnWorkBot:
             postvalue = data.get(u'results')[0].get('value')
 
             toclaim = {'mainsnak': { 'snaktype':'value',
-                                     'property': 'P625',
+                                     'property': 'P9149',
                                      'datavalue': { 'value': postvalue,
                                                     'type' : 'globecoordinate',
                                                     }
@@ -1041,6 +1043,24 @@ class OwnWorkBot:
                        'rank': 'normal',
                        }
             return [toclaim,]
+
+    def replaceObjectCoordinates(self, mediaid, currentdata, filepage):
+        """
+        We started off this party with coordinate location (P625), but switched to coordinates of depicted place (P9149)
+        Replace it
+        :param mediaid:
+        :param currentdata:
+        :param filepage:
+        :return:
+        """
+        if len(currentdata.get('statements').get('P625'))!=1:
+            return False
+
+        toclaim = currentdata.get('statements').get('P625')[0]
+        idtoremove = toclaim.pop('id')
+        toclaim['mainsnak']['property'] = 'P9149'
+        oldhash = toclaim['mainsnak'].pop('hash')
+        return [{'id' : idtoremove, 'remove':''}, toclaim ]
 
     def handleCameraMakeModel(self, mediaid, currentdata, filepage):
         """
