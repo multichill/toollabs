@@ -1,46 +1,30 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import Thyssen-Bornemisza Collection  paintings. No api, no csv, just plain old screen scraping stuff
+Bot to import Thyssen-Bornemisza Collection  paintings. Currently broken. Needs to be updated for new site
 
-* Loop over http://www.museothyssen.org/en/thyssen/ficha_obra/1 - ???
+Loop over https://www.museothyssen.org/en/buscador/tipo_obra/pintura-11713/tipo/obra?key=&fecha_inicio=&fecha_inicio_actuales=&fecha_fin_actuales=&fecha_fin_pasadas=&page=1
 
+They do provide high resolution images these days
 """
 import artdatabot
-#import json
 import pywikibot
-#from pywikibot import pagegenerators
-#import urllib2
 import requests
 import re
-#import pywikibot.data.wikidataquery as wdquery
-#import datetime
-import HTMLParser
-#import posixpath
-#from urlparse import urlparse
-#from urllib import urlopen
-#import hashlib
-#import io
-#import base64
-#import upload
-#import tempfile
-import os
-import csv
+from html.parser import HTMLParser
 
-
-
-def getHermitageGenerator():
-    '''
-    Generator to return Hermitage paintings
-    '''
+def getThyssenGenerator():
+    """
+    Generator to return Thyssen paintings
+    """
 
     # 1 - 1000 ?
     baseUrl = u'http://www.museothyssen.org/en/thyssen/ficha_obra/%s'
-    htmlparser = HTMLParser.HTMLParser()
+    htmlparser = htmlparser = HTMLParser()
 
     for i in range(1, 1500):
         url = baseUrl % (i,)
-        print url
+        print (url)
 
         metadata = {}
 
@@ -264,19 +248,26 @@ def getHermitageGenerator():
                 yield metadata
             #else:
             #    yield metadata
-    '''            
-        
+    '''
 
-def main():
-    dictGen = getHermitageGenerator()
 
-    #for painting in dictGen:
-    #    pywikibot.output(painting)
+def main(*args):
+    dictGen = getThyssenGenerator()
+    dryrun = False
+    create = False
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
-    
-    
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
+
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 if __name__ == "__main__":
     main()
