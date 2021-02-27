@@ -12,6 +12,7 @@ import re
 import pywikibot.data.sparql
 import time
 import json
+import random
 from pywikibot import pagegenerators
 
 class DepictsMonumentsBot:
@@ -145,14 +146,14 @@ class DepictsMonumentsBot:
 
         for (monumentid, qid) in summarytoadd:
             if len(summarytoadd)==1:
-                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[:d:%s]]' % (self.template,
+                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[d:Special:EntityPage/%s]]' % (self.template,
                                                                                                                                      monumentid,
                                                                                                                                      self.property,
                                                                                                                                      self.propertyname,
                                                                                                                                      self.property,
                                                                                                                                      qid, )
             else:
-                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[:d:%s]] (and %s more)' % (self.template,
+                summary = u'based on [[Template:%s]] with id %s, which is the same id as [[:d:Property:%s|%s (%s)]] on [[d:Special:EntityPage/%s]] (and %s more)' % (self.template,
                                                                                                                                              monumentid,
                                                                                                                                              self.property,
                                                                                                                                              self.propertyname,
@@ -173,21 +174,27 @@ class DepictsMonumentsBot:
             pywikibot.output(summary)
 
             token = self.site.tokens['csrf']
-            postdata = {u'action' : u'wbeditentity',
-                        u'format' : u'json',
-                        u'id' : mediaid,
-                        u'data' : json.dumps(itemdata),
-                        u'token' : token,
-                        u'summary' : summary,
-                        u'bot' : True,
+            postdata = {'action' : u'wbeditentity',
+                        'format' : u'json',
+                        'id' : mediaid,
+                        'data' : json.dumps(itemdata),
+                        'token' : token,
+                        'summary' : summary,
+                        'bot' : True,
                         }
+            if currentdata:
+                # This only works when the entity has been created
+                postdata['baserevid'] = currentdata.get('lastrevid')
 
             request = self.site._simple_request(**postdata)
             try:
                 data = request.submit()
-            except pywikibot.data.api.APIError:
-                pywikibot.output('Got an API error while saving page. Sleeping and skipping')
-                time.sleep(120)
+                # Always touch the page to flush it
+                filepage.touch()
+            except (pywikibot.data.api.APIError, pywikibot.exceptions.OtherPageSaveError):
+                pywikibot.output('Got an API error while saving page. Sleeping, getting a new token and skipping')
+                time.sleep(30)
+                self. site.tokens.load_tokens(['csrf'])
 
     def addDepicts(self, mediaid, currentdata, depictstoadd):
         """
@@ -254,8 +261,8 @@ def getDepictsMonumentsConfig():
     Load the configuration from https://commons.wikimedia.org/wiki/User:ErfgoedBot/Depicts_monuments.js
     :return: Dict with the configuration
     """
-    site = pywikibot.Site(u'commons', u'commons')
-    pageTitle = u'User:ErfgoedBot/Depicts monuments.js'
+    site = pywikibot.Site('commons', 'commons')
+    pageTitle = 'User:ErfgoedBot/Depicts monuments.js'
     page = pywikibot.Page(site, title=pageTitle)
 
     jsonregex = u'^\/\*.+\n( \*.*\n)+(?P<json>(.+\n?)+)$'
@@ -288,7 +295,12 @@ def main(*args):
         depictsMonumentsBot = DepictsMonumentsBot(config.get(monumentproperty), gen=gen)
         depictsMonumentsBot.run()
     else:
-        for monumentproperty in config.keys():
+        # Work on all configured properties, but each time in a different order
+        monkeys = list(config.keys())
+        random.shuffle(monkeys)
+        pywikibot.output('Working on all %s configured monument properties' % (len(monkeys),))
+        for monumentproperty in monkeys:
+            pywikibot.output('Working on %s: "%s"' % (monumentproperty,config.get(monumentproperty).get('description')))
             depictsMonumentsBot = DepictsMonumentsBot(config.get(monumentproperty))
             depictsMonumentsBot.run()
 
