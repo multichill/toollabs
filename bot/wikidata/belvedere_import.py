@@ -3,7 +3,7 @@
 """
 Bot to import paintings from the  Österreichische Galerie Belvedere in Vienna to Wikidata.
 
-Just loop over pages like http://digital.belvedere.at/advancedsearch/objects/name:Gemälde/images?page=1
+Just loop over pages like https://sammlung.belvedere.at/advancedsearch/Objects/classifications%3AMalerei/images?page=1
 
 This bot does use artdatabot to upload it to Wikidata and just asks the API for all it's paintings.
 
@@ -21,28 +21,28 @@ def getBelvedereGenerator():
     """
     #basesearchurl = u'http://digital.belvedere.at/advancedsearch/objects/name:Gemälde/images?page=%s'
     # This one is for all the paintings
-    basesearchurl = u'https://digital.belvedere.at/advancedsearch/Objects/classifications%%3AMalerei/images?page=%s'
+    basesearchurl = 'https://sammlung.belvedere.at/advancedsearch/Objects/classifications%%3AMalerei/images?page=%s'
     # Leftovers
-    #basesearchurl = u'https://digital.belvedere.at/advancedsearch/Objects/name%%3ATafelbild/images?page=%s'
+    #basesearchurl = u'https://sammlung.belvedere.at/advancedsearch/Objects/name%%3ATafelbild/images?page=%s'
     htmlparser = HTMLParser()
 
-    for i in range(1, 341): #12): # 341):
+    for i in range(1, 422): #12): # 341):
         searchurl = basesearchurl % (i,)
 
         pywikibot.output(searchurl)
         searchPage = requests.get(searchurl)
 
-        urlregex = u'data-a2a-url\=\"(https?:\/\/digital\.belvedere\.at\/objects\/(\d+)\/[^\"]+)\;jsessionid\=[^\"]+\"'
+        urlregex = 'data-a2a-url\=\"(https?:\/\/sammlung\.belvedere\.at\/objects\/(\d+)\/[^\"]+)\;jsessionid\=[^\"]+\"'
         matches = re.finditer(urlregex, searchPage.text)
         for match in matches:
             metadata = {}
             url = match.group(1)
 
-            metadata['artworkidpid'] = u'P5823'
+            metadata['artworkidpid'] = 'P5823'
             metadata['artworkid'] = match.group(2)
 
             # Museum site doesn't seem to like it when we go fast
-            time.sleep(15)
+            #time.sleep(15)
 
             pywikibot.output(url)
             try:
@@ -52,23 +52,23 @@ def getBelvedereGenerator():
                 itempage = requests.get(url)
 
             metadata['url'] = url
-            metadata['collectionqid'] = u'Q303139'
-            metadata['collectionshort'] = u'Belvedere'
-            metadata['locationqid'] = u'Q303139'
+            metadata['collectionqid'] = 'Q303139'
+            metadata['collectionshort'] = 'Belvedere'
+            metadata['locationqid'] = 'Q303139'
 
             #No need to check, I'm actually searching for paintings.
-            metadata['instanceofqid'] = u'Q3305213'
+            metadata['instanceofqid'] = 'Q3305213'
 
-            metadata['idpid'] = u'P217'
-            invregex = u'\<div class\=\"detailField invnoField\"\>\<span class\=\"detailFieldLabel\"\>Inventarnummer:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>\<\/div\>'
+            metadata['idpid'] = 'P217'
+            invregex = '\<div class\=\"detailField invnoField\"\>\<span class\=\"detailFieldLabel\"\>Inventarnummer\s*\<\/span\>\<span class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>\<\/div\>'
             invmatch = re.search(invregex, itempage.text)
             if invmatch:
                 metadata['id'] = invmatch.group(1).strip()
             else:
-                pywikibot.output(u'Something went wrong, no inventory number found, skipping this one')
+                pywikibot.output('Something went wrong, no inventory number found, skipping this one')
                 continue
 
-            titleregex = u'\<div class\=\"detailField titleField\"\>\<h2 property\=\"name\" itemprop\=\"name\"\>([^\<]+)\<\/h2\>'
+            titleregex = '\<div class\=\"detailField titleField\"\>\<h1 property\=\"name\" itemprop\=\"name\"\>([^\<]+)\<\/h1\>'
             titlematch = re.search(titleregex, itempage.text)
             title = htmlparser.unescape(titlematch.group(1).strip())
             # Chop chop, several very long titles
@@ -78,31 +78,30 @@ def getBelvedereGenerator():
                                   }
             # This one is not complete, attributed works will be missed
             # creatorregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:creator\" itemprop\=\"creator\"\>'
-            creatorregex = u'\<span class\=\"detailFieldLabel\"\>Künstler\/in\:\s*\<\/span\>\<span typeof\=\"schema\:Person\" itemtype\=\"\/\/schema\.org\/Person\" itemscope\=\"\" class\=\"detailFieldValue\"\>\<a property\=\"url\" itemprop\=\"url\" href\=\"\/people\/\d+\/[^\"]+\"\>\<span property\=\"name\" itemprop\=\"name\"\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<\/span\>'
+            creatorregex = '\<span class\=\"detailFieldLabel\"\>Künstler\/in\<\/span\>\<span class\=\"detailFieldValue\"\>\<span class\=\"mr-1\"\>\<a property\=\"url\" itemprop=\"url\" href\=\"\/people\/\d+\/[^\"]+\"\>\<span property\=\"name\" itemprop\=\"name\"\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<\/span\>'
             creatormatch = re.search(creatorregex, itempage.text)
             if creatormatch:
                 name = htmlparser.unescape(creatormatch.group(1).strip())
 
                 metadata['creatorname'] = name
-                metadata['description'] = { u'nl' : u'schilderij van %s' % (name, ),
-                                            u'en' : u'painting by %s' % (name, ),
-                                            u'de' : u'Gemälde von %s' % (name, ),
+                metadata['description'] = { 'nl' : 'schilderij van %s' % (name, ),
+                                            'en' : 'painting by %s' % (name, ),
+                                            'de' : 'Gemälde von %s' % (name, ),
                                             }
             else:
-                metadata['creatorname'] = u'anonymous'
-                metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
-                                            u'en' : u'painting by anonymous painter',
+                metadata['creatorname'] = 'anonymous'
+                metadata['description'] = { 'nl' : 'schilderij van anonieme schilder',
+                                            'en' : 'painting by anonymous painter',
                                         }
-                metadata['creatorqid'] = u'Q4233718'
-
+                metadata['creatorqid'] = 'Q4233718'
 
             # Was broken too
-            #dateregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema:dateCreated\" itemprop\=\"dateCreated\"\>'
-            dateregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>(\d\d\d\d)\<\/span\>'
-            datecircaregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>um (?P<date>\d\d\d\d)\s*(\(\?\))?\s*\<\/span\>'
-            periodregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>(\d\d\d\d)[-–\/](\d\d\d\d)\<\/span\>'
-            circaperiodregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>um\s*(\d\d\d\d)\/(\d\d\d\d)\<\/span\>'
-            otherdateregex = u'\<span class\=\"detailFieldLabel\"\>Datierung\: \<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>'
+            dateregex = '\<span class\=\"detailFieldLabel\"\>Datierung\s*\<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>(\d\d\d\d)\<br\>\<\/span\>'
+            datecircaregex = '\<span class\=\"detailFieldLabel\"\>Datierung\s*\<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>um (?P<date>\d\d\d\d)\s*(\(\?\))?\s*\<br\>\<\/span\>'
+            periodregex = '\<span class\=\"detailFieldLabel\"\>Datierung\s*\<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>(\d\d\d\d)[-–\/](\d\d\d\d)\<br\>\<\/span\>'
+            circaperiodregex = '\<span class\=\"detailFieldLabel\"\>Datierung\s*\<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>um\s*(\d\d\d\d)\/(\d\d\d\d)\<br\>\<\/span\>'
+            otherdateregex = '\<span class\=\"detailFieldLabel\"\>Datierung\s*\<\/span\>\<span property\=\"dateCreated\" itemprop\=\"dateCreated\" class\=\"detailFieldValue\"\>([^\<]+)\<br\>\<\/span\>'
+
             datematch = re.search(dateregex, itempage.text)
             datecircamatch = re.search(datecircaregex, itempage.text)
             periodmatch = re.search(periodregex, itempage.text)
@@ -110,9 +109,9 @@ def getBelvedereGenerator():
             otherdatematch = re.search(otherdateregex, itempage.text)
             if datematch:
                 # Don't worry about cleaning up here.
-                metadata['inception'] = htmlparser.unescape(datematch.group(1).strip())
+                metadata['inception'] = int(htmlparser.unescape(datematch.group(1).strip()))
             elif datecircamatch:
-                metadata['inception'] = htmlparser.unescape(datecircamatch.group(1).strip())
+                metadata['inception'] = int(htmlparser.unescape(datecircamatch.group(1).strip()))
                 metadata['inceptioncirca'] = True
             elif periodmatch:
                 metadata['inceptionstart'] = int(periodmatch.group(1),)
@@ -122,48 +121,47 @@ def getBelvedereGenerator():
                 metadata['inceptionend'] = int(circaperiodmatch.group(2),)
                 metadata['inceptioncirca'] = True
             elif otherdatematch:
-                print (u'Could not parse date: "%s"' % (otherdatematch.group(1),))
+                print ('Could not parse date: "%s"' % (otherdatematch.group(1),))
 
-            # Probably too
-
-            acquisitiondateregex = u'\<span class\=\"detailFieldLabel\"\>Inventarzugang:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>(\d\d\d\d)([^\<]+)\<\/span\>'
+            acquisitiondateregex = '\<span class\=\"detailFieldLabel\"\>Inventarzugang\s*\<\/span\>\<span class\=\"detailFieldValue\"\>(\d\d\d\d)([^\<]+)\<\/span\>'
             acquisitiondatematch = re.search(acquisitiondateregex, itempage.text)
             if acquisitiondatematch:
                 metadata['acquisitiondate'] = acquisitiondatematch.group(1)
                 # Quite a few works seem to have been from the KHM
-                if u'Übernahme aus dem Kunsthistorischen Museum' in acquisitiondatematch.group(2):
-                    metadata['extracollectionqid'] = u'Q95569'
+                if 'Übernahme aus dem Kunsthistorischen Museum' in acquisitiondatematch.group(2):
+                    metadata['extracollectionqid'] = 'Q95569'
 
-            #mediumregex = u'\<meta content\=\"Öl auf Leinwand\" property\=\"schema:artMedium\" itemprop\=\"artMedium\"\>'
-            mediumregex = u'\<span class\=\"detailFieldLabel\"\>Material\/Technik\: \<\/span\>\<span property\=\"artMedium\" itemprop\=\"artMedium\" class\=\"detailFieldValue\"\>Öl auf Leinwand\<\/span\>'
+            mediumregex = '\<span class\=\"detailFieldLabel\"\>Material\/Technik\s*\<\/span\>\<span property\=\"artMedium\" itemprop\=\"artMedium\" class\=\"detailFieldValue\"\>Öl auf Leinwand\<\/span\>'
             mediummatch = match = re.search(mediumregex, itempage.text)
             if mediummatch:
-                metadata['medium'] = u'oil on canvas'
+                metadata['medium'] = 'oil on canvas'
 
-            measurementsregex = u'\<div class\=\"detailField dimensionsField\"\>\<span class\=\"detailFieldLabel\"\>Maße:\s*\<\/span\>\<span class\=\"detailFieldValue\"\>\<div\>([^\<]+)\<\/div>'
+            measurementsregex = '\<div class\=\"detailField dimensionsField\"\>\<span class\=\"detailFieldLabel\"\>Maße\s*\<\/span\>\<span class\=\"detailFieldValue\"\>\<div\>([^\<]+)\<\/div>'
             measurementsmatch = re.search(measurementsregex, itempage.text)
             if measurementsmatch:
                 measurementstext = measurementsmatch.group(1)
-                regex_2d = u'(?P<height>\d+(,\d+)?) x (?P<width>\d+(,\d+)?) cm'
-                regex_3d = u'(?P<height>\d+(,\d+)?) x (?P<width>\d+(,\d+)?) x (?P<depth>\d+(,\d+)?) cm.*'
+                regex_2d = '(?P<height>\d+(,\d+)?) x (?P<width>\d+(,\d+)?) cm'
+                regex_3d = '(?P<height>\d+(,\d+)?) x (?P<width>\d+(,\d+)?) x (?P<depth>\d+(,\d+)?) cm.*'
                 match_2d = re.match(regex_2d, measurementstext)
                 match_3d = re.match(regex_3d, measurementstext)
                 if match_2d:
-                    metadata['heightcm'] = match_2d.group(u'height').replace(u',', u'.')
-                    metadata['widthcm'] = match_2d.group(u'width').replace(u',', u'.')
+                    metadata['heightcm'] = match_2d.group('height').replace(',', '.')
+                    metadata['widthcm'] = match_2d.group('width').replace(',', '.')
                 elif match_3d:
-                    metadata['heightcm'] = match_3d.group(u'height').replace(u',', u'.')
-                    metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
-                    metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
+                    metadata['heightcm'] = match_3d.group('height').replace(',', '.')
+                    metadata['widthcm'] = match_3d.group('width').replace(',', '.')
+                    metadata['depthcm'] = match_3d.group('depth').replace(',', '.')
 
-            imageidregex = u'\<div class\=\"media-download-content\"\>\<ul\>\<li\>\<a href\=\"\/objects\/details\.detail\.mediaoverlay\.primarymediaoverlay\.downloadbuttonprivate\/(\d+)'
+            imageidregex = '\<span\>Download\<\/span\>\<\/a\>\<div aria-labelledby\=\"downloadMediaLink\" class\=\"dropdown-menu\"\>\<a rel\=\"nofollow\" class\=\"dropdown-item\" href\=\"\/internal\/media\/downloaddispatcher\/(\d+)\;jsessionid\=[^\"]+\"\>'
             imageidmatch = re.search(imageidregex, itempage.text)
             if imageidmatch:
-                metadata[u'imageurl'] = u'https://digital.belvedere.at/internal/media/downloaddispatcher/%s' % (imageidmatch.group(1),)
-                metadata[u'imageurlformat'] = u'Q2195' #JPEG
-                metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa-4.0
+                metadata['imageurl'] = 'https://sammlung.belvedere.at/internal/media/downloaddispatcher/%s' % (imageidmatch.group(1),)
+                metadata['imageurlformat'] = 'Q2195' #JPEG
+                metadata['imageurllicense'] = 'Q18199165' # cc-by-sa-4.0 https://www.belvedere.at/en/open-content
+                metadata['imageoperatedby'] = 'Q303139'
                 # Could use this later to force
-                metadata[u'imageurlforce'] = False
+                metadata['imageurlforce'] = False
+
 
             # They insert a stupid Emuseum session id
             iiifregex = u'\<a class\=\"iiifLink\" href\=\"https\:\/\/digital\.belvedere\.at\/apis\/iiif\/presentation\/v2\/objects-(\d+)'
@@ -174,14 +172,23 @@ def getBelvedereGenerator():
             yield metadata
 
 
-def main():
+def main(*args):
     dictGen = getBelvedereGenerator()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    #    print (painting)
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 if __name__ == "__main__":
     main()
