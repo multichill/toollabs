@@ -21,7 +21,7 @@ import math
 import csv
 from contextlib import closing
 from html.parser import HTMLParser
-from pyproj import Proj, transform
+#from pyproj import Proj, transform
 
 class GeographUploaderBot:
     """
@@ -33,7 +33,7 @@ class GeographUploaderBot:
             * generator    - A generator that yields Dict objects.
 
         """
-        self.site = pywikibot.Site(u'commons', u'commons')
+        self.site = pywikibot.Site('commons', 'commons')
         self.site.login()
         self.site.get_tokens('csrf')
         self.repo = self.site.data_repository()
@@ -70,7 +70,7 @@ class GeographUploaderBot:
             if objectcc:
                 metadata['objectcommonscat'] = objectcc
 
-        pywikibot.output(metadata)
+        pywikibot.debug(metadata, 'bot')
         description = self.getDescription(metadata)
         title = self.cleanUpTitle(self.getTitle(metadata))
 
@@ -78,15 +78,15 @@ class GeographUploaderBot:
         #pywikibot.output(description)
 
         try:
-            response = requests.get(metadata.get(u'imageurl'))
+            response = requests.get(metadata.get('imageurl'))
         except requests.exceptions.ConnectionError:
-            pywikibot.output(u'Got a connection error for [[:d:%(item)s]] with url %(imageurl)s' % metadata)
+            pywikibot.output('Got a connection error for [[:d:%(item)s]] with url %(imageurl)s' % metadata)
             return False
 
-        print (title)
-        print (json.dumps(metadata, sort_keys=True, indent=4))
-        print (description)
-        print (json.dumps(self.getStructuredData(metadata), sort_keys=True, indent=4))
+        pywikibot.output ('Ready to upload %s' % (title,))
+        #print (json.dumps(metadata, sort_keys=True, indent=4))
+        #print (description)
+        #print (json.dumps(self.getStructuredData(metadata), sort_keys=True, indent=4))
 
         if response.status_code == 200:
             hashObject = hashlib.sha1()
@@ -118,11 +118,12 @@ class GeographUploaderBot:
                     return
                 imagefile.text=description
 
-                comment = u'Uploading geograph.org.uk image from %(sourceurl)s' % metadata
+                comment = 'Uploading geograph.org.uk image from %(sourceurl)s' % metadata
+                pywikibot.output(comment)
                 try:
                     uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment) # chunk_size=1000000)
                 except pywikibot.data.api.APIError:
-                    pywikibot.output(u'Failed to upload image %(imageurl)s' % metadata)
+                    pywikibot.output('Failed to upload image %(imageurl)s' % metadata)
                     uploadsuccess = False
             if uploadsuccess:
                 pywikibot.output('Uploaded a file, now grabbing structured data')
@@ -133,24 +134,24 @@ class GeographUploaderBot:
                 #pywikibot.output(json.dumps(itemdata, indent=2))
                 time.sleep(5)
                 imagefile.get(force=True)
-                mediaid = u'M%s' % (imagefile.pageid,)
-                print (mediaid)
-                summary = u'Adding structured data to this newly uploaded geograph.org.uk image'
+                mediaid = 'M%s' % (imagefile.pageid,)
+                pywikibot.debug(mediaid, 'bot')
+                summary = 'Adding structured data to this newly uploaded geograph.org.uk image'
                 token = self.site.tokens['csrf']
-                postdata = {u'action' : u'wbeditentity',
-                            u'format' : u'json',
-                            u'id' : mediaid,
-                            u'data' : json.dumps(itemdata),
-                            u'token' : token,
-                            u'summary' : summary,
-                            u'bot' : True,
+                postdata = {'action' : u'wbeditentity',
+                            'format' : u'json',
+                            'id' : mediaid,
+                            'data' : json.dumps(itemdata),
+                            'token' : token,
+                            'summary' : summary,
+                            'bot' : True,
                             }
-                print (json.dumps(postdata, sort_keys=True, indent=4))
+                pywikibot.debug(json.dumps(postdata, sort_keys=True, indent=4), 'bot')
                 request = self.site._simple_request(**postdata)
                 data = request.submit()
-                pywikibot.output(data)
+                pywikibot.debug(data,  'bot')
                 # A gentle touch to show the structured data we just added
-                #imagefile.touch()
+                #imagefile.touch() # Keeps getting broken
                 imagefile.put(imagefile.text)
 
     def reverseGeocode(self, lat, lon):
@@ -165,15 +166,16 @@ class GeographUploaderBot:
         url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (lat, lon)
         try:
             page = requests.get(url)
-            json = page.json()
+            jsondata = page.json()
         except json.decoder.JSONDecodeError:
+            pywikibot.output('Got invalid json at %s' % (url,))
             time.sleep(60)
             return (qid, commonscat)
-        if not json.get('missing'):
-            if json.get('wikidata'):
-                qid = json.get('wikidata')
-            if json.get('commons_cat') and json.get('commons_cat').get('title'):
-                commonscat = json.get('commons_cat').get('title')
+        if not jsondata.get('missing'):
+            if jsondata.get('wikidata'):
+                qid = jsondata.get('wikidata')
+            if jsondata.get('commons_cat') and jsondata.get('commons_cat').get('title'):
+                commonscat = jsondata.get('commons_cat').get('title')
         return (qid, commonscat)
 
     def getDescription(self, metadata):
@@ -195,13 +197,13 @@ class GeographUploaderBot:
         """
         Construct the title to be used for the upload
         """
-        fmt = u'%(title)s - geograph.org.uk - %(id)s.jpg'
+        fmt = '%(title)s - geograph.org.uk - %(id)s.jpg'
         title = fmt % metadata
         if len(title) < 200:
             return title
         else:
-            title = metadata.get(u'title')[0:100].strip()
-            title = title + u' - geograph.org.uk - %(id)s.jpg' % metadata
+            title = metadata.get('title')[0:100].strip()
+            title = title + ' - geograph.org.uk - %(id)s.jpg' % metadata
             return title
 
     def cleanUpTitle(self, title):
@@ -210,23 +212,23 @@ class GeographUploaderBot:
         the page might not be allowed by the software.
         """
         title = title.strip()
-        title = re.sub(u"[<{\\[]", u"(", title)
-        title = re.sub(u"[>}\\]]", u")", title)
-        title = re.sub(u"[ _]?\\(!\\)", u"", title)
-        title = re.sub(u",:[ _]", u", ", title)
-        title = re.sub(u"[;:][ _]", u", ", title)
-        title = re.sub(u"[\t\n ]+", u" ", title)
-        title = re.sub(u"[\r\n ]+", u" ", title)
-        title = re.sub(u"[\n]+", u"", title)
-        title = re.sub(u"[?!]([.\"]|$)", u"\\1", title)
-        title = re.sub(u"[&#%?!]", u"^", title)
-        title = re.sub(u"[;]", u",", title)
-        title = re.sub(u"[/+\\\\:]", u"-", title)
-        title = re.sub(u"--+", u"-", title)
-        title = re.sub(u",,+", u",", title)
-        title = re.sub(u"[-,^]([.]|$)", u"\\1", title)
-        title = re.sub(u"^- ", u"", title)
-        title = title.replace(u" ", u"_")
+        title = re.sub("[<{\\[]", "(", title)
+        title = re.sub("[>}\\]]", ")", title)
+        title = re.sub("[ _]?\\(!\\)", "", title)
+        title = re.sub(",:[ _]", ", ", title)
+        title = re.sub("[;:][ _]", ", ", title)
+        title = re.sub("[\t\n ]+", " ", title)
+        title = re.sub("[\r\n ]+", " ", title)
+        title = re.sub("[\n]+", "", title)
+        title = re.sub("[?!]([.\"]|$)", "\\1", title)
+        title = re.sub("[&#%?!]", "^", title)
+        title = re.sub("[;]", ",", title)
+        title = re.sub("[/+\\\\:]", "-", title)
+        title = re.sub("--+", "-", title)
+        title = re.sub(",,+", ",", title)
+        title = re.sub("[-,^]([.]|$)", "\\1", title)
+        title = re.sub("^- ", "", title)
+        title = title.replace(" ", "_")
         return title
 
     def getStructuredData(self, metadata):
@@ -651,7 +653,7 @@ def getGeographGenerator(startid, endid):
     :return:
     """
     tags = getGeographTags()
-    print (tags)
+    pywikibot.debug(tags, 'bot')
     limit = 100
 
     for i in range(startid, endid, limit):
@@ -704,22 +706,34 @@ def getGeographGenerator(startid, endid):
                 elif int(row.get('natgrlen')) > 8:
                     metadata['object_precision'] = 0.00001
             metadata['depictsqids'] = []
-            if row.get('tags'):
-                for tag in row.get('tags').split('_SEP_'):
+            if row.get('contexts'):
+                for tag in row.get('contexts').replace('_SEP_', '|').split('|'):
                     tag = tag.strip().lower()
-                    print (tag)
-                    if tag in tags:
-                        depictsqid = tags.get(tag)
-                        if depictsqid not in metadata.get('depictsqids'):
-                            metadata['depictsqids'].append(depictsqid)
+                    if tag:
+                        tag = 'top:%s' % (tag,)
+                        pywikibot.debug('Tag found:"%s"' % (tag,), 'bot')
+                        if tag in tags:
+                            depictsqid = tags.get(tag)
+                            if depictsqid not in metadata.get('depictsqids'):
+                                metadata['depictsqids'].append(depictsqid)
             if row.get('subjects'):
-                for tag in row.get('subjects').split('_SEP_'):
+                for tag in row.get('subjects').replace('_SEP_', '|').split('|'):
                     tag = tag.strip().lower()
-                    print (tag)
-                    if tag in tags:
-                        depictsqid = tags.get(tag)
-                        if depictsqid not in metadata.get('depictsqids'):
-                            metadata['depictsqids'].append(depictsqid)
+                    if tag:
+                        pywikibot.debug('Tag found:"%s"' % (tag,), 'bot')
+                        if tag in tags:
+                            depictsqid = tags.get(tag)
+                            if depictsqid not in metadata.get('depictsqids'):
+                                metadata['depictsqids'].append(depictsqid)
+            if row.get('tags'):
+                for tag in row.get('tags').replace('_SEP_', '|').split('|'):
+                    tag = tag.strip().lower()
+                    if tag:
+                        pywikibot.debug('Tag found:"%s"' % (tag,), 'bot')
+                        if tag in tags:
+                            depictsqid = tags.get(tag)
+                            if depictsqid not in metadata.get('depictsqids'):
+                                metadata['depictsqids'].append(depictsqid)
             yield row
     return
 
@@ -735,31 +749,67 @@ def getGeographTags():
     skipped = {}
 
     for match in re.finditer(regex, text, flags=re.M):
-        tag = match.group('tag').replace('+', ' ').replace('%28', '(').replace('%29', ')').lower()
+        tag = match.group('tag').replace('+', ' ').replace('%28', '(').replace('%29', ')').replace('%2C', ',').lower()
         if match.group('tag').startswith('subject:'):
-            tag = tag.replace('subject:', u'')
+            tag = tag.replace('subject:', '')
         if match.group('qid'):
             result[tag] = match.group('qid')
         else:
             skipped[tag] = match.group('text')
 
+    pywikibot.debug('Loaded %s and skipped %s tags from %s' % (len(result), len(skipped), 'https://commons.wikimedia.org/wiki/User:GeographBot/Tags'), 'bot')
+
+    pywikibot.debug (skipped, 'bot')
+
     subjectsurl = 'https://www.geograph.org.uk/tags/prefix.php?prefix=subject&output=csv'
+    subjectsmin = 99
     #subjectpage = requests.get(subjectsurl)
     #csvreader = csv.DictReader(subjectpage.iter_lines())
     #for subject in csvreader:
     #    if subject.get('tag') not in result and subject.get('tag') not in skipped:
     #        print (subject)
+    newsubjects = []
+
+    pywikibot.debug('Subjects from %s that are missing and are used at lest %s times' % (subjectsurl, subjectsmin,), 'bot')
     with closing(requests.get(subjectsurl, stream=True)) as r:
         lines = (line.decode('utf-8') for line in r.iter_lines())
         for subject in csv.DictReader(lines):
-            tag = subject.get('tag').lower()
-            if tag not in result and tag not in skipped and int(subject.get('images')) > 99:
-                print ('* https://www.geograph.org.uk/tagged/subject:%s - ' % (tag.replace(' ', '+'),))
+            tag = subject.get('tag').lower().replace('subject:', '')
+            if tag not in result and tag not in skipped and int(subject.get('images')) > subjectsmin:
+                newsubject = '* https://www.geograph.org.uk/tagged/subject:%s - <to do %s hits>' % (tag.replace(' ', '+'), subject.get('images'))
+                newsubjects.append(newsubject)
+                pywikibot.debug(newsubject, 'bot')
+
+    topurl = 'https://multichill.toolforge.org/queries/commons/tag_stat_top.tsv'
+    topmin = 499
+    pywikibot.debug('Top tags from %s that are missing and are used at least %s times' % (topurl, topmin), 'bot')
+    with closing(requests.get(topurl, stream=True)) as r:
+        lines = (line.decode('utf-8') for line in r.iter_lines())
+        for subject in csv.DictReader(lines, delimiter='\t'):
+            tag = subject.get('tagtext').lower().replace('subject:', '')
+            if tag.startswith('place:') or tag.startswith('county:') or tag.startswith('camera:'):
+                continue
+            elif tag not in result and tag not in skipped and int(subject.get('count')) > topmin:
+                newsubject = '* https://www.geograph.org.uk/tagged/%s -  <to do %s hits>' % (tag.replace(' ', '+'), subject.get('count'))
+                newsubjects.append(newsubject)
+                pywikibot.debug(newsubject, 'bot')
+
+    # Don't want to trigger updates too often
+    if len(newsubjects) > 10:
+        talkpage = pywikibot.Page(pywikibot.Site('commons', 'commons'), title='User talk:GeographBot/Tags')
+        newtext = talkpage.get()
+        newtext += '\n\n== New tags ~~~~~ ==\n'
+        for newsubject in sorted(newsubjects):
+            newtext += '%s\n' % (newsubject,)
+        summary = 'Added %s new Geograph tags to match' % (len(newsubjects),)
+        talkpage.put(newtext, summary=summary)
+
     return result
 
 def main(*args):
     startid = None
     endid = None
+    dryrun = False
     for arg in pywikibot.handle_args(args):
         if arg.startswith('-startid:'):
             if len(arg) == 9:
@@ -773,6 +823,8 @@ def main(*args):
                     u'Please enter the start identifier you want to work on:')
             else:
                 endid = arg[7:]
+        if arg.startswith('-dry'):
+            dryrun = True
         #elif genFactory.handleArg(arg):
         #    continue
 
@@ -780,10 +832,12 @@ def main(*args):
         pywikibot.output('Need startid and endid')
         return
     generator = getFilteredGeographGenerator(int(startid), int(endid),)
-    #for page in generator:
-    #    print (json.dumps(page, sort_keys=True, indent=4))
-    geographUploaderBot = GeographUploaderBot(generator)
-    geographUploaderBot.run()
+    if dryrun:
+        for page in generator:
+            print (json.dumps(page, sort_keys=True, indent=4))
+    else:
+        geographUploaderBot = GeographUploaderBot(generator)
+        geographUploaderBot.run()
 
 if __name__ == "__main__":
     main()
