@@ -167,7 +167,8 @@ class GeographUploaderBot:
         try:
             page = requests.get(url)
             jsondata = page.json()
-        except json.decoder.JSONDecodeError:
+        except ValueError:
+            # Either json.decoder.JSONDecodeError or simplejson.scanner.JSONDecodeError, both subclass of ValueError
             pywikibot.output('Got invalid json at %s' % (url,))
             time.sleep(60)
             return (qid, commonscat)
