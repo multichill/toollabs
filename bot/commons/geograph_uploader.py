@@ -241,7 +241,7 @@ class GeographUploaderBot:
         result = {}
         if metadata.get('title'):
             result['labels'] = {'en' : { 'language' : 'en',
-                                         'value' : metadata.get('title'),
+                                         'value' : metadata.get('title').strip(),
                                          }
                                 }
         claims = []
@@ -319,7 +319,7 @@ class GeographUploaderBot:
                    'rank': 'normal',
                    'qualifiers' : {'P1476' : [ {'snaktype': 'value',
                                                 'property': 'P1476',
-                                                'datavalue': { 'value': { 'text': metadata.get('title'),
+                                                'datavalue': { 'value': { 'text': metadata.get('title').strip(),
                                                                           'language' : 'en',
                                                                           },
                                                                'type' : 'monolingualtext',
@@ -327,7 +327,7 @@ class GeographUploaderBot:
                                                 } ],
                                    'P2093' : [ {'snaktype': 'value',
                                                 'property': 'P2093',
-                                                'datavalue': { 'value': metadata.get('realname'),
+                                                'datavalue': { 'value': metadata.get('realname').strip(),
                                                                'type' : 'string',
                                                                },
                                                 } ],
@@ -401,7 +401,7 @@ class GeographUploaderBot:
                                                 } ],
                                    'P2093' : [ {'snaktype': 'value',
                                                 'property': 'P2093',
-                                                'datavalue': { 'value': metadata.get('realname'),
+                                                'datavalue': { 'value': metadata.get('realname').strip(),
                                                                'type' : 'string',
                                                                },
                                                 } ],
