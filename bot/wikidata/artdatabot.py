@@ -255,9 +255,13 @@ class ArtDataBot:
         for urlfield in urfields:
             url = metadata.get(urlfield)
             if url and url not in doneurls:
-                print (u'Backing up this url to the Wayback Machine: %s' % (url,))
+                pywikibot.output ('Backing up this url to the Wayback Machine: %s' % (url,))
                 waybackUrl = u'https://web.archive.org/save/%s' % (url,)
-                waybackPage = requests.get(waybackUrl)
+                try:
+                    waybackPage = requests.post(waybackUrl)
+                except requests.exceptions.RequestException:
+                    pywikibot.output('Requests threw an exception. The wayback backup failed')
+                    pass
                 doneurls.append(url)
 
     def updateArtworkItem(self, artworkItem, metadata):
@@ -286,7 +290,7 @@ class ArtDataBot:
         # Add inception (P571) to the item.
         self.addInception(artworkItem, metadata)
 
-        # Add location of final assembly (P1071) to the item.
+        # Add location of creation (P1071) to the item.
         self.addItemStatement(artworkItem, u'P1071', metadata.get(u'madeinqid'), metadata.get(u'refurl'))
 
         # Add title (P1476) to the item.
