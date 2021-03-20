@@ -125,6 +125,9 @@ class GeographUploaderBot:
                 except pywikibot.data.api.APIError:
                     pywikibot.output('Failed to upload image %(imageurl)s' % metadata)
                     uploadsuccess = False
+                    # Grab a new token
+                    time.sleep(30)
+                    self. site.tokens.load_tokens(['csrf'])
             if uploadsuccess:
                 pywikibot.output('Uploaded a file, now grabbing structured data')
                 itemdata = self.getStructuredData(metadata)
@@ -138,8 +141,8 @@ class GeographUploaderBot:
                 pywikibot.debug(mediaid, 'bot')
                 summary = 'Adding structured data to this newly uploaded geograph.org.uk image'
                 token = self.site.tokens['csrf']
-                postdata = {'action' : u'wbeditentity',
-                            'format' : u'json',
+                postdata = {'action' : 'wbeditentity',
+                            'format' : 'json',
                             'id' : mediaid,
                             'data' : json.dumps(itemdata),
                             'token' : token,
@@ -148,11 +151,20 @@ class GeographUploaderBot:
                             }
                 pywikibot.debug(json.dumps(postdata, sort_keys=True, indent=4), 'bot')
                 request = self.site._simple_request(**postdata)
-                data = request.submit()
-                pywikibot.debug(data,  'bot')
-                # A gentle touch to show the structured data we just added
-                #imagefile.touch() # Keeps getting broken
-                imagefile.put(imagefile.text)
+                try:
+                    data = request.submit()
+                    pywikibot.debug(data,  'bot')
+                    # A gentle touch to show the structured data we just added
+                    #imagefile.touch() # Keeps getting broken
+                    imagefile.put(imagefile.text)
+                except (pywikibot.data.api.APIError, pywikibot.exceptions.OtherPageSaveError):
+                    pywikibot.output('Got an API error while saving page. Sleeping, getting a new token and retrying')
+                    time.sleep(30)
+                    self. site.tokens.load_tokens(['csrf'])
+                    postdata['token'] = self.site.tokens['csrf']
+                    request = self.site._simple_request(**postdata)
+                    data = request.submit()
+                    imagefile.put(imagefile.text)
 
     def reverseGeocode(self, lat, lon):
         """
@@ -658,7 +670,7 @@ def getGeographGenerator(startid, endid):
     limit = 100
 
     for i in range(startid, endid, limit):
-        searchurl = 'http://api.geograph.org.uk/api-facetql.php?select=*&limit=%s&where=id+between+%s+and+%s' % (limit, i, min(i+limit,endid))
+        searchurl = 'http://api.geograph.org.uk/api-facetql.php?select=*&limit=%s&where=id+between+%s+and+%s&utf=2' % (limit, i, min(i+limit,endid))
         try:
             searchpage = requests.get(searchurl)
         except requests.exceptions.ConnectionError:
