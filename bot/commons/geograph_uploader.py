@@ -50,26 +50,6 @@ class GeographUploaderBot:
         """
         Process the metadata and if suitable, upload the painting
         """
-
-        # Do the reverse geocoding to enrich the metadata
-        if metadata.get('photographer_lat') and metadata.get('photographer_lon'):
-            (locationqid, locationcc) = self.reverseGeocode(metadata.get('photographer_lat'),
-                                                            metadata.get('photographer_lon'), )
-            if locationqid:
-                metadata['locationqid'] = locationqid
-            if locationcc:
-                metadata['commonscat'] = locationcc
-
-        if metadata.get('object_lat') and metadata.get('object_lon'):
-            (objectqid, objectcc) = self.reverseGeocode(metadata.get('object_lat'),
-                                                        metadata.get('object_lon'), )
-            if objectqid:
-                if not metadata.get('locationqid'):
-                    metadata['locationqid'] = objectqid
-                metadata['depictsqids'].append(objectqid)
-            if objectcc:
-                metadata['objectcommonscat'] = objectcc
-
         pywikibot.debug(metadata, 'bot')
         description = self.getDescription(metadata)
         title = self.cleanUpTitle(self.getTitle(metadata))
@@ -165,31 +145,6 @@ class GeographUploaderBot:
                     request = self.site._simple_request(**postdata)
                     data = request.submit()
                     imagefile.put(imagefile.text)
-
-    def reverseGeocode(self, lat, lon):
-        """
-        Do reverse geocoding based on photographer and return Wikidata item and Commons category
-        :param metadata: The Geograph metadata to work on
-        :return: Tuple of Wikidata item and Commons category
-        """
-        qid = None
-        commonscat = None
-
-        url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (lat, lon)
-        try:
-            page = requests.get(url)
-            jsondata = page.json()
-        except ValueError:
-            # Either json.decoder.JSONDecodeError or simplejson.scanner.JSONDecodeError, both subclass of ValueError
-            pywikibot.output('Got invalid json at %s' % (url,))
-            time.sleep(60)
-            return (qid, commonscat)
-        if not jsondata.get('missing'):
-            if jsondata.get('wikidata'):
-                qid = jsondata.get('wikidata')
-            if jsondata.get('commons_cat') and jsondata.get('commons_cat').get('title'):
-                commonscat = jsondata.get('commons_cat').get('title')
-        return (qid, commonscat)
 
     def getDescription(self, metadata):
         """
@@ -580,47 +535,98 @@ def getFilteredGeographGenerator(startid, endid):
     :param endid: Integer to end with
     :return: Yields metadata
     """
-    toskiplist = []
-    lastmetadata = None
     commonsgenerator = getCommonsGeographIdGenerator(startid, endid)
+    geographgenerator = getGeographGenerator(startid, endid)
+
+    toskiplist = []
     for toskip in commonsgenerator:
         toskiplist.append(toskip)
-    #return
-    geographgenerator = getGeographGenerator(startid, endid)
+
     for metadata in geographgenerator:
         if int(metadata.get('id')) not in toskiplist:
-            yield metadata
+            # Reverse geocoding is slow so only do it on images likely to be uploaded
+            yield addReverseGeocodingMetadata(metadata)
     return
+
+def addReverseGeocodingMetadata(metadata):
     """
-    # Could probably do something with two generators running together
-    for toskip in commonsgenerator:
-        toskiplist.append(toskip)
-        print (toskip)
-        #print (toskiplist)
-        if lastmetadata:
-            if int(lastmetadata.get('id')) > toskip:
-                continue
-            elif int(lastmetadata.get('id'))==toskip:
-                lastmetadata = None
-                continue
-            elif int(metadata.get('id')) not in toskiplist:
-                print (u'To skip %s, to return %s' % (toskip, metadata.get('id')))
-                yield metadata
-                lastmetadata = None
-        else:
-            for metadata in geographgenerator:
-                if int(metadata.get('id')) > toskip:
-                    lastmetadata = metadata
-                    break
-                elif int(metadata.get('id'))==toskip:
-                    lastmetadata = None
-                    break
-                elif int(metadata.get('id')) not in toskiplist:
-                    print (u'To skip %s, to return %s' % (toskip, metadata.get('id')))
-                    yield metadata
-                    lastmetadata = None
-    print (toskiplist)
+    Do reverse geocoding on the metadata and return the result
+    :param metadata: Geograph metadata
+    :return: Metadata expanded with the reverse geocoding
     """
+    if metadata.get('photographer_lat') and metadata.get('photographer_lon'):
+        (locationqid, locationcc) = reverseGeocode(metadata.get('photographer_lat'), metadata.get('photographer_lon'), )
+        if locationqid:
+            metadata['locationqid'] = locationqid
+        if locationcc:
+            metadata['commonscat'] = locationcc
+
+    if metadata.get('object_lat') and metadata.get('object_lon'):
+        (objectqid, objectcc) = reverseGeocode(metadata.get('object_lat'), metadata.get('object_lon'), )
+        if objectqid:
+            if not metadata.get('locationqid'):
+                metadata['locationqid'] = objectqid
+            metadata['depictsqids'].append(objectqid)
+        if objectcc:
+            metadata['objectcommonscat'] = objectcc
+    return metadata
+
+def reverseGeocode(lat, lon, tries=3):
+    """
+    Do reverse geocoding based on latitude & longitude and return Wikidata item and Commons category
+    :param lat: The latitude
+    :parim lon: The longitude
+    :return: Tuple of Wikidata item and Commons category
+    """
+    qid = None
+    commonscat = None
+
+    url = 'http://edwardbetts.com/geocode/?lat=%s&lon=%s' % (lat, lon)
+    try:
+        page = requests.get(url)
+        jsondata = page.json()
+    except ValueError:
+        # Either json.decoder.JSONDecodeError or simplejson.scanner.JSONDecodeError, both subclass of ValueError
+        pywikibot.output('Got invalid json at %s' % (url,))
+        time.sleep(60)
+        if tries > 0:
+            return reverseGeocode(lat, lon, tries=tries-1)
+        return (qid, commonscat)
+    except IOError:
+        # RequestExceptions was thrown
+        pywikibot.output('Got an IOError at %s' % (url,))
+        time.sleep(60)
+        if tries > 0:
+            return reverseGeocode(lat, lon, tries=tries-1)
+        return (qid, commonscat)
+
+    if not jsondata.get('missing'):
+        if jsondata.get('wikidata'):
+            qid = jsondata.get('wikidata')
+        if jsondata.get('commons_cat') and jsondata.get('commons_cat').get('title'):
+            commonscat = jsondata.get('commons_cat').get('title')
+    return (qid, commonscat)
+
+def getGeographResumeGenerator(resumephoto=None, backphotos=1000, newphotos=10000):
+    """
+    Resume the upload
+    :param resumephoto: The id of the last uploaded photo. If set to None, the latest upload is used
+    :param backphotos: The number of photos to look back for resuming
+    :param newphotos: The number of new photos to upload
+
+    :return: The generator that can be used by GeographUploaderBot
+    """
+    if not resumephoto:
+        site = pywikibot.Site('commons', 'commons')
+        user = pywikibot.User(site, 'GeographBot')
+        (lastfile, lasttimestamp, lastcomment, lastexists) = list((user.uploadedImages(total=1)))[0]
+        idregex = u'^File\:.+ - geograph\.org\.uk - (\d+)\.jpg$'
+        titlematch = re.match(idregex, lastfile.title())
+        if titlematch:
+            resumephoto = int(titlematch.group(1))
+    # Should have it now
+    if resumephoto:
+        return getFilteredGeographGenerator(int(resumephoto)-int(backphotos), int(resumephoto)+int(newphotos),)
 
 def getCommonsGeographIdGenerator(startid, endid):
     """
@@ -632,10 +638,9 @@ def getCommonsGeographIdGenerator(startid, endid):
     site = pywikibot.Site(u'commons', u'commons')
     category = pywikibot.Category(site, title='Images_from_Geograph_Britain_and_Ireland')
     startprefix = ' %s' % (str(startid).zfill(8),)
-    endprefix = ' %s' % (str(endid).zfill(8),)
     idregex = u'^File\:.+ - geograph\.org\.uk - (\d+)\.jpg$'
     sloppyidregex =u'^File:[^\d]*(\d+)[^\d]*\.jpg'
-    for filepage in category.articles(content=False, namespaces=6, startprefix=startprefix): #, endprefix=endprefix):
+    for filepage in category.articles(content=False, namespaces=6, startprefix=startprefix):
         titlematch = re.match(idregex, filepage.title())
         sloppytitlematch = re.match(sloppyidregex, filepage.title())
         if titlematch:
@@ -818,26 +823,6 @@ def getGeographTags():
         talkpage.put(newtext, summary=summary)
     return result
 
-def getGeographResumeGenerator(resumephoto=None, backphotos=1000, newphotos=10000):
-    """
-    Resume the upload
-    :param resumephoto: The id of the last uploaded photo. If set to None, the latest upload is used
-    :param backphotos: The number of photos to look back for resuming
-    :param newphotos: The number of new photos to upload
-
-    :return: The generator that can be used by GeographUploaderBot
-    """
-    if not resumephoto:
-        site = pywikibot.Site('commons', 'commons')
-        user = pywikibot.User(site, 'GeographBot')
-        (lastfile, lasttimestamp, lastcomment, lastexists) = list((user.uploadedImages(total=1)))[0]
-        idregex = u'^File\:.+ - geograph\.org\.uk - (\d+)\.jpg$'
-        titlematch = re.match(idregex, lastfile.title())
-        if titlematch:
-            resumephoto = int(titlematch.group(1))
-    # Should have it now
-    if resumephoto:
-        return getFilteredGeographGenerator(int(resumephoto)-int(backphotos), int(resumephoto)+int(newphotos),)
 
 def main(*args):
     startid = None
