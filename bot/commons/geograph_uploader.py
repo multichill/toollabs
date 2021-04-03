@@ -816,12 +816,33 @@ def getGeographTags():
             newtext += '%s\n' % (newsubject,)
         summary = 'Added %s new Geograph tags to match' % (len(newsubjects),)
         talkpage.put(newtext, summary=summary)
-
     return result
+
+def getGeographResumeGenerator(resumephoto=None, backphotos=1000, newphotos=10000):
+    """
+    Resume the upload
+    :param resumephoto: The id of the last uploaded photo. If set to None, the latest upload is used
+    :param backphotos: The number of photos to look back for resuming
+    :param newphotos: The number of new photos to upload
+
+    :return: The generator that can be used by GeographUploaderBot
+    """
+    if not resumephoto:
+        site = pywikibot.Site('commons', 'commons')
+        user = pywikibot.User(site, 'GeographBot')
+        (lastfile, lasttimestamp, lastcomment, lastexists) = list((user.uploadedImages(total=1)))[0]
+        idregex = u'^File\:.+ - geograph\.org\.uk - (\d+)\.jpg$'
+        titlematch = re.match(idregex, lastfile.title())
+        if titlematch:
+            resumephoto = int(titlematch.group(1))
+    # Should have it now
+    if resumephoto:
+        return getFilteredGeographGenerator(int(resumephoto)-int(backphotos), int(resumephoto)+int(newphotos),)
 
 def main(*args):
     startid = None
     endid = None
+    resumeupload = False
     dryrun = False
     for arg in pywikibot.handle_args(args):
         if arg.startswith('-startid:'):
@@ -836,15 +857,26 @@ def main(*args):
                     u'Please enter the start identifier you want to work on:')
             else:
                 endid = arg[7:]
-        if arg.startswith('-dry'):
+        elif arg.startswith('-resumeupload'):
+            resumeupload = True
+        elif arg.startswith('-dry'):
             dryrun = True
         #elif genFactory.handleArg(arg):
         #    continue
+    generator = None
+    if resumeupload and startid:
+        generator = getGeographResumeGenerator(resumephoto=startid)
+    elif resumeupload:
+        generator = getGeographResumeGenerator()
+    elif startid and endid:
+        generator = getFilteredGeographGenerator(int(startid), int(endid),)
 
-    if not startid or not endid:
-        pywikibot.output('Need startid and endid')
+    if not generator:
+        pywikibot.output('No generator found')
+        pywikibot.output('Add -resumeupload to resume where GeographBot left off')
+        pywikibot.output('Add -startid:<id> -endid:<id> to work on a specific set of Geograph files')
         return
-    generator = getFilteredGeographGenerator(int(startid), int(endid),)
+
     if dryrun:
         for page in generator:
             print (json.dumps(page, sort_keys=True, indent=4))
