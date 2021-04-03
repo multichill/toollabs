@@ -10,7 +10,7 @@ import artdatabot
 import pywikibot
 import requests
 import re
-import HTMLParser
+from html.parser import HTMLParser
 import time
 
 def getHermitageGenerator():
@@ -28,15 +28,17 @@ def getHermitageGenerator():
     #searchBaseUrl = u'https://www.hermitagemuseum.org/wps/portal/hermitage/explore/collections/col-search/?lng=en&p1=category:%%22Painting%%22&p15=%s'
     basesearchurl = u'https://www.hermitagemuseum.org/api/v10/search?resultLang=en&queryLang=en&collection=mainweb|kamis|rooms|hermitage&query=meta_woa_category_main:(%%22Painting%%22)%%20AND%%20meta_authoring_template:(%%22WOA%%22)&pageSize=100&page=%s&output=application/json'
     #baseUrl = u'https://www.hermitagemuseum.org%s'
-    htmlparser = HTMLParser.HTMLParser()
+    htmlparser = HTMLParser()
 
-    # 6575, 100 per page
+    missedlocations = {}
+
+    # 7723, 100 per page
 
     foundids = []
 
-    for i in range(1, 67):
+    for i in range(1, 60):
         searchUrl = basesearchurl % (i,)
-        print searchUrl
+        print (searchUrl)
         searchPage = requests.get(searchUrl, verify=False)
         searchJson = searchPage.json()
 
@@ -52,13 +54,13 @@ def getHermitageGenerator():
             metadata['artworkid'] = iteminfo.get('es_title')
 
             if iteminfo.get('es_title') in foundids:
-                print u'1Ran into the same id %s again!' % (iteminfo.get('es_title'),)
-                print u'2Ran into the same id %s again!' % (iteminfo.get('es_title'),)
-                print u'3Ran into the same id %s again!' % (iteminfo.get('es_title'),)
-                print u'4Ran into the same id %s again!' % (iteminfo.get('es_title'),)
-                print u'5Ran into the same id %s again!' % (iteminfo.get('es_title'),)
-                print u'6Ran into the same id %s again!' % (iteminfo.get('es_title'),)
-                print u'7Ran into the same id %s again!' % (iteminfo.get('es_title'),)
+                print (u'1Ran into the same id %s again!' % (iteminfo.get('es_title'),))
+                print (u'2Ran into the same id %s again!' % (iteminfo.get('es_title'),))
+                print (u'3Ran into the same id %s again!' % (iteminfo.get('es_title'),))
+                print (u'4Ran into the same id %s again!' % (iteminfo.get('es_title'),))
+                print (u'5Ran into the same id %s again!' % (iteminfo.get('es_title'),))
+                print (u'6Ran into the same id %s again!' % (iteminfo.get('es_title'),))
+                print (u'7Ran into the same id %s again!' % (iteminfo.get('es_title'),))
                 continue
 
             foundids.append(iteminfo.get('es_title'))
@@ -73,6 +75,8 @@ def getHermitageGenerator():
             # In some rare cases we have no inventory number. Skip these.
             if not fields.get('meta_woa_inventory'):
                 continue
+            #import json
+            #print (json.dumps(fields, sort_keys=True, indent=4))
 
             metadata['idpid'] = u'P217'
             metadata['id'] = fields.get('meta_woa_inventory')
@@ -85,7 +89,15 @@ def getHermitageGenerator():
                 metadata['title'] = { u'en' : title,
                                       }
 
-            name = fields.get('meta_woa_author_rubr')
+            # meta_woa_author and meta_woa_author_rubr are ususally the same
+            # But meta_woa_author contains things like "circle of"
+            if fields.get('meta_woa_author'):
+                name = fields.get('meta_woa_author')
+            elif fields.get('meta_woa_author_rol'):
+                name = fields.get('meta_woa_author_rol')
+            elif fields.get('meta_woa_author_rubr'):
+                name = fields.get('meta_woa_author_rubr')
+
             if name:
                 regexnamedate = u'^([^,]+), (.+)\.\s*(c\.)?\s*\d\d\d\d-\d\d\d\d$'
                 namematch = re.match(regexnamedate, name)
@@ -136,17 +148,77 @@ def getHermitageGenerator():
                     metadata['heightcm'] = match_2d.group(u'height').replace(u',', u'.')
                     metadata['widthcm'] = match_2d.group(u'width').replace(u',', u'.')
 
+            # Simple lookup table for madeinqid (location of creation)
+            locations = { 'America' : 'Q30',
+                          'Australia' : 'Q408',
+                          'Austria' : 'Q40',
+                          'Belgium' : 'Q31',
+                          'China' : 'Q29520',
+                          'Denmark' : 'Q35',
+                          'England' : 'Q21',
+                          'Finland' : 'Q33',
+                          'Flanders' : 'Q234',
+                          'France' : 'Q142',
+                          'India' : 'Q668',
+                          'Germany' : 'Q183',
+                          'Great Britain' : 'Q145', # Use the UK here
+                          'Holland' : 'Q55', # Use Netherlands here
+                          'Italy' : 'Q38',
+                          'Japan' : 'Q17',
+                          'Nepal' : 'Q837',
+                          'Netherlands' : 'Q55',
+                          'Norway' : 'Q20',
+                          'Portugal' : 'Q45',
+                          'Russia' : 'Q159',
+                          'Spain' : 'Q29',
+                          'Sweden' : 'Q34',
+                          'Switzerland' : 'Q39',
+                          'Tibet' : 'Q17252',
+                          'USA' : 'Q30',
+                          'Western Europe' : 'Q27496',
+                          }
+
+            if fields.get('meta_woa_cntr_org'):
+                country = fields.get('meta_woa_cntr_org')
+                if country in locations:
+                    metadata['madeinqid'] = locations.get(country)
+
+                if metadata.get('madeinqid'):
+                    print('MADE IN MATCH: %s' % (country,))
+                else:
+                    if not country in missedlocations:
+                        missedlocations[country] = 0
+                    missedlocations[country] += 1
+                    print('NO MATCH FOR %s' % (country,))
+                    print('NO MATCH FOR %s' % (country,))
+                    print('NO MATCH FOR %s' % (country,))
+                    print('NO MATCH FOR %s' % (country,))
+                    print('NO MATCH FOR %s' % (country,))
+
             yield metadata
 
+    for missedlocation in sorted(missedlocations, key=missedlocations.get):
+        print('* %s - %s' % (missedlocation, missedlocations.get(missedlocation),))
 
-def main():
+
+def main(*args):
     dictGen = getHermitageGenerator()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    #    print (painting)
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
+
 
 if __name__ == "__main__":
     main()
