@@ -133,6 +133,7 @@ class PaintingBot:
                          u'Islamic' : anonymous,
                          u'Unknown artist of the venetian school' : anonymous,
                          u'French painter' : anonymous,
+                         u'Okänd' : anonymous,
                          #u'' : anonymous,
                         }
         self.replaceableCreators = { u'Q19595156' : True, # Not the right Gerhard Richter
@@ -143,11 +144,11 @@ class PaintingBot:
         Starts the robot.
         """
         regex = u'^painting by ([^\(]+)(\s\([^\)]+\))?$'
+        attributed_regex = u'^painting [aA]ttributed to ([^\(]+)(\s\([^\)]+\))?$'
         #regex = u'^anonymous painting$'
         #regex = u'^peinture de (.+)$'
         for item in self.generator:
             pywikibot.output(u'Working on %s' % (item.title(),))
-            canreplace = False
             
             if item.exists() and not item.isRedirectPage():
                 data = item.get()
@@ -158,8 +159,9 @@ class PaintingBot:
 
                 # And this description should match our regex
                 match = re.match(regex, data.get('descriptions').get(u'en'))
-                if not match:
-                    pywikibot.output('Regex didn\'t match on "%s"' % (data.get('descriptions').get(u'en'),))
+                attributed_match = re.match(attributed_regex, data.get('descriptions').get(u'en'))
+                if not match and not attributed_match:
+                    pywikibot.output('Regexes didn\'t match on "%s"' % (data.get('descriptions').get(u'en'),))
                     continue
 
                 # If we don't want to change this, we might as well bail out now
@@ -168,7 +170,13 @@ class PaintingBot:
                     continue
 
                 # Let's see if we can find a victim
-                creator = match.group(1).strip()
+                if match:
+                    creator = match.group(1).strip()
+                    attributed = False
+                elif attributed_match:
+                    creator = attributed_match.group(1).strip()
+                    attributed = True
+
                 # The search generator in getCreator() sometimes times out
                 try:
                     creatorItem = self.getCreator(creator)
@@ -191,14 +199,18 @@ class PaintingBot:
                     pywikibot.output(u'Looks like the search timed out while looking for %s' % (creator,))
                     continue
 
-                # No occupation set yet
+                # No creator set yet
                 if not data.get('claims').get('P170'):
                     newclaim = pywikibot.Claim(self.repo, u'P170')
                     newclaim.setTarget(creatorItem)
                     summary = 'Adding creator [[%s]] based on "%s"' % (creatorItem.title(), data.get('descriptions').get(u'en'))
                     pywikibot.output(summary)
                     item.addClaim(newclaim, summary=summary)
-                # We do have an occupation, let's see if we can replace it
+                    if attributed:
+                        newqualifier = pywikibot.Claim(self.repo, 'P5102')
+                        newqualifier.setTarget(pywikibot.ItemPage(self.repo, 'Q230768'))
+                        newclaim.addQualifier(newqualifier)
+                # We do have a creator, let's see if we can replace it
                 else:
                     creators = data.get('claims').get('P170')
                     if len(creators)>1:
@@ -210,7 +222,10 @@ class PaintingBot:
                             summary = 'Changing creator [[%s]] to the painter [[%s]]' % (creatorclaim.getTarget().title(), creatorItem.title())
                             pywikibot.output(summary)
                             creatorclaim.changeTarget(creatorItem, summary=summary)
-                        
+                            if attributed:
+                                newqualifier = pywikibot.Claim(self.repo, 'P5102')
+                                newqualifier.setTarget(pywikibot.ItemPage(self.repo, 'Q230768'))
+                                creatorclaim.addQualifier(newqualifier)
 
     def getCreator(self, creator):
         """
