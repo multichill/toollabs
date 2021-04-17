@@ -103,11 +103,19 @@ class GeographUploaderBot:
                 try:
                     uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment) # chunk_size=1000000)
                 except pywikibot.data.api.APIError:
-                    pywikibot.output('Failed to upload image %(imageurl)s' % metadata)
-                    uploadsuccess = False
-                    # Grab a new token
-                    time.sleep(30)
-                    self. site.tokens.load_tokens(['csrf'])
+                    # Sometimes we have a time out, but file was uploaded. Bot will get an API error on retry
+                    try:
+                        # Check if the file exists or not
+                        imagefile.get(force=True)
+                        uploadsuccess = True
+                        pywikibot.output('Got an API error, but looks like uploading worked for %(imageurl)s' % metadata)
+                    except pywikibot.exceptions.NoPage:
+                        # The upload really failed
+                        pywikibot.output('Failed to upload image %(imageurl)s' % metadata)
+                        uploadsuccess = False
+                        # Grab a new token
+                        time.sleep(30)
+                        self. site.tokens.load_tokens(['csrf'])
             if uploadsuccess:
                 pywikibot.output('Uploaded a file, now grabbing structured data')
                 itemdata = self.getStructuredData(metadata)
