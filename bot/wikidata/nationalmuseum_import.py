@@ -30,10 +30,18 @@ def getNationalmuseumGenerator():
         searchJson = searchPage.json()
         next_page = searchJson.get('data').get('paging').get('next_page')
 
+        painting_categories = [ 'Målningar (Måleri)',
+                                'Måleri (Måleri)',
+                                'Måleri',
+                                'Ikoner (Måleri)',
+                                'Miniatyrer (Måleri)',
+                                'Illuminerade handskrifter (Måleri)',
+                                ]
+
         for iteminfo in searchJson.get('data').get('items'):
             found_painting = False
             if iteminfo.get('category') and iteminfo.get('category').get('sv'):
-                if iteminfo.get('category').get('sv')=='Målningar (Måleri)' and iteminfo.get('inventory_number'):
+                if iteminfo.get('category').get('sv') in painting_categories and iteminfo.get('inventory_number'):
                     found_painting = True
             if not found_painting:
                 continue
@@ -78,15 +86,22 @@ def getNationalmuseumGenerator():
                         metadata['title']['de'] = detitle
 
             if iteminfo.get('actors'):
-                if len(iteminfo.get('actors')) == 1:
+                if len(iteminfo.get('actors')) > 0:
+                    # Just only work on the first one
                     actor = iteminfo.get('actors')[0]
                     # Copies have other roles and get skipped now
                     if actor.get('actor_role')=='Konstnär':
                         name = actor.get('actor_full_name')
                         metadata['creatorname'] = name
                         if actor.get('actor_qualifier'):
-                            metadata['description'] = {'sv' : 'målning %s %s' % (actor.get('actor_qualifier'), name, ),
-                                                       }
+                            if actor.get('actor_qualifier')=='Tillskriven':
+                                metadata['description'] = {'en' : 'painting attributed to %s' % (name, ),
+                                                           'nl' : 'schilderij toegeschreven aan %s' % (name, ),
+                                                           'sv' : 'målning tillskriven %s' % (name, ),
+                                                           }
+                            else:
+                                metadata['description'] = {'sv' : 'målning %s %s' % (actor.get('actor_qualifier'), name, ),
+                                                           }
                         else:
                             metadata['description'] = { 'nl' : 'schilderij van %s' % (name, ),
                                                         'en' : 'painting by %s' % (name, ),
@@ -160,60 +175,6 @@ def getNationalmuseumGenerator():
 
             yield metadata
             continue
-
-
-
-
-            # Simple lookup table for madeinqid (location of creation)
-            locations = { 'America' : 'Q30',
-                          'Australia' : 'Q408',
-                          'Austria' : 'Q40',
-                          'Belgium' : 'Q31',
-                          'China' : 'Q29520',
-                          'Denmark' : 'Q35',
-                          'England' : 'Q21',
-                          'Finland' : 'Q33',
-                          'Flanders' : 'Q234',
-                          'France' : 'Q142',
-                          'India' : 'Q668',
-                          'Germany' : 'Q183',
-                          'Great Britain' : 'Q145', # Use the UK here
-                          'Holland' : 'Q55', # Use Netherlands here
-                          'Italy' : 'Q38',
-                          'Japan' : 'Q17',
-                          'Nepal' : 'Q837',
-                          'Netherlands' : 'Q55',
-                          'Norway' : 'Q20',
-                          'Portugal' : 'Q45',
-                          'Russia' : 'Q159',
-                          'Spain' : 'Q29',
-                          'Sweden' : 'Q34',
-                          'Switzerland' : 'Q39',
-                          'Tibet' : 'Q17252',
-                          'USA' : 'Q30',
-                          'Western Europe' : 'Q27496',
-                          }
-
-            if fields.get('meta_woa_cntr_org'):
-                country = fields.get('meta_woa_cntr_org')
-                if country in locations:
-                    metadata['madeinqid'] = locations.get(country)
-
-                if metadata.get('madeinqid'):
-                    print('MADE IN MATCH: %s' % (country,))
-                else:
-                    if not country in missedlocations:
-                        missedlocations[country] = 0
-                    missedlocations[country] += 1
-                    print('NO MATCH FOR %s' % (country,))
-                    print('NO MATCH FOR %s' % (country,))
-                    print('NO MATCH FOR %s' % (country,))
-                    print('NO MATCH FOR %s' % (country,))
-                    print('NO MATCH FOR %s' % (country,))
-
-            # High resolution images are provided! Look for data-download-link
-
-            yield metadata
 
     for missedlocation in sorted(missedlocations, key=missedlocations.get):
         print('* %s - %s' % (missedlocation, missedlocations.get(missedlocation),))
