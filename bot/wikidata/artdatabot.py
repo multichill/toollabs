@@ -579,11 +579,11 @@ class ArtDataBot:
 
         if u'P186' not in claims and metadata.get(u'medium'):
             if metadata.get(u'medium') == u'oil on canvas':
-                oil_paint = pywikibot.ItemPage(self.repo, u'Q296955')
-                canvas = pywikibot.ItemPage(self.repo, u'Q4259259')
-                painting_surface = pywikibot.ItemPage(self.repo, u'Q861259')
+                oil_paint = pywikibot.ItemPage(self.repo, 'Q296955')
+                canvas = pywikibot.ItemPage(self.repo, 'Q12321255')
+                painting_surface = pywikibot.ItemPage(self.repo, 'Q861259')
 
-                newclaim = pywikibot.Claim(self.repo, u'P186')
+                newclaim = pywikibot.Claim(self.repo, 'P186')
                 newclaim.setTarget(oil_paint)
                 pywikibot.output('Adding new oil paint claim to %s' % item)
                 item.addClaim(newclaim)
