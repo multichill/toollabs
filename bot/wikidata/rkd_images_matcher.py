@@ -315,6 +315,7 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
     totalfailedinuse = 0
     totailfailedoptions= 0
     totalfailedelse = 0
+    bestsuggestions = ''
 
     i = 0
     addcluster = 10
@@ -363,6 +364,7 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
 
                     else:
                         nextaddedtext = nextaddedtext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
+                        bestsuggestions+= u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
                         totalnextadd = totalnextadd + 1
                 # Something is not adding up, add it to the suggestions list
                 else:
@@ -446,6 +448,7 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
                        u'totalfailedinuse' : totalfailedinuse,
                        u'totailfailedoptions' : totailfailedoptions,
                        u'totalfailedelse' : totalfailedelse,
+                       u'bestsuggestions' : bestsuggestions,
                        }
 
     return collectionstats
@@ -569,6 +572,7 @@ def publishStatistics(artistsstats, collectionsstats):
     totalfailedinuse = 0
     totailfailedoptions= 0
     totalfailedelse = 0
+    bestsuggestions = ''
 
     for collectionstats in collectionsstats:
         rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bcollectienaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (collectionstats.get('collectienaam').replace(u' ', u'%20'),
@@ -595,6 +599,7 @@ def publishStatistics(artistsstats, collectionsstats):
         totalfailedinuse = totalfailedinuse + collectionstats.get(u'totalfailedinuse')
         totailfailedoptions = totailfailedoptions + collectionstats.get(u'totailfailedoptions')
         totalfailedelse = totalfailedelse + collectionstats.get(u'totalfailedelse')
+        bestsuggestions += collectionstats.get(u'bestsuggestions')
 
     text = text + u'|- class="sortbottom"\n'
     text = text + u'| || || || %s || %s || %s || %s || %s || %s || %s\n' % (totalimages,
@@ -606,6 +611,8 @@ def publishStatistics(artistsstats, collectionsstats):
                                                                             totalfailedelse,
                                                                             )
     text = text + u'|}\n\n'
+    text = text + u'=== Best suggestions ===\n'
+    text = text + bestsuggestions + '\n\n'
 
     totalrkd = 0
     totalrkdsuggestions = 0
