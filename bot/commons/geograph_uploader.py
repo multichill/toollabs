@@ -60,7 +60,7 @@ class GeographUploaderBot:
         try:
             response = requests.get(metadata.get('imageurl'))
         except requests.exceptions.ConnectionError:
-            pywikibot.output('Got a connection error for [[:d:%(item)s]] with url %(imageurl)s' % metadata)
+            pywikibot.output('Got a connection error for %(imageurl)s' % metadata)
             return False
 
         pywikibot.output ('Ready to upload %s' % (title,))
