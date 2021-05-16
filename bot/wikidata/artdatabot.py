@@ -569,36 +569,41 @@ class ArtDataBot:
         """
         Add the material used (P186) based on the medium to the item.
 
-        This currently only supports oil on canvas so doesn't scale at all.
+        Strings like "oil on canvas" are mapped to statements.
 
         :param item: The artwork item to work on
         :param metadata: All the metadata about this artwork, should contain the medium field
         :return: Nothing, updates item in place
         """
         claims = item.get().get('claims')
+        mediums = { 'oil on canvas' : {'paint' : 'Q296955', 'surface' : 'Q12321255'},
+                    'oil on panel' : {'paint' : 'Q296955', 'surface' : 'Q106857709'},
+                    'oil on oak panel' : {'paint' : 'Q296955', 'surface' : 'Q106857823'},
+                    'oil on poplar panel' : {'paint' : 'Q296955', 'surface' : 'Q106857865'},
+                    }
 
-        if u'P186' not in claims and metadata.get(u'medium'):
-            if metadata.get(u'medium') == u'oil on canvas':
-                oil_paint = pywikibot.ItemPage(self.repo, 'Q296955')
-                canvas = pywikibot.ItemPage(self.repo, 'Q12321255')
+        if 'P186' not in claims and metadata.get('medium'):
+            if metadata.get('medium').lower() in mediums:
+                paint = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower()).get('paint'))
+                surface = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower()).get('surface'))
                 painting_surface = pywikibot.ItemPage(self.repo, 'Q861259')
 
                 newclaim = pywikibot.Claim(self.repo, 'P186')
-                newclaim.setTarget(oil_paint)
-                pywikibot.output('Adding new oil paint claim to %s' % item)
+                newclaim.setTarget(paint)
+                pywikibot.output('Adding new paint claim to %s' % item)
                 item.addClaim(newclaim)
-                self.addReference(item, newclaim, metadata[u'refurl'])
+                self.addReference(item, newclaim, metadata['refurl'])
 
-                newclaim = pywikibot.Claim(self.repo, u'P186')
-                newclaim.setTarget(canvas)
-                pywikibot.output('Adding new canvas claim to %s' % item)
+                newclaim = pywikibot.Claim(self.repo, 'P186')
+                newclaim.setTarget(surface)
+                pywikibot.output('Adding new painting surface claim to %s' % item)
                 item.addClaim(newclaim)
 
-                newqualifier = pywikibot.Claim(self.repo, u'P518') #Applies to part
+                newqualifier = pywikibot.Claim(self.repo, 'P518') #Applies to part
                 newqualifier.setTarget(painting_surface)
-                pywikibot.output('Adding new qualifier claim to %s' % item)
+                pywikibot.output('Adding new painting surface qualifier claim to %s' % item)
                 newclaim.addQualifier(newqualifier)
-                self.addReference(item, newclaim, metadata[u'refurl'])
+                self.addReference(item, newclaim, metadata['refurl'])
 
     def addDimensions(self, item, metadata):
         """
