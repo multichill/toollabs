@@ -95,23 +95,63 @@ def add_painting_surface_qualifier(repo, materialqid):
                     newqualifier.setTarget(paintingsurface)
                     madeclaim.addQualifier(newqualifier, summary=summary)
 
+def replace_paint(repo, wrongqid, rightqid):
+    """
+    Replace the wrongqid with rightqid for paint
+
+    :param repo: The repo to work on
+    :param wrongqid: Qid of the wrong material to replace
+    :param rightqid: Qid of the right material to add instead
+    :return: Edit in place
+    """
+    wrongmaterial = pywikibot.ItemPage(repo, wrongqid)
+    rightmaterial = pywikibot.ItemPage(repo, rightqid)
+
+    query = """SELECT ?item WHERE {
+  ?item p:P186 ?madestatement .
+  ?madestatement ps:P186 wd:%s .      
+  ?item wdt:P31 wd:Q3305213 .
+  } LIMIT 10000""" % (wrongqid, )
+    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+
+    for item in generator:
+        data = item.get()
+        claims = data.get('claims')
+
+        if 'P186' in claims:
+            for madeclaim in claims.get('P186'):
+                if madeclaim.getTarget()==wrongmaterial:
+                    summary = '[[Wikidata:WikiProject sum of all paintings/Made from material#Normalization|Made from material normalization for paintings]]'
+                    pywikibot.output('Replacing %s with %s on %s' % (wrongqid, rightqid, item.title()))
+                    madeclaim.changeTarget(rightmaterial, summary=summary)
+
 def main(*args):
     """
     Main function does all the work.
     """
     repo = pywikibot.Site().data_repository()
-    # canvas -> canvas
+    # canvas (Q4259259) -> canvas (Q12321255)
     replace_painting_surface(repo, 'Q4259259', 'Q12321255', strict=False, add_missing=True)
     add_painting_surface_qualifier(repo, 'Q12321255')
-    # panel -> panel
+    # panel (Q1348059) -> panel (Q106857709)
     replace_painting_surface(repo, 'Q1348059', 'Q106857709', strict=False, add_missing=True)
     add_painting_surface_qualifier(repo, 'Q106857709')
-    # wood -> panel
+    # wood (Q287) -> panel (Q106857709)
     replace_painting_surface(repo, 'Q287', 'Q106857709', strict=True, add_missing=False)
-    # oak -> oak panel
+    # oak (Q2075708) -> oak  (Q106857823)
     replace_painting_surface(repo, 'Q2075708', 'Q106857823', strict=True, add_missing=False)
-    # poplar wood -> poplar panel
+    # poplar wood (Q291034) -> poplar panel (Q106857865)
     replace_painting_surface(repo, 'Q291034', 'Q106857865', strict=True, add_missing=False)
+    # gouache painting (Q21281546) -> gouache paint (Q204330)
+    replace_paint(repo, 'Q21281546', 'Q204330')
+    # watercolor painting (Q18761202) -> watercolor paint (Q22915256)
+    replace_paint(repo, 'Q18761202', 'Q22915256')
+    # watercolor (Q50030) -> watercolor paint (Q22915256)
+    replace_paint(repo, 'Q50030', 'Q22915256')
+    # oil painting (Q56676227) -> oil paint (Q296955)
+    replace_paint(repo, 'Q56676227', 'Q296955')
+    # oil painting (Q174705) -> oil paint (Q296955)
+    replace_paint(repo, 'Q174705', 'Q296955')
 
 if __name__ == "__main__":
     main()
