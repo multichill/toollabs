@@ -129,9 +129,20 @@ def getNationalmuseumGenerator():
             if iteminfo.get('acquisition_year'):
                 metadata['acquisitiondate'] = int(iteminfo.get('acquisition_year'))
 
-            if iteminfo.get('technique_material') and iteminfo.get('technique_material').get('sv') and \
-                    iteminfo.get('technique_material').get('sv') == 'Olja på duk':
-                metadata['medium'] = u'oil on canvas'
+            if iteminfo.get('technique_material') and iteminfo.get('technique_material').get('sv'):
+                material = iteminfo.get('technique_material').get('sv').strip()
+                if material == 'Olja på duk':
+                    metadata['medium'] = 'oil on canvas'
+                elif material == 'Olja på trä':
+                    metadata['medium'] = 'oil on panel'
+                elif material == 'Olja på ek':
+                    metadata['medium'] = 'oil on oak panel'
+                elif material == 'Olja på papper':
+                    metadata['medium'] = 'oil on paper'
+                elif material == 'Akvarell på papper':
+                    metadata['medium'] = 'watercolor on paper'
+                else:
+                    print('Unable to match material %s' % (material,))
 
             if iteminfo.get('dimensions'):
                 dimensions = iteminfo.get('dimensions')[0]
