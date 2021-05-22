@@ -227,13 +227,30 @@ def getRCEGenerator():
                                             }
 
             if itemfields.get('dcterms_medium'):
-                if itemfields.get('dcterms_medium')[0].get('value') == u'doek, olieverf':
-                    metadata['medium'] = u'oil on canvas'
-                elif len(itemfields.get('dcterms_medium')) > 1:
-                    if itemfields.get('dcterms_medium')[0].get('value') == u'doek' and \
-                       itemfields.get('dcterms_medium')[1].get('value') == u'olieverf':
+                if len(itemfields.get('dcterms_medium')) == 1:
+                    if itemfields.get('dcterms_medium')[0].get('value') == u'doek, olieverf':
                         metadata['medium'] = u'oil on canvas'
-
+                    else:
+                        print('Unable to match %s ' % (itemfields.get('dcterms_medium')[0].get('value'),))
+                elif len(itemfields.get('dcterms_medium')) == 2:
+                    material1 = itemfields.get('dcterms_medium')[0].get('value')
+                    material2 = itemfields.get('dcterms_medium')[1].get('value')
+                    if (material1 == 'doek' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'doek'):
+                        metadata['medium'] = 'oil on canvas'
+                    elif (material1 == 'paneel' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'paneel'):
+                        metadata['medium'] = 'oil on panel'
+                    elif (material1 == 'paneel(board)' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'paneel(board)'):
+                        metadata['medium'] = 'oil on panel'
+                    elif (material1 == 'papier' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'papier'):
+                        metadata['medium'] = 'oil on paper'
+                    elif (material1 == 'doek' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'doek'):
+                        metadata['medium'] = 'acrylic paint on canvas'
+                    elif (material1 == 'paneel' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'paneel'):
+                        metadata['medium'] = 'acrylic paint on panel'
+                    else:
+                        print('Unable to match %s & %s' % (material1, material2,))
+                elif len(itemfields.get('dcterms_medium')) > 2:
+                    print ('That is a lof of medium fields %s' % (itemfields.get('dcterms_medium'),))
 
             if itemfields.get('dcterms_created'):
                 dcvalue = itemfields.get('dcterms_created')[0].get('value')
@@ -351,60 +368,23 @@ def getRCEGenerator():
 
     return
 
-def paintingsInvOnWikidata():
-    '''
-    Return a dict with key of the paintings already matched
-    '''
-    result = {}
-    # Need to use the long version here to get all ranks
-    query = u"""SELECT ?item ?id WHERE {
-  ?item wdt:P195 wd:Q190804 . # Could comment this one out
-  ?item wdt:P195 wd:Q18600731 .
-  ?item wdt:P31 wd:Q3305213 .
-  ?item p:P217 ?invstatement .
-  ?invstatement ps:P217 ?id .
-  ?invstatement pq:P195 wd:Q18600731 .
-  }"""
-    sq = pywikibot.data.sparql.SparqlQuery()
-    queryresult = sq.select(query)
-
-    for resultitem in queryresult:
-        qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-        result[resultitem.get('id')] = { u'qid' : qid }
-    return result
-
-def makeRijksReport(rijksworks):
-    text = u'List of %s Rijksmuseum paintings to match. Find the right painting, add the inventory number qualified with {{Q|18600731}} \n\n' % (len(rijksworks),)
-    text = text + u'{| class="wikitable"\n! Title !! Creator !! Search !! Inventory number !! Source\n'
-
-    for work in rijksworks:
-        text = text + u'|-\n | %s || %s || [//www.wikidata.org/w/index.php?search=&search={{urlencode:%s %s}}] || %s || [%s]\n' % (work.get('title').get(u'nl'),
-                                                                                                                               work.get('creatorname'),
-                                                                                                                               work.get('title').get(u'nl'),
-                                                                                                                               work.get('creatorname'),
-                                                                                                                               work.get('id'),
-                                                                                                                               work.get('url'),
-                                                                                                                               )
-    text = text + u'|}\n\n[[Category:User:Multichill]]\n'
-    repo = pywikibot.Site().data_repository()
-    summary = u'Update Rijksmuseum report with %s paintings' % (len(rijksworks),)
-    pageTitle = u'User:Multichill/Zandbak'
-    page = pywikibot.Page(repo, title=pageTitle)
-    page.put(text, summary=summary)
-
-def main():
-    # rijksworks = []
+def main(*args):
     dictGen = getRCEGenerator()
-    # currentrijksworks = paintingsInvOnWikidata()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    ##    # if painting.get(u'extracollectionqid') and painting.get(u'extracollectionqid')==u'Q190804' and painting.get(u'id') not in currentrijksworks:
-    ##    #    rijksworks.append(painting)
-    #    print (painting)
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    #makeRijksReport(rijksworks)
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 if __name__ == "__main__":
  main()
