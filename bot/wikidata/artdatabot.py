@@ -580,6 +580,11 @@ class ArtDataBot:
                     'oil on panel' : {'paint' : 'Q296955', 'surface' : 'Q106857709'},
                     'oil on oak panel' : {'paint' : 'Q296955', 'surface' : 'Q106857823'},
                     'oil on poplar panel' : {'paint' : 'Q296955', 'surface' : 'Q106857865'},
+                    'oil on pine panel' : {'paint' : 'Q296955', 'surface' : 'Q106940268'},
+                    'oil on paper' : {'paint' : 'Q296955', 'surface' : 'Q11472'},
+                    'acrylic paint on canvas' : {'paint' : 'Q207849', 'surface' : 'Q12321255'},
+                    'acrylic paint on panel' : {'paint' : 'Q207849', 'surface' : 'Q106857709'},
+                    'watercolor on paper' : {'paint' : 'Q22915256', 'surface' : 'Q11472'},
                     }
 
         if 'P186' not in claims and metadata.get('medium'):
