@@ -33,6 +33,7 @@ def getNTGenerator():
     missedlocations = {} # Where it is now
     missedplaces = {} # Where it was made
     baseSearchUrl = u'http://www.nationaltrustcollections.org.uk/results?Categories=7456ee20fffffe0702132e04e5764fd3&Sort=collection&Page=%s'
+    #baseSearchUrl = u'http://www.nationaltrustcollections.org.uk/results?Categories=7456ee20fffffe0702132e04e5764fd3&Sort=Date&Page=%s'
 
     for i in range(1, 250):
         print (missedlocations)
@@ -182,11 +183,35 @@ def getNTGenerator():
             #if acquisitiondateMatch:
             #    metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
 
-            mediumRegex = u'\<h4\>Materials\<\/h4\>[\r\n\t\s]*\<p\>Oil on canvas\<\/p\>'
+            mediumRegex = u'\<h4\>Materials\<\/h4\>[\r\n\t\s]*\<p\>([^\<]+)\<\/p\>'
             mediumMatch = re.search(mediumRegex, itemPageData)
 
             if mediumMatch:
-                metadata['medium'] = u'oil on canvas'
+                medium = mediumMatch.group(1).lower().strip()
+                if medium == 'oil on canvas':
+                    metadata['medium'] = medium
+                elif medium == 'oil on panel':
+                    metadata['medium'] = medium
+                elif medium == 'oil on panel (softwood)':
+                    metadata['medium'] = 'oil on panel'
+                elif medium == 'oil on softwood panel':
+                    metadata['medium'] = 'oil on panel'
+                elif medium == 'oil on panel (poplar)':
+                    metadata['medium'] = 'oil on poplar panel'
+                elif medium == 'oil on poplar panel':
+                    metadata['medium'] = medium
+                elif medium == 'oil on panel (oak)':
+                    metadata['medium'] = 'oil on oak panel'
+                elif medium == 'oil on panel (pine)':
+                    metadata['medium'] = 'oil on pine panel'
+                elif medium == 'oil on copper':
+                    metadata['medium'] = 'oil on copper'
+                else:
+                    print('Medium %s did not match' % (medium,))
+                    print('Medium %s did not match' % (medium,))
+                    print('Medium %s did not match' % (medium,))
+                    print('Medium %s did not match' % (medium,))
+                    print('Medium %s did not match' % (medium,))
 
             dimensionRegex = u'\<h4\>Measurements\<\/h4\>[\r\n\t\s]*\<p\>([^\<]+)\<\/p\>'
             dimensionMatch = re.search(dimensionRegex, itemPageData)
