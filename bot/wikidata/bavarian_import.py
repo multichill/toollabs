@@ -204,10 +204,23 @@ def getBavarianGenerator():
                 #    metadata[u'locationqid']=u''
 
 
-            mediumregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Material / Technology / Carrier[\s\t\r\n]*\<\/div\>[\s\t\r\n]*Öl auf Leinwand[\s\t\r\n]*\<\/div\>'
+            mediumregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Material / Technology / Carrier[\s\t\r\n]*\<\/div\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/div\>'
             mediummatch = re.search(mediumregex, itempage.text)
             if mediummatch:
-                metadata['medium'] = u'oil on canvas'
+                medium = mediummatch.group(1).strip()
+                if medium == 'Öl auf Leinwand':
+                    metadata['medium'] = u'oil on canvas'
+                elif medium == 'Öl auf Laubholz':
+                    metadata['medium'] = u'oil on panel'
+                elif medium == 'Öl auf Holz':
+                    metadata['medium'] = u'oil on panel'
+                    # Öl auf Buchenholz
+                    # Öl auf Sperrholz
+                    # Öl auf Nadelholz
+                elif medium == 'Acryl auf Leinwand':
+                    metadata['medium'] = 'acrylic paint on canvas'
+                else:
+                    print('Medium %s did not match' % (medium,))
 
             measurementsregex = u'\<div class\=\"label-header\"\>[\s\t\r\n]*Dimensions of the object[\s\t\r\n]*\<\/div\>[\s\t\r\n]*([^\<]+)[\s\t\r\n]*\<\/div\>'
             measurementsmatch = re.search(measurementsregex, itempage.text)
