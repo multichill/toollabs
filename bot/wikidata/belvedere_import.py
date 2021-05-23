@@ -131,10 +131,23 @@ def getBelvedereGenerator():
                 if 'Übernahme aus dem Kunsthistorischen Museum' in acquisitiondatematch.group(2):
                     metadata['extracollectionqid'] = 'Q95569'
 
-            mediumregex = '\<span class\=\"detailFieldLabel\"\>Material\/Technik\s*\<\/span\>\<span property\=\"artMedium\" itemprop\=\"artMedium\" class\=\"detailFieldValue\"\>Öl auf Leinwand\<\/span\>'
+            mediumregex = '\<span class\=\"detailFieldLabel\"\>Material\/Technik\s*\<\/span\>\<span property\=\"artMedium\" itemprop\=\"artMedium\" class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>'
             mediummatch = match = re.search(mediumregex, itempage.text)
             if mediummatch:
-                metadata['medium'] = 'oil on canvas'
+                medium = mediummatch.group(1)
+                # Not quite complete
+                mediums = { 'Öl auf Leinwand' : 'oil on canvas',
+                            'Öl auf Holz' : 'oil on panel',
+                            'Öl auf Papier' : 'oil on paper',
+                            'Öl auf Kupfer' : 'oil on copper',
+                            'Tempera auf Leinwand' : 'tempera on canvas',
+                            'Tempera auf Holz' : 'tempera on panel',
+                            'Acryl auf Leinwand' : 'acrylic paint on canvas',
+                            }
+                if medium in mediums:
+                    metadata['medium'] = mediums.get(medium)
+                else:
+                    print('Unable to match medium %s' % (medium,))
 
             measurementsregex = '\<div class\=\"detailField dimensionsField\"\>\<span class\=\"detailFieldLabel\"\>Maße\s*\<\/span\>\<span class\=\"detailFieldValue\"\>\<div\>([^\<]+)\<\/div>'
             measurementsmatch = re.search(measurementsregex, itempage.text)
