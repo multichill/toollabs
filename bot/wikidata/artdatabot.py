@@ -569,7 +569,7 @@ class ArtDataBot:
         """
         Add the material used (P186) based on the medium to the item.
 
-        Strings like "oil on canvas" are mapped to statements.
+        Strings like "oil on canvas" are mapped to statements. Missing statements and missing sources will be added.
 
         :param item: The artwork item to work on
         :param metadata: All the metadata about this artwork, should contain the medium field
@@ -579,36 +579,71 @@ class ArtDataBot:
         mediums = { 'oil on canvas' : {'paint' : 'Q296955', 'surface' : 'Q12321255'},
                     'oil on panel' : {'paint' : 'Q296955', 'surface' : 'Q106857709'},
                     'oil on oak panel' : {'paint' : 'Q296955', 'surface' : 'Q106857823'},
-                    'oil on poplar panel' : {'paint' : 'Q296955', 'surface' : 'Q106857865'},
                     'oil on pine panel' : {'paint' : 'Q296955', 'surface' : 'Q106940268'},
+                    'oil on poplar panel' : {'paint' : 'Q296955', 'surface' : 'Q106857865'},
                     'oil on paper' : {'paint' : 'Q296955', 'surface' : 'Q11472'},
+                    'oil on copper' : {'paint' : 'Q296955', 'surface' : 'Q753'},
+                    'tempera on canvas' : {'paint' : 'Q175166', 'surface' : 'Q12321255'},
+                    'tempera on panel' : {'paint' : 'Q175166', 'surface' : 'Q106857709'},
+                    'tempera on oak panel' : {'paint' : 'Q175166', 'surface' : 'Q106857823'},
+                    'tempera on pine panel' : {'paint' : 'Q175166', 'surface' : 'Q106940268'},
+                    'tempera on poplar panel' : {'paint' : 'Q175166', 'surface' : 'Q106857865'},
                     'acrylic paint on canvas' : {'paint' : 'Q207849', 'surface' : 'Q12321255'},
                     'acrylic paint on panel' : {'paint' : 'Q207849', 'surface' : 'Q106857709'},
                     'watercolor on paper' : {'paint' : 'Q22915256', 'surface' : 'Q11472'},
                     }
+        if not metadata.get('medium') or metadata.get('medium').lower() not in mediums:
+            # No match, just return
+            return
+        paint = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower()).get('paint'))
+        surface = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower()).get('surface'))
+        painting_surface = pywikibot.ItemPage(self.repo, 'Q861259')
 
-        if 'P186' not in claims and metadata.get('medium'):
-            if metadata.get('medium').lower() in mediums:
-                paint = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower()).get('paint'))
-                surface = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower()).get('surface'))
-                painting_surface = pywikibot.ItemPage(self.repo, 'Q861259')
+        if 'P186' not in claims:
+            newclaim = pywikibot.Claim(self.repo, 'P186')
+            newclaim.setTarget(paint)
+            pywikibot.output('Adding new paint claim to %s' % item)
+            item.addClaim(newclaim)
+            self.addReference(item, newclaim, metadata['refurl'])
 
+            newclaim = pywikibot.Claim(self.repo, 'P186')
+            newclaim.setTarget(surface)
+            pywikibot.output('Adding new painting surface claim to %s' % item)
+            item.addClaim(newclaim)
+
+            newqualifier = pywikibot.Claim(self.repo, 'P518') #Applies to part
+            newqualifier.setTarget(painting_surface)
+            pywikibot.output('Adding new painting surface qualifier claim to %s' % item)
+            newclaim.addQualifier(newqualifier)
+            self.addReference(item, newclaim, metadata['refurl'])
+        elif 'P186' in claims and len(claims.get('P186'))==1:
+            madeclaim = claims.get('P186')[0]
+            if madeclaim.getTarget()==surface:
+                if not madeclaim.getSources():
+                    self.addReference(item, madeclaim, metadata['refurl'])
                 newclaim = pywikibot.Claim(self.repo, 'P186')
                 newclaim.setTarget(paint)
-                pywikibot.output('Adding new paint claim to %s' % item)
-                item.addClaim(newclaim)
+                pywikibot.output('Adding missing paint claim to %s' % item)
+                item.addClaim(newclaim, summary='Adding missing paint statement')
                 self.addReference(item, newclaim, metadata['refurl'])
-
+            elif madeclaim.getTarget()==paint:
+                if not madeclaim.getSources():
+                    self.addReference(item, madeclaim, metadata['refurl'])
                 newclaim = pywikibot.Claim(self.repo, 'P186')
                 newclaim.setTarget(surface)
-                pywikibot.output('Adding new painting surface claim to %s' % item)
-                item.addClaim(newclaim)
+                pywikibot.output('Adding missing painting surface claim to %s' % item)
+                item.addClaim(newclaim, summary='Adding missing painting surface statement')
 
                 newqualifier = pywikibot.Claim(self.repo, 'P518') #Applies to part
                 newqualifier.setTarget(painting_surface)
                 pywikibot.output('Adding new painting surface qualifier claim to %s' % item)
                 newclaim.addQualifier(newqualifier)
                 self.addReference(item, newclaim, metadata['refurl'])
+        elif 'P186' in claims and len(claims.get('P186'))==2:
+            for madeclaim in claims.get('P186'):
+                if madeclaim.getTarget()==surface or madeclaim.getTarget()==paint:
+                    if not madeclaim.getSources():
+                        self.addReference(item, madeclaim, metadata['refurl'])
 
     def addDimensions(self, item, metadata):
         """
