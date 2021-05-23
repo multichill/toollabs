@@ -137,11 +137,11 @@ def getHispanicSocietyGenerator():
             #    metadata['acquisitiondate'] = int(acquisitiondatematch.group(1))
 
 
-            mediumregex = '\<meta content\=\"Oil on canvas\" property\=\"schema\:artMedium\" itemprop\=\"artMedium\"\>'
+            mediumregex = '\<meta content\=\"([^\"]+)\" property\=\"schema\:artMedium\" itemprop\=\"artMedium\"\>'
             mediummatch = re.search(mediumregex, itempage.text)
+            # Artdatabot will sort this out
             if mediummatch:
-                metadata['medium'] = 'oil on canvas'
-
+                metadata['medium'] = mediummatch.group(1)
 
             # Dimensions need to be extracted from the text (meta properties appear broken)
             measurementsregex = '\<span class\=\"detailFieldLabel\"\>Dimensions\:\<\/span\>\<span class\=\"detailFieldValue\"\>\<div\>[^\<]+\(([^\<]+cm)\)\<\/div\>'
