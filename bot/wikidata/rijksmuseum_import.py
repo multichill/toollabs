@@ -97,12 +97,49 @@ def getRijksmuseumGenerator():
                                             u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'),),
                                             u'fr' : u'%s de %s' % (u'peinture', metadata.get('creatorname'),),
                                             }
-            # FIXME : This will only catch oil on canvas
+            # This will only catch simple cases
             if record.get('physicalMedium'):
                 if record.get('physicalMedium')==u'olieverf op doek':
                     metadata['medium'] = u'oil on canvas'
                 elif record.get('physicalMedium')==u'olieverf op paneel':
                     metadata['medium'] = u'oil on panel'
+
+            # We didn't find anything useful in physicalMedium, so let's try materials. Based on RCE fields
+            if not metadata.get('medium') and record.get('materials') and len(record.get('materials'))==2:
+                material1 = record.get('materials')[0].lower()
+                material2 = record.get('materials')[1].lower()
+                if (material1 == 'doek' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'doek'):
+                    metadata['medium'] = 'oil on canvas'
+                elif (material1 == 'linnen' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'linnen'):
+                    metadata['medium'] = 'oil on canvas'
+                elif (material1 == 'paneel' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'paneel'):
+                    metadata['medium'] = 'oil on panel'
+                elif (material1 == 'hout' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'hout'):
+                    metadata['medium'] = 'oil on panel'
+                elif (material1 == 'paneel(board)' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'paneel(board)'):
+                    metadata['medium'] = 'oil on panel'
+                elif (material1 == 'paneel(eikenhout)' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'paneel(eikenhout)'):
+                    metadata['medium'] = 'oil on oak panel'
+                elif (material1 == 'papier' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'papier'):
+                    metadata['medium'] = 'oil on paper'
+                elif (material1 == 'koper' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'koper'):
+                    metadata['medium'] = 'oil on copper'
+                elif (material1 == 'doek' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'doek'):
+                    metadata['medium'] = 'tempera on canvas'
+                elif (material1 == 'paneel' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'paneel'):
+                    metadata['medium'] = 'tempera on panel'
+                elif (material1 == 'doek' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'doek'):
+                    metadata['medium'] = 'acrylic paint on canvas'
+                elif (material1 == 'doek' and material2 == 'acryl') or (material1 == 'acryl' and material2 == 'doek'):
+                    metadata['medium'] = 'acrylic paint on canvas'
+                elif (material1 == 'paneel' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'paneel'):
+                    metadata['medium'] = 'acrylic paint on panel'
+                elif (material1 == 'papier' and material2 == 'aquarel') or (material1 == 'aquarel' and material2 == 'papier'):
+                    metadata['medium'] = 'watercolor on paper'
+                elif (material1 == 'papier' and material2 == 'waterverf') or (material1 == 'waterverf' and material2 == 'papier'):
+                    metadata['medium'] = 'watercolor on paper'
+                else:
+                    print('Unable to match %s & %s' % (material1, material2,))
 
             # Set the inception only if start only start or if start and end are the same
             if record.get('dating') and \
