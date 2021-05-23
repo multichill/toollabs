@@ -236,6 +236,8 @@ def getHarvardGenerator():
                     metadata['madeinqid'] = 'Q46'
                 elif culture=='Korean':
                     metadata['madeinqid'] = 'Q18097'
+                elif culture=='Indian':
+                    metadata['madeinqid'] = 'Q668'
                 else:
                     print('Unknown culture %s' % (culture,))
 
