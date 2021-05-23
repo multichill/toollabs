@@ -175,8 +175,9 @@ def getPrincetonGenerator():
                 if acquisitionmatch:
                     metadata['acquisitiondate'] = int(acquisitionmatch.group(1))
 
-            if iteminfo.get('medium') and iteminfo.get('medium')=='Oil on canvas':
-                metadata['medium'] = u'oil on canvas'
+            # leave it for artdatabot to sort out "oil on canvas"
+            if iteminfo.get('medium'):
+                metadata['medium'] = iteminfo.get('medium')
 
             if iteminfo.get('dimensionelements'):
                 for dimensionelement in iteminfo.get('dimensionelements'):
