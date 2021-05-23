@@ -116,10 +116,11 @@ def getClarkArtGenerator():
             if acquisitiondateMatch:
                 metadata['acquisitiondate'] = int(acquisitiondateMatch.group(1))
 
-            mediumRegex = '\<strong\>Medium\<\/strong\>[\r\n\s\t]*\\<\/td\>[\r\n\s\t]*\<td\>[\r\n\s\t]*Oil on canvas[\r\n\s\t]*\<\/td\>'
+            mediumRegex = '\<strong\>Medium\<\/strong\>[\r\n\s\t]*\\<\/td\>[\r\n\s\t]*\<td\>[\r\n\s\t]*([^\<]+)[\r\n\s\t]*\<\/td\>'
             mediumMatch = re.search(mediumRegex, itempage.text)
+            # Artdatabot will sort this out
             if mediumMatch:
-                metadata['medium'] = 'oil on canvas'
+                metadata['medium'] = mediumMatch.group(1)
 
             # Dimensions is a mix of types and also Inches and cm
 
@@ -133,7 +134,7 @@ def getClarkArtGenerator():
                 metadata['imageoperatedby'] = 'Q1465805'
                 #   metadata['imageurllicense'] = 'Q6938433' # Just free use
                 ## Use this to add suggestions everywhere
-                metadata['imageurlforce'] = True
+                metadata['imageurlforce'] = False
             yield metadata
 
 def main(*args):
