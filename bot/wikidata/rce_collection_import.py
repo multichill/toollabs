@@ -237,16 +237,30 @@ def getRCEGenerator():
                     material2 = itemfields.get('dcterms_medium')[1].get('value')
                     if (material1 == 'doek' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'doek'):
                         metadata['medium'] = 'oil on canvas'
+                    elif (material1 == 'linnen' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'linnen'):
+                        metadata['medium'] = 'oil on canvas'
                     elif (material1 == 'paneel' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'paneel'):
+                        metadata['medium'] = 'oil on panel'
+                    elif (material1 == 'hout' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'hout'):
                         metadata['medium'] = 'oil on panel'
                     elif (material1 == 'paneel(board)' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'paneel(board)'):
                         metadata['medium'] = 'oil on panel'
+                    elif (material1 == 'paneel(eikenhout)' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'paneel(eikenhout)'):
+                        metadata['medium'] = 'oil on oak panel'
                     elif (material1 == 'papier' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'papier'):
                         metadata['medium'] = 'oil on paper'
+                    elif (material1 == 'doek' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'doek'):
+                        metadata['medium'] = 'tempera on canvas'
+                    elif (material1 == 'paneel' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'paneel'):
+                        metadata['medium'] = 'tempera on panel'
                     elif (material1 == 'doek' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'doek'):
+                        metadata['medium'] = 'acrylic paint on canvas'
+                    elif (material1 == 'doek' and material2 == 'acryl') or (material1 == 'acryl' and material2 == 'doek'):
                         metadata['medium'] = 'acrylic paint on canvas'
                     elif (material1 == 'paneel' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'paneel'):
                         metadata['medium'] = 'acrylic paint on panel'
+                    elif (material1 == 'papier' and material2 == 'aquarel') or (material1 == 'aquarel' and material2 == 'papier'):
+                        metadata['medium'] = 'watercolor on paper'
                     else:
                         print('Unable to match %s & %s' % (material1, material2,))
                 elif len(itemfields.get('dcterms_medium')) > 2:
