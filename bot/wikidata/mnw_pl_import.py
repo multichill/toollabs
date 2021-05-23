@@ -27,7 +27,7 @@ def getMNWGenerator():
     for i in range(1,302):
         searchurl = basesearchurl % (i,i,)
         print (searchurl)
-        searchPage = session.get(searchurl)
+        searchPage = session.get(searchurl, verify=False)
 
         for item in searchPage.json().get('data').get('items'):
             # Main search contains quite a bit, but we're getting the individual objects
@@ -36,8 +36,8 @@ def getMNWGenerator():
             objecturl = 'https://cyfrowe-api.mnw.art.pl/api/object/%s' % (itemid,)
 
             # Accept-Language does the trick!
-            enobjectpage = session.get(objecturl, headers = {'Accept-Language': 'en,en-US,en;q=0.5'} )
-            plobjectpage = session.get(objecturl, headers = {'Accept-Language': 'pl,en-US,en;q=0.5'} )
+            enobjectpage = session.get(objecturl, headers = {'Accept-Language': 'en,en-US,en;q=0.5'}, verify=False)
+            plobjectpage = session.get(objecturl, headers = {'Accept-Language': 'pl,en-US,en;q=0.5'}, verify=False)
 
             endata = enobjectpage.json().get('data')
             pldata = plobjectpage.json().get('data')
@@ -69,8 +69,12 @@ def getMNWGenerator():
             # They seem to provide two inventory numbers? That's going to be fun.....
             metadata['idpid'] = 'P217'
             metadata['id'] = endata.get('extraNumPatterns')[0].get('number')
+
             #metadata['extraid'] = endata.get('noEvidence') # NO, that does not work!!!!
             #metadata['extracollectionqid'] = 'Q153306'
+
+            metadata['artworkidpid'] = 'P9061'
+            metadata['artworkid'] = itemid
 
             if endata.get('authors'):
                 creatorregex1 = '^([^,]+),\s*([^,].+),\s*([^\(]+)\([^\)]*\d\d[^\)]*\d\d[^\)]*\)$'
@@ -142,9 +146,34 @@ def getMNWGenerator():
 
             # The have technique and material!
             if endata.get('techniques') and endata.get('materials'):
-                # 9696 = oil and 11159 = canvas
-                if endata.get('techniques')[0].get('id')==9696 and endata.get('materials')[0].get('id')==11159:
-                    metadata['medium'] = 'oil on canvas'
+                paint = endata.get('techniques')[0].get('name').lower()
+                surface = endata.get('materials')[0].get('name').lower()
+                # Cardboard etc. still needs to be done
+                paintsurface = { ('oil','canvas') :  'oil on canvas',
+                                 ('oil','panel') :  'oil on panel',
+                                 ('oil','board') :  'oil on panel',
+                                 ('oil','pasteboard') :  'oil on panel',
+                                 ('oil','oakwood board') :  'oil on oak panel',
+                                 ('oil','pinewood board') :  'oil on pine panel',
+                                 ('oil','poplar board') :  'oil on poplar panel',
+                                 ('oil','paper') :  'oil on paper',
+                                 ('oil','copper') :  'oil on copper',
+                                 ('tempera','canvas') :  'tempera on canvas',
+                                 ('tempera','panel') :  'tempera on panel',
+                                 ('tempera','board') :  'tempera on panel',
+                                 ('tempera','pasteboard') :  'tempera on panel',
+                                 ('tempera','oakwood board') :  'tempera on oak panel',
+                                 ('tempera','pinewood wood board') :  'tempera on pine panel',
+                                 ('tempera','poplar wood board') :  'tempera on poplar panel',
+                                 ('tempera','paper') :  'tempera on paper',
+                                 #('akryl','canvas') :  'acrylic paint on canvas',
+                                 #('akryl','panel') :  'acrylic paint on panel',
+                                 ('water colour','paper') :  'watercolor on paper',
+                                 }
+                if (paint, surface) in paintsurface:
+                    metadata['medium'] = paintsurface.get((paint, surface))
+                else:
+                    print('Unable to match technique %s and material %s' % (paint, surface))
 
             if endata.get('tags'):
                 for tag in endata.get('tags'):
