@@ -30,6 +30,7 @@ def getHarvardGenerator():
     #missedlocations = {}
 
     while next_page:
+        print (searchurl % (i,))
         searchpage = requests.get(searchurl % (i,))
         searchjson = searchpage.json()
         i+=1
@@ -187,8 +188,9 @@ def getHarvardGenerator():
                 if metadata.get('extracollectionqid'):
                     metadata['extraid'] = iteminfo.get('objectnumber')
 
-            if iteminfo.get('medium') and iteminfo.get('medium')=='Oil on canvas':
-                metadata['medium'] = u'oil on canvas'
+            # leave it for artdatabot to sort out "oil on canvas"
+            if iteminfo.get('medium'):
+                metadata['medium'] = iteminfo.get('medium')
 
             if iteminfo.get('dimensions'):
                 regex_2d = '^(H\.)?\s*(?P<height>\d+(\.\d+)?)\s*x\s*(W\.)?\s*(?P<width>\d+(\.\d+)?)\s*cm.*$'
@@ -248,7 +250,7 @@ def getHarvardGenerator():
                 metadata['imageurlformat'] = 'Q2195' #JPEG
                 #    metadata[u'imageurllicense'] = u'Q18199165' # cc-by-sa.40
                 metadata['imageoperatedby'] = 'Q3783572'
-                metadata['imageurlforce'] = True
+                metadata['imageurlforce'] = False
             yield metadata
 
     #for missedlocation in sorted(missedlocations, key=missedlocations.get):
@@ -286,7 +288,6 @@ def main(*args):
     else:
         artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
         artDataBot.run()
-
 
 if __name__ == "__main__":
     main()
