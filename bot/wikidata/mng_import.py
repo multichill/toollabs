@@ -178,11 +178,36 @@ def getMNGGenerator():
             #if acquisitiondateMatch:
             #    metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
 
-            mediumRegex = '\<th\>Medium, technique\<\/th\>[\s\t\r\n]*\<td\>(oil on canvas|canvas, oil)\<\/td\>'
+            mediumRegex = '\<th\>Medium, technique\<\/th\>[\s\t\r\n]*\<td\>([^\<]+)\<\/td\>'
             mediumMatch = re.search(mediumRegex, itemPageData)
 
             if mediumMatch:
-                metadata['medium'] = u'oil on canvas'
+                medium = mediumMatch.group(1).strip().lower()
+                mediums = { 'oil on canvas' : 'oil on canvas',
+                            'canvas, oil' : 'oil on canvas',
+                            'oil, canvas' : 'oil on canvas',
+                            'oil on wood' : 'oil on panel',
+                            'oil on wood panel' : 'oil on panel',
+                            'wood, oil' : 'oil on panel',
+                            'wood panel, oil' : 'oil on panel',
+                            'oil on paper' : 'oil on paper',
+                            'paper, oil' : 'oil on paper',
+                            'tempera on wood' : 'tempera on panel',
+                            'wood, tempera' : 'tempera on panel',
+                            'wood panel, tempera' : 'tempera on panel',
+                            'paper, tempera' : 'tempera on paper',
+                            'acrylic on canvas' : 'acrylic paint on canvas',
+                            'acrylic, canvas' : 'acrylic paint on canvas',
+                            'canvas, acrylic' : 'acrylic paint on canvas',
+                            'watercolour on paper' : 'watercolor on paper',
+                            'aquarelle on paper' : 'watercolor on paper',
+                            }
+                if medium in mediums:
+                    metadata['medium'] = mediums.get(medium)
+                else:
+                    # Maybe artdatabot can make some sense out of it
+                    metadata['medium'] = medium
+                    print('Unable to match medium %s' % (medium,))
 
             dimensionRegex = '\<th\>Dimensions\<\/th\>[\s\t\r\n]*\<td\>\<p\>([^\<]+)\<\/p\>'
             dimensionMatch = re.search(dimensionRegex, itemPageData)
