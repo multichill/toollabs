@@ -121,9 +121,29 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             #if acquisitiondateMatch:
             #    metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
 
-            if item.get(u'medium') and item.get(u'medium')==u'plátno' and item.get(u'technique') and \
-                item.get(u'technique')[0] and item.get(u'technique')[0]==u'olej':
-                metadata['medium'] = u'oil on canvas'
+            if item.get('medium') and item.get('technique') and item.get('technique')[0]:
+                technique = item.get('technique')[0].lower()
+                medium = item.get('medium').lower()
+
+                # Cardboard etc. still needs to be done
+                techniquemedium = { ('olej','plátno') :  'oil on canvas',
+                                    ('olej','dřevo') :  'oil on panel', # wood
+                                    ('olej','drevo') :  'oil on panel', # wood
+                                    ('olej','překližka') :  'oil on panel', # plywood
+                                    ('olej','papier') :  'oil on paper',
+                                    ('tempera','plátno') :  'tempera on canvas',
+                                    ('tempera','dřevo') :  'tempera on panel',
+                                    ('tempera','drevo') :  'tempera on panel',
+                                    ('tempera','překližka') :  'tempera on panel',
+                                    ('tempera','papier') :  'tempera on paper',
+                                    ('akryl','plátno') :  'acrylic paint on canvas',
+                                    ('akryl','dřevo') :  'acrylic paint on panel',
+                                    ('akvarel','papier') :  'watercolor on paper',
+                                    }
+                if (technique, medium) in techniquemedium:
+                    metadata['medium'] = techniquemedium.get((technique, medium))
+                else:
+                    print('Unable to match technique %s and medium %s' % (technique, medium))
 
             # Add the genre based on the topic. Only when we have one topic
             if item.get(u'topic') and len(item.get(u'topic'))==1:
