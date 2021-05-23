@@ -190,9 +190,11 @@ def getNTGenerator():
                 medium = mediumMatch.group(1).lower().strip()
                 if medium == 'oil on canvas':
                     metadata['medium'] = medium
+                elif medium == 'oil on canvas (oval)' or medium == 'oil on canvas (circular)' or medium == 'oil paint on canvas':
+                    metadata['medium'] = 'oil on canvas'
                 elif medium == 'oil on panel':
                     metadata['medium'] = medium
-                elif medium == 'oil on panel (softwood)':
+                elif medium == 'oil on panel (softwood)' or medium == 'oil on panel (oval)':
                     metadata['medium'] = 'oil on panel'
                 elif medium == 'oil on softwood panel':
                     metadata['medium'] = 'oil on panel'
@@ -212,6 +214,8 @@ def getNTGenerator():
                     print('Medium %s did not match' % (medium,))
                     print('Medium %s did not match' % (medium,))
                     print('Medium %s did not match' % (medium,))
+                    # Artdatabot might be able to handle it
+                    metadata['medium'] = medium
 
             dimensionRegex = u'\<h4\>Measurements\<\/h4\>[\r\n\t\s]*\<p\>([^\<]+)\<\/p\>'
             dimensionMatch = re.search(dimensionRegex, itemPageData)
@@ -262,9 +266,11 @@ def getNTGenerator():
 
             # Add place made
             places = { u'Amsterdam' : u'Q727',
+                       u'Antwerp' : u'Q12892',
                        u'Bologna' : u'Q1891',
                        u'Cambridge' : u'Q350',
                        u'China' : u'Q29520',
+                       u'Cornwall' : u'Q23148',
                        u'Denmark' : u'Q35',
                        u'Devon' : u'Q23156',
                        u'Dordrecht' : u'Q26421',
@@ -285,6 +291,7 @@ def getNTGenerator():
                        u'Paris' : u'Q90',
                        u'Rome' : u'Q220',
                        u'Scotland' : u'Q22',
+                       u'Spain' : u'Q29',
                        u'Wales' : u'Q25',
                        u'Windsor' : u'Q464955',
                        u'Windsor Castle' : u'Q464955'
