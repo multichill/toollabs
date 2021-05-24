@@ -150,10 +150,38 @@ def getMNKGenerator():
 
             # The have technique and material! Using material
             if endata.get('materials') and len(endata.get('materials'))==2:
-                # 73602 = oil paint and 73787 = canvas
-                if endata.get('materials')[0].get('id')==73602 or endata.get('materials')[1].get('id')==73602:
-                    if endata.get('materials')[0].get('id')==73787 or endata.get('materials')[1].get('id')==73787:
-                        metadata['medium'] = 'oil on canvas'
+                material1 = endata.get('materials')[0].get('name').lower()
+                material2 = endata.get('materials')[1].get('name').lower()
+
+                paintsurface = { ('oil paint','canvas') :  'oil on canvas',
+                                 ('oil paint','panel') :  'oil on panel',
+                                 ('oil paint','plank (wood)') :  'oil on panel',
+                                 ('oil paint','wood') :  'oil on panel',
+                                 ('oil paint','wood (plant material)') :  'oil on panel',
+                                 ('oil paint','oakwood board') :  'oil on oak panel',
+                                 ('oil paint','pinewood board') :  'oil on pine panel',
+                                 ('oil paint','poplar board') :  'oil on poplar panel',
+                                 ('oil paint','paper') :  'oil on paper',
+                                 ('oil paint','copper') :  'oil on copper',
+                                 ('tempera','canvas') :  'tempera on canvas', # They use distemper?????
+                                 ('tempera','panel') :  'tempera on panel',
+                                 ('tempera','plank (wood)') :  'tempera on panel',
+                                 ('tempera','wood') :  'tempera on panel',
+                                 ('tempera','wood (plant material)') :  'tempera on panel',
+                                 ('tempera','oakwood board') :  'tempera on oak panel',
+                                 ('tempera','pinewood wood board') :  'tempera on pine panel',
+                                 ('tempera','poplar wood board') :  'tempera on poplar panel',
+                                 ('tempera','paper') :  'tempera on paper',
+                                 ('acrylic','canvas') :  'acrylic paint on canvas',
+                                 ('acrylic','panel') :  'acrylic paint on panel',
+                                 ('water colour','paper') :  'watercolor on paper',
+                                 }
+                if (material1, material2) in paintsurface:
+                    metadata['medium'] = paintsurface.get((material1, material2))
+                elif (material2, material1) in paintsurface:
+                    metadata['medium'] = paintsurface.get((material2, material1))
+                else:
+                    print('Unable to match technique %s and material %s' % (material1, material2))
 
             if endata.get('tags'):
                 for tag in endata.get('tags'):
