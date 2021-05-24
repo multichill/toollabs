@@ -151,6 +151,7 @@ def getMNWGenerator():
                 # Cardboard etc. still needs to be done
                 paintsurface = { ('oil','canvas') :  'oil on canvas',
                                  ('oil','panel') :  'oil on panel',
+                                 ('oil','wood') :  'oil on panel',
                                  ('oil','board') :  'oil on panel',
                                  ('oil','pasteboard') :  'oil on panel',
                                  ('oil','oakwood board') :  'oil on oak panel',
@@ -166,8 +167,9 @@ def getMNWGenerator():
                                  ('tempera','pinewood wood board') :  'tempera on pine panel',
                                  ('tempera','poplar wood board') :  'tempera on poplar panel',
                                  ('tempera','paper') :  'tempera on paper',
-                                 #('akryl','canvas') :  'acrylic paint on canvas',
-                                 #('akryl','panel') :  'acrylic paint on panel',
+                                 ('acrylic','canvas') :  'acrylic paint on canvas',
+                                 ('acrylic','panel') :  'acrylic paint on panel',
+                                 ('acrylic','wood') :  'acrylic paint on panel',
                                  ('water colour','paper') :  'watercolor on paper',
                                  }
                 if (paint, surface) in paintsurface:
