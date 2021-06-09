@@ -12,13 +12,27 @@ def main(*args):
     """
     Main function does all the work.
     """
+    broadrfc = False
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-broadrfc'):
+            broadrfc = True
+
     repo = pywikibot.Site().data_repository()
     anonymous = pywikibot.ItemPage(repo, 'Q4233718')
 
-    query = """SELECT ?item WHERE {
-  ?item p:P170/ps:P170 wd:Q4233718 ;
-        wdt:P31 wd:Q3305213 .
-} LIMIT 10000"""
+    if broadrfc:
+        query = """SELECT DISTINCT ?item WHERE {
+  ?item wdt:P170 wd:Q4233718 .  
+  } LIMIT 10000"""
+        qualifier_summary = '[[Wikidata:Requests for comment/Cleaning up the ontology of anonymous|Cleaning up the ontology of anonymous]], move to qualifier'
+        somevalue_summary = '[[Wikidata:Requests for comment/Cleaning up the ontology of anonymous|Cleaning up the ontology of anonymous]], set to somevalue'
+    else:
+        query = """SELECT ?item WHERE {
+      ?item p:P170/ps:P170 wd:Q4233718 ;
+            wdt:P31 wd:Q3305213 .
+    } LIMIT 10000"""
+        qualifier_summary = '[[Wikidata:WikiProject sum of all paintings/Anonymous creator#Normalization|Anonymous creator normalization for paintings]], move to qualifier'
+        somevalue_summary = '[[Wikidata:WikiProject sum of all paintings/Anonymous creator#Normalization|Anonymous creator normalization for paintings]], set to somevalue'
     generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     for item in generator:
@@ -30,13 +44,11 @@ def main(*args):
                 if creatorclaim.getTarget()==anonymous:
                     if not creatorclaim.has_qualifier('P3831', 'Q4233718'):
                         pywikibot.output('Adding object has role anonymous on %s' % (item.title(),))
-                        summary = '[[Wikidata:WikiProject sum of all paintings/Anonymous creator#Normalization|Anonymous creator normalization for paintings]], move to qualifier'
                         newqualifier = pywikibot.Claim(repo, 'P3831')
                         newqualifier.setTarget(anonymous)
-                        creatorclaim.addQualifier(newqualifier, summary=summary)
+                        creatorclaim.addQualifier(newqualifier, summary=qualifier_summary)
                     pywikibot.output('Changing target from anonymous to somevalue on %s' % (item.title(),))
-                    summary = '[[Wikidata:WikiProject sum of all paintings/Anonymous creator#Normalization|Anonymous creator normalization for paintings]], set to somevalue'
-                    creatorclaim.changeTarget(value=None, snaktype='somevalue', summary=summary)
+                    creatorclaim.changeTarget(value=None, snaktype='somevalue', summary=somevalue_summary)
 
 if __name__ == "__main__":
     main()
