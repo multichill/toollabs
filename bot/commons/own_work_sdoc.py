@@ -831,7 +831,7 @@ class OwnWorkBot:
                                                 } ],
                                    'P2699' : [ {'snaktype': 'value',
                                                 'property': 'P2699',
-                                                'datavalue': { 'value': u'https://commons.wikimedia.org/wiki/user:%s' % (authorPage.title(underscore=True, with_ns=False, as_url=True), ),
+                                                'datavalue': { 'value': u'https://commons.wikimedia.org/wiki/User:%s' % (authorPage.title(underscore=True, with_ns=False, as_url=True), ),
                                                                'type' : 'string',
                                                                },
                                                 } ],
@@ -1012,13 +1012,22 @@ class OwnWorkBot:
             return self.replaceObjectCoordinates(mediaid, currentdata, filepage)
 
         objectregex = u'\{\{[oO]bject location(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(\|)?(_?source:[^_]+)?(_?heading\:(?P<heading>\d+(\.\d+)?))?(\|prec\=\d+)?\}\}'
+        # I'm afraid this is not going to work if it's not decimal.
+        #objectregex = u'\{\{[oO]bject location(\s*dec)?\|(?P<lat>-?\d+\.?\d*)\|(?P<lon>-?\d+\.?\d*)(?P<moreparameters>\|[^\}]+)?\}\}'
         objectmatch = re.search(objectregex, filepage.text)
 
         if not objectmatch:
             return False
 
         if objectmatch:
-            coordinateText = u'%s %s' % (objectmatch.group('lat'), objectmatch.group('lon'), )
+            coordinateText = '%s %s' % (objectmatch.group('lat'), objectmatch.group('lon'), )
+
+            heading = None
+            if objectmatch.group('moreparameters'):
+                headingregex = 'heading\:(?P<heading>\d+(\.\d+)?)'
+                headingmatch = re.search(headingregex, objectmatch.group('moreparameters'))
+                if headingmatch:
+                    heading = headingmatch.group('heading')
 
             request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
             try:
@@ -1042,6 +1051,22 @@ class OwnWorkBot:
                        'type': 'statement',
                        'rank': 'normal',
                        }
+            if heading:
+                try:
+                    toclaim['qualifiers'] = {'P7787' : [ {'snaktype': 'value',
+                                                          'property': 'P7787',
+                                                          'datavalue': { 'value': { 'amount': '+%s' % (float(heading),),
+                                                                                    #'unit' : '1',
+                                                                                    'unit' : 'http://www.wikidata.org/entity/Q28390',
+                                                                                    },
+                                                                         'type' : 'quantity',
+                                                                         },
+                                                          },
+                                                         ],
+                                             }
+                except ValueError:
+                    # Weird heading
+                    pass
             return [toclaim,]
 
     def replaceObjectCoordinates(self, mediaid, currentdata, filepage):
