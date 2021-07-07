@@ -33,7 +33,11 @@ def rkdImagesOnWikidata(collectionid=None):
 
     for resultitem in queryresult:
         qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-        result[int(resultitem.get('id'))] = qid
+        try:
+            result[int(resultitem.get('id'))] = qid
+        except ValueError:
+            # Unknown value will trigger this
+            pass
     return result
 
 def paintingsInvOnWikidata(collectionid):

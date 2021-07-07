@@ -41,7 +41,11 @@ class RecentRKDimagesBot:
             if not self.highestrkdimage:
                 self.highestrkdimage = int(resultitem.get('id'))
             qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            result[int(resultitem.get('id'))] = qid
+            try:
+                result[int(resultitem.get('id'))] = qid
+            except ValueError:
+                # Unknown value will trigger this
+                pass
         return result
 
     def rkdImagesCollectionsOnWikidata(self):
@@ -62,7 +66,11 @@ class RecentRKDimagesBot:
 
         for resultitem in queryresult:
             qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            result[int(resultitem.get('id'))] = qid
+            try:
+                result[int(resultitem.get('id'))] = qid
+            except ValueError:
+                # Unknown value will trigger this
+                pass
         return result
 
     def rkdArtistsOnWikidata(self):
