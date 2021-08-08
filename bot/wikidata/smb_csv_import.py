@@ -23,7 +23,6 @@ def getWorksFromCsv():
     """
     dir = str(Path.home()) + '/SMB/'
     files = [ 'obj_ifg__teil1.csv', 'obj_ifg__teil2.csv', 'obj_ifg__teil3.csv']
-    #files = [ 'obj_ifg__teil1_fixed.csv']
 
     for filename in files:
         fullfilename = dir + filename
@@ -86,10 +85,16 @@ def getSMBGenerator(collectioninfo):
             name = '%s %s' % (firstname.strip(), surname.strip(),)
         metadata['creatorname'] = name
 
-        metadata['description'] = { u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'),),
-                                    u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
-                                    u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
-                                    }
+        print (workinfo.get('bereich'))
+
+        if workinfo.get('bereich') == 'GGVerlust':
+            metadata['description'] = { 'en' : '%s by %s' % ('lost painting', metadata.get('creatorname'),),
+                                        }
+        else:
+            metadata['description'] = { u'de' : u'%s von %s' % (u'Gemälde', metadata.get('creatorname'),),
+                                        u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
+                                        u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+                                        }
 
         # TODO: Implement date logic
 
@@ -127,26 +132,61 @@ def main(*args):
 
     painting_types = ['Gemälde', 'Malerei', 'Malerei/Gemälde']
     collections = {
-        # GGFremdbesitz # 129,
-        # GGLeihnahmen # 67,
+        'GGFremdbesitz' : { 'name' : 'Gemäldegalerie - owned my someone else',
+                        'collectioncode' : 'GGFremdbesitz',
+                        'collectionqid' : 'Q165631',
+                        'collectionshort' : 'GG',
+                        'locationqid' : 'Q165631',
+                        }, # 129, not owned by Gemäldegalerie
+        'GGLeihnahmen' : { 'name' : 'Gemäldegalerie - loans',
+                        'collectioncode' : 'GGLeihnahmen',
+                        'collectionqid' : 'Q165631',
+                        'collectionshort' : 'GG',
+                        'locationqid' : 'Q165631',
+                        }, # 67, loans at the Gemäldegalerie
         'GGMalerei' : { 'name' : 'Gemäldegalerie - main collection',
                         'collectioncode' : 'GGMalerei',
                         'collectionqid' : 'Q165631',
                         'collectionshort' : 'GG',
                         'locationqid' : 'Q165631',
                         }, # 2737, main collection Gemäldegalerie
-        # GGVerlust # 561,
+        'GGVerlust' : { 'name' : 'Gemäldegalerie - lost works',
+                        'collectioncode' : 'GGVerlust',
+                        'collectionqid' : 'Q165631',
+                        'collectionshort' : 'GG',
+                        'locationqid' : 'Q165631',
+                        },# 561, works lost by Gemäldegalerie mostly in 1945
         'NGAlteNationalgalerie' : { 'name' : 'Alte Nationalgalerie - main collection',
                                     'collectioncode' : 'NGAlteNationalgalerie',
                                     'collectionqid' : 'Q162111',
                                     'collectionshort' : 'NG',
                                     'locationqid' : 'Q162111',
                                     }, # 1900, main collection Alte Nationalgalerie
-        # NGHamburgerBahnhofMuseumfurGegenwart # 155
-        # NGMuseumBerggruen # 45,
-        # NGNeueNationalgalerie # 1795, main collection Neue Nationalgalerie
-        # NGSammlungScharfGerstenberg # 26,
-        # NGehemSammlung # 1201, former collection (Alte) Nationalgalerie
+        'NGHamburgerBahnhofMuseumfurGegenwart' : { 'name' : 'Hamburger Bahnhof - main collection',
+                                    'collectioncode' : 'NGHamburgerBahnhofMuseumfurGegenwart',
+                                    'collectionqid' : 'Q584756',
+                                    'collectionshort' : 'NGHB',
+                                    'locationqid' : 'Q584756',
+                                    }, # 155, only small part of the collection?
+        'NGMuseumBerggruen' : { 'name' : 'Berggruen Museum',
+                                'collectioncode' : 'NGMuseumBerggruen',
+                                'collectionqid' : 'Q641630',
+                                'collectionshort' : 'Berggruen',
+                                'locationqid' : 'Q641630',
+                                }, # 45, Berggruen Museum
+        'NGNeueNationalgalerie' : { 'name' : 'Neue Nationalgalerie - main collection',
+                                    'collectioncode' : 'NGNeueNationalgalerie',
+                                    'collectionqid' : 'Q32659772',
+                                    'collectionshort' : 'NNG',
+                                    'locationqid' : 'Q32659772',
+                                    }, # 1795, main collection Neue Nationalgalerie
+        'NGSammlungScharfGerstenberg' : { 'name' : 'Scharf-Gerstenberg Collection',
+                                    'collectioncode' : 'NGSammlungScharfGerstenberg',
+                                    'collectionqid' : 'Q322010',
+                                    'collectionshort' : 'NGSG',
+                                    'locationqid' : 'Q322010',
+                                    }, # NGSammlungScharfGerstenberg # 26,
+        # NGehemSammlung # 1201, former collection (Alte) Nationalgalerie? It's a mess and missing inventory numbers
     }
 
     if dryrun and not collectioncode:
