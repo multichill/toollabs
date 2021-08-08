@@ -40,6 +40,8 @@ def getSMBGenerator(collectioninfo):
     """
     Generator to return SMB paintings for a specific collection
     """
+    #mediumstats = {} # Temp
+
     painting_types = ['Gemälde', 'Malerei', 'Malerei/Gemälde']
     for workinfo in getWorksFromCsv():
         metadata = {}
@@ -96,11 +98,82 @@ def getSMBGenerator(collectioninfo):
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
                                         }
 
-        # TODO: Implement date logic
+        # Try to extract the date
+        # Let's see if we can extract some dates. Json-ld is provided, but doesn't have circa and the likes
+        datestring = workinfo.get('datierung').strip().lower()
+        if datestring:
+            dateregex = '^(\d\d\d\d)$'
+            datecircaregex = '^um\s*(\d\d\d\d)$'
+            periodregex = '^(\d\d\d\d)\s*[\/-]\s*(\d\d\d\d)$'
+            circaperiodregex = '^um\s*(\d\d\d\d)\s*[\/-]\s*(\d\d\d\d)$'
+            shortperiodregex = '^(\d\d)(\d\d)\s*[\/-]\s*(\d\d)$'
+            circashortperiodregex = '^um\s*(\d\d)(\d\d)\s*[\/-]\s*(\d\d)$'
 
-        # TODO: Implement medium logic
+            datematch = re.match(dateregex, datestring)
+            datecircamatch = re.search(datecircaregex, datestring)
+            periodmatch = re.search(periodregex, datestring)
+            circaperiodmatch = re.search(circaperiodregex, datestring)
+            shortperiodmatch = re.search(shortperiodregex, datestring)
+            circashortperiodmatch = re.search(circashortperiodregex, datestring)
 
+            if datematch:
+                metadata['inception'] = int(datematch.group(1).strip())
+            elif datecircamatch:
+                metadata['inception'] = int(datecircamatch.group(1).strip())
+                metadata['inceptioncirca'] = True
+            elif periodmatch:
+                metadata['inceptionstart'] = int(periodmatch.group(1))
+                metadata['inceptionend'] = int(periodmatch.group(2))
+            elif circaperiodmatch:
+                metadata['inceptionstart'] = int(circaperiodmatch.group(1))
+                metadata['inceptionend'] = int(circaperiodmatch.group(2))
+                metadata['inceptioncirca'] = True
+            elif shortperiodmatch:
+                metadata['inceptionstart'] = int('%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2),))
+                metadata['inceptionend'] = int('%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3),))
+            elif circashortperiodmatch:
+                metadata['inceptionstart'] = int('%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(2),))
+                metadata['inceptionend'] = int('%s%s' % (circashortperiodmatch.group(1),circashortperiodmatch.group(3),))
+                metadata['inceptioncirca'] = True
+            else:
+                print ('Could not parse date: "%s"' % (datestring,))
+
+        mediumstring = workinfo.get('matTech').strip().lower()
+        if mediumstring:
+
+            mediums = { 'öl auf leinwand' : 'oil on canvas',
+                        'öl auf leinwand, ölhaltiges bindemittel auf textilem bildträger' : 'oil on canvas',
+                        'öl auf holz' : 'oil on wood panel',
+                        #'öl auf pappe' : 'oil on cardboard',
+                        'öl auf leinwand, oil on canvas' : 'oil on canvas',
+                        'öl auf leinwand, ölhaltiges bindemittel auf textilem bildträger, oil on canvas' : 'oil on canvas',
+                        'öl auf eichenholz' : 'oil on oak panel',
+                        'eichenholz, eichenholz' : 'paint on wood panel',
+                        'leinwand, leinwand' : 'paint on canvas',
+                        'pappelholz, pappelholz' : 'paint on poplar panel',
+                        'leinwand, leinwand, ölfarbe' : 'oil on canvas',
+                        'lindenholz, lindenholz' : 'paint on lime panel',
+                        'kupfer, kupfer' : 'paint on copper',
+                        'öl auf leinwand, leinwand, ölfarbe' : 'oil on canvas',
+                        'leinwand, öl auf leinwand' : 'oil on canvas',
+                        'nadelholz, nadelholz' : 'paint on wood panel',
+                        'holz, holz' : 'paint on wood panel',
+                        'tannenholz, tannenholz' : 'paint on fir panel',
+                        'rotbuchenholz, rotbuchenholz' : 'paint on wood panel',
+                        'leinwand, ölfarbe, leinwand' : 'oil on canvas',
+                        'fichtenholz, fichtenholz' : 'paint on wood panel',
+                        'nußbaumholz, nußbaumholz' : 'paint on walnut panel',
+                        }
+            if mediumstring in mediums:
+                metadata['medium'] = mediums.get(mediumstring)
+            else:
+                print('Unable to match %s to a medium' % (mediumstring,))
+                #if mediumstring not in mediumstats:
+                #    mediumstats[mediumstring] = 0
+                #mediumstats[mediumstring] +=1
         yield metadata
+    #for mediumstring in sorted(mediumstats, key=mediumstats.get, reverse=True)[0:100]:
+    #    print ('%s - %s' % (mediumstring, mediumstats.get(mediumstring)))
 
 def processCollection(collectioninfo, dryrun=False, create=False):
 
