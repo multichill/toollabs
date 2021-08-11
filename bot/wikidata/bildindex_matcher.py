@@ -34,7 +34,6 @@ class BildindexMatcherBot:
         self.gndPainters = self.getGndPainters()
         self.paintingsInvOnWikidata = self.getPaintingsInvOnWikidata()
 
-
     def getCurrentBildindex(self):
         """
         Get all the Wikidata items that currently have a bildindex entry
@@ -125,7 +124,7 @@ LIMIT 5000"""
         basesearchurl = 'https://www.bildindex.de/ete?action=queryGallery/%s&index=obj-coll&desc=%%22Gem%%E4ldegalerie,%%20Staatliche%%20Museen%%20zu%%20Berlin%%20-%%20Preu%%DFischer%%20Kulturbesitz%%22'
 
 
-        for i in range(1, 500, 50):
+        for i in range(1, 6060, 50):
             #stateregex = '\<html lang\=\"de\" xml\:lang\=\"de\" data-sessionstate\=\"([^\"]+)\"'
             # Very nasty code with keeping state in cookies that get set in the javascript. I can play dirty too!
             cookieregex = 'document\.cookie\=\"([^\"]+)\"'
@@ -152,12 +151,48 @@ LIMIT 5000"""
 
             for match in matches:
                 bildid = match.group(1)
-                url = 'https://www.bildindex.de/document/obj%s' % (bildid,)
-                print (url)
-                yield bildid
+                if bildid in self.currentBildindex:
+                    print('The bildindex id %s was found on %s' % (bildid, self.currentBildindex.get(bildid)))
+                else:
+                    yield self.getBildindexObject(bildid)
 
             #print (searchPage.text)
             #time.sleep(5)
+    def getBildindexObject(self, bildid):
+        """
+        Get the relevant metadata for one Bildindex object
+        :param bildid: The bildindex id
+        :return: Dict with relevant fields
+        """
+        url = 'https://www.bildindex.de/document/obj%s' % (bildid,)
+        print (url)
+        metadata = { 'bildid' : bildid,
+                     'url' : url,
+                     }
+        objectpage = requests.get(url)
+
+        #titleregex = '\<div class\=\"Bausteine Titel-lang\"[^\>]+\>[\r\n\s]+\<h1\>([^\<]+)\<\/h1\>'
+        titlecreatorregex = '\<title\>([^\|]+)\s*\|\s*([^\|]+)\s*\| Bildindex der Kunst'
+        titlecreatormatch = re.search(titlecreatorregex, objectpage.text)
+        if titlecreatormatch:
+            metadata['title'] = titlecreatormatch.group(1).strip()
+            metadata['creatornametitle'] = titlecreatormatch.group(2).strip()
+
+        invregex = '\<span class\=\"gridLeft\"\>Sammlung\:\<\/span\>\<span class\=\"gridRight\"\>Berlin, Gemäldegalerie, Staatliche Museen zu Berlin - Preußischer Kulturbesitz, Inventar-Nr\.\s*([^,^\<]+)[,\<]'
+        invmatch = re.search(invregex, objectpage.text)
+        if invmatch:
+            metadata['invnum'] = invmatch.group(1)
+            metadata['collectionqid'] = 'Q165631'
+
+        weblinksregex = '\<h3\>Weblinks\s*\<\/h3\>\<ul\>\<li\>\<h5\>zu ([^\<]+)\<\/h5\>\<ul class\=\"noList noPadding noMargin detailsLinks\"\>\<li\>\<a href\=\"http\:\/\/d-nb\.info\/gnd\/([^\"]+)\"'
+        weblinksmatch = re.search(weblinksregex, objectpage.text)
+        if weblinksmatch:
+            metadata['creatornamelinks'] = weblinksmatch.group(1)
+            metadata['gndid'] = weblinksmatch.group(2)
+            if metadata.get('creatornametitle') and metadata.get('creatornametitle')==metadata.get('creatornamelinks'):
+                metadata['creatorname'] = metadata.get('creatornametitle')
+        return metadata
+
 
     def run(self):
         """
@@ -166,6 +201,45 @@ LIMIT 5000"""
 
         for metadata in self.generator:
             print (metadata)
+            invnum = metadata.get('invnum')
+            if invnum in self.paintingsInvOnWikidata:
+                wdinfo = self.paintingsInvOnWikidata.get(invnum)
+                print ('Found %s for %s' % (wdinfo.get('qid'), invnum,))
+                if metadata.get('gndid') and wdinfo.get('gndid') and metadata.get('gndid')==wdinfo.get('gndid'):
+                    print('Creator matched tooo!')
+                    self.addBildindexLink(wdinfo.get('qid'), metadata)
+
+    def addBildindexLink(self, qid, metadata):
+        """
+        Add the link to bildinfo
+        :param qid: Wikidata item id
+        :param metadata: Metadata retrieved from Bildindex
+        :return: Edit in place
+        """
+
+        item = pywikibot.ItemPage(self.repo, title=qid)
+        if not item.exists():
+            return False
+        if item.isRedirectPage():
+            return False
+        data = item.get()
+        claims = data.get('claims')
+        if 'P2092' in claims:
+            claim = claims.get('P2092')[0]
+            if claim.getTarget()=='%s' % (metadata.get('bildid'),):
+                pywikibot.output(u'Already got the right link on %s to bildindex %s!' % (qid, metadata.get('bildid')))
+                return True
+            pywikibot.output(u'Already got a link to %s on %s, I\'m trying to add %s' % (claim.getTarget(),
+                                                                                         qid,
+                                                                                         metadata.get('bildid')))
+            return False
+        summary = 'Based on [[%(collectionqid)s]] / %(invnum)s / GND ID %(gndid)s (name: %(creatornametitle)s). Title: "%(title)s"' % metadata
+        newclaim = pywikibot.Claim(self.repo, 'P2092')
+        newclaim.setTarget('%s' % (metadata.get('bildid'),))
+        pywikibot.output(summary)
+        item.addClaim(newclaim, summary=summary)
+        #return True
+
 
 # I'm here
 
