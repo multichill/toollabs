@@ -198,6 +198,7 @@ class GeographUploaderBot:
         title = re.sub("[\n]+", "", title)
         title = re.sub("[?!]([.\"]|$)", "\\1", title)
         title = re.sub("[&#%?!]", "^", title)
+        title = re.sub("[\|]", "^", title)
         title = re.sub("[;]", ",", title)
         title = re.sub("[/+\\\\:]", "-", title)
         title = re.sub("--+", "-", title)
