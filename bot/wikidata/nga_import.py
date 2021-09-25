@@ -10,36 +10,36 @@ import requests
 import re
 
 
-def getNGAGenerator(query=u''):
+def getNGAGenerator():
     '''
     Search for paintings and loop over it. Got 4165 results. Could probably use that for the paging
     '''
 
     baseurl = u'https://www.nga.gov/collection-search-result/jcr:content/parmain/facetcomponent/parList/collectionsearchresu.pageSize__10.pageNumber__%s.lastFacet__classification.json?classification=painting'
 
-    for i in range(1,417):
+    for i in range(1,425):
         searchurl = baseurl % (i,)
-        print searchurl
+        print (searchurl)
         searchPage = requests.get(searchurl)
         searchJson = searchPage.json()
         for record in searchJson.get('results'):
             metadata = {}
             ngaid = record.get('id')
-            url = u'https://www.nga.gov/content/ngaweb/Collection/art-object-page.%s.html' % (ngaid,)
+            url = 'https://www.nga.gov/content/ngaweb/Collection/art-object-page.%s.html' % (ngaid,)
             metadata['url'] = url
-            metadata['artworkidpid'] = u'P4683'
-            metadata['artworkid'] = u'%s' % (ngaid,) # I want this to be a string
+            metadata['artworkidpid'] = 'P4683'
+            metadata['artworkid'] = '%s' % (ngaid,) # I want this to be a string
 
-            metadata['collectionqid'] = u'Q214867'
-            metadata['collectionshort'] = u'NGA'
-            metadata['locationqid'] = u'Q214867'
+            metadata['collectionqid'] = 'Q214867'
+            metadata['collectionshort'] = 'NGA'
+            metadata['locationqid'] = 'Q214867'
 
             #No need to check, I'm actually searching for paintings.
-            metadata['instanceofqid'] = u'Q3305213'
+            metadata['instanceofqid'] = 'Q3305213'
 
             # Get the ID. This needs to burn if it's not available
-            metadata['id'] = record[u'accessionnumber']
-            metadata['idpid'] = u'P217'
+            metadata['id'] = record['accessionnumber']
+            metadata['idpid'] = 'P217'
 
             if record.get('title'):
                 # Chop chop, several very long titles
@@ -47,16 +47,16 @@ def getNGAGenerator(query=u''):
                     title = record.get('title')[0:200]
                 else:
                     title = record.get('title')
-                metadata['title'] = { u'en' : title,
+                metadata['title'] = { 'en' : title,
                                       }
             metadata['creatorname'] = record.get('attribution')
 
-            metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
-                                        u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
+            metadata['description'] = { 'nl' : '%s van %s' % (u'schilderij', metadata.get('creatorname'),),
+                                        'en' : '%s by %s' % (u'painting', metadata.get('creatorname'),),
                                         }
-            # FIXME : This will only catch oil on canvas
-            if record.get('medium')==u'oil on canvas':
-                metadata['medium'] = u'oil on canvas'
+            # Artdatabot should be able to handle these
+            if record.get('medium'):
+                metadata['medium'] = record.get('medium')
 
             # Artdatabot will take care of this
             if record.get('displaydate'):
@@ -129,14 +129,23 @@ def getNGAGenerator(query=u''):
             yield metadata
 
 
-def main():
+def main(*args):
     dictGen = getNGAGenerator()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    #    print painting
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dryrun:
+        for painting in dictGen:
+            print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 if __name__ == "__main__":
     main()
