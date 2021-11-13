@@ -883,7 +883,7 @@ class OwnWorkBot:
             return False
 
         dateRegex = u'^\s*[dD]ate\s*\=\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
-        takenRegex = u'^\s*date\s*\=\s*\{\{taken on\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\|\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\}\}\s*$'
+        takenRegex = u'^\s*date\s*\=\s*\{\{taken on\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\|\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\}\}(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
         exifRegex = u'^\s*date\s*\=\s*\{\{According to Exif(\s*data)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\|\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\}\}\s*$'
 
         dateString = None
@@ -1023,7 +1023,7 @@ class OwnWorkBot:
             coordinateText = '%s %s' % (objectmatch.group('lat'), objectmatch.group('lon'), )
 
             heading = None
-            if objectmatch.group('moreparameters'):
+            if 'moreparameters' in objectmatch.groupdict():
                 headingregex = 'heading\:(?P<heading>\d+(\.\d+)?)'
                 headingmatch = re.search(headingregex, objectmatch.group('moreparameters'))
                 if headingmatch:
@@ -1202,7 +1202,7 @@ def main(*args):
             authorqid = arg[11:]
         elif arg.startswith('-filelicense'):
             filelicenses.append(arg[13:])
-        elif genFactory.handleArg(arg):
+        elif genFactory.handle_arg(arg):
             continue
     gen = pagegenerators.PageClassGenerator(genFactory.getCombinedGenerator(gen, preload=True))
 
