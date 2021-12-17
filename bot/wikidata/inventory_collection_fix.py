@@ -75,7 +75,7 @@ WHERE
 }
 LIMIT 1000"""
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     fixInventoryCollectionBot = FixInventoryCollectionBot(generator)
     fixInventoryCollectionBot.run() 
