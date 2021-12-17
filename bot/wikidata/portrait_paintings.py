@@ -56,7 +56,7 @@ class PortraitPaintingsBot:
             firstfilter = False
             query = query + """(LANG(?label)="%s" && REGEX(STR(?label), "^%s.*$"))""" % (lang, labelstart)
         query = query + """)\n} LIMIT 5000"""
-        return pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
+        return pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
 
     def run(self):
         """
