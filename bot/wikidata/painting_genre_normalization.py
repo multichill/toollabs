@@ -48,7 +48,7 @@ class PaintingGenreBot(WikidataBot):
             query = query + u' wd:%s ' % (genre,)
         query = query + u' }  }'
 
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
                                                                                                       site=self.repo))
         return generator
 

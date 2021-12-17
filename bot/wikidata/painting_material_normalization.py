@@ -38,7 +38,7 @@ def replace_painting_surface(repo, wrongqid, rightqid, strict=True, add_missing=
       ?madestatement ps:P186 wd:%s .      
       ?item wdt:P31 wd:Q3305213 .
       } LIMIT 10000""" % (wrongqid, )
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     for item in generator:
         data = item.get()

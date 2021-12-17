@@ -33,7 +33,7 @@ def main(*args):
     } LIMIT 10000"""
         qualifier_summary = '[[Wikidata:WikiProject sum of all paintings/Private collection|Private collection normalization for paintings]], move to qualifier'
         somevalue_summary = '[[Wikidata:WikiProject sum of all paintings/Private collection|Private collection normalization for paintings]], set to somevalue'
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     for item in generator:
         data = item.get()

@@ -134,6 +134,7 @@ class PaintingBot:
                          u'Unknown artist of the venetian school' : anonymous,
                          u'French painter' : anonymous,
                          u'Okänd' : anonymous,
+                         u'unidentified artist' : anonymous,
                          #u'' : anonymous,
                         }
         self.replaceableCreators = { u'Q19595156' : True, # Not the right Gerhard Richter
@@ -152,9 +153,19 @@ class PaintingBot:
             
             if item.exists() and not item.isRedirectPage():
                 data = item.get()
+
+                # If we don't want to change this, we might as well bail out now
+                if data.get('claims').get('P170') and not self.change:
+                    pywikibot.output('Item already has creator (P170) claim and change is set to False')
+                    continue
+
                 # We need an English description
                 if not (data.get('descriptions') and data.get('descriptions').get(u'en')):
                     pywikibot.output('No English description I can use')
+                    continue
+
+                if data.get('descriptions').get(u'en').lower()=='painting':
+                    pywikibot.output('Unable to extract a name from the English description "painting"')
                     continue
 
                 # And this description should match our regex
@@ -162,11 +173,6 @@ class PaintingBot:
                 attributed_match = re.match(attributed_regex, data.get('descriptions').get(u'en'))
                 if not match and not attributed_match:
                     pywikibot.output('Regexes didn\'t match on "%s"' % (data.get('descriptions').get(u'en'),))
-                    continue
-
-                # If we don't want to change this, we might as well bail out now
-                if data.get('claims').get('P170') and not self.change:
-                    pywikibot.output('Item already has creator (P170) claim and change is set to False')
                     continue
 
                 # Let's see if we can find a victim
@@ -242,7 +248,7 @@ class PaintingBot:
 
         # Search Wikidata for a suitable candidate, tell the search to only return humans
         searchstring = u'%s haswbstatement:P31=Q5' % (creator,)
-        creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
+        creategen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
 
         for creatoritem in creategen:
             if creatoritem.isRedirectPage():
@@ -347,7 +353,7 @@ def main(*args):
             query = querycollection % (collectionid,)
 
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     paintingBot = PaintingBot(generator, change=False)
     paintingBot.run()
