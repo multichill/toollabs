@@ -57,7 +57,7 @@ class PaintingsMatchBot:
 
         for resultitem in queryresult:
             item = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            image = pywikibot.FilePage(pywikibot.Site('commons', 'commons'),resultitem.get('image').replace(u'http://commons.wikimedia.org/wiki/Special:FilePath/', u'')).title(underscore=True, withNamespace=False)
+            image = pywikibot.FilePage(pywikibot.Site('commons', 'commons'),resultitem.get('image').replace(u'http://commons.wikimedia.org/wiki/Special:FilePath/', u'')).title(underscore=True, with_ns=False)
             result[image] = item
         return result
 
