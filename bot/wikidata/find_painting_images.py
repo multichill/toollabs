@@ -62,6 +62,7 @@ class PaintingsMatchBot:
         self.wikidataWithIA = {} # Institution & accession number -> item, image & url
         self.wikidataWithCA = {} # Creator & accession number -> item, image & url
 
+        self.commonsSuggestions = {}
         self.categorysuggestions = [] # List of images to connect to Wikidata based on category
 
         self.getCommonsWithoutLookupTables()
@@ -337,7 +338,7 @@ class PaintingsMatchBot:
                              u'location' : False,
                              u'url' : False }
             if resultitem.get('image'):
-                paintingdict['image'] = pywikibot.FilePage(pywikibot.Site('commons', 'commons'),resultitem.get('image').replace(u'http://commons.wikimedia.org/wiki/Special:FilePath/', u'')).title(underscore=True, withNamespace=False)
+                paintingdict['image'] = pywikibot.FilePage(pywikibot.Site('commons', 'commons'),resultitem.get('image').replace(u'http://commons.wikimedia.org/wiki/Special:FilePath/', u'')).title(underscore=True, with_ns=False)
             if resultitem.get('creator'):
                 paintingdict ['creator'] = resultitem.get('creator').replace(u'http://www.wikidata.org/entity/', u'')
             if resultitem.get('institution'):
@@ -471,6 +472,7 @@ class PaintingsMatchBot:
         """
         Publish the 4 suggestion pages on Wikidata
         """
+        return # DEBUGGING
         suggestions = []
         suggestions.extend(self.publishWikidataSuggestions(self.commonsWithoutCIA,
                                         self.wikidataWithoutCIA,
@@ -666,34 +668,40 @@ class PaintingsMatchBot:
         text = text + u'! Image Wikidata !! Image without !! Wikidata id !! To add !! Filenames\n'
 
         previousline = u''
-        for key in publishKeys:
+        for key in filteredKeys:
             for imagewithout in withoutdict.get(key):
                 for withinfodict in withdict.get(key):
-                    if line < maxlines and not imagewithout in self.commonsLink:
-                        opencvfilter = False
-                        if not opencvfilter or self.opencvmatch(withinfodict.get('image'), imagewithout):
-                            thisline = u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=%s}} Add] || %s<BR/>%s\n' % (withinfodict.get('image'),
-                                                                                                                                                                                                                                                    imagewithout,
-                                                                                                                                                                                                                                                    withinfodict.get('item'),
-                                                                                                                                                                                                                                                    withinfodict.get('item'),
-                                                                                                                                                                                                                                                    withinfodict.get('item'),
-                                                                                                                                                                                                                                                    imagewithout,
-                                                                                                                                                                                                                                                    withinfodict.get('item'),
-                                                                                                                                                                                                                                                    withinfodict.get('image'),
-                                                                                                                                                                                                                                                    imagewithout)
-                            # Prevent duplicate lines
-                            if thisline!=previousline:
-                                text = text + u'|-\n'
-                                text = text + thisline
-                                previousline = thisline
-                                line = line + 1
+                    # Using this later for the categories
+                    if imagewithout not in self.commonsSuggestions:
+                        self.commonsSuggestions[imagewithout] = []
+                    self.commonsSuggestions[imagewithout].append(withinfodict.get('item'))
+                    # Going throuh all keys, but only publishing a few
+                    if key in publishKeys:
+                        if line < maxlines and not imagewithout in self.commonsLink:
+                            opencvfilter = False
+                            if not opencvfilter or self.opencvmatch(withinfodict.get('image'), imagewithout):
+                                thisline = u'| [[File:%s|150px]] || [[File:%s|150px]] || [[:d:%s|%s]] || <nowiki>|</nowiki> wikidata = %s<BR/>[{{fullurl:File:%s|action=edit&withJS=MediaWiki:AddWikidata.js&wikidataid=%s}} Add] || %s<BR/>%s\n' % (withinfodict.get('image'),
+                                                                                                                                                                                                                                                        imagewithout,
+                                                                                                                                                                                                                                                        withinfodict.get('item'),
+                                                                                                                                                                                                                                                        withinfodict.get('item'),
+                                                                                                                                                                                                                                                        withinfodict.get('item'),
+                                                                                                                                                                                                                                                        imagewithout,
+                                                                                                                                                                                                                                                        withinfodict.get('item'),
+                                                                                                                                                                                                                                                        withinfodict.get('image'),
+                                                                                                                                                                                                                                                        imagewithout)
+                                # Prevent duplicate lines
+                                if thisline!=previousline:
+                                    text = text + u'|-\n'
+                                    text = text + thisline
+                                    previousline = thisline
+                                    line = line + 1
 
         text = text + u'|}\n'
         text = text + u'\n[[Category:WikiProject sum of all paintings]]\n'
 
         summary = u'Updating image suggestions. %s key matches out a total of %s key combinations that matched' % (len(publishKeys), len(filteredKeys))
         pywikibot.output(summary)
-        page.put(text, summary)
+        #page.put(text, summary) DEBUGGING
 
     def opencvmatch(self, filea, fileb):
         """
@@ -755,12 +763,36 @@ class PaintingsMatchBot:
                     return False
 
     def publishCategorySuggestions(self, pageTitle, samplesize=300, maxlines=1000):
+        """
+        Publish category suggestions based on https://multichill.toolforge.org/queries2/commons/paintings_without_wikidata_in_painting_category.txt
+
+        The list is huge so matches made by one of the previous methods are prefered
+        :param pageTitle: Where to publish
+        :param samplesize: The amount of suggestions to publish
+        :param maxlines: The maximum amount of lines we're allowed to reach
+        :return:
+        """
+        # self.commonsSuggestions[imagewithout].append(withinfodict.get('item'))
         #self.categorysuggestions
 
-        if len(self.categorysuggestions) > samplesize:
-            worksuggestions = random.sample(self.categorysuggestions, samplesize)
+        print (self.commonsSuggestions)
+
+        scoredsuggestions = {}
+        for (imagewith, imagewithout, qid) in self.categorysuggestions:
+            print (imagewithout)
+            suggestioncount = 0
+            if imagewithout in self.commonsSuggestions:
+
+                print ('%s found' % (imagewithout,))
+                suggestioncount = self.commonsSuggestions.get(imagewithout).count(qid)
+            scoredsuggestions[(imagewith, imagewithout, qid)] = suggestioncount
+            print (suggestioncount)
+
+        if len(scoredsuggestions) > samplesize:
+            worksuggestions =  sorted(scoredsuggestions, key=scoredsuggestions.get, reverse=True)[0:samplesize]
+            #worksuggestions = random.sample(self.categorysuggestions, samplesize)
         else:
-            worksuggestions = self.categorysuggestions
+            worksuggestions = sorted(scoredsuggestions, scoredsuggestions.get, reverse=True)
 
         line = 0
         page = pywikibot.Page(self.commons, title=pageTitle)
