@@ -1251,7 +1251,7 @@ def main(*args):
           FILTER(?birth < "+1900-00-15T00:00:00Z"^^xsd:dateTime)
         }
         }"""
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     elif newest:
         pywikibot.output(u'Going to work on the newest 1000 artists')
 
@@ -1261,7 +1261,7 @@ def main(*args):
         BIND(xsd:integer(REPLACE(STR(?item), "http://www.wikidata.org/entity/Q", "")) AS ?itemid)
         } ORDER BY DESC(?itemid)
         LIMIT 1000"""
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     else:
         pywikibot.output(u'Going to try to expand existing artists')
 
@@ -1300,7 +1300,7 @@ def main(*args):
         }
         }"""
 
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     rkdArtistsImporterBot = RKDArtistsImporterBot(generator)
     rkdArtistsImporterBot.run()
