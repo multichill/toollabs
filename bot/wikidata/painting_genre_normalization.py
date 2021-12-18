@@ -42,11 +42,11 @@ class PaintingGenreBot(WikidataBot):
         Get a generator of paintings that have one of the replacable genres
         :return: A generator that yields ItemPages
         """
-        query = u'SELECT ?item WHERE { ?item wdt:P31 wd:Q3305213 . ?item wdt:P136 ?genre  .VALUES ?genre {'
+        query = u'SELECT ?item WHERE { ?item wdt:P31/wdt:P279* wd:Q3305213 . ?item wdt:P136 ?genre  .VALUES ?genre {'
 
         for genre in list(self.genres.keys()):
             query = query + u' wd:%s ' % (genre,)
-        query = query + u' }  }'
+        query = query + u' }  } LIMIT 1000'
 
         generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
                                                                                                       site=self.repo))
