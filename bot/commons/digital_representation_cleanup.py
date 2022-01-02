@@ -3,7 +3,9 @@
 """
 Bot to clean up files which have digital representation of (P6243).
 
-These files should also have the same depicts (P180) and  main subject (P921).
+* These files should also have the same depicts (P180) and  main subject (P921).
+* For 3D works, the digital representation of (P6243) should be removed
+* For 2D works, the missing digital representation of (P6243) should be added
 
 Should be switched to a more general Pywikibot implementation.
 
@@ -36,20 +38,59 @@ class DigitalRepresentationCleaanupBot:
     def loadWorkTypes(self):
         """
         Load the different kinds of works. For now just static lists. Can do it later on the wiki
-        :return:
+        :return: The three lists as a tuple
         """
-        works_2d = [ 'Q93184', # drawing
+        works_2d = [ 'Q18396864', # aquatint print
+                     'Q184784', # architectural drawing
+                     'Q89503149', # chromolithograph
+                     'Q93184', # drawing
                      'Q11835431', # engraving
                      'Q18218093', # etching print
+                     'Q21281546', # gouache painting
+                     'Q5647631', # handscroll
+                     'Q132137', # icon
+                     'Q15123870', # lithograph
+                     'Q21647744', # mezzotint print
                      'Q3305213', # painting
+                     'Q12043905' # pastel
                      'Q125191', # photograph
+                     'Q282129', # portrait miniature
                      'Q11060274', # print
+                     'Q76504821', # scenography sketch
+                     'Q22669539', # stipple engraving
+                     'Q18761202', # watercolor painting
+                     'Q18219090', # woodcut print
                      ]
-        works_3d = [ 'Q860861', # sculpture
+        works_3d = [ 'Q220659', # archaeological artifact
+                     'Q15328', # camera
+                     'Q45621', # ceramic
+                     'Q13464614', # ceramics
+                     'Q15026', # chair
+                     'Q16970', # church building
+                     'Q210272', # cultural heritage
+                     'Q168658', # doll
+                     'Q1066288', # figurine
+                     'Q14745', # furniture
+                     'Q131647', # medal
+                     'Q196538', # microscope
+                     'Q4989906', # monument
+                     'Q16560', # palace
+                     'Q245117', # relief sculpture
+                     'Q722604', # reliquary
+                     'Q48634', # sarcophagus
+                     'Q860861', # sculpture
+                     'Q17489156', # sculpture capital
+                     'Q19479037', # sculpture serie
+                     'Q1457747', # ship model
                      'Q179700', # statue
+                     'Q11422', # toy
                      ]
-        works_both = [ 'Q1278452', # polyptych
+        works_both = [ 'Q15711026', # altarpiece
+                       'Q475476', # diptych
+                       'Q1278452', # polyptych
+                       'Q46686', # reredos
                        'Q79218', # triptych
+                       'Q11801536', # winged altarpiece
                        ]
 
         return (works_2d, works_3d, works_both)
@@ -208,6 +249,7 @@ class DigitalRepresentationCleaanupBot:
 
             if found_3d and not found_2d and not found_both:
                 summary = 'removing because [[d:Special:EntityPage/%s]] is an instance of [[d:Special:EntityPage/%s]]' % (artworkqid, found_3d_example)
+                pywikibot.output('Removing structured data: %s is an instance of %s' % (artworkqid, found_3d_example))
 
                 token = self.site.tokens['csrf']
                 postdata = {'action' : 'wbremoveclaims',
