@@ -20,7 +20,7 @@ class DigitalRepresentationCleaanupBot:
     """
     Bot to add structured data statements on Commons
     """
-    def __init__(self, gen, alwaystouch):
+    def __init__(self, gen, alwaystouch, remove3d):
         """
         Grab generator based on search to work on.
         """
@@ -30,6 +30,29 @@ class DigitalRepresentationCleaanupBot:
         self.repo = self.site.data_repository()
         self.generator = gen
         self.alwaystouch = alwaystouch
+        self.remove3d = remove3d
+        (self.works_2d, self.works_3d, self.works_both) = self.loadWorktypes()
+
+    def loadWorkTypes(self):
+        """
+        Load the different kinds of works. For now just static lists. Can do it later on the wiki
+        :return:
+        """
+        works_2d = [ 'Q93184', # drawing
+                     'Q11835431', # engraving
+                     'Q18218093', # etching print
+                     'Q3305213', # painting
+                     'Q125191', # photograph
+                     'Q11060274', # print
+                     ]
+        works_3d = [ 'Q860861', # sculpture
+                     'Q179700', # statue
+                     ]
+        works_both = [ 'Q1278452', # polyptych
+                       'Q79218', # triptych
+                       ]
+
+        return (works_2d, works_3d, works_both)
 
     def run(self):
         """
@@ -41,7 +64,19 @@ class DigitalRepresentationCleaanupBot:
             # Probably want to get this all in a preloading generator to make it faster
             mediaid = u'M%s' % (filepage.pageid,)
             currentdata = self.getCurrentMediaInfo(mediaid)
-            self.handleFile(filepage, mediaid, currentdata)
+
+            pywikibot.output(u'Working on %s' % (filepage.title(),))
+
+            if not filepage.exists():
+                continue
+
+            if not filepage.has_permission():
+                # Picture might be protected
+                continue
+
+            self.addMissingStatementsToFile(filepage, mediaid, currentdata)
+            if self.remove3d:
+                self.removeDigitalRepresentation3d(filepage, mediaid, currentdata)
 
     def getCurrentMediaInfo(self, mediaid):
         """
@@ -58,20 +93,13 @@ class DigitalRepresentationCleaanupBot:
             return data.get(u'entities').get(mediaid)
         return {}
 
-    def handleFile(self, filepage, mediaid, currentdata):
+    def addMissingStatementsToFile(self, filepage, mediaid, currentdata):
         """
-        Handle a single file.
+        Add missing depicts (P180) and main subject (P921) if these are missing
 
         :param filepage: The page of the file to work on.
         :return: Nothing, edit in place
         """
-        pywikibot.output(u'Working on %s' % (filepage.title(),))
-        if not filepage.exists():
-            return
-
-        if not filepage.has_permission():
-            # Picture might be protected
-            return
 
         # Retrieve the target
         if currentdata.get('statements') and currentdata.get('statements').get('P6243'):
@@ -144,6 +172,69 @@ class DigitalRepresentationCleaanupBot:
                 pywikibot.output('Got an API error while touching page. Sleeping, getting a new token and skipping')
                 self. site.tokens.load_tokens(['csrf'])
 
+    def removeDigitalRepresentation3d(self, filepage, mediaid, currentdata):
+        """
+        Remove the digital representation statement from 3d works
+
+        We assume the P180 & P921 have been added
+        """
+        # Retrieve the target
+        if currentdata.get('statements') and currentdata.get('statements').get('P6243'):
+            artworkqid = currentdata.get('statements').get('P6243')[0].get('mainsnak').get('datavalue').get('value').get('id')
+            claimid = currentdata.get('statements').get('P6243')[0].get('id')
+        else:
+            return
+
+        artworkitem = pywikibot.ItemPage(self.repo, artworkqid)
+        claims = artworkitem.get().get('claims')
+
+        if 'P31' in claims:
+            found_2d = 0
+            found_3d = 0
+            found_both = 0
+            found_unknown = 0
+            found_3d_example = None
+            for claim in claims.get('P31'):
+                instanceof = claim.getTarget()
+                if instanceof in self.works_2d:
+                    found_2d += 1
+                elif instanceof in self.works_3d:
+                    found_3d += 1
+                    found_3d_example = instanceof
+                elif instanceof in self.works_both:
+                    found_both += 1
+                else:
+                    found_unknown += 1
+
+            if found_3d and not found_2d and not found_both:
+                summary = 'removing because [[d:Special:EntityPage/%s]] is an instance of [[d:Special:EntityPage/%s]]' % (artworkqid, found_3d_example)
+
+                token = self.site.tokens['csrf']
+                postdata = {'action' : 'wbremoveclaims',
+                            'format' : 'json',
+                            'claim' : claimid,
+                            'token' : token,
+                            'summary' : summary,
+                            'bot' : True,
+                            }
+                #if currentdata:
+                #    # This only works when the entity has been created
+                #    postdata['baserevid'] = currentdata.get('lastrevid')
+
+                request = self.site._simple_request(**postdata)
+                try:
+                    data = request.submit()
+                    # Always touch the page to flush it
+                    filepage.touch()
+                except (pywikibot.data.api.APIError, pywikibot.exceptions.OtherPageSaveError):
+                    pywikibot.output('Got an API error while saving page. Sleeping, getting a new token and skipping')
+                    # Print the offending token
+                    print (token)
+                    time.sleep(30)
+                    # FIXME: T261050 Trying to reload tokens here, but that doesn't seem to work
+                    self. site.tokens.load_tokens(['csrf'])
+                    # This should be a new token
+                    print (self.site.tokens['csrf'])
 
     def isOwnWorkFile(self, filepage):
         """
@@ -766,6 +857,7 @@ class DigitalRepresentationCleaanupBot:
 def main(*args):
     fullrun = False
     alwaystouch = False
+    remove3d = False
     gen = None
     genFactory = pagegenerators.GeneratorFactory()
 
@@ -774,11 +866,13 @@ def main(*args):
             fullrun = True
         elif arg == '-alwaystouch':
             alwaystouch = True
+        elif arg == '-remove3d':
+            remove3d = True
         elif genFactory.handle_arg(arg):
             continue
     gen = pagegenerators.PageClassGenerator(genFactory.getCombinedGenerator(gen, preload=True))
 
-    digitalRepresentationCleaanupBot = DigitalRepresentationCleaanupBot(gen, alwaystouch)
+    digitalRepresentationCleaanupBot = DigitalRepresentationCleaanupBot(gen, alwaystouch, remove3d)
     digitalRepresentationCleaanupBot.run()
 
 if __name__ == "__main__":
