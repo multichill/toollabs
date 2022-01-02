@@ -523,6 +523,22 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                    'rank': 'normal',
                    }
         claims.append(toclaim)
+
+        # main subject -> item
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P921',
+                                 'datavalue': { 'value': { 'numeric-id': itemid,
+                                                           'id' : metadata.get('item'),
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        claims.append(toclaim)
+
         # depicts -> item
         toclaim = {'mainsnak': { 'snaktype': 'value',
                                  'property': 'P180',
@@ -537,6 +553,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                    'rank': 'normal',
                    }
         claims.append(toclaim)
+
         # Source
         toclaim = {'mainsnak': { 'snaktype': 'value',
                                  'property': 'P7482',
