@@ -31,7 +31,7 @@ class DigitalRepresentationCleaanupBot:
         self.generator = gen
         self.alwaystouch = alwaystouch
         self.remove3d = remove3d
-        (self.works_2d, self.works_3d, self.works_both) = self.loadWorktypes()
+        (self.works_2d, self.works_3d, self.works_both) = self.loadWorkTypes()
 
     def loadWorkTypes(self):
         """
@@ -195,7 +195,7 @@ class DigitalRepresentationCleaanupBot:
             found_unknown = 0
             found_3d_example = None
             for claim in claims.get('P31'):
-                instanceof = claim.getTarget()
+                instanceof = claim.getTarget().title()
                 if instanceof in self.works_2d:
                     found_2d += 1
                 elif instanceof in self.works_3d:
