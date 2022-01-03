@@ -62,6 +62,7 @@ class DigitalRepresentationCleaanupBot:
                      'Q18219090', # woodcut print
                      ]
         works_3d = [ 'Q220659', # archaeological artifact
+                     'Q17489160', # bust
                      'Q15328', # camera
                      'Q45621', # ceramic
                      'Q13464614', # ceramics
@@ -227,6 +228,10 @@ class DigitalRepresentationCleaanupBot:
             return
 
         artworkitem = pywikibot.ItemPage(self.repo, artworkqid)
+
+        if artworkitem.isRedirectPage():
+            artworkitem = artworkitem. getRedirectTarget()
+
         claims = artworkitem.get().get('claims')
 
         if 'P31' in claims:
