@@ -327,7 +327,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                     else:
                         pywikibot.output('File size %s is smaller than %s so not using chunked uploading' % (filesize, chunkedfilesize))
                         uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment)
-                except pywikibot.data.api.APIError:
+                except pywikibot.exceptions.APIError:
                     pywikibot.output('Failed to upload image for Wikidata item [[:d:%(item)s]] from %(downloadurl)s' % metadata)
                     uploadsuccess = False
 

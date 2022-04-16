@@ -73,7 +73,7 @@ def main():
                     pywikibot.output(summary)
                     try:
                         itempage.addClaim(newclaim, summary=summary)
-                    except pywikibot.data.api.APIError:
+                    except pywikibot.exceptions.APIError:
                         pywikibot.output(u'Ai, API problems. Let\'s sleep')
                         time.sleep(60)
                     break

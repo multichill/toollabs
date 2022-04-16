@@ -102,7 +102,7 @@ class OnroerendUploaderBot:
                 comment = u'Uploading onroerenderfboed.be image from %(imageurl)s' % metadata
                 try:
                     uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment) # chunk_size=1000000)
-                except pywikibot.data.api.APIError:
+                except pywikibot.exceptions.APIError:
                     pywikibot.output(u'Failed to upload image %(imageurl)s' % metadata)
                     uploadsuccess = False
             if uploadsuccess:

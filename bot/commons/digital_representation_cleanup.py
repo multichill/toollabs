@@ -198,7 +198,7 @@ class DigitalRepresentationCleaanupBot:
                 data = request.submit()
                 # Always touch the page to flush it
                 filepage.touch()
-            except (pywikibot.data.api.APIError, pywikibot.exceptions.OtherPageSaveError):
+            except (pywikibot.exceptions.APIError, pywikibot.exceptions.OtherPageSaveError):
                 pywikibot.output('Got an API error while saving page. Sleeping, getting a new token and skipping')
                 # Print the offending token
                 print (token)
@@ -273,7 +273,7 @@ class DigitalRepresentationCleaanupBot:
                     data = request.submit()
                     # Always touch the page to flush it
                     filepage.touch()
-                except (pywikibot.data.api.APIError, pywikibot.exceptions.OtherPageSaveError):
+                except (pywikibot.exceptions.APIError, pywikibot.exceptions.OtherPageSaveError):
                     pywikibot.output('Got an API error while saving page. Sleeping, getting a new token and skipping')
                     # Print the offending token
                     print (token)

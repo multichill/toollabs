@@ -41,7 +41,7 @@ def main(*args):
             try:
                 page.site.purgepages(purgelist, forcelinkupdate=1)
                 purgelist = []
-            except pywikibot.data.api.APIError:
+            except pywikibot.exceptions.APIError:
                 pywikibot.output('Yah! Broke it again. Let\'s sleep for a minute')
                 time.sleep(60)
     if purgelist:

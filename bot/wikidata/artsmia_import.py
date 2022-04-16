@@ -118,7 +118,7 @@ class PaintingsBot:
                 #monumentItem.editEntity(data, summary=summary)
                 try:
                     result = self.repo.editEntity(identification, data, summary=summary)
-                except pywikibot.data.api.APIError:
+                except pywikibot.exceptions.APIError:
                     # We got ourselves a duplicate label and description, let's correct that
                     pywikibot.output(u'Oops, already had that one. Trying again')
                     data['descriptions']['en'] = {'language': u'en', 'value' : u'painting by %s (%s, %s)' % (painting[u'creator'], painting[u'collectionshort'], painting[u'id'])}
@@ -228,7 +228,7 @@ class PaintingsBot:
                                         if existing_claim.target_equals(u'Q1028181'):
                                             newcreator = creatoritem
                                     continue
-                    except pywikibot.data.api.APIError:
+                    except pywikibot.exceptions.APIError:
                         print u'Search API is acting up, just let it be'
                         pass
                     

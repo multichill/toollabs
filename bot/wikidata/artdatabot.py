@@ -361,7 +361,7 @@ class ArtDataBot:
                 summary = u'Adding missing description(s) from %s' % (metadata.get(u'refurl'),)
                 try:
                     item.editDescriptions(descriptions, summary=summary)
-                except pywikibot.exceptions.OtherPageSaveError: # pywikibot.data.api.APIError:
+                except pywikibot.exceptions.OtherPageSaveError: # pywikibot.exceptions.APIError:
                     # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
                     descriptions = copy.deepcopy(item.get().get('descriptions'))
                     pywikibot.output(u'Oops, already had that label/description combination. Trying again')

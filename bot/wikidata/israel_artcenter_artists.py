@@ -290,7 +290,7 @@ class ArtcenterArtistsImporterBot:
             pywikibot.output(summary)
             try:
                 item.editLabels(wdlabels, summary=summary)
-            except pywikibot.data.api.APIError:
+            except pywikibot.exceptions.APIError:
                 pywikibot.output(u'Couldn\'t update the labels, conflicts with another item')
             except pywikibot.exceptions.OtherPageSaveError:
                 pywikibot.output(u'Couldn\'t update the labels, conflicts with another item')

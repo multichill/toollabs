@@ -123,7 +123,7 @@ class FeaturedPictureBot:
         try:
             data = request.submit()
             filepage.touch()
-        except pywikibot.data.api.APIError:
+        except pywikibot.exceptions.APIError:
             pywikibot.output('Got an API error while saving page. Sleeping and skipping')
             time.sleep(120)
             # Reload the tokens to be sure

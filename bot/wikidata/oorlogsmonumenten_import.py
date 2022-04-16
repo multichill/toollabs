@@ -126,7 +126,7 @@ class MonumentBot:
                 pywikibot.output(summary)
                 try:
                     result = self.repo.editEntity(identification, data, summary=summary)
-                except pywikibot.data.api.APIError:
+                except pywikibot.exceptions.APIError:
                     ## TODO: Check if this is pywikibot.OtherPageSaveError too
                     ## We got ourselves a duplicate label and description, let's correct that by adding collection and the id
                     pywikibot.output(u'Oops, already had that one. Trying again')
@@ -232,7 +232,7 @@ class MonumentBot:
                         summary = u'Adding missing description(s) from %s' % (metadata.get(u'refurl'),)
                         try:
                             artworkItem.editDescriptions(descriptions, summary=summary)
-                        except pywikibot.exceptions.OtherPageSaveError: # pywikibot.data.api.APIError:
+                        except pywikibot.exceptions.OtherPageSaveError: # pywikibot.exceptions.APIError:
                             # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
                             descriptions = copy.deepcopy(data.get('descriptions'))
                             pywikibot.output(u'Oops, already had that label/description combination. Trying again')
