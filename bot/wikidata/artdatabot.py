@@ -137,7 +137,7 @@ class ArtDataBot:
         pywikibot.output(summary)
         try:
             result = self.repo.editEntity(identification, data, summary=summary)
-        except pywikibot.data.api.APIError:
+        except pywikibot.exceptions.APIError:
             # TODO: Check if this is pywikibot.OtherPageSaveError too
             # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
             pywikibot.output(u'Oops, already had that one. Trying again')
@@ -145,7 +145,7 @@ class ArtDataBot:
                 data['descriptions'][lang] = {'language': lang, 'value': u'%s (%s %s)' % (description, metadata['collectionshort'], metadata['id'],) }
             try:
                 result = self.repo.editEntity(identification, data, summary=summary)
-            except pywikibot.data.api.APIError:
+            except pywikibot.exceptions.APIError:
                 pywikibot.output(u'Oops, retry also failed. Skipping this one.')
                 # Just skip this one
                 return
@@ -543,6 +543,13 @@ class ArtDataBot:
                                 acdate.precision=11
                         except ValueError:
                             pywikibot.output(u'Can not parse %s' % metadata[u'acquisitiondate'])
+                            try:
+                                acdate = pywikibot.WbTime.fromTimestr('%sZ' % (metadata[u'acquisitiondate'],) )
+                                if acdate.precision > 11:
+                                    acdate.precision=11
+                            except ValueError:
+                                pywikibot.output(u'Also can not parse %sZ' % metadata[u'acquisitiondate'])
+
                     if acdate:
                         colqualifier = pywikibot.Claim(self.repo, u'P580')
                         colqualifier.setTarget(acdate)
