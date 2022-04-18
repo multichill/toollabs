@@ -25,7 +25,7 @@ def get_linz_generator():
     search_page_data = search_page.text
     search_regex = '\<div onclick\=\"window\.location\=\'(\/datenbank\/linzdbv2\/queryresult\.php\?obj_no\=LI\d+)\'\;\" class\=\"galery-item\"\>'
 
-    for match in list(re.finditer(search_regex, search_page_data))[3350:4000]:
+    for match in list(re.finditer(search_regex, search_page_data))[1:4000]:
         metadata = {}
 
         url = 'https://www.dhm.de%s' % (match.group(1),)
