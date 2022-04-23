@@ -135,6 +135,8 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
                                     ('olej','drevo') :  'oil on panel', # wood
                                     ('olej','překližka') :  'oil on panel', # plywood
                                     ('olej','papier') :  'oil on paper',
+                                    ('olej','lepenka') :  'oil on cardboard',
+                                    ('olej','kartón') :  'oil on cardboard',
                                     ('tempera','plátno') :  'tempera on canvas',
                                     ('tempera','dřevo') :  'tempera on panel',
                                     ('tempera','drevo') :  'tempera on panel',
