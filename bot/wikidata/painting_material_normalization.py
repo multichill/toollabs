@@ -79,7 +79,7 @@ def add_painting_surface_qualifier(repo, materialqid):
   MINUS { ?madestatement pq:P518 wd:Q861259 }
   ?item wdt:P31 wd:Q3305213 .
   } LIMIT 10000""" % (materialqid, )
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     for item in generator:
         data = item.get()
@@ -112,7 +112,7 @@ def replace_paint(repo, wrongqid, rightqid):
   ?madestatement ps:P186 wd:%s .      
   ?item wdt:P31 wd:Q3305213 .
   } LIMIT 10000""" % (wrongqid, )
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     for item in generator:
         data = item.get()
@@ -136,6 +136,9 @@ def main(*args):
     # panel (Q1348059) -> panel (Q106857709)
     replace_painting_surface(repo, 'Q1348059', 'Q106857709', strict=False, add_missing=True)
     add_painting_surface_qualifier(repo, 'Q106857709')
+    # cardboard (Q389782) -> cardboard (Q18668582)
+    replace_painting_surface(repo, 'Q389782', 'Q18668582', strict=False, add_missing=True)
+    add_painting_surface_qualifier(repo, 'Q18668582')
     # wood (Q287) -> panel (Q106857709)
     replace_painting_surface(repo, 'Q287', 'Q106857709', strict=True, add_missing=False)
     # oak (Q2075708) -> oak panel (Q106857823)
