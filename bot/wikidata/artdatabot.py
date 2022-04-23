@@ -138,7 +138,7 @@ class ArtDataBot:
         try:
             result = self.repo.editEntity(identification, data, summary=summary)
         except pywikibot.exceptions.APIError:
-            # TODO: Check if this is pywikibot.OtherPageSaveError too
+            # TODO: Check if this is pywikibot.exceptions.OtherPageSaveError too
             # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
             pywikibot.output(u'Oops, already had that one. Trying again')
             for lang, description in metadata['description'].items():
@@ -210,6 +210,7 @@ class ArtDataBot:
         self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
 
         # For the meta collections the option to add extra inventory number and extra collections
+        """"
         if metadata.get(u'extracollectionqid'):
             extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid'))
             collectionclaim = pywikibot.Claim(self.repo, u'P195')
@@ -237,6 +238,7 @@ class ArtDataBot:
             collectionclaim.setTarget(extracollectionitem)
             pywikibot.output('Adding collection claim to %s' % artworkItem)
             artworkItem.addClaim(collectionclaim)
+        """
 
         return artworkItem
 
@@ -336,7 +338,7 @@ class ArtDataBot:
                 summary = u'Adding missing label(s) from %s' % (metadata.get(u'refurl'),)
                 try:
                     item.editLabels(labels, summary=summary)
-                except pywikibot.OtherPageSaveError:
+                except pywikibot.exceptions.OtherPageSaveError:
                     # Just skip it for no
                     pywikibot.output(u'Oops, already had that label/description combination. Skipping')
                     pass
@@ -558,19 +560,79 @@ class ArtDataBot:
                         # This might give multiple similar references
                         #self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
 
-            # Try to add the extra collection
-            if metadata.get(u'extracollectionqid'):
-                foundExtraCollection = False
-                extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid'))
-                for collectionclaim in claims.get(u'P195'):
-                    if collectionclaim.getTarget()==extracollectionitem:
-                        foundExtraCollection = True
-                if not foundExtraCollection:
-                    newclaim = pywikibot.Claim(self.repo, u'P195')
-                    newclaim.setTarget(extracollectionitem)
-                    pywikibot.output('Adding extra collection claim to %s' % item)
-                    item.addClaim(newclaim)
-                    self.addReference(item, newclaim, metadata[u'refurl'])
+        if metadata.get('extracollectionqid'):
+            self.addCollection(item, metadata.get('extracollectionqid'), metadata)
+            if metadata.get('extraid'):
+                self.addExtraId(item, metadata.get('extraid'), metadata.get('extracollectionqid'), metadata)
+        if metadata.get('extracollectionqid2'):
+            self.addCollection(item, metadata.get('extracollectionqid2'), metadata)
+            if metadata.get('extraid2'):
+                self.addExtraId(item, metadata.get('extraid2'), metadata.get('extracollectionqid2'), metadata)
+        if metadata.get('extracollectionqid3'):
+            self.addCollection(item, metadata.get('extracollectionqid3'), metadata)
+            if metadata.get('extraid3'):
+                self.addExtraId(item, metadata.get('extraid3'), metadata.get('extracollectionqid3'), metadata)
+
+    def addCollection(self, item, collectionqid, metadata):
+        """
+        Add an extra collection if it's not already in the item
+
+        :param item: The artwork item to work on
+        :param collectionqid: The id of the Wikidata collection item to add
+        :param metadata: All the metadata about this artwork (for the reference)
+        :return: Nothing, updates item in place
+        """
+        claims = item.get().get('claims')
+
+        foundCollection = False
+        collectionitem = pywikibot.ItemPage(self.repo, collectionqid)
+        if 'P195' in claims:
+            for collectionclaim in claims.get('P195'):
+                if collectionclaim.getTarget()==collectionitem:
+                    foundCollection = True
+
+        if not foundCollection:
+            newclaim = pywikibot.Claim(self.repo, u'P195')
+            newclaim.setTarget(collectionitem)
+            pywikibot.output('Adding (extra) collection claim to %s' % item)
+            item.addClaim(newclaim)
+            self.addReference(item, newclaim, metadata[u'refurl'])
+
+    def addExtraId(self, item, extraid, collectionqid, metadata):
+        """
+        Add an extra identifier (usually inventory number) if it's not already in the item
+
+        :param item: The artwork item to work on
+        :param extraid: The extra to add
+        :param collectionqid: The id of the Wikidata collection item the identifier is valid in
+        :param metadata: All the metadata about this artwork (for the reference)
+        :return: Nothing, updates item in place
+        """
+        claims = item.get().get('claims')
+
+        foundIdentifier = False
+        collectionitem = pywikibot.ItemPage(self.repo, collectionqid)
+
+        if self.idProperty in claims:
+            for idclaim in claims.get(self.idProperty):
+                # Only check if we already got an id in the collection (to prevent adding the wrong id over and over)
+                if idclaim.qualifiers and idclaim.qualifiers.get('P195'):
+                    qualifier = idclaim.qualifiers.get('P195')[0]
+                    if qualifier.getTarget()==collectionitem:
+                        foundIdentifier = True
+
+        if not foundIdentifier:
+            newclaim = pywikibot.Claim(self.repo, self.idProperty)
+            newclaim.setTarget(extraid)
+            pywikibot.output('Adding extra new id claim to %s' % item)
+            item.addClaim(newclaim)
+
+            self.addReference(item, newclaim, metadata['refurl'])
+
+            newqualifier = pywikibot.Claim(self.repo, 'P195')
+            newqualifier.setTarget(collectionitem)
+            pywikibot.output('Adding new qualifier claim to %s' % item)
+            newclaim.addQualifier(newqualifier)
 
     def addMaterialUsed(self, item, metadata):
         """
@@ -590,6 +652,7 @@ class ArtDataBot:
                     'oil on poplar panel' : {'paint' : 'Q296955', 'surface' : 'Q106857865'},
                     'oil on paper' : {'paint' : 'Q296955', 'surface' : 'Q11472'},
                     'oil on copper' : {'paint' : 'Q296955', 'surface' : 'Q753'},
+                    'oil on cardboard' : {'paint' : 'Q296955', 'surface' : 'Q18668582'},
                     'tempera on canvas' : {'paint' : 'Q175166', 'surface' : 'Q12321255'},
                     'tempera on panel' : {'paint' : 'Q175166', 'surface' : 'Q106857709'},
                     'tempera on oak panel' : {'paint' : 'Q175166', 'surface' : 'Q106857823'},
