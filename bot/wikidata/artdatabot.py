@@ -319,6 +319,9 @@ class ArtDataBot:
         # Update the collection with a start date and add extra collections.
         self.updateCollection(artworkItem, metadata)
 
+        # Add catalog code
+        self.addCatalogCode(artworkItem, metadata)
+
     def addLabels(self, item, metadata):
         """
         Add the (missing) labels to the item based.
@@ -519,9 +522,8 @@ class ArtDataBot:
 
         # Try to add the acquisitiondate to the existing collection claim
         # TODO: Move to function and also work with multiple collection claims
-        if u'P195' in claims:
-            if len(claims.get(u'P195'))==1 and metadata.get(u'acquisitiondate'):
-                collectionclaim = claims.get(u'P195')[0]
+        if u'P195' in claims and metadata.get(u'acquisitiondate'):
+            for collectionclaim in claims.get('P195'):
                 # Would like to use collectionclaim.has_qualifier(u'P580')
                 if collectionclaim.getTarget()==self.collectionitem and not collectionclaim.qualifiers.get(u'P580'):
                     dateregex = u'^(\d\d\d\d)-(\d\d)-(\d\d)'
@@ -631,6 +633,42 @@ class ArtDataBot:
 
             newqualifier = pywikibot.Claim(self.repo, 'P195')
             newqualifier.setTarget(collectionitem)
+            pywikibot.output('Adding new qualifier claim to %s' % item)
+            newclaim.addQualifier(newqualifier)
+
+    def addCatalogCode(self, item, metadata):
+        """
+        Add the catalog code in a catalog if the catalog is not already in the item
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork (for the reference)
+        :return: Nothing, updates item in place
+        """
+        if not metadata.get('catalog_code') or not metadata.get('catalog'):
+            return
+
+        claims = item.get().get('claims')
+        found_catalog = False
+        catalog_item = pywikibot.ItemPage(self.repo, metadata.get('catalog'))
+
+        if 'P528' in claims:
+            for catalog_code_claim in claims.get('P528'):
+                # Only check if we have some catalog code in the catalog to prevent adding wrong id over and over
+                if catalog_code_claim.qualifiers and catalog_code_claim.qualifiers.get('P972'):
+                    qualifier = catalog_code_claim.qualifiers.get('P972')[0]
+                    if qualifier.getTarget() == catalog_item:
+                        found_catalog = True
+
+        if not found_catalog:
+            newclaim = pywikibot.Claim(self.repo, 'P528')
+            newclaim.setTarget(metadata.get('catalog_code'))
+            pywikibot.output('Adding catalog code claim to %s' % item)
+            item.addClaim(newclaim)
+
+            self.addReference(item, newclaim, metadata['refurl'])
+
+            newqualifier = pywikibot.Claim(self.repo, 'P972')
+            newqualifier.setTarget(catalog_item)
             pywikibot.output('Adding new qualifier claim to %s' % item)
             newclaim.addQualifier(newqualifier)
 
