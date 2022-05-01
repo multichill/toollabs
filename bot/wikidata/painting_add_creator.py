@@ -135,6 +135,7 @@ class PaintingBot:
                          u'French painter' : anonymous,
                          u'Okänd' : anonymous,
                          u'unidentified artist' : anonymous,
+                         u'Anonyme' : anonymous,
                          #u'' : anonymous,
                         }
         self.replaceableCreators = { u'Q19595156' : True, # Not the right Gerhard Richter
