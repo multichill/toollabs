@@ -23,7 +23,7 @@ FILTER REGEX(STR(?url), "http://www.metmuseum.org/art/collection/search/.+") .
 }"""
 
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     summary = u'Removing redundant MET url'
 

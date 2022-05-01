@@ -132,7 +132,7 @@ def main(*args):
   }
  LIMIT 500
     """
-    #generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    #generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     #for item in generator:
     #    fixRotterdamItem(item)
 
@@ -148,7 +148,7 @@ SELECT DISTINCT ?item WHERE {
   #FILTER regex(STR(?url), "^.+-A_1\\.jpg$") .
   }
  LIMIT 2200"""
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     for item in generator:
         fixRotterdamImage(item)
 

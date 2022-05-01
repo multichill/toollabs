@@ -941,13 +941,13 @@ def main(*args):
 
         query = u"""SELECT
         """
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     elif fix:
         query = u"""SELECT ?item WHERE { ?item wdt:P1435 wd:Q13423591 . ?item wdt:P359 ?id } LIMIT 5000"""
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     elif create:
         query = u"""SELECT """
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     if generator:
         rijksmonumentenComplexBot = RijksmonumentenComplexBot(generator)

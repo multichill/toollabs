@@ -43,7 +43,7 @@ SELECT DISTINCT ?item WHERE {
   { ?item wdt:P170 ?creator . ?creator wdt:P570 ?dod . FILTER(YEAR(?dod) > (YEAR(NOW())-70) ) } .
   }"""
 
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
                                                                                                       site=self.repo))
         return generator
 

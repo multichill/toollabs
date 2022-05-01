@@ -332,7 +332,7 @@ class Europeana280Bot:
         result = []
         artdict = {}
         query=u'CLAIM[608:20980830]'
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(WikidataQueryItemPageGenerator(query)))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataItemGenerator(WikidataQueryItemPageGenerator(query)))
 
         for artwork in generator:
             if artwork.title() in self.officialArtworksIds:

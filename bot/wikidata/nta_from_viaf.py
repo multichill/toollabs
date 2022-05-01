@@ -26,7 +26,7 @@ class ViafImportBot:
             * generator    - A generator that yields wikidata item objects.
         """
         self.repo = pywikibot.Site().data_repository()
-        self.generator = pagegenerators.PreloadingItemGenerator(generator)
+        self.generator = pagegenerators.PreloadingEntityGenerator(generator)
         self.viafitem = pywikibot.ItemPage(self.repo, u'Q54919')
     
     def run (self):
@@ -269,10 +269,10 @@ def main():
   MINUS { ?item owl:sameAs ?item2 . ?item2 wdt:P1006 [] }
 }"""
 
-    #generator = pagegenerators.PreloadingItemGenerator(viafDumpGenerator())
+    #generator = pagegenerators.PreloadingEntityGenerator(viafDumpGenerator())
 
-    generator = pagegenerators.PreloadingItemGenerator(ntaBacklinksGenerator())
-    #generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(ntaBacklinksGenerator())
+    #generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     viafImportBot = ViafImportBot(generator)
     viafImportBot.run()

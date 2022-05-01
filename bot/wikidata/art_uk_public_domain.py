@@ -129,7 +129,7 @@ def main(*args):
   MINUS { ?item wdt:P170 wd:Q4233718 . ?item wdt:P571 ?inception . FILTER(YEAR(?inception) > 1850) }
   MINUS { ?item wdt:P4373 ?nationaltrustid } 
   } ORDER BY DESC(?modified)"""
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     imagesPublicDomainRobot = ArtUKPublicDomain(generator)
     imagesPublicDomainRobot.run()

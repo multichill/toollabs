@@ -47,7 +47,7 @@ def main():
                         828 : u'Q15184295', # Module
                       }
     
-    noclaimgen = pagegenerators.PreloadingItemGenerator(getNoclaimGenerator())
+    noclaimgen = pagegenerators.PreloadingEntityGenerator(getNoclaimGenerator())
 
     #repo = pywikibot.Site().data_repository()
     #print templates.keys()

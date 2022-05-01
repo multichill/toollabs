@@ -1054,7 +1054,7 @@ def main(*args):
           FILTER(?birth < "+1900-00-15T00:00:00Z"^^xsd:dateTime)
         }
         }"""
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     else:
         pywikibot.output(u'Going to try to expand existing artworks')
 
@@ -1066,7 +1066,7 @@ def main(*args):
                     #?item wdt:P569 [] . # No date of birth
                    } 
             }"""
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     rkdImagesImporterBot = RKDImagesImporterBot(generator)
     rkdImagesImporterBot.run()

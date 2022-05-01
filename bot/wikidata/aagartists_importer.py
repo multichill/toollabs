@@ -429,7 +429,7 @@ def main(*args):
         }
         }"""
         repo = pywikibot.Site().data_repository()
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     aagArtistsImporterBot = AAGArtistsImporterBot(generator)
     aagArtistsImporterBot.run()

@@ -22,7 +22,7 @@ class UlanImportBot:
 
         """
         self.repo = pywikibot.Site().data_repository()
-        self.generator = pagegenerators.PreloadingItemGenerator(generator)
+        self.generator = pagegenerators.PreloadingEntityGenerator(generator)
 
     def run (self):
         """
@@ -222,7 +222,7 @@ def main(*args):
 }""" % (days,)
 
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     
     ulanImportBot = UlanImportBot(generator)
     ulanImportBot.run()

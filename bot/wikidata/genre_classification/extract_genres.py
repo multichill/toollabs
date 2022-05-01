@@ -46,7 +46,7 @@ class GenreExtractionBot:
   ?item wdt:P31 wd:Q3305213 .
   MINUS { ?item wdt:P136 ?genre . FILTER (?genre!=wd:%s) }
   } LIMIT 1000""" % (genre, genre)
-        return pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
+        return pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
 
     def run(self):
         """
@@ -215,7 +215,7 @@ class GenreExtractionBot:
         """
         # Search Wikidata for a suitable candidate, tell the search to only return humans
         searchstring = u'"%s" haswbstatement:P31=Q5' % (name,)
-        persongen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
+        persongen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
 
         foundperson = False
 

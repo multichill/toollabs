@@ -142,7 +142,7 @@ def main(*args):
   MINUS { ?item wdt:P170 wd:Q4233718 . ?item wdt:P571 ?inception . FILTER(YEAR(?inception) > 1850) }
   ?item schema:dateModified ?modified
   } ORDER BY DESC(?modified)"""
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     imagesPublicDomainRobot = RKDimagesPublicDomain(generator)
     imagesPublicDomainRobot.run()

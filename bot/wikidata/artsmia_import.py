@@ -204,7 +204,7 @@ class PaintingsBot:
                 # creator        
                 if u'P170' not in claims and painting.get(u'creator'):
                     #print painting[u'creator']
-                    creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(painting[u'creator'], step=None, total=10, namespaces=[0], site=self.repo)))
+                    creategen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(painting[u'creator'], step=None, total=10, namespaces=[0], site=self.repo)))
                     
                     newcreator = None
 

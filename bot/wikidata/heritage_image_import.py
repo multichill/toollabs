@@ -102,7 +102,7 @@ def main():
   ?item wdt:P1435 wd:%s .
   MINUS { ?item wdt:P18 ?image.} .
 }""" % (workitem.get('item'),)
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
         monumentsImageBot = MonumentsImageBot(generator,
                                               lang=workitem.get('lang'),

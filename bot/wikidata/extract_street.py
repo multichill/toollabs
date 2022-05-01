@@ -135,7 +135,7 @@ def WikidataQueryItemPageGenerator(query, site=None):
 def main():
 
     query = u'CLAIM[359] AND CLAIM[131:9899] AND CLAIM[969] AND NOCLAIM[669]'
-    pigenerator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(WikidataQueryItemPageGenerator(query)))
+    pigenerator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataItemGenerator(WikidataQueryItemPageGenerator(query)))
     
     streetBot = StreetBot(pigenerator)
     streetBot.run()

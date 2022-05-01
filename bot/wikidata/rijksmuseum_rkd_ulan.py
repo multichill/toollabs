@@ -264,7 +264,7 @@ class RkdBot:
         result = {}
         query = u'CLAIM[195:190804] AND NOCLAIM[170]'
 
-        paintingGen = pagegenerators.PreloadingItemGenerator(WikidataQueryPageGenerator(query))
+        paintingGen = pagegenerators.PreloadingEntityGenerator(WikidataQueryPageGenerator(query))
 
         for paintingItem in paintingGen:
             creator = paintingItem.get().get('descriptions').get('en').replace(u'painting by ', u'')
@@ -339,7 +339,7 @@ class RkdBot:
                 
 
             
-                creatergen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(name, step=None, total=50, namespaces=[0], site=self.repo)))
+                creatergen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(name, step=None, total=50, namespaces=[0], site=self.repo)))
                             
                 newcreator = None
 
@@ -707,7 +707,7 @@ class RkdBot:
 
                     # creator        
                     if u'P170' not in claims and dcCreator:
-                        creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(dcCreator, step=None, total=10, namespaces=[0], site=self.repo)))
+                        creategen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(dcCreator, step=None, total=10, namespaces=[0], site=self.repo)))
                         
                         newcreator = None
 

@@ -22,7 +22,7 @@ def main(*args):
 } LIMIT 2000"""
 
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     summary = u'Fixing pinakothek.de download url'
 
