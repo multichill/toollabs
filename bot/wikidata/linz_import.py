@@ -76,6 +76,12 @@ def get_linz_generator():
         metadata['id'] = inv_match.group(1)
         metadata['idpid'] = 'P217'
 
+        acquisition_date_regex = '\<br\>Einlieferung\:\s+[^\<]+\s+(19\d\d)\s+[^\<]+\<'
+        acquisition_date_match = re.search(acquisition_date_regex, item_page_data)
+
+        if acquisition_date_match:
+            metadata['acquisitiondate'] = acquisition_date_match.group(1)
+
         inv2_regex = 'valign\=\"top\"\>Mü-Nr\.\:\s*\<\/td\>\<td align\=\"left\" valign\=\"top\"\>\<strong\>([^\<]+) Mü\.-Nummer\<'
         inv2_match = re.search(inv2_regex, item_page_data)
 
@@ -94,8 +100,16 @@ def get_linz_generator():
                           'collection' : 'Q19013512',
                           'inventory' : 'MNR %s'
                           },
-                         {'regex' : '\<br\>Verbleib\: Deutschland \(Kunstbesitz der Bundesrepublik Deutschland',
+                         {'regex' : '\<br\>(Restitution|Verbleib)\: Deutschland \(Kunstbesitz der Bundesrepublik Deutschland',
                           'collection' : 'Q111635246',
+                          },
+                         {'regex' : '\<br\>Restitution\: Österreich \(\d+ abgegeben, 1996 von Österreich in der Mauerbach-Versteigerung veräußert Katalog Nr\.\s+(\d+)\)\<',
+                          'collection' : 'Q111785051',
+                          'catalog' : 'Q111793388',
+                          'catalog_code' : '%s',
+                          },
+                         {'regex' : '\<br\>Restitution\: Österreich \(\d+ abgegeben, Bundesdenkmalamt Salzburg',
+                          'collection' : 'Q876452',
                           },
                          ]
 
@@ -106,6 +120,9 @@ def get_linz_generator():
                 if restitution.get('inventory'):
                     metadata['extraid3'] = restitution.get('inventory') % (inv3_match.group(1),)
                     #print (metadata['extraid3'])
+                elif restitution.get('catalog') and restitution.get('catalog_code'):
+                    metadata['catalog_code'] = restitution.get('catalog_code') % (inv3_match.group(1),)
+                    metadata['catalog'] = restitution.get('catalog')
 
         title = title_match.group(1)
 
@@ -115,7 +132,7 @@ def get_linz_generator():
         creator_regex = '\<td align\=\"left\" valign\=\"top\"\>Künstler: \<\/td\>[\r\n\t\s]*\\<td align\=\"left\" valign\=\"top\"\>\<strong\>([^\<]+)\<'
         creator_match = re.search(creator_regex, item_page_data)
 
-        name = creator_match.group(1)
+        name = creator_match.group(1).strip()
         name_regex = '^([^,]+), ([^\(]+) \((.+)\)$'
         name_match = re.match(name_regex, name)
 
@@ -135,40 +152,20 @@ def get_linz_generator():
             metadata['description'] = { 'en' : '%s by %s' % ('work of art', metadata.get('creatorname'),),
                                         }
 
-        yield metadata
-        continue
+        date_field_regex = 'valign\=\"top\"\>Datierung\: \<\/td\>\<td align\=\"left\" valign\=\"top\"\>\<strong\>([^\<]+)\<'
+        date_field_match = re.search(date_field_regex, item_page_data)
 
-
-
-
-        if record.get('title'):
-            # Chop chop, several very long titles
-            if len(record.get('title')) > 220:
-                title = record.get('title')[0:200]
-            else:
-                title = record.get('title')
-            metadata['title'] = { 'en' : title,
-                                  }
-        metadata['creatorname'] = record.get('attribution')
-
-        metadata['description'] = { 'nl' : '%s van %s' % (u'schilderij', metadata.get('creatorname'),),
-                                    'en' : '%s by %s' % (u'painting', metadata.get('creatorname'),),
-                                    }
-        # Artdatabot should be able to handle these
-        if record.get('medium'):
-            metadata['medium'] = record.get('medium')
-
-        # Artdatabot will take care of this
-        if record.get('displaydate'):
+        if date_field_match:
+            date_field = date_field_match.group(1)
             dateregex = u'^(\d\d\d\d)$'
-            datecircaregex = u'^c\.\s*(\d\d\d\d)$'
+            datecircaregex = u'^(\d\d\d\d)\s*\(um\)\s*$'
             periodregex = u'^(\d\d\d\d)[-\/](\d\d\d\d)$'
-            circaperiodregex = u'^c\.\s*(\d\d\d\d)[-\/](\d\d\d\d)$'
+            circaperiodregex = u'(\d\d\d\d)[-\/](\d\d\d\d)\s*\(um\)\s*$' # No hits I think
 
-            datematch = re.match(dateregex, record.get('displaydate'))
-            datecircamatch = re.match(datecircaregex, record.get('displaydate'))
-            periodmatch = re.match(periodregex, record.get('displaydate'))
-            circaperiodmatch = re.match(circaperiodregex, record.get('displaydate'))
+            datematch = re.match(dateregex, date_field)
+            datecircamatch = re.match(datecircaregex, date_field)
+            periodmatch = re.match(periodregex, date_field)
+            circaperiodmatch = re.match(circaperiodregex, date_field)
 
             if datematch:
                 # Don't worry about cleaning up here.
@@ -184,47 +181,40 @@ def get_linz_generator():
                 metadata['inceptionend'] = int(circaperiodmatch.group(2),)
                 metadata['inceptioncirca'] = True
             else:
-                print (u'Could not parse date: "%s"' % (record.get('displaydate'),))
+                print (u'Could not parse date: "%s"' % (date_field,))
 
-        # Data not available
-        # record.get('acquisition')
+        # I'm not sure about the dimensions
+        dimensions_regex = 'valign\=\"top\"\>Maße\: \<\/td\>\<td align\=\"left\" valign\=\"top\"\>\<strong\>([^\<]+)\<'
+        dimensions_match = re.search(dimensions_regex, item_page_data)
 
-        if record.get('creditline'):
-            if record.get('creditline')==u'Samuel H. Kress Collection':
-                metadata['extracollectionqid'] = u'Q2074027'
-            elif record.get('creditline')==u'Andrew W. Mellon Collection':
-                metadata['extracollectionqid'] = u'Q46596638'
-            elif record.get('creditline').startswith(u'Corcoran Collection'):
-                metadata['extracollectionqid'] = u'Q768446'
-
-        # Get the dimensions
-        if record.get('dimensions1'):
-            regex_2d = u'overall\: (?P<height>\d+(\.\d+)?) (x|×) (?P<width>\d+(\.\d+)?) cm \([^\)]+\)$'
-            regex_3d = u'overall\: (?P<height>\d+(\.\d+)?) (x|×) (?P<width>\d+(\.\d+)?) cm (x|×) (?P<depth>\d+(\.\d+)?) cm \([^\)]+\)$'
-            match_2d = re.match(regex_2d, record.get('dimensions1'))
-            match_3d = re.match(regex_3d, record.get('dimensions1'))
+        if dimensions_match:
+            dimensions = dimensions_match.group(1)
+            regex_2d = u'(?P<height>\d+(,\d+)?) (x|×) (?P<width>\d+(,\d+)?)\s*$'
+            #regex_3d = u'overall\: (?P<height>\d+(\.\d+)?) (x|×) (?P<width>\d+(\.\d+)?) cm (x|×) (?P<depth>\d+(\.\d+)?) cm \([^\)]+\)$'
+            match_2d = re.match(regex_2d, dimensions)
+            #match_3d = re.match(regex_3d, dimensions)
             if match_2d:
                 metadata['heightcm'] = match_2d.group(u'height')
                 metadata['widthcm'] = match_2d.group(u'width')
-            elif match_3d:
-                metadata['heightcm'] = match_3d.group(u'height')
-                metadata['widthcm'] = match_3d.group(u'width')
-                metadata['depthcm'] = match_3d.group(u'depth')
+            #elif match_3d:
+            #    metadata['heightcm'] = match_3d.group(u'height')
+            #    metadata['widthcm'] = match_3d.group(u'width')
+            #    metadata['depthcm'] = match_3d.group(u'depth')
 
-        if record.get('iiifManifestURL'):
-            metadata['iiifmanifesturl'] = record.get('iiifManifestURL')
+        # Not that good quality images, but it makes matching a lot easier
+        image_regex = '\<img src\=\"(img\.php\?laufnr\=LI\d+)\" alt\=\"LI[^\"]+\" class\=\"card-img\" border\=\"0\"\>'
+        image_match = re.search(image_regex, item_page_data)
 
-        # Already have most of the images. Could take imagepath and replace the !130,130 with full
-        # It seems to be quite hard to figure out if it's PD-art or not
-        # https://images.nga.gov/en/page/openaccess.html
-        # Just get some of the missing ones uploaded
-        if record.get('imagepath'):
-            if (metadata.get(u'inception') and metadata.get(u'inception') < 1900) or \
-                    (metadata.get(u'inceptionend') and metadata.get(u'inceptionend') < 1900):
-                metadata[u'imageurl'] = record.get('imagepath').replace(u'/!130,130/', u'/full/')
+        if image_match:
+            image_url = 'https://www.dhm.de/datenbank/linzdbv2/%s' % (image_match.group(1),)
+            # To filter out the placeholders
+            imageresponse = requests.get(image_url, stream=True, verify=False)
+            if len(imageresponse.text) > 5000:
+                metadata[u'imageurl'] = image_url
                 metadata[u'imageurlformat'] = u'Q2195' #JPEG
+                metadata[u'imageoperatedby'] = 'Q688335'
                 # Could use this later to force
-                metadata[u'imageurlforce'] = False
+                # metadata[u'imageurlforce'] = True
 
         yield metadata
 
