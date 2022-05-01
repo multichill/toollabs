@@ -58,7 +58,12 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?item p:P4765 ?image .
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
-  ?item wdt:P217 ?inv .
+  ?item p:P217 ?invstatement .
+  ?invstatement ps:P217 ?inv ;
+                pq:P195 ?collection . 
+  ?item wdt:P195 ?collection .
+  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
+  ?collection wdt:P373 ?collectioncategory .  
   ?image ps:P4765 ?downloadurl .
   ?image pq:P2701 ?format .
   ?image pq:P2699 ?sourceurl .
@@ -66,9 +71,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?image pq:P2093 ?creatorname .
   OPTIONAL { ?image pq:P275 ?license } .
   OPTIONAL { ?image pq:P137 ?operator } .
-  ?item wdt:P195 ?collection .
-  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
-  ?collection wdt:P373 ?collectioncategory .
   ?item wdt:P170 ?creator .
   ?creator wdt:P570 ?dod . BIND(YEAR(?dod) AS ?deathyear)
   FILTER(?deathyear < (YEAR(NOW())-95)) .
@@ -93,24 +95,26 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         """
         Get the generator of items which were made before 1890 to consider
         """
-        query = """
-SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory WHERE {
-  ?item p:P4765 ?image .
-  ?item schema:dateModified ?itemdate .
-  ?item wdt:P31 wd:Q3305213 .
-  ?item wdt:P217 ?inv .
-  ?image ps:P4765 ?downloadurl .
-  ?image pq:P2701 ?format .
-  ?image pq:P2699 ?sourceurl .
-  ?image pq:P1476 ?title .
+        query = """SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory WHERE {
+  ?item p:P4765 ?image ;
+        p:P170/pq:P3831 wd:Q4233718 ;
+        wdt:P31 wd:Q3305213 ;
+        schema:dateModified ?itemdate ;
+        wdt:P571 ?inception ;
+        wdt:P195 ?collection ;
+        p:P217 ?invstatement .
+  ?invstatement ps:P217 ?inv ;
+                pq:P195 ?collection . 
+  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
+  ?collection wdt:P373 ?collectioncategory .  
+  ?image ps:P4765 ?downloadurl ;
+         pq:P2701 ?format ;
+         pq:P2699 ?sourceurl ;
+         pq:P1476 ?title .
   OPTIONAL { ?image pq:P2093 ?creatorname }.
-  ?item wdt:P170 wd:Q4233718 .
   OPTIONAL { ?image pq:P275 ?license } .
   OPTIONAL { ?image pq:P137 ?operator } .
-  ?item wdt:P195 ?collection .
-  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
-  ?collection wdt:P373 ?collectioncategory .
-  ?item wdt:P571 ?inception . BIND(YEAR(?inception) AS ?inceptionyear)
+  BIND(YEAR(?inception) AS ?inceptionyear)
   FILTER(?inceptionyear < 1890) .
   } ORDER BY DESC(?itemdate)
   LIMIT 15000"""
@@ -139,7 +143,12 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?item p:P4765 ?image .
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
-  ?item wdt:P217 ?inv .
+  ?item p:P217 ?invstatement .
+  ?invstatement ps:P217 ?inv ;
+                pq:P195 ?collection . 
+  ?item wdt:P195 ?collection .
+  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
+  ?collection wdt:P373 ?collectioncategory .  
   ?image ps:P4765 ?downloadurl .
   ?image pq:P2701 ?format .
   ?image pq:P2699 ?sourceurl .
@@ -147,15 +156,9 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?image pq:P2093 ?creatorname .
   OPTIONAL { ?image pq:P275 ?license } .
   OPTIONAL { ?image pq:P137 ?operator } .
-  ?item wdt:P195 ?collection .
-  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
-  ?collection wdt:P373 ?collectioncategory .
   ?item wdt:P170 ?creator .
   ?creator wdt:P570 ?dod . BIND(YEAR(?dod) AS ?deathyear)
-  FILTER(?deathyear >= (YEAR(NOW())-95) && ?deathyear < (YEAR(NOW())-70)) .
-  ?creator wdt:P569 ?dob .
-  ?item wdt:P571 ?inception .
-  FILTER(YEAR(?inception) < (YEAR(NOW())-95) && ?dob < ?inception ) .
+  FILTER(?deathyear < (YEAR(NOW())-95)) .
   ?creator schema:dateModified ?creatordate .
   OPTIONAL { ?creator wdt:P373 ?creatorcategory } .
   } ORDER BY DESC(?itemdate)
@@ -180,9 +183,19 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         query = """
 SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory WHERE {
   ?item p:P4765 ?image .
-  ?item schema:dateModified ?itemdate .
-  ?item wdt:P31 wd:Q3305213 .
-  ?item wdt:P217 ?inv .
+  ?item p:P6216 [
+    ps:P6216 wd:Q19652 ;
+             pq:P1001 wd:Q60332278 ;
+             pq:P459 wd:Q29940705 ] ;
+        schema:dateModified ?itemdate ;
+        wdt:P31 wd:Q3305213 ;
+        wdt:P195 ?collection ;
+        p:P217 ?invstatement .          
+  ?invstatement ps:P217 ?inv ;
+                pq:P195 ?collection . 
+  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
+  ?collection wdt:P373 ?collectioncategory .  
+  FILTER (STR(?collectioncategory)="Sonderauftrag Linz")
   ?image ps:P4765 ?downloadurl .
   ?image pq:P2701 ?format .
   ?image pq:P2699 ?sourceurl .
@@ -190,13 +203,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?image pq:P2093 ?creatorname .
   OPTIONAL { ?image pq:P275 ?license } .
   OPTIONAL { ?image pq:P137 ?operator } .
-  ?item wdt:P195 ?collection .
-  ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
-  ?collection wdt:P373 ?collectioncategory .
-  ?item p:P6216 ?copyrightstatement .
-  ?copyrightstatement ps:P6216 wd:Q19652 .
-  ?copyrightstatement pq:P1001 wd:Q60332278 .
-  ?copyrightstatement pq:P459 wd:Q29940705
   } ORDER BY DESC(?itemdate)
   LIMIT 15000"""
         sq = pywikibot.data.sparql.SparqlQuery()
@@ -288,7 +294,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                               'qid' : metadata.get('item'),
                               'downloadurl' : metadata.get('downloadurl'),
                               'sourceurl' : metadata.get('sourceurl'),
-                              'duplicate' : imagefile.title(withNamespace=False),
+                              'duplicate' : imagefile.title(with_ns=False),
                               'description' : description,
                               }
                 self.duplicates.append(duplicate)
