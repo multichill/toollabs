@@ -1,13 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-This bot adds the Wikidata id to the Artwork template for files that are in use.
-
+This bot adds the missing digital representation of link on files that are in use.
 """
 import pywikibot
 import requests
 import re
 import pywikibot.data.sparql
+import json
 
 class PaintingsMatchBot:
     """
@@ -18,25 +18,30 @@ class PaintingsMatchBot:
         Build all the lookup tables to work on
         """
         self.commons = pywikibot.Site(u'commons', u'commons')
-        self.repo = pywikibot.Site().data_repository()
-
+        self.commons.login()
+        self.commons.get_tokens('csrf')
+        self.repo = self.commons.data_repository()
 
         self.commonsNoLink = self.getCommonsWithoutWikidataSimple()
         self.wikidataImages = self.getWikidataWithImages()
 
     def run(self):
         """
-        Starts the robot.
+        Get the intersection of painting items with images and painting images without an item and add the links
         """
-        self.addMissingCommonsWikidataLinks()
+        missingCommonsLinks = set(self.wikidataImages.keys()) & set(self.commonsNoLink)
+        pywikibot.output('Found %s files to add Wikidata link to' % (len(missingCommonsLinks),))
+        for filename in missingCommonsLinks:
+            wikidataitem = self.wikidataImages.get(filename)
+            self.addMissingCommonsWikidataLink(filename, wikidataitem)
 
     def getCommonsWithoutWikidataSimple(self):
         """
-        Get the list of images on Commons that don't have a Wikidata identifier.
+        Get the list of painting images on Commons that don't have a Wikidata identifier.
         """
         result = []
-        url = u'http://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_simple.txt'
-        regex = u'^\* \[\[:File:(?P<image>[^\]]+)\]\]$'
+        url = 'http://tools.wmflabs.org/multichill/queries2/commons/paintings_without_wikidata_simple.txt'
+        regex = '^\* \[\[:File:(?P<image>[^\]]+)\]\]$'
         queryPage = requests.get(url)
         for match in re.finditer(regex, queryPage.text, flags=re.M):
             image = match.group("image")
@@ -61,68 +66,106 @@ class PaintingsMatchBot:
             result[image] = item
         return result
 
-    def addMissingCommonsWikidataLinks(self):
-        '''
-        Add missing links from Commons to Wikidata and report for which files it didn't work
-        '''
-        addedfiles = {}
-        missedfiles = {}
-        pageTitle = u'Commons:WikiProject sum of all paintings/Unable to add Wikidata link'
-        page = pywikibot.Page(self.commons, title=pageTitle)
-        text = u'{{/header}}\n'
-
-        missingCommonsLinks = set(self.wikidataImages.keys()) & set(self.commonsNoLink)
-        for filename in missingCommonsLinks:
-            wikidataitem = self.wikidataImages.get(filename)
-            success = self.addMissingCommonsWikidataLink(filename, wikidataitem)
-            if success:
-                # Add it to the list of files we updated so we have some statistcs
-                addedfiles[filename] = wikidataitem
-            else:
-                missedfiles[filename] = wikidataitem
-                text = text + u'* [[:File:%s]] - <nowiki>|</nowiki> wikidata = %s\n' % (filename, wikidataitem)
-
-        text = text + u'\n[[Category:WikiProject sum of all paintings]]\n'
-
-        summary = u'Updating list of images to which to bot was unable to add a link (added %s, missed %s)' % (len(addedfiles), len(missedfiles))
-        pywikibot.output(summary)
-        page.put(text, summary)
-
-    def addMissingCommonsWikidataLink(self, filename, wikidataitem):
+    def addMissingCommonsWikidataLink(self, filename, wikidata_item):
         """
-        Try to add a missing link to Commons. Returns True if it worked and False if it failed
+        Try to add a missing link to Commons.
         """
-        filepage = pywikibot.FilePage(self.commons, title=filename)
+        imagefile = pywikibot.FilePage(self.commons, title=filename)
 
-        text = filepage.get()
-        replaceregex = u'\{\{(Artwork|Painting|Art Photo|Google Art Project|Google Cultural Institute|Walters Art Museum artwork|NARA-image-full)'
-        emptywikidataregex = u'(\s*\|\s*wikidata\s*=)\s*\n'
-        wikidataregex = u'[wW]ikidata\s*=\s*(Q\d+)\s*'
+        imagefile.clear_cache() # Clear the cache otherwise the pageid is 0.
+        mediaid = 'M%s' % (imagefile.pageid,)
+        currentdata = self.getCurrentMediaInfo(mediaid)
 
-        pywikibot.output(u'Working on %s' % (filepage.title(),))
+        if currentdata.get('statements') and currentdata.get('statements').get('P6243'):
+            # Already on the file
+            return
 
-        wdmatch = re.search(wikidataregex, text)
+        itemdata = self.getStructuredData(wikidata_item)
+        summary = 'Adding link to [[d:Special:EntityPage/%s]] based on usage on that item' % (wikidata_item,)
 
-        if wdmatch:
-            # Template with duplicate template problems might hit this one or when database query is a bit stale
-            pywikibot.output(u'Seems to already link to Wikidata %s' % (wdmatch.group(1),))
-            return False
+        token = self.commons.tokens['csrf']
+        postdata = {'action' : 'wbeditentity',
+                    'format' : 'json',
+                    'id' : mediaid,
+                    'data' : json.dumps(itemdata),
+                    'token' : token,
+                    'summary' : summary,
+                    'bot' : True,
+                    }
+        #print (json.dumps(postdata, sort_keys=True, indent=4))
+        request = self.commons._simple_request(**postdata)
+        data = request.submit()
+        imagefile.touch()
 
-        # First try to update an existing field
-        newtext = re.sub(emptywikidataregex, u'\\1%s\n' % (wikidataitem,), text, count=1)
+    def getCurrentMediaInfo(self, mediaid):
+        """
+        Check if the media info exists. If that's the case, return that so we can expand it.
+        Otherwise return an empty structure with just <s>claims</>statements in it to start
+        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
+        :return: json
+            """
+        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M52611909
+        # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M10038
+        request = self.commons._simple_request(action='wbgetentities',ids=mediaid)
+        data = request.submit()
+        if data.get(u'entities').get(mediaid).get(u'pageid'):
+            return data.get(u'entities').get(mediaid)
+        return {}
 
-        if text==newtext:
-            #Ok, that didn't work, just slap it at the top
-            newtext = re.sub(replaceregex, u'{{\\1\n|wikidata=%s' % (wikidataitem,), text, count=1, flags=re.I)
-            if text==newtext:
-                pywikibot.output(u'Unable to add Wikidata link to %s' % (filename,))
-                return False
+    def getStructuredData(self, wikidata_item):
+        """
+        Get the structured data to add to the file
+        :param wikidata_item: The Qid o the Wikidata item about the painting
+        :return: The claims to add
+        """
+        claims = []
 
-        pywikibot.showDiff(text, newtext)
-        summary = u'Adding link to [[:d:%s]] based on usage on that item' % (wikidataitem,)
-        pywikibot.output(summary)
-        filepage.put(newtext, summary=summary)
-        return True
+        itemid = wikidata_item.replace('Q', '')
+        # digital representation of -> item
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P6243',
+                                 'datavalue': { 'value': { 'numeric-id': itemid,
+                                                           'id' : wikidata_item,
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        claims.append(toclaim)
+
+        # main subject -> item
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P921',
+                                 'datavalue': { 'value': { 'numeric-id': itemid,
+                                                           'id' : wikidata_item,
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        claims.append(toclaim)
+
+        # depicts -> item
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P180',
+                                 'datavalue': { 'value': { 'numeric-id': itemid,
+                                                           'id' : wikidata_item,
+                                                           },
+                                                'type' : 'wikibase-entityid',
+                                                }
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        claims.append(toclaim)
+        return {'claims' : claims}
 
 
 def main():
