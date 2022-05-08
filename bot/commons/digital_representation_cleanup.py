@@ -116,6 +116,8 @@ class DigitalRepresentationCleaanupBot:
                 # Picture might be protected
                 continue
 
+            self.resolve_redirects(filepage, mediaid, currentdata)
+            self.update_recursive_depicts(filepage, mediaid, currentdata)
             self.addMissingStatementsToFile(filepage, mediaid, currentdata)
             if self.remove3d:
                 self.removeDigitalRepresentation3d(filepage, mediaid, currentdata)
@@ -135,11 +137,125 @@ class DigitalRepresentationCleaanupBot:
             return data.get(u'entities').get(mediaid)
         return {}
 
+    def resolve_redirects(self, filepage, mediaid, currentdata):
+        """
+        Resolve redirects for
+        :param filepage:
+        :param mediaid:
+        :param currentdata:
+        :return:
+        """
+        if not currentdata.get('statements'):
+            return
+        for prop in ['P180', 'P921', 'P6243']:
+            if currentdata.get('statements').get(prop):
+                for statement in currentdata.get('statements').get(prop):
+                    if statement.get('mainsnak').get('datavalue'):
+                        qid = statement.get('mainsnak').get('datavalue').get('value').get('id')
+                        claim_id = statement.get('id')
+                        item = pywikibot.ItemPage(self.repo, qid)
+                        if item.isRedirectPage():
+                            target_item = item.getRedirectTarget()
+                            summary = 'resolving redirect'
+                            self.update_statement(filepage, claim_id, target_item.title(), summary)
+
+    def update_recursive_depicts(self, filepage, mediaid, currentdata):
+        """
+        The depicts on the file page should point to the work, not what is visible in the work. Update it
+        :param filepage: The page of the file to work on.
+        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
+        :param currentdata: The current structured data
+        :return:
+        """
+        if not currentdata.get('statements'):
+            return
+        if not currentdata.get('statements').get('P180'):
+            return
+        if not len(currentdata.get('statements').get('P180'))==1:
+            return
+        if not currentdata.get('statements').get('P180')[0].get('mainsnak').get('datavalue'):
+            return
+        if not currentdata.get('statements').get('P6243'):
+            return
+
+        artwork_qid = currentdata.get('statements').get('P6243')[0].get('mainsnak').get('datavalue').get('value').get('id')
+        depicts_qid = currentdata.get('statements').get('P180')[0].get('mainsnak').get('datavalue').get('value').get('id')
+        depicts_claim_id = currentdata.get('statements').get('P180')[0].get('id')
+
+        if artwork_qid == depicts_qid:
+            return
+
+        artwork_item = pywikibot.ItemPage(self.repo, artwork_qid)
+        depicts_item = pywikibot.ItemPage(self.repo, depicts_qid)
+
+        if artwork_item.isRedirectPage() or depicts_item.isRedirectPage():
+            # Handled in redirect function
+            return
+
+        artwork_claims = artwork_item.get().get('claims')
+
+        if 'P180' in artwork_claims:
+            for depicts_claim in artwork_claims.get('P180'):
+                if depicts_claim.getTarget() == depicts_item:
+                    # Found it, update Commons
+                    summary = '[[d:Special:EntityPage/P180]]->[[d:Special:EntityPage/%s]] is on [[d:Special:EntityPage/%s]]' % (depicts_qid, artwork_qid)
+                    self.update_statement(filepage, depicts_claim_id, artwork_qid, summary)
+                    return
+            # TODO: We did not find it. Add it to the Wikidata item??
+            return
+        else:
+            # TODO: No depicts on the item. Add it to the Wikidata item??
+            return
+
+    def update_statement(self, filepage, claim_id, new_qid, summary='Updating statement'):
+        """
+        Update the statement on a file on Commons
+
+        :param depicts_claim_id: The id of the statement to update
+        :param new_qid: The ID of the Wikidata item to update it to
+        :return:
+        """
+        new_claim =  { 'entity-type' : 'item',
+                       'numeric-id': new_qid.replace('Q', ''),
+                       'id' : new_qid,
+                       }
+
+        token = self.site.tokens['csrf']
+        postdata = {'action' : 'wbsetclaimvalue',
+                    'format' : 'json',
+                    'claim' : claim_id,
+                    'snaktype' : 'value',
+                    'value' : json.dumps(new_claim),
+                    'token' : token,
+                    'summary' : summary,
+                    'bot' : True,
+                    }
+        #if currentdata:
+        #    # This only works when the entity has been created
+        #    postdata['baserevid'] = currentdata.get('lastrevid')
+
+        request = self.site._simple_request(**postdata)
+        try:
+            data = request.submit()
+            # Always touch the page to flush it
+            filepage.touch()
+        except (pywikibot.exceptions.APIError, pywikibot.exceptions.OtherPageSaveError):
+            pywikibot.output('Got an API error while saving page. Sleeping, getting a new token and skipping')
+            # Print the offending token
+            print (token)
+            time.sleep(30)
+            # FIXME: T261050 Trying to reload tokens here, but that doesn't seem to work
+            self. site.tokens.load_tokens(['csrf'])
+            # This should be a new token
+            print (self.site.tokens['csrf'])
+
+
     def addMissingStatementsToFile(self, filepage, mediaid, currentdata):
         """
         Add missing depicts (P180) and main subject (P921) if these are missing
 
         :param filepage: The page of the file to work on.
+        :param mediaid: The entity ID (like M1234, pageid prefixed with M)
         :return: Nothing, edit in place
         """
 
