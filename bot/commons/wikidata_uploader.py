@@ -382,8 +382,8 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                 claim = claims.get(u'P18')[0]
                 newimagesize = imagefile.latest_file_info.size
                 currentsize = claim.getTarget().latest_file_info.size
-                # Only replace if new one is at least 4 times larger
-                if currentsize * 4 < newimagesize:
+                # Only replace if new one is at least 4 times larger and not a tiff file
+                if not currentsize * 4 < newimagesize and metadata.get('format') != 'Q215106':
                     summary = u'replacing with much larger image'
                     claim.changeTarget(imagefile, summary=summary)
                     replacedimage = True
@@ -463,8 +463,9 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         """
         Construct the title to be used for the upload
         """
-        formats = { 'Q2195' : u'jpg',
-                    #'Q215106' : u'tiff',
+        formats = { 'Q2195' : 'jpg', # Old most used item
+                    'Q27996264' : 'jpg', # the split up file format item
+                    'Q215106' : 'tiff',
                     }
         if not metadata.get('format') or metadata.get('format') not in formats:
             return ''
