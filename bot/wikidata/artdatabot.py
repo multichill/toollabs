@@ -578,25 +578,48 @@ class ArtDataBot:
         claims = item.get().get('claims')
         mediums = { 'oil on canvas' : {'paint' : 'Q296955', 'surface' : 'Q12321255'},
                     'oil on panel' : {'paint' : 'Q296955', 'surface' : 'Q106857709'},
+                    'oil on wood panel' : {'paint' : 'Q296955', 'surface' : 'Q106857709'},
+                    'oil on fir panel' : {'paint' : 'Q296955', 'surface' : 'Q107103505'},
+                    'oil on lime panel' : {'paint' : 'Q296955', 'surface' : 'Q107296639'},
                     'oil on oak panel' : {'paint' : 'Q296955', 'surface' : 'Q106857823'},
                     'oil on pine panel' : {'paint' : 'Q296955', 'surface' : 'Q106940268'},
                     'oil on poplar panel' : {'paint' : 'Q296955', 'surface' : 'Q106857865'},
+                    'oil on walnut panel' : {'paint' : 'Q296955', 'surface' : 'Q107103575'},
                     'oil on paper' : {'paint' : 'Q296955', 'surface' : 'Q11472'},
                     'oil on copper' : {'paint' : 'Q296955', 'surface' : 'Q753'},
                     'tempera on canvas' : {'paint' : 'Q175166', 'surface' : 'Q12321255'},
                     'tempera on panel' : {'paint' : 'Q175166', 'surface' : 'Q106857709'},
+                    'tempera on wood panel' : {'paint' : 'Q175166', 'surface' : 'Q106857709'},
+                    'tempera on fir panel' : {'paint' : 'Q175166', 'surface' : 'Q107103505'},
+                    'tempera on lime panel' : {'paint' : 'Q175166', 'surface' : 'Q107296639'},
                     'tempera on oak panel' : {'paint' : 'Q175166', 'surface' : 'Q106857823'},
                     'tempera on pine panel' : {'paint' : 'Q175166', 'surface' : 'Q106940268'},
                     'tempera on poplar panel' : {'paint' : 'Q175166', 'surface' : 'Q106857865'},
+                    'tempera on walnut panel' : {'paint' : 'Q175166', 'surface' : 'Q107103575'},
+                    'tempera on paper' : {'paint' : 'Q175166', 'surface' : 'Q11472'},
                     'acrylic paint on canvas' : {'paint' : 'Q207849', 'surface' : 'Q12321255'},
                     'acrylic paint on panel' : {'paint' : 'Q207849', 'surface' : 'Q106857709'},
                     'watercolor on paper' : {'paint' : 'Q22915256', 'surface' : 'Q11472'},
+                    # In Germany often the type of paint is not mentioned.
+                    'paint on canvas' : {'paint' : 'Q174219', 'surface' : 'Q12321255'},
+                    'paint on panel' : {'paint' : 'Q174219', 'surface' : 'Q106857709'},
+                    'paint on wood panel' : {'paint' : 'Q174219', 'surface' : 'Q106857709'},
+                    'paint on fir panel' : {'paint' : 'Q174219', 'surface' : 'Q107103505'},
+                    'paint on lime panel' : {'paint' : 'Q174219', 'surface' : 'Q107296639'},
+                    'paint on oak panel' : {'paint' : 'Q174219', 'surface' : 'Q106857823'},
+                    'paint on pine panel' : {'paint' : 'Q174219', 'surface' : 'Q106940268'},
+                    'paint on poplar panel' : {'paint' : 'Q174219', 'surface' : 'Q106857865'},
+                    'paint on walnut panel' : {'paint' : 'Q174219', 'surface' : 'Q107103575'},
+                    'paint on paper' : {'paint' : 'Q174219', 'surface' : 'Q11472'},
+                    'paint on copper' : {'paint' : 'Q174219', 'surface' : 'Q753'},
                     }
-        if not metadata.get('medium') or metadata.get('medium').lower() not in mediums:
-            # No match, just return
+        if not metadata.get('medium'):
             return
-        paint = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower()).get('paint'))
-        surface = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower()).get('surface'))
+        elif metadata.get('medium').lower().strip() not in mediums:
+            pywikibot.output('Unable to match medium "%s" to materials' % (metadata.get('medium'),))
+            return
+        paint = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower().strip()).get('paint'))
+        surface = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower().strip()).get('surface'))
         painting_surface = pywikibot.ItemPage(self.repo, 'Q861259')
 
         if 'P186' not in claims:

@@ -118,10 +118,10 @@ def main():
     repo = pywikibot.Site().data_repository()
     query = u"""SELECT ?item WHERE {
   ?item wdt:P214 ?viafid .
-  ?item wdt:P27 wd:Q45 .
+  { ?item wdt:P27 wd:Q45 } UNION { ?item wdt:P27 wd:Q29 } UNION { ?item wdt:P27 wd:Q155 } .
   ?item wdt:P31 wd:Q5 .
   MINUS { ?item wdt:P1005 [] } .
-  } LIMIT 4000"""
+  } LIMIT 50000"""
 
     generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 

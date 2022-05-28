@@ -86,9 +86,9 @@ SELECT ?item ?inception ?earliestinception ?latestinception WHERE {
 
         if not earliestdate.precision > inceptiondate.precision or not latestdate.precision > inceptiondate.precision or \
                 not earliestdate.precision==latestdate.precision:
-            print earliestdate.precision
-            print latestdate.precision
-            print inceptiondate.precision
+            print (earliestdate.precision)
+            print (latestdate.precision)
+            print (inceptiondate.precision)
             pywikibot.output(u'Precision mismatch, skpping')
             return
 
@@ -122,7 +122,7 @@ SELECT ?item ?inception ?earliestinception ?latestinception WHERE {
         pywikibot.output(u'Earliest %s - %s (%s)' % (earliestStartYear, earliestEndYear, earliestPrecisionYears))
         pywikibot.output(u'Latest %s - %s (%s)' % (latestStartYear, latestEndYear, latestPrecisionYears))
 
-        averageYear = abs((earliestStartYear + earliestEndYear + latestStartYear + latestEndYear)/4)
+        averageYear = int(abs((earliestStartYear + earliestEndYear + latestStartYear + latestEndYear)/4))
 
         if inceptionCurrentYear==averageYear:
             pywikibot.output(u'Looks like this one is already fixed, skipping')

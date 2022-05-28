@@ -150,6 +150,10 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
                 if item.get(u'topic')[0] in topics:
                     metadata[u'genreqid'] = topics.get(item.get(u'topic')[0])
 
+            # Do location lookup
+            if item.get('place'):
+                print('Place found %s' % (item.get('place'),))
+
             # The search API returns null for measurement
             # Already indexed it in the previous run so leaving it for now
             #dimensionRegex = u'\<td class\=\"atribut\"\>measurements\:\<\/td\>[\r\n\t\s]*\<td\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<'

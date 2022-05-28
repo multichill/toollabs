@@ -101,7 +101,7 @@ class ViafImportBot:
                     ntajson = ntajsonpage.json()
 
                     ntaviafurl = None
-                    if ntajson.get(u'@graph')[1].get('sameAs'):
+                    if ntajson.get(u'@graph') and ntajson.get(u'@graph')[1].get('sameAs'):
                         for sameAs in ntajson.get(u'@graph')[1].get('sameAs'):
                             if sameAs.startswith(u'http://viaf.org/viaf/'):
                                 ntaviafurl = sameAs
@@ -180,7 +180,7 @@ LIMIT %s
 }"""
     repo = pywikibot.Site().data_repository()
     step = 10000
-    limit = 122000
+    limit = 150000
     for i in range(0, limit, step):
         query = basequery % (i, limit)
         gen = pagegenerators.WikidataSPARQLPageGenerator(query, site=repo)
@@ -188,7 +188,7 @@ LIMIT %s
             # Add filtering
             yield item
 
-def viafDumpGenerator(filename=u'../Downloads/viaf-20180807-links.txt'):
+def viafDumpGenerator(filename=u'../Downloads/viaf-20200504-links.txt'):
     """
     Use a viaf dump to find Wikidata items to check.
     It will filter out the Wikidata items that already have a link
@@ -201,12 +201,25 @@ def viafDumpGenerator(filename=u'../Downloads/viaf-20180807-links.txt'):
     currentviaf = None
     currentwikidata = None
     currentnta = None
-    with open(filename, 'rb') as f:
+
+    startviaf = '24713713'
+    foundstart = False
+
+    with open(filename, 'r') as f:
         for line in f:
             wdmatch = wdregex.match(line)
             ntamatch = ntaregex.match(line)
             if not (wdmatch or ntamatch):
                 continue
+
+            if wdmatch and wdmatch.group(1)==startviaf:
+                foundstart = True
+            elif ntamatch and ntamatch.group(1)==startviaf:
+                foundstart = True
+
+            if not foundstart:
+                continue
+
             if not currentviaf:
                 if wdmatch:
                     currentviaf = wdmatch.group(1)
@@ -269,9 +282,9 @@ def main():
   MINUS { ?item owl:sameAs ?item2 . ?item2 wdt:P1006 [] }
 }"""
 
-    #generator = pagegenerators.PreloadingItemGenerator(viafDumpGenerator())
+    generator = pagegenerators.PreloadingItemGenerator(viafDumpGenerator())
 
-    generator = pagegenerators.PreloadingItemGenerator(ntaBacklinksGenerator())
+    #generator = pagegenerators.PreloadingItemGenerator(ntaBacklinksGenerator())
     #generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     viafImportBot = ViafImportBot(generator)

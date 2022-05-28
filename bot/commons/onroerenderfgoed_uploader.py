@@ -351,7 +351,7 @@ class OnroerendUploaderBot:
             return False
 
         toclaim = {'mainsnak': { 'snaktype':'value',
-                                 'property': 'P625',
+                                 'property': 'P9149',
                                  'datavalue': { 'value': { 'latitude': metadata.get('lat'),
                                                            'longitude':metadata.get('lon'),
                                                            'altitude': None,

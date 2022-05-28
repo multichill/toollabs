@@ -58,7 +58,7 @@ class AddExceptionsBot:
         data = self.property.get()
         claims = data.get('claims')
 
-        if len(self.nonHumans) > 100:
+        if len(self.nonHumans) > 200:
             pywikibot.output(u'More than 100 non-humans, not working on this one')
             return
 
@@ -145,10 +145,10 @@ def main():
 
     #for page in generator:
     #    print page.title()
-    for resultitem in queryresult:
-        wdprop = resultitem.get('property').replace(u'http://www.wikidata.org/entity/', u'')
-        print wdprop
-    #for wdprop in properties_to_clean:
+    #for resultitem in queryresult:
+    #    wdprop = resultitem.get('property').replace(u'http://www.wikidata.org/entity/', u'')
+    #    print wdprop
+    for wdprop in properties_to_clean:
         addExceptionsBot = AddExceptionsBot(wdprop)
         addExceptionsBot.run()
 

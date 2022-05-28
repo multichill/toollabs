@@ -85,17 +85,19 @@ class WebUmeniaArtistsImporterBot:
         :return:
         """
         #print (json.dumps(itemjson, sort_keys=True, indent=4, separators=(',', ': ')))
-        artistid = itemjson.get(u'identifier')
+        artistid = itemjson.get('identifier')
         artistItem = None
         if artistid in self.webumeniaArtists:
             artistTitle = self.webumeniaArtists.get(artistid)
             artistItem = pywikibot.ItemPage(self.repo, title=artistTitle)
-        elif self.create and itemjson.get(u'items_count') > 0:
+        elif self.create and itemjson.get('items_count') > 0:
             artistItem = self.createArtist(itemjson)
+        else:
+            pywikibot.output ('No item found and no works found for https://www.webumenia.sk/autor/%s' % (artistid,))
 
         if artistItem:
-            pywikibot.output(u'Working on %s based on https://www.webumenia.sk/autor/%s' % (artistItem.title(),
-                                                                                            artistid))
+            pywikibot.output('Working on %s based on https://www.webumenia.sk/autor/%s' % (artistItem.title(),
+                                                                                           artistid))
             self.expandArtist(artistItem, itemjson)
 
     def createArtist(self, itemjson):

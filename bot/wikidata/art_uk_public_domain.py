@@ -63,20 +63,31 @@ class ArtUKPublicDomain():
 
             ccregex = 'id\=\"download-artwork\"[\s\t\r\n]*class\=\"btn dl toolbar_icon\"[\s\t\r\n]*title\=\"Creative Commons\"'
             dlregex = '\<a href\=\"(https\:\/\/artuk\.org\/download\/[^\"]+)\" class\=\"btn btn-default\" id\=\"download-button\" data-val\=\"Downloaded\"\>Download\<\/a\>'
-            titleregex = '\<h1 class\=\"artwork-title\"\>([^\<]+)\s*\<\/h1\>'
-            creatorregex = '\<h2 class\=\"artist\"\>[\s\t\r\n]*\<a href\=\"[^\"]*\"\>\s*([^\<]+)\s*</a>'
+            thumbregex = '\<div class\=\"artwork\"\>[\s\t\r\n]*\<div[\s\t\r\n]*class\=\"artwork_thumb\"[\s\t\r\n]*data-artwork_thumb[\s\t\r\n]*\>[\s\t\r\n]*\<\/div\>[\s\t\r\n]*\<div[\s\t\r\n]*class\=\"artwork_slider\"[\s\t\r\n]*data-artwork_slider[\s\t\r\n]*\>[\s\t\r\n]*\<div class\=\"single_img\"\>[\s\t\r\n]*\<img src\=\"([^\"]+)\"'
 
             ccmatch = re.search(ccregex, imagePage.text)
             dlmatch = re.search(dlregex, imagePage.text)
+            thumbmatch = re.search(thumbregex, imagePage.text)
+
+            if ccmatch and dlmatch:
+                imageurl = dlmatch.group(1).replace(' ', '%20')
+            elif thumbmatch:
+                imageurl = thumbmatch.group(1).replace(' ', '%20')
+            else:
+                continue
+
+            titleregex = '\<h1 class\=\"artwork-title\"\>([^\<]+)\s*\<\/h1\>'
+            creatorregex = '\<h2 class\=\"artist\"\>[\s\t\r\n]*\<a href\=\"[^\"]*\"\>\s*([^\<]+)\s*</a>'
+
             titlematch = re.search(titleregex, imagePage.text)
             creatormatch = re.search(creatorregex, imagePage.text)
 
-            if not ccmatch or not dlmatch or not titlematch or not creatormatch:
+            if titlematch and creatormatch:
+                title = titlematch.group(1).strip()
+                creator = " ".join(creatormatch.group(1).split()).replace('–','-')
+            else:
                 continue
 
-            imageurl = dlmatch.group(1)
-            title = titlematch.group(1).strip()
-            creator = " ".join(creatormatch.group(1).split()).replace('–','-')
             print (imageurl)
             print (title)
             print (creator)
@@ -117,18 +128,28 @@ def main(*args):
 
 
     repo = pywikibot.Site().data_repository()
-    query = u"""SELECT ?item WHERE {
-  ?item wdt:P1679 ?id ;
-        wdt:P31 wd:Q3305213 ;
-        wdt:P6216 wd:Q19652 ;
-        schema:dateModified ?modified
+    query = """SELECT DISTINCT ?item WHERE {
+  ?item wdt:P1679 ?id .
   MINUS { ?item wdt:P18 ?image } .
   MINUS { ?item wdt:P4765 ?ccimage } .
-  MINUS { ?item wdt:P170 ?creator . ?creator wdt:P570 ?dod . FILTER(YEAR(?dod) > 1923) }
-  MINUS { ?item wdt:P170 ?creator . ?creator wdt:P569 ?dob . FILTER(YEAR(?dob) > 1900) }
-  MINUS { ?item wdt:P170 wd:Q4233718 . ?item wdt:P571 ?inception . FILTER(YEAR(?inception) > 1850) }
-  MINUS { ?item wdt:P4373 ?nationaltrustid } 
+  ?item wdt:P31 wd:Q3305213 .
+  ?item p:P6216 ?copyrightstatement .
+  ?copyrightstatement ps:P6216 wd:Q19652 ; # Can be removed later
+                      pq:P459 wd:Q29940705 .
+  ?item schema:dateModified ?modified
   } ORDER BY DESC(?modified)"""
+    query = """SELECT DISTINCT ?item WHERE {
+  ?item wdt:P1679 ?id .
+  MINUS { ?item wdt:P18 ?image } .
+  MINUS { ?item wdt:P4765 ?ccimage } .
+  MINUS { ?item wdt:P6500 ?unfreeimage } .
+  ?item wdt:P31 wd:Q3305213 .
+  MINUS { ?item wdt:P170/wdt:P569 ?dob . FILTER(YEAR(?dob)>1900) } .
+  MINUS { ?item wdt:P170/wdt:P570 ?dod . FILTER(YEAR(?dod)>1925) } .
+  MINUS { ?item wdt:P571 ?inception . FILTER(YEAR(?inception)>1925) } .                                                
+  ?item schema:dateModified ?modified
+  } ORDER BY DESC(?modified)
+"""
     generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     imagesPublicDomainRobot = ArtUKPublicDomain(generator)
