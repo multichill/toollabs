@@ -47,7 +47,7 @@ SELECT ?item ?inception ?earliestinception ?latestinception WHERE {
   } ORDER BY ?inception
   LIMIT 5000"""
 
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
                                                                                                       site=self.repo))
         return generator
 

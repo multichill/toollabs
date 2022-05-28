@@ -135,6 +135,7 @@ class PaintingBot:
                          u'French painter' : anonymous,
                          u'Okänd' : anonymous,
                          u'unidentified artist' : anonymous,
+                         u'Anonyme' : anonymous,
                          #u'' : anonymous,
                         }
         self.replaceableCreators = { u'Q19595156' : True, # Not the right Gerhard Richter
@@ -248,7 +249,7 @@ class PaintingBot:
 
         # Search Wikidata for a suitable candidate, tell the search to only return humans
         searchstring = u'%s haswbstatement:P31=Q5' % (creator,)
-        creategen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
+        creategen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, total=50, namespaces=[0], site=self.repo)))
 
         for creatoritem in creategen:
             if creatoritem.isRedirectPage():

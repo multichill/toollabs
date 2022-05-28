@@ -98,7 +98,7 @@ def main():
     site = pywikibot.Site()
     repo = site.data_repository()
     query = u'SELECT ?item WHERE { ?item wdt:P359 [] . MINUS {?item wdt:P31 []} }'
-    itemGen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    itemGen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     for item in itemGen:
         pywikibot.output(item.title())

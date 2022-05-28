@@ -1285,6 +1285,10 @@ def main(*args):
                 u'Q1501219' : { u'collectienaam' : u'Gemäldegalerie Alte Meister (Museumslandschaft Hessen Kassel)',
                                  u'replacements' : [],
                                  u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemäldegalerie Alte Meister, Kassel',
+                                 },
+                u'Q475667' : { 'collectienaam' : 'Führermuseum',
+                               'replacements' : [],
+                               'pageTitle' : 'Wikidata:WikiProject sum of all paintings/RKD to match/Führermuseum',
                                  }, # Next on the TODO is Museum Het Valkhof
                 #u'Q768717' : { u'collectienaam' : u'Private collection', # Probably still too big
                 #                u'replacements' : [],

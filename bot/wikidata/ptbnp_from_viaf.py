@@ -25,7 +25,7 @@ class ViafImportBot:
             * generator    - A generator that yields wikidata item objects.
         """
         self.repo = pywikibot.Site().data_repository()
-        self.generator = pagegenerators.PreloadingItemGenerator(generator)
+        self.generator = pagegenerators.PreloadingEntityGenerator(generator)
         self.viafitem = pywikibot.ItemPage(self.repo, u'Q54919')
     
     def run (self):
@@ -123,7 +123,7 @@ def main():
   MINUS { ?item wdt:P1005 [] } .
   } LIMIT 50000"""
 
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     viafImportBot = ViafImportBot(generator)
     viafImportBot.run()

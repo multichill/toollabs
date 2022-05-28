@@ -45,7 +45,7 @@ class AddExceptionsBot:
   ?item wdt:P31 [] .
   FILTER NOT EXISTS { ?item wdt:P31 wd:Q5 } .
   }""" % (wdprop,)
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
                                                                                                       site=self.repo))
         result = list(generator)
         pywikibot.output(u'Found %s non-human items for %s' % (len(result), wdprop))
@@ -140,7 +140,7 @@ def main():
     queryresult = sq.select(query)
 
     #repo = pywikibot.Site().data_repository()
-    #generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    #generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     #generator = pagegenerators.WikidataSPARQLPageGenerator(query, site=repo)
 
     #for page in generator:

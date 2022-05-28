@@ -22,7 +22,7 @@ class FastImportBot:
 
         """
         self.repo = pywikibot.Site().data_repository()
-        self.generator = pagegenerators.PreloadingItemGenerator(generator)
+        self.generator = pagegenerators.PreloadingEntityGenerator(generator)
         self.fastitem = pywikibot.ItemPage(self.repo, u'Q3294867')
     
     def run(self):
@@ -116,7 +116,7 @@ def main():
   MINUS { ?item wdt:P214 []  . ?item wdt:P244 [] } .
 }"""
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     
     fastImportBot = FastImportBot(generator)
     fastImportBot.run()

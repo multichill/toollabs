@@ -120,7 +120,7 @@ class PaintingsBot:
                 #monumentItem.editEntity(data, summary=summary)
                 try:
                     result = self.repo.editEntity(identification, data, summary=summary)
-                except pywikibot.data.api.APIError:
+                except pywikibot.exceptions.APIError:
                     # We got ourselves a duplicate label and description, let's correct that
                     pywikibot.output(u'Oops, already had that one. Trying again')
                     data['descriptions']['en'] = {'language': u'en', 'value' : u'painting by %s (MET, %s)' % (painting[u'creator'], painting[u'id'])}
@@ -188,7 +188,7 @@ class PaintingsBot:
                 # creator        
                 if u'P170' not in claims and painting.get(u'creator'):
                     #print painting[u'creator']
-                    creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(painting[u'creator'], step=None, total=10, namespaces=[0], site=self.repo)))
+                    creategen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(painting[u'creator'], step=None, total=10, namespaces=[0], site=self.repo)))
                     
                     newcreator = None
 

@@ -102,7 +102,7 @@ class GeographUploaderBot:
                 pywikibot.output(comment)
                 try:
                     uploadsuccess = self.site.upload(imagefile, source_filename=t.name, ignore_warnings=True, comment=comment) # chunk_size=1000000)
-                except pywikibot.data.api.APIError:
+                except pywikibot.exceptions.APIError:
                     # Sometimes we have a time out, but file was uploaded. Bot will get an API error on retry
                     try:
                         # Check if the file exists or not
@@ -145,7 +145,7 @@ class GeographUploaderBot:
                     # A gentle touch to show the structured data we just added
                     #imagefile.touch() # Keeps getting broken
                     imagefile.put(imagefile.text)
-                except (pywikibot.data.api.APIError, pywikibot.exceptions.OtherPageSaveError):
+                except (pywikibot.exceptions.APIError, pywikibot.exceptions.OtherPageSaveError):
                     pywikibot.output('Got an API error while saving page. Sleeping, getting a new token and retrying')
                     time.sleep(30)
                     self. site.tokens.load_tokens(['csrf'])

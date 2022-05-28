@@ -91,7 +91,7 @@ def main(*args):
 LIMIT 5000"""
 
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     locationFromCollectionBot = LocationFromCollectionBot(generator, correctlocation=correctlocation)
     locationFromCollectionBot.run()

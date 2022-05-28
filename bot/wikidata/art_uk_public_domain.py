@@ -132,16 +132,6 @@ def main(*args):
   ?item wdt:P1679 ?id .
   MINUS { ?item wdt:P18 ?image } .
   MINUS { ?item wdt:P4765 ?ccimage } .
-  ?item wdt:P31 wd:Q3305213 .
-  ?item p:P6216 ?copyrightstatement .
-  ?copyrightstatement ps:P6216 wd:Q19652 ; # Can be removed later
-                      pq:P459 wd:Q29940705 .
-  ?item schema:dateModified ?modified
-  } ORDER BY DESC(?modified)"""
-    query = """SELECT DISTINCT ?item WHERE {
-  ?item wdt:P1679 ?id .
-  MINUS { ?item wdt:P18 ?image } .
-  MINUS { ?item wdt:P4765 ?ccimage } .
   MINUS { ?item wdt:P6500 ?unfreeimage } .
   ?item wdt:P31 wd:Q3305213 .
   MINUS { ?item wdt:P170/wdt:P569 ?dob . FILTER(YEAR(?dob)>1900) } .
@@ -150,7 +140,7 @@ def main(*args):
   ?item schema:dateModified ?modified
   } ORDER BY DESC(?modified)
 """
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     imagesPublicDomainRobot = ArtUKPublicDomain(generator)
     imagesPublicDomainRobot.run()

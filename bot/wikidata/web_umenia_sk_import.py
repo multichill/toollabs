@@ -14,6 +14,7 @@ import pywikibot
 import requests
 import json
 import random
+import re
 
 def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
     """
@@ -92,13 +93,15 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             metadata['artworkid'] = url.replace(u'https://www.webumenia.sk/dielo/', u'')
             metadata['artworkidpid'] = u'P5269'
 
-            name = item.get('author')[0]
-            if u',' in name:
-                (surname, sep, firstname) = name.partition(u',')
-                name = u'%s %s' % (firstname.strip(), surname.strip(),)
+            if item.get('author') and item.get('author')[0]:
+                name = item.get('author')[0]
+                if u',' in name:
+                    (surname, sep, firstname) = name.partition(u',')
+                    name = u'%s %s' % (firstname.strip(), surname.strip(),)
+            else:
+                name = 'unknown'
             metadata['creatorname'] = name
 
-            metadata['creatorname'] = name
             metadata['description'] = { u'nl' : u'%s van %s' % (u'schilderij', metadata.get('creatorname'),),
                                         u'en' : u'%s by %s' % (u'painting', metadata.get('creatorname'),),
                                         }
@@ -121,9 +124,10 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
             #if acquisitiondateMatch:
             #    metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
 
-            if item.get('medium') and item.get('technique') and item.get('technique')[0]:
+            if item.get('medium') and item.get('technique') \
+                    and item.get('medium')[0] and item.get('technique')[0]:
                 technique = item.get('technique')[0].lower()
-                medium = item.get('medium').lower()
+                medium = item.get('medium')[0].lower()
 
                 # Cardboard etc. still needs to be done
                 techniquemedium = { ('olej','plátno') :  'oil on canvas',
@@ -131,6 +135,8 @@ def getWebUmeniaGenerator(collectioninfo, webumeniaArtists):
                                     ('olej','drevo') :  'oil on panel', # wood
                                     ('olej','překližka') :  'oil on panel', # plywood
                                     ('olej','papier') :  'oil on paper',
+                                    ('olej','lepenka') :  'oil on cardboard',
+                                    ('olej','kartón') :  'oil on cardboard',
                                     ('tempera','plátno') :  'tempera on canvas',
                                     ('tempera','dřevo') :  'tempera on panel',
                                     ('tempera','drevo') :  'tempera on panel',
@@ -296,6 +302,20 @@ def main(*args):
                                     'collectionshort' : 'PGU',
                                     'locationqid' : 'Q12774288',
                                     },
+                    'Q72948957' : { 'name' : 'Kysucká galéria',
+                                    'gallery' : 'Kysucká galéria, KGC',
+                                    'collectionqid' : 'Q72948957',
+                                    'collectionshort' : 'KGC',
+                                    'locationqid' : 'Q72948957',
+                                    },
+                    'Q111621674' : { 'name' : 'Turčianska galéria',
+                                     'gallery' : 'Turčianska galéria, TGM',
+                                     'collectionqid' : 'Q111621674',
+                                     'collectionshort' : 'TGM',
+                                     'locationqid' : 'Q111621674',
+                                    },
+                    # Súkromný majetok
+                    # Galéria Jána Koniarka, GJK
                     # Nezaradená inštitúcia alebo súkromná osoba, NIS
                  }
     collectionid = None

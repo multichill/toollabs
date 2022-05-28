@@ -301,7 +301,7 @@ def main(*args):
     repo = pywikibot.Site().data_repository()
     if series:
         query = basequery % (series,)
-        generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
                                                                                                       site=repo))
         imdbFinderBot = IMDBFinderBot(generator, series)
         imdbFinderBot.run()
@@ -314,12 +314,12 @@ def main(*args):
   ?otheritem wdt:P345 [] .
   ?otheritem wdt:P179 ?item .
   }"""
-        seriesgen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(seriesquery,
+        seriesgen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(seriesquery,
                                                                                                       site=repo))
         for seriespage in seriesgen:
             series = seriespage.title()
             query = basequery % (series,)
-            generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
+            generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
                                                                                                           site=repo))
             imdbFinderBot = IMDBFinderBot(generator, series)
             imdbFinderBot.run()

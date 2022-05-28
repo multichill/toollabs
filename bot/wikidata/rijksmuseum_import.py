@@ -26,7 +26,7 @@ def getRijksmuseumGenerator():
     appendurl = u'?key=%s&format=json'
     limit = 100
 
-    for i in range(1,49):
+    for i in range(1,69):
         searchurl = basesearchurl % (apikey, limit, i,)
         print (searchurl)
         searchPage = requests.get(searchurl)
@@ -223,9 +223,11 @@ def getRijksmuseumGenerator():
                 if not metadata.get('heightcm') and not metadata.get('widthcm') and len(record.get('dimensions'))==2:
                     height = record.get('dimensions')[0]
                     width = record.get('dimensions')[1]
-                    if height.get('unit') == u'cm' and height.get('type') == u'hoogte' and height.get('part') == None:
+                    if height.get('unit') == u'cm' and height.get('type') == u'hoogte' and height.get('part') == None and \
+                            height.get('value'):
                         metadata['heightcm'] = height.get('value').replace(u',', u'.')
-                    if width.get('unit') == u'cm' and width.get('type') == u'breedte' and width.get('part') == None:
+                    if width.get('unit') == u'cm' and width.get('type') == u'breedte' and width.get('part') == None and \
+                            width.get('value'):
                         metadata['widthcm'] = width.get('value').replace(u',', u'.')
             if record.get(u'hasImage') and not record.get(u'copyrightHolder') and record.get(u'webImage'):
                 imageurl = record.get(u'webImage').get(u'url')

@@ -253,7 +253,7 @@ class PalissyPaintingBot:
             return self.creators[creator]
 
         # Search Wikidata for a suitable candidate
-        creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(creator, step=None, total=50, namespaces=[0], site=self.repo)))
+        creategen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(creator, step=None, total=50, namespaces=[0], site=self.repo)))
 
         for creatoritem in creategen:
             if creatoritem.isRedirectPage():
@@ -349,7 +349,7 @@ MINUS { ?item wdt:P170 [] }
 }"""
 
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     paintingBot = PalissyPaintingBot(generator, change=False)
     paintingBot.run()

@@ -35,7 +35,7 @@ class DigitalRepresentationBot:
 } ORDER BY DESC(?modified)
 LIMIT 200000"""
 
-        self.generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
+        self.generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
 
     def run(self):
         """

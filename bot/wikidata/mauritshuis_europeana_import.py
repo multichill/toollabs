@@ -187,7 +187,7 @@ class PaintingsBot:
                     if painting['object']['proxies'][0].get('dcCreator'):
                         dccreator = painting['object']['proxies'][0]['dcCreator']['def'][0].strip()
 
-                        creategen = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(dccreator, step=None, total=10, namespaces=[0], site=self.repo)))
+                        creategen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataItemGenerator(pagegenerators.SearchPageGenerator(dccreator, step=None, total=10, namespaces=[0], site=self.repo)))
                         
                         newcreator = None
 

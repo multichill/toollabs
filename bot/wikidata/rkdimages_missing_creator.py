@@ -272,7 +272,7 @@ def main(*args):
   ?item schema:description ?itemdesc.
   FILTER(LANG(?itemdesc) = "en")
 } LIMIT 1000"""
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     imagesCreatorRobot = RKDimagesCreatorRobot(generator)
     imagesCreatorRobot.run()

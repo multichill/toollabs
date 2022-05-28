@@ -27,7 +27,7 @@ class ViafImportBot:
         """
         
         self.repo = pywikibot.Site().data_repository()
-        self.generator = pagegenerators.PreloadingItemGenerator(generator)
+        self.generator = pagegenerators.PreloadingEntityGenerator(generator)
         self.viafitem = pywikibot.ItemPage(self.repo, u'Q54919')
 
     

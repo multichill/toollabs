@@ -62,7 +62,7 @@ def main():
   }
 LIMIT 2500"""
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     normalizationBot = NormalizationBot(generator)
     normalizationBot.run()

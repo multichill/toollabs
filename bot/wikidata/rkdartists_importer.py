@@ -374,7 +374,7 @@ class RKDArtistsImporterBot:
                 try:
                     pywikibot.output(summary)
                     itempage.editLabels(wdlabels, summary=summary)
-                except pywikibot.data.api.APIError:
+                except pywikibot.exceptions.APIError:
                     pywikibot.output(u'Couldn\'t update the labels, conflicts with another item')
 
     def addGender(self, itempage, rkdartistsdocs, refurl, claim=None):

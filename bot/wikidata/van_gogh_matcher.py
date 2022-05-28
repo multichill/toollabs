@@ -233,7 +233,7 @@ def addLabel(repo, item, metadata):
         labels['en'] = metadata.get(u'title')
         try:
             item.editLabels(labels, summary=summary)
-        except pywikibot.data.api.APIError:
+        except pywikibot.exceptions.APIError:
             pywikibot.output(u'Failed to add %s to %s' % (metadata.get(u'title'), item.title(),))
             pass
 

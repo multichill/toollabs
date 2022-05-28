@@ -45,7 +45,7 @@ def main(*args):
             try:
                 repo.purgepages(purgelist, forcelinkupdate=1)
                 purgelist = []
-            except pywikibot.data.api.APIError:
+            except pywikibot.exceptions.APIError:
                 pywikibot.output(u'Yah! Broke it again. Let\'s sleep for a minute')
                 time.sleep(60)
     pywikibot.output(u'Purging last batch')

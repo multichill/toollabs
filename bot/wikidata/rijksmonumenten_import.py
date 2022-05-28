@@ -142,7 +142,7 @@ class MonumentsBot:
                             summary = u'Setting %s description to "%s"' % (monument.get('lang'), monumentDescription,)
                             try:
                                 monumentItem.editDescriptions({monument.get('lang') : monumentDescription}, summary = summary)
-                            except pywikibot.data.api.APIError:
+                            except pywikibot.exceptions.APIError:
                                 pywikibot.output(u'Ooops, that didn\'t work. Another item already has the same description')
                                 
 

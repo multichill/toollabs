@@ -33,7 +33,7 @@ class DepictsSpeciesBot:
   ?item wdt:P31 wd:Q16521 .
   } LIMIT 200000"""
 
-        self.generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
+        self.generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
 
     def run(self):
         """

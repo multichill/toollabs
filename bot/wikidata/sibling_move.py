@@ -31,7 +31,7 @@ def main(*args):
     summarysister = u'Moved from [[Property:P9]] per [[Wikidata:Requests for comment/Make family member properties gender neutral|RFC]]'
     summaryremove = u'per [[Wikidata:Requests for comment/Make family member properties gender neutral|RFC]]'
 
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     for item in generator:
         pywikibot.output(u'Working on %s' % (item.title(),))

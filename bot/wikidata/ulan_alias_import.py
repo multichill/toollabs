@@ -22,7 +22,7 @@ class UlanImportBot:
 
         """
         self.repo = pywikibot.Site().data_repository()
-        self.generator = pagegenerators.PreloadingItemGenerator(generator)
+        self.generator = pagegenerators.PreloadingEntityGenerator(generator)
 
     def run (self):
         """
@@ -152,7 +152,7 @@ class UlanImportBot:
             try:
                 pywikibot.output(summary)
                 item.editLabels(wdlabels, summary=summary)
-            except pywikibot.data.api.APIError:
+            except pywikibot.exceptions.APIError:
                 pywikibot.output(u'Couldn\'t update the labels, conflicts with another item')
             except pywikibot.exceptions.OtherPageSaveError:
                 pywikibot.output(u'Couldn\'t update the labels, conflicts with another item')
@@ -182,7 +182,7 @@ class UlanImportBot:
             pywikibot.output(summary)
             try:
                 item.editAliases({u'en' : aliases}, summary=summary)
-            except pywikibot.data.api.APIError:
+            except pywikibot.exceptions.APIError:
                 pywikibot.output(u'Couldn\'t update the aliases, item is probably already in conflicted state')
             except pywikibot.exceptions.OtherPageSaveError:
                 pywikibot.output(u'Couldn\'t update the aliases, item is probably already in conflicted state')
@@ -222,7 +222,7 @@ def main(*args):
 }""" % (days,)
 
     repo = pywikibot.Site().data_repository()
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
     
     ulanImportBot = UlanImportBot(generator)
     ulanImportBot.run()

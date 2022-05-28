@@ -47,7 +47,7 @@ def main():
                         828 : u'Q15184295', # Module
                       }
     
-    noclaimgen = pagegenerators.PreloadingItemGenerator(getNoclaimGenerator())
+    noclaimgen = pagegenerators.PreloadingEntityGenerator(getNoclaimGenerator())
 
     #repo = pywikibot.Site().data_repository()
     #print templates.keys()
@@ -73,7 +73,7 @@ def main():
                     pywikibot.output(summary)
                     try:
                         itempage.addClaim(newclaim, summary=summary)
-                    except pywikibot.data.api.APIError:
+                    except pywikibot.exceptions.APIError:
                         pywikibot.output(u'Ai, API problems. Let\'s sleep')
                         time.sleep(60)
                     break

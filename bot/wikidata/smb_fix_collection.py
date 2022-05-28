@@ -24,7 +24,7 @@ def main(*args):
   ?invstatement pq:P195 wd:Q700216 ;
                 ps:P217 ?inv . 
   }"""
-    generator = pagegenerators.PreloadingItemGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     for item in generator:
         data = item.get()
