@@ -23,14 +23,16 @@ def get_linz_generator():
 
     search_page = requests.get(search_url, verify=False)
     search_page_data = search_page.text
-    search_regex = '\<div onclick\=\"window\.location\=\'(\/datenbank\/linzdbv2\/queryresult\.php\?obj_no\=LI\d+)\'\;\" class\=\"galery-item\"\>'
+    search_regex = '\<div onclick\=\"window\.location\=\'\/datenbank\/linzdbv2\/queryresult\.php\?obj_no\=(LI\d+)\'\;\" class\=\"galery-item\"\>'
 
     for match in list(re.finditer(search_regex, search_page_data))[1:4000]:
         metadata = {}
 
-        url = 'https://www.dhm.de%s' % (match.group(1),)
+        url = 'https://www.dhm.de/datenbank/linzdbv2/queryresult.php?obj_no=%s' % (match.group(1),)
         print (url)
         metadata['url'] = url
+        metadata['artworkidpid'] = 'P10759'
+        metadata['artworkid'] = match.group(1)
 
         item_page = requests.get(url, verify=False)
         item_page_data = item_page.text
@@ -88,6 +90,10 @@ def get_linz_generator():
         if inv2_match:
             metadata['extraid2'] = inv2_match.group(1)
             metadata['extracollectionqid2'] = 'Q1053735' # Munich Central Collecting Point
+
+            ## Temp to quickly add the MCCP ID's
+            #metadata['artworkidpid'] = 'P10760'
+            #metadata['artworkid'] = inv2_match.group(1)
 
         title_regex = 'valign\=\"top\" width\=\"\d+\"\>Titel\: \<\/td\>\<td align\=\"left\" valign\=\"top\" width=\"\d+\"\>\<strong\>([^\<]+)\<'
         title_match = re.search(title_regex, item_page_data)
