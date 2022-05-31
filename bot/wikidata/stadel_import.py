@@ -203,10 +203,18 @@ def getStadelGenerator():
             elif missedacquisitiondatematch:
                 print (u'Could not parse date: "%s"' % (missedacquisitiondatematch.group(1),))
 
-            mediumregex = u'\<dt class\=\"dsProperty__caption\">Physical Description\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*Oil on canvas,'
+            mediumregex = u'\<dt class\=\"dsProperty__caption\">Physical Description\<\/dt\>[\r\n\t\s]*\<dd class\=\"dsProperty__text\"\>\s*([^\<]+)\s*\<'
             mediummatch = re.search(mediumregex, itempage.text)
             if mediummatch:
-                metadata['medium'] = u'oil on canvas'
+                medium = mediummatch.group(1)
+                mediums = { 'Oil on canvas' : 'oil on canvas',
+                            'Oil on oak' : 'Oil on oak panel',
+                            }
+                if medium in mediums:
+                    metadata['medium'] = mediums.get(medium)
+                else:
+                    print('I hope that artdadabot understands medium %s' % (medium,))
+                    metadata['medium'] = medium.lower()
 
             # Look for genre
             motifregex = u'\<a class\=\"dsTerm\" href\=\"\/en\/search\?scope\=all&amp;q\=term\((\d+)\:motif_general\)\" ontouchstart\=\"\"\>([^\<]+)\<\/a\>'
