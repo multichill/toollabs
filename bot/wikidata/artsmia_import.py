@@ -11,12 +11,39 @@ import pywikibot
 import requests
 import re
 
-
 def get_artsmia_generator():
     """
     Use the search API to get all the paintings
     :return:
     """
+    # Simple lookup table for madeinqid (location of creation) and to split the queries
+    locations = { 'Australia' : 'Q408',
+                  'Austria' : 'Q40',
+                  'Belgium' : 'Q31',
+                  'Canada' : 'Q16',
+                  'China' : 'Q29520',
+                  'Denmark' : 'Q35',
+                  'England' : 'Q21',
+                  'Finland' : 'Q33',
+                  'France' : 'Q142',
+                  'Germany' : 'Q183',
+                  'India' : 'Q668',
+                  'Iran' : 'Q794',
+                  'Italy' : 'Q38',
+                  'Japan' : 'Q17',
+                  'Korea' : 'Q18097',
+                  'Nepal' : 'Q837',
+                  'Netherlands' : 'Q55',
+                  'Norway' : 'Q20',
+                  'Portugal' : 'Q45',
+                  'Russia' : 'Q159',
+                  'Spain' : 'Q29',
+                  'Sweden' : 'Q34',
+                  'Switzerland' : 'Q39',
+                  'Tibet' : 'Q17252',
+                  'United States' : 'Q30',
+                  }
+    missed_locations = {}
 
     base_search_url = 'https://search.artsmia.org/*?size=%s&from=%s&filters=classification%%3A%%22paintings%%22'
 
@@ -73,6 +100,13 @@ def get_artsmia_generator():
                                             'de' : '%s von %s' % ('Gemälde', metadata.get('creatorname'),),
                                             'fr' : '%s de %s' % ('peinture', metadata.get('creatorname'), ),
                                             }
+            else:
+                if record.get('country'):
+                    metadata['creatorname'] = 'unknown artist, %s' % (record.get('country'),)
+                else:
+                    metadata['creatorname'] = 'unknown artist'
+                metadata['description'] = { 'en' : '%s by %s' % ('painting', metadata.get('creatorname'),),}
+                metadata['creatorqid'] = 'Q4233718'
 
             # Artdatabot should be able to handle these
             if record.get('medium'):
@@ -121,51 +155,55 @@ def get_artsmia_generator():
                     print ('Could not parse date: "%s"' % (date,))
                     print ('Could not parse date: "%s"' % (date,))
 
-            yield metadata
-            continue
+            if record.get('country'):
+                if record.get('country') in locations:
+                    metadata['madeinqid'] = locations.get(record.get('country'))
+                else:
+                    if record.get('country') not in missed_locations:
+                        missed_locations[record.get('country')]=0
+                    missed_locations[record.get('country')]+=1
 
             # Data not available
             # record.get('acquisition')
 
-            if record.get('creditline'):
-                if record.get('creditline')==u'Samuel H. Kress Collection':
-                    metadata['extracollectionqid'] = u'Q2074027'
-                elif record.get('creditline')==u'Andrew W. Mellon Collection':
-                    metadata['extracollectionqid'] = u'Q46596638'
-                elif record.get('creditline').startswith(u'Corcoran Collection'):
-                    metadata['extracollectionqid'] = u'Q768446'
+            ## The dimensions are very unstructured. Could have a shot at it later
+            #if record.get('dimensions1'):
+            #    regex_2d = u'overall\: (?P<height>\d+(\.\d+)?) (x|×) (?P<width>\d+(\.\d+)?) cm \([^\)]+\)$'
+            #    regex_3d = u'overall\: (?P<height>\d+(\.\d+)?) (x|×) (?P<width>\d+(\.\d+)?) cm (x|×) (?P<depth>\d+(\.\d+)?) cm \([^\)]+\)$'
+            #    match_2d = re.match(regex_2d, record.get('dimensions1'))
+            #    match_3d = re.match(regex_3d, record.get('dimensions1'))
+            #    if match_2d:
+            #        metadata['heightcm'] = match_2d.group(u'height')
+            #        metadata['widthcm'] = match_2d.group(u'width')
+            #    elif match_3d:
+            #        metadata['heightcm'] = match_3d.group(u'height')
+            #        metadata['widthcm'] = match_3d.group(u'width')
+            #        metadata['depthcm'] = match_3d.group(u'depth')
 
-            # Get the dimensions
-            if record.get('dimensions1'):
-                regex_2d = u'overall\: (?P<height>\d+(\.\d+)?) (x|×) (?P<width>\d+(\.\d+)?) cm \([^\)]+\)$'
-                regex_3d = u'overall\: (?P<height>\d+(\.\d+)?) (x|×) (?P<width>\d+(\.\d+)?) cm (x|×) (?P<depth>\d+(\.\d+)?) cm \([^\)]+\)$'
-                match_2d = re.match(regex_2d, record.get('dimensions1'))
-                match_3d = re.match(regex_3d, record.get('dimensions1'))
-                if match_2d:
-                    metadata['heightcm'] = match_2d.group(u'height')
-                    metadata['widthcm'] = match_2d.group(u'width')
-                elif match_3d:
-                    metadata['heightcm'] = match_3d.group(u'height')
-                    metadata['widthcm'] = match_3d.group(u'width')
-                    metadata['depthcm'] = match_3d.group(u'depth')
-
-            if record.get('iiifManifestURL'):
-                metadata['iiifmanifesturl'] = record.get('iiifManifestURL')
+            # They seem to have something iiif at https://iiif.dx.artsmia.org/3352.jpg/info.json , but it times out
+            #if record.get('iiifManifestURL'):
+            #    metadata['iiifmanifesturl'] = record.get('iiifManifestURL')
 
             # Already have most of the images. Could take imagepath and replace the !130,130 with full
             # It seems to be quite hard to figure out if it's PD-art or not
             # https://images.nga.gov/en/page/openaccess.html
             # Just get some of the missing ones uploaded
-            if record.get('imagepath'):
-                if (metadata.get(u'inception') and metadata.get(u'inception') < 1900) or \
-                        (metadata.get(u'inceptionend') and metadata.get(u'inceptionend') < 1900):
-                    metadata[u'imageurl'] = record.get('imagepath').replace(u'/!130,130/', u'/full/')
-                    metadata[u'imageurlformat'] = u'Q2195' #JPEG
-                    # Could use this later to force
-                    metadata[u'imageurlforce'] = False
+            if not record.get('image_copyright') and record.get('image')=='valid':
+                if not record.get('restricted') and record.get('public_access'):
+                    if record.get('rights_type') == 'Public Domain' or record.get('rights_type') == 'No Copyright–United States':
+                        if record.get('rights_type') == 'Public Domain':
+                            metadata['imageurl'] = 'https://1.api.artsmia.org/full/%s.jpg' % (artsmia_id,)
+                        elif record.get('rights_type') == 'No Copyright–United States':
+                            metadata['imageurl'] = 'https://1.api.artsmia.org/800/%s.jpg' % (artsmia_id,)
+                        metadata['imageurlformat'] = 'Q27996264' #JPEG
+                        metadata['imageurllicense'] = 'Q20007257' # https://new.artsmia.org/copyright-and-image-access/
+                        metadata['imageoperatedby'] = 'Q1700481'
+                        # Could use this later to force
+                        metadata['imageurlforce'] = False
 
             yield metadata
-
+    for missed_location in sorted(missed_locations, key=missed_locations.get):
+        print('* %s - %s' % (missed_location, missed_locations.get(missed_location),))
 
 def main(*args):
     dictGen = get_artsmia_generator()
