@@ -56,7 +56,9 @@ class ArtDataBot:
         ?item p:P195/ps:P195 wd:%s .
         ?item p:%s ?idstatement .
         ?idstatement pq:P195 wd:%s .
-        ?idstatement ps:%s ?id }""" % (collectionqid, idProperty, collectionqid, idProperty)
+        ?idstatement ps:%s ?id
+        MINUS { ?idstatement wikibase:rank wikibase:DeprecatedRank }
+        }""" % (collectionqid, idProperty, collectionqid, idProperty)
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
@@ -510,57 +512,41 @@ class ArtDataBot:
 
     def updateCollection(self, item, metadata):
         """
-        Update the collection with a start date and add extra collections.
+        Update the collection with a start/end date and add extra collections.
 
         This is a bit of a weird function and needs to be improved.
 
         :param item: The artwork item to work on
-        :param metadata: All the metadata about this artwork, should contain the acquisitiondate field
+        :param metadata: All the metadata about this artwork, should contain the acquisitiondate/deaccessiondate field
         :return: Nothing, updates item in place
         """
+        acquisitiondate = None
+        deaccessiondate = None
+        if metadata.get('acquisitiondate'):
+            acquisitiondate = self.parse_date(metadata.get('acquisitiondate'))
+        if metadata.get('deaccessiondate'):
+            deaccessiondate = self.parse_date(metadata.get('deaccessiondate'))
+
+        if not acquisitiondate and not deaccessiondate:
+            # Nothing to update
+            return
+
         claims = item.get().get('claims')
 
-        # Try to add the acquisitiondate to the existing collection claim
-        # TODO: Move to function and also work with multiple collection claims
-        if u'P195' in claims and metadata.get(u'acquisitiondate'):
+        if 'P195' in claims:
             for collectionclaim in claims.get('P195'):
                 # Would like to use collectionclaim.has_qualifier(u'P580')
-                if collectionclaim.getTarget()==self.collectionitem and not collectionclaim.qualifiers.get(u'P580'):
-                    dateregex = u'^(\d\d\d\d)-(\d\d)-(\d\d)'
-                    datematch = re.match(dateregex, str(metadata[u'acquisitiondate']))
-                    acdate = None
-                    if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
-                                                                             metadata[u'acquisitiondate'].isnumeric()): # It's a year
-                        #FIXME: Xqt broke this. Need to make sure it's an int
-                        acdate = pywikibot.WbTime(year=int(metadata[u'acquisitiondate']))
-                    elif datematch:
-                        #print metadata[u'acquisitiondate']
-                        acdate = pywikibot.WbTime(year=int(datematch.group(1)),
-                                                  month=int(datematch.group(2)),
-                                                  day=int(datematch.group(3)))
-                    else:
-                        try:
-                            #FIXME: Xqt broke this. Need to make sure it's an int
-                            acdate = pywikibot.WbTime.fromTimestr(metadata[u'acquisitiondate'])
-                            # Pff, precision is t0o high. Hack to fix this
-                            if acdate.precision > 11:
-                                acdate.precision=11
-                        except ValueError:
-                            pywikibot.output(u'Can not parse %s' % metadata[u'acquisitiondate'])
-                            try:
-                                acdate = pywikibot.WbTime.fromTimestr('%sZ' % (metadata[u'acquisitiondate'],) )
-                                if acdate.precision > 11:
-                                    acdate.precision=11
-                            except ValueError:
-                                pywikibot.output(u'Also can not parse %sZ' % metadata[u'acquisitiondate'])
-
-                    if acdate:
-                        colqualifier = pywikibot.Claim(self.repo, u'P580')
-                        colqualifier.setTarget(acdate)
+                if collectionclaim.getTarget()==self.collectionitem:
+                    if acquisitiondate and not collectionclaim.qualifiers.get('P580'):
+                        colqualifier = pywikibot.Claim(self.repo, 'P580')
+                        colqualifier.setTarget(acquisitiondate)
                         pywikibot.output('Update collection claim with start time on %s' % item)
                         collectionclaim.addQualifier(colqualifier)
-                        # This might give multiple similar references
-                        #self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
+                    if deaccessiondate and not collectionclaim.qualifiers.get('P582'):
+                        colqualifier = pywikibot.Claim(self.repo, 'P582')
+                        colqualifier.setTarget(deaccessiondate)
+                        pywikibot.output('Update collection claim with end time on %s' % item)
+                        collectionclaim.addQualifier(colqualifier)
 
         if metadata.get('extracollectionqid'):
             self.addCollection(item, metadata.get('extracollectionqid'), metadata)
@@ -574,6 +560,39 @@ class ArtDataBot:
             self.addCollection(item, metadata.get('extracollectionqid3'), metadata)
             if metadata.get('extraid3'):
                 self.addExtraId(item, metadata.get('extraid3'), metadata.get('extracollectionqid3'), metadata)
+
+    def parse_date(self, date_string):
+        """
+        Try to parse a data
+        :param datestring: The date string to pars
+        :return: pywikibot.WbTime
+        """
+        date_regex = '^(\d\d\d\d)-(\d\d)-(\d\d)'
+        date_match = re.match(date_regex, str(date_string))
+        parsed_date = None
+        if type(date_string) is int or (len(date_string)==4 and date_string.isnumeric()): # It's a year
+            return pywikibot.WbTime(year=int(date_string))
+        elif date_match:
+            return pywikibot.WbTime(year=int(date_match.group(1)),
+                                    month=int(date_match.group(2)),
+                                    day=int(date_match.group(3)))
+        else:
+            try:
+                parsed_date = pywikibot.WbTime.fromTimestr(date_string)
+                # Pff, precision is t0o high. Hack to fix this
+                if parsed_date.precision > 11:
+                    parsed_date.precision=11
+
+            except ValueError:
+                pywikibot.output(u'Can not parse %s' % (date_string,))
+                try:
+                    parsed_date = pywikibot.WbTime.fromTimestr('%sZ' % (date_string,) )
+                    if parsed_date.precision > 11:
+                        parsed_date.precision=11
+                except ValueError:
+                    pywikibot.output(u'Also can not parse %sZ' % (date_string,))
+            return parsed_date
+
 
     def addCollection(self, item, collectionqid, metadata):
         """
