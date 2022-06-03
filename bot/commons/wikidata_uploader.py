@@ -158,8 +158,10 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   OPTIONAL { ?image pq:P137 ?operator } .
   ?item wdt:P170 ?creator .
   ?creator wdt:P570 ?dod . BIND(YEAR(?dod) AS ?deathyear)
-  FILTER(?deathyear < (YEAR(NOW())-95)) .
-  ?creator schema:dateModified ?creatordate .
+  FILTER(?deathyear >= (YEAR(NOW())-95) && ?deathyear < (YEAR(NOW())-70)) .
+  ?creator wdt:P569 ?dob .
+  ?item wdt:P571 ?inception .
+  FILTER(YEAR(?inception) < (YEAR(NOW())-95) && ?dob < ?inception ) .
   OPTIONAL { ?creator wdt:P373 ?creatorcategory } .
   } ORDER BY DESC(?itemdate)
   LIMIT 15000"""
@@ -195,7 +197,6 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                 pq:P195 ?collection . 
   ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
   ?collection wdt:P373 ?collectioncategory .  
-  FILTER (STR(?collectioncategory)="Sonderauftrag Linz")
   ?image ps:P4765 ?downloadurl .
   ?image pq:P2701 ?format .
   ?image pq:P2699 ?sourceurl .
@@ -465,6 +466,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         """
         formats = { 'Q2195' : 'jpg', # Old most used item
                     'Q27996264' : 'jpg', # the split up file format item
+                    'Q178051' : 'png',
                     'Q215106' : 'tiff',
                     }
         if not metadata.get('format') or metadata.get('format') not in formats:
