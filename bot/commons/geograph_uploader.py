@@ -138,7 +138,7 @@ class GeographUploaderBot:
                             'bot' : True,
                             }
                 pywikibot.debug(json.dumps(postdata, sort_keys=True, indent=4), 'bot')
-                request = self.site._simple_request(**postdata)
+                request = self.site.simple_request(**postdata)
                 try:
                     data = request.submit()
                     pywikibot.debug(data,  'bot')
@@ -150,7 +150,7 @@ class GeographUploaderBot:
                     time.sleep(30)
                     self. site.tokens.load_tokens(['csrf'])
                     postdata['token'] = self.site.tokens['csrf']
-                    request = self.site._simple_request(**postdata)
+                    request = self.site.simple_request(**postdata)
                     data = request.submit()
                     imagefile.put(imagefile.text)
 
@@ -409,7 +409,7 @@ class GeographUploaderBot:
         else:
             date = metadata.get('date')
 
-        request = self.site._simple_request(action='wbparsevalue', datatype='time', values=date)
+        request = self.site.simple_request(action='wbparsevalue', datatype='time', values=date)
         data = request.submit()
         # Not sure if this works or that I get an exception.
         if data.get('error'):
@@ -689,7 +689,7 @@ def getGeographGenerator(startid, endid):
         try:
             searchpage = requests.get(searchurl)
         except requests.exceptions.ConnectionError:
-            pywikibot.output(u'Got a connection error on %s. Sleeping 5 minutes' (searchurl,))
+            pywikibot.output(u'Got a connection error on %s. Sleeping 5 minutes' % (searchurl,))
             time.sleep(300)
             searchpage = requests.get(searchurl)
         for row in searchpage.json().get('rows'):
