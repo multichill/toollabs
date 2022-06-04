@@ -29,8 +29,18 @@ def get_mccp_generator():
     materials = { 'Öl auf Leinwand' : 'oil on canvas',
                   'oil on canvas' : 'oil on canvas',
                   'oil on canv.' : 'oil on canvas',
+                  'oil ow canvas' : 'oil on canvas',
+                  'oil of canvas' : 'oil on canvas',
                   'oil on metal' : 'oil on metal',
                   'oil on panel' : 'oil on panel',
+                  'oil of panel' : 'oil on panel',
+                  'oil on penael' : 'oil on panel',
+                  'oil on paste' : 'oil on paste',
+                  'oil on ivory' : 'oil on ivory',
+                  'oil on copper' : 'oil on copper',
+                  'oil on paper' : 'oil on paper',
+                  'oil on cardboard' : 'oil on cardboard',
+                  'oil on oak' : 'oil on oak panel',
                   }
     urllib3.disable_warnings()
 
@@ -56,13 +66,15 @@ def get_mccp_generator():
                     if field_name in ignore_fields:
                         pass
                     elif field_name=='Münchener Nr.:':
-                        metadata['collectionqid']= 'Q1053735'
-                        metadata['collectionshort'] = 'MCCP'
-                        metadata['locationqid'] = 'Q1053735'
-                        metadata['id'] = field_value
-                        metadata['idpid'] = 'P217'
-                        metadata['artworkidpid'] = 'P10760'
-                        metadata['artworkid'] = field_value
+                        # https://www.dhm.de/datenbank/ccp/mu.php?no=900/4
+                        if not '[' in field_value:
+                            metadata['collectionqid']= 'Q1053735'
+                            metadata['collectionshort'] = 'MCCP'
+                            metadata['locationqid'] = 'Q1053735'
+                            metadata['id'] = field_value
+                            metadata['idpid'] = 'P217'
+                            metadata['artworkidpid'] = 'P10760'
+                            metadata['artworkid'] = field_value
                         metadata['url'] = 'https://www.dhm.de/datenbank/ccp/mu.php?no=%s' % (field_value,)
                     elif field_name=='Linz-Nr. (laut Karte):' or field_name=='Linz-Nr. (laut DB Sonderauftrag Linz):':
                         # Add Linz collection and inventory number
@@ -88,12 +100,12 @@ def get_mccp_generator():
                         # print (field_value)
                         pass
                     elif field_name=='Künstler (Transkript):' or field_name=='Künstler:':
-                        name = field_value
-                        name_regex = '^([^,]+), ([^\(]+) \((.+)\)$'
+                        name = html.unescape(field_value).strip()
+                        name_regex = '^([^,]+), ([^\(]+)$'
                         name_match = re.match(name_regex, name)
 
                         if name_match:
-                            name = '%s %s (%s)' % (name_match.group(2), name_match.group(1), name_match.group(3))
+                            name = '%s %s' % (name_match.group(2), name_match.group(1))
                         metadata['creatorname'] = name
                         metadata['description'] = { 'de' : '%s von %s' % ('Gemälde', metadata.get('creatorname'),),
                                                     'nl' : '%s van %s' % ('schilderij', metadata.get('creatorname'),),
@@ -102,8 +114,11 @@ def get_mccp_generator():
                     elif field_name=='Material/Technik:':
                         if field_value in materials:
                             metadata['medium'] = materials.get(field_value)
+                            # It's a painting
+                            metadata['instanceofqid'] = 'Q3305213'
                         elif field_value.lower() in materials:
                             metadata['medium'] = materials.get(field_value.lower())
+                            metadata['instanceofqid'] = 'Q3305213'
                     elif field_name=='Höhe:':
                         metadata['heightcm'] = field_value
                     elif field_name=='Breite:':
@@ -117,7 +132,12 @@ def get_mccp_generator():
                             metadata['genreqid'] = 'Q134307'
                     elif field_name=='Herkunft/Verbleib/Sozietät:':
                         # This one needs more attention. Plenty of provenance info to find here
+                        field_value = field_value.strip()
                         print (field_value)
+                        # Cracow, Poland; Warsaw; National Museum
+                        if field_value.startswith('Budapest, Hung. Museum of Fine Arts'):
+                            metadata['extracollectionqid2'] = 'Q840886' # Museum of Fine Arts, Budapest
+
                         pass
                     else:
                         print ('Unknown field name "%s" with contents "%s"' % (field_name, field_value))
