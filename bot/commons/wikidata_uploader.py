@@ -357,7 +357,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                             'bot' : True,
                             }
                 #print (json.dumps(postdata, sort_keys=True, indent=4))
-                request = self.site._simple_request(**postdata)
+                request = self.site.simple_request(**postdata)
                 data = request.submit()
                 imagefile.touch()
 
@@ -467,7 +467,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         formats = { 'Q2195' : 'jpg', # Old most used item
                     'Q27996264' : 'jpg', # the split up file format item
                     'Q178051' : 'png',
-                    'Q215106' : 'tiff',
+                    #'Q215106' : 'tiff',
                     }
         if not metadata.get('format') or metadata.get('format') not in formats:
             return ''
