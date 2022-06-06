@@ -25,7 +25,7 @@ def wikidataCategoryGenerator(repo, qid, project):
                                            categorypage.site.lang,
                                            u'wikipedia',
                                            8,
-                                           categorypage.title(withNamespace=False),
+                                           categorypage.title(with_ns=False),
                                            typequery='nostatements')
         for item in gennostatements:
             yield item
@@ -33,7 +33,7 @@ def wikidataCategoryGenerator(repo, qid, project):
                                           categorypage.site.lang,
                                           u'wikipedia',
                                           8,
-                                          categorypage.title(withNamespace=False),
+                                          categorypage.title(with_ns=False),
                                           typequery='withoutitem')
         for item in genwithoutitem:
             yield item
@@ -72,7 +72,7 @@ def petscanGenerator(repo, lang, project, depth, categories, typequery='nostatem
                     u'categories' : categories,}
     # Sometimes breaks, just skip it and it will return in the next run
     try:
-        petpage = requests.get(url)
+        petpage = requests.get(url, timeout=180)
         for pageinfo in petpage.json().get(u'*')[0].get(u'a').get('*'):
             hitinfo = { u'title' : pageinfo.get(u'title').replace(u'_', u' '),
                         u'q' : pageinfo.get(u'q'),
@@ -83,7 +83,7 @@ def petscanGenerator(repo, lang, project, depth, categories, typequery='nostatem
                 # Get rid of placeholder images, paintings don't end in .svg
                 hitinfo['image'] = pageinfo.get('metadata').get('image')
             yield hitinfo
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, requests.exceptions.Timeout):
         return
 
 
