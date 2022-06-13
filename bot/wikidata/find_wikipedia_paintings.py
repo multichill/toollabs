@@ -11,9 +11,9 @@ import pywikibot
 import requests
 
 def wikidataCategoryGenerator(repo, qid, project):
-    '''
+    """
     Generator that takes a category item
-    '''
+    """
     categoryitem = pywikibot.ItemPage(repo, title=qid)
     # TODO: Figure out simple (also language code en)
     for categorypage in sorted(categoryitem.iterlinks(family=project), key=lambda page: page.site.lang):
@@ -39,7 +39,7 @@ def wikidataCategoryGenerator(repo, qid, project):
             yield item
 
 def petscanGenerator(repo, lang, project, depth, categories, typequery='nostatements'):
-    '''
+    """
     * Language
     * Project
     * Depth
@@ -49,7 +49,7 @@ def petscanGenerator(repo, lang, project, depth, categories, typequery='nostatem
     * Has no statements
 
     Used petscan1 for now because the new one mixes titles on Wikipedia with Qids
-    '''
+    """
     if typequery=='nostatements':
         query = u'https://petscan.wmflabs.org/?language=%(lang)s&project=%(project)s&depth=%(depth)s' \
                 u'&categories=%(categories)s&combination=subset&ns%%5B0%%5D=1&show_redirects=no&edits%%5Bbots%%5D=both' \
@@ -82,6 +82,23 @@ def petscanGenerator(repo, lang, project, depth, categories, typequery='nostatem
                     not pageinfo.get('metadata').get('image').endswith(u'.svg'):
                 # Get rid of placeholder images, paintings don't end in .svg
                 hitinfo['image'] = pageinfo.get('metadata').get('image')
+            # We got an item based on Wikipedia
+            if hitinfo.get('q'):
+                hitinfo['q_source'] = 'wikipedia'
+            # Try to find an item based on the image
+            elif hitinfo.get('image') and not hitinfo.get('q'):
+                commons = repo.image_repository()
+                imagefile = pywikibot.FilePage(commons, title=hitinfo.get('image'))
+                if imagefile.exists():
+                    mediaid = 'M%s' % (imagefile.pageid,)
+                    request = commons.simple_request(action='wbgetentities', ids=mediaid)
+                    data = request.submit()
+                    if data.get('entities').get(mediaid).get('pageid'):
+                        currentdata = data.get('entities').get(mediaid)
+                        if currentdata.get('statements') and currentdata.get('statements').get('P6243'):
+                            digital_statement = currentdata.get('statements').get('P6243')[0]
+                            hitinfo['q'] = digital_statement.get('mainsnak').get('datavalue').get('value').get('id')
+                            hitinfo['q_source'] = 'commons'
             yield hitinfo
     except (ValueError, TypeError, requests.exceptions.Timeout):
         return
@@ -98,7 +115,7 @@ def main():
     for iteminfo in gen:
         # With Qid
         if iteminfo.get(u'q'):
-            text = text + u'| [[%(q)s]] || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]' % iteminfo
+            text = text + u'| [[%(q)s]] (%(q_source)s) || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]' % iteminfo
         # Without Qid
         else:
             text = text + u'| None <small>(<span class="plainlinks">[//www.wikidata.org/w/index.php?title=Special:NewItem&site=%(lang)swiki&page={{urlencode:%(title)s}} c]</span>)</small> || %(lang)s || [[:%(lang)s:%(title)s|%(title)s]]' % iteminfo
