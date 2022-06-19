@@ -318,8 +318,11 @@ class ArtDataBot:
         # Add a link to the item in a collection. Either described at URL (P973) or custom.
         self.addCollectionLink(artworkItem, metadata)
 
-        # Update the collection with a start date and add extra collections.
+        # Update the collection with a start and end date
         self.updateCollection(artworkItem, metadata)
+
+        # Add extra collections
+        self.add_extra_collections(artworkItem, metadata)
 
         # Add catalog code
         self.addCatalogCode(artworkItem, metadata)
@@ -514,8 +517,6 @@ class ArtDataBot:
         """
         Update the collection with a start/end date and add extra collections.
 
-        This is a bit of a weird function and needs to be improved.
-
         :param item: The artwork item to work on
         :param metadata: All the metadata about this artwork, should contain the acquisitiondate/deaccessiondate field
         :return: Nothing, updates item in place
@@ -547,19 +548,6 @@ class ArtDataBot:
                         colqualifier.setTarget(deaccessiondate)
                         pywikibot.output('Update collection claim with end time on %s' % item)
                         collectionclaim.addQualifier(colqualifier)
-
-        if metadata.get('extracollectionqid'):
-            self.addCollection(item, metadata.get('extracollectionqid'), metadata)
-            if metadata.get('extraid'):
-                self.addExtraId(item, metadata.get('extraid'), metadata.get('extracollectionqid'), metadata)
-        if metadata.get('extracollectionqid2'):
-            self.addCollection(item, metadata.get('extracollectionqid2'), metadata)
-            if metadata.get('extraid2'):
-                self.addExtraId(item, metadata.get('extraid2'), metadata.get('extracollectionqid2'), metadata)
-        if metadata.get('extracollectionqid3'):
-            self.addCollection(item, metadata.get('extracollectionqid3'), metadata)
-            if metadata.get('extraid3'):
-                self.addExtraId(item, metadata.get('extraid3'), metadata.get('extracollectionqid3'), metadata)
 
     def parse_date(self, date_string):
         """
@@ -593,6 +581,26 @@ class ArtDataBot:
                     pywikibot.output(u'Also can not parse %sZ' % (date_string,))
             return parsed_date
 
+    def add_extra_collections(self, item, metadata):
+        """
+        Add extra collections and identifiers
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork
+        :return: Nothing, updates item in place
+        """
+        if metadata.get('extracollectionqid'):
+            self.addCollection(item, metadata.get('extracollectionqid'), metadata)
+            if metadata.get('extraid'):
+                self.addExtraId(item, metadata.get('extraid'), metadata.get('extracollectionqid'), metadata)
+        if metadata.get('extracollectionqid2'):
+            self.addCollection(item, metadata.get('extracollectionqid2'), metadata)
+            if metadata.get('extraid2'):
+                self.addExtraId(item, metadata.get('extraid2'), metadata.get('extracollectionqid2'), metadata)
+        if metadata.get('extracollectionqid3'):
+            self.addCollection(item, metadata.get('extracollectionqid3'), metadata)
+            if metadata.get('extraid3'):
+                self.addExtraId(item, metadata.get('extraid3'), metadata.get('extracollectionqid3'), metadata)
 
     def addCollection(self, item, collectionqid, metadata):
         """
