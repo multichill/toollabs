@@ -86,6 +86,8 @@ class ArtDataBot:
                 artworkItem = self.createArtworkItem(metadata)
 
             if artworkItem and artworkItem.exists():
+                if artworkItem.isRedirectPage():
+                    artworkItem = artworkItem.getRedirectTarget()
                 metadata['wikidata'] = artworkItem.title()
                 self.updateArtworkItem(artworkItem, metadata)
 
