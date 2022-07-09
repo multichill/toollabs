@@ -291,11 +291,7 @@ class ArtDataBot:
         self.addItemStatement(artworkItem, u'P276', metadata.get(u'locationqid'), metadata.get(u'refurl'))
 
         # Add creator (P170) to the item.
-        self.addItemStatement(artworkItem, u'P170', metadata.get(u'creatorqid'), metadata.get(u'refurl'))
-
-        # Uncertain creator
-        # 'uncertaincreatorqid'
-        # 'uncertaincreatorqualifier'
+        self.add_creator(artworkItem, metadata)
 
         # Add inception (P571) to the item.
         self.addInception(artworkItem, metadata)
@@ -367,12 +363,22 @@ class ArtDataBot:
         """
         descriptions = copy.deepcopy(item.get().get('descriptions'))
 
+        replace_descriptions = {'de': 'gemälde',
+                                'en': 'painting',
+                                'fr': 'peinture',
+                                'nl': 'schilderij',
+                                }
+
         if metadata.get('description'):
             descriptionschanged = False
             for lang, description in metadata['description'].items():
                 if lang not in descriptions:
                     descriptions[lang] = description
                     descriptionschanged = True
+                elif lang in replace_descriptions:
+                    if descriptions.get(lang).lower() == replace_descriptions.get(lang).lower():
+                        descriptions[lang] = description
+                        descriptionschanged = True
             if descriptionschanged:
                 summary = u'Adding missing description(s) from %s' % (metadata.get(u'refurl'),)
                 try:
@@ -388,6 +394,74 @@ class ArtDataBot:
                                                                       metadata['collectionshort'],
                                                                       metadata['id'],)
                         item.editDescriptions(descriptions, summary=summary)
+
+    def add_creator(self, item, metadata):
+        """
+        Add the creator statement
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork
+        :return:
+        """
+        if metadata.get('creatorqid'):
+            if metadata.get('creatorqid') == 'Q4233718':
+                self.add_anonymous_creator(item, metadata)
+            else:
+                # Normal non anoymous creator to add
+                self.addItemStatement(item, 'P170', metadata.get('creatorqid'), metadata.get('refurl'))
+        elif metadata.get('uncertaincreatorqid') and metadata.get('creatorqualifierpid'):
+            if metadata.get('creatorqualifiernames') and metadata.get('creatorqualifiernames').get('en') and \
+                    metadata.get('creatorqualifiernames').get('en') == 'attributed to':
+                newclaim = pywikibot.Claim(self.repo, 'P170')
+                destitem = pywikibot.ItemPage(self.repo, metadata.get('uncertaincreatorqid'))
+                if destitem.isRedirectPage():
+                    destitem = destitem.getRedirectTarget()
+                newclaim.setTarget(destitem)
+                item.addClaim(newclaim)
+
+                # nature of statement (P5102) -> attribution (Q230768)
+                newqualifier = pywikibot.Claim(self.repo, 'P5102')
+                attribution_item = pywikibot.ItemPage(self.repo, 'Q230768')
+                if attribution_item.isRedirectPage():
+                    attribution_item = attribution_item.getRedirectTarget()
+                newqualifier.setTarget(attribution_item)
+                newclaim.addQualifier(newqualifier)
+                self.addReference(item, newclaim, metadata.get('refurl'))
+            else:
+                self.add_anonymous_creator(item, metadata)
+
+    def add_anonymous_creator(self, item, metadata):
+        """
+        Add the creator statement for an anonymous creator.
+
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork
+        :return:
+        """
+        claims = item.get().get('claims')
+
+        if 'P170' in claims:
+            # Already has creator. Could implement adding a missing reference
+            return
+
+        newclaim = pywikibot.Claim(self.repo, 'P170')
+        newclaim.setSnakType('somevalue')
+        item.addClaim(newclaim)
+
+        newqualifier = pywikibot.Claim(self.repo, 'P3831')
+        anonymous = pywikibot.ItemPage(self.repo, 'Q4233718')
+        newqualifier.setTarget(anonymous)
+        newclaim.addQualifier(newqualifier)
+
+        if metadata.get('creatorqualifierpid') and metadata.get('uncertaincreatorqid'):
+            newqualifier = pywikibot.Claim(self.repo, metadata.get('creatorqualifierpid'))
+            destitem = pywikibot.ItemPage(self.repo, metadata.get('uncertaincreatorqid'))
+            if destitem.isRedirectPage():
+                destitem = destitem.getRedirectTarget()
+            newqualifier.setTarget(destitem)
+            newclaim.addQualifier(newqualifier)
+
+        self.addReference(item, newclaim, metadata.get('refurl'))
 
     def addTitle(self, item, metadata):
         """
