@@ -144,16 +144,16 @@ class ArtDataBot:
         except pywikibot.exceptions.APIError:
             # TODO: Check if this is pywikibot.exceptions.OtherPageSaveError too
             # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
-            pywikibot.output(u'Oops, already had that one. Trying again')
-            for lang, description in metadata['description'].items():
-                data['descriptions'][lang] = {'language': lang, 'value': u'%s (%s %s)' % (description, metadata['collectionshort'], metadata['id'],) }
-            try:
-                result = self.repo.editEntity(identification, data, summary=summary)
-            except pywikibot.exceptions.APIError:
-                pywikibot.output(u'Oops, retry also failed. Skipping this one.')
-                # Just skip this one
-                return
-            pass
+            if metadata.get('collectionshort'):
+                pywikibot.output('Oops, already had that one. Trying again with the collection added')
+                for lang, description in metadata['description'].items():
+                    data['descriptions'][lang] = {'language': lang, 'value': u'%s (%s %s)' % (description, metadata['collectionshort'], metadata['id'],) }
+                try:
+                    result = self.repo.editEntity(identification, data, summary=summary)
+                except pywikibot.exceptions.APIError:
+                    pywikibot.output(u'Oops, retry also failed. Skipping this one.')
+                    # Just skip this one
+                    return
 
         artworkItemTitle = result.get(u'entity').get('id')
 
@@ -293,6 +293,10 @@ class ArtDataBot:
         # Add creator (P170) to the item.
         self.addItemStatement(artworkItem, u'P170', metadata.get(u'creatorqid'), metadata.get(u'refurl'))
 
+        # Uncertain creator
+        # 'uncertaincreatorqid'
+        # 'uncertaincreatorqualifier'
+
         # Add inception (P571) to the item.
         self.addInception(artworkItem, metadata)
 
@@ -377,13 +381,13 @@ class ArtDataBot:
                     # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
                     descriptions = copy.deepcopy(item.get().get('descriptions'))
                     pywikibot.output(u'Oops, already had that label/description combination. Trying again')
-                    for lang, description in metadata['description'].items():
-                        if lang not in descriptions:
-                            descriptions[lang] = u'%s (%s %s)' % (description,
-                                                                  metadata['collectionshort'],
-                                                                  metadata['id'],)
-                    item.editDescriptions(descriptions, summary=summary)
-                    pass
+                    if metadata.get('collectionshort'):
+                        for lang, description in metadata['description'].items():
+                            if lang not in descriptions:
+                                descriptions[lang] = u'%s (%s %s)' % (description,
+                                                                      metadata['collectionshort'],
+                                                                      metadata['id'],)
+                        item.editDescriptions(descriptions, summary=summary)
 
     def addTitle(self, item, metadata):
         """
@@ -735,7 +739,12 @@ class ArtDataBot:
                     'tempera on walnut panel' : {'paint' : 'Q175166', 'surface' : 'Q107103575'},
                     'tempera on paper' : {'paint' : 'Q175166', 'surface' : 'Q11472'},
                     'acrylic paint on canvas' : {'paint' : 'Q207849', 'surface' : 'Q12321255'},
+                    'acrylic on canvas' : {'paint' : 'Q207849', 'surface' : 'Q12321255'},
                     'acrylic paint on panel' : {'paint' : 'Q207849', 'surface' : 'Q106857709'},
+                    'acrylic on panel' : {'paint' : 'Q207849', 'surface' : 'Q106857709'},
+                    'acrylic on wood panel' : {'paint' : 'Q207849', 'surface' : 'Q106857709'},
+                    'acrylic paint on paper' : {'paint' : 'Q207849', 'surface' : 'Q11472'},
+                    'acrylic on paper' : {'paint' : 'Q207849', 'surface' : 'Q11472'},
                     'watercolor on paper' : {'paint' : 'Q22915256', 'surface' : 'Q11472'},
                     # In Germany often the type of paint is not mentioned.
                     'paint on canvas' : {'paint' : 'Q174219', 'surface' : 'Q12321255'},
@@ -993,15 +1002,20 @@ class ArtDataBot:
 
     def addItemStatement(self, item, pid, qid, url):
         """
-        Helper function to add a statement
+        Helper function to add a statement or add missing reference to existing statement
         """
         if not qid:
             return False
 
         claims = item.get().get('claims')
         if pid in claims:
+            if len(claims.get(pid)) == 1:
+                claim = claims.get(pid)[0]
+                if claim and claim.getTarget() and claim.getTarget().title() and claim.getTarget().title() == qid:
+                    if not claim.getSources():
+                        self.addReference(item, claim, url)
             return
-        
+
         newclaim = pywikibot.Claim(self.repo, pid)
         destitem = pywikibot.ItemPage(self.repo, qid)
         if destitem.isRedirectPage():
