@@ -303,7 +303,10 @@ class ArtDataBot:
         self.addTitle(artworkItem, metadata)
 
         # Add genre (P136) to the item
-        self.addItemStatement(artworkItem, u'P136', metadata.get(u'genreqid'), metadata.get(u'refurl'))
+        self.addItemStatement(artworkItem, 'P136', metadata.get('genreqid'), metadata.get('refurl'))
+
+        # Add religion or worldview (P140)
+        self.addItemStatement(artworkItem, 'P140', metadata.get('religionqid'), metadata.get('refurl'))
 
         # Add the material used (P186) based on the medium to the item.
         self.addMaterialUsed(artworkItem, metadata)
@@ -403,13 +406,14 @@ class ArtDataBot:
         :param metadata: All the metadata about this artwork
         :return:
         """
+        claims = item.get().get('claims')
         if metadata.get('creatorqid'):
             if metadata.get('creatorqid') == 'Q4233718':
                 self.add_anonymous_creator(item, metadata)
             else:
                 # Normal non anoymous creator to add
                 self.addItemStatement(item, 'P170', metadata.get('creatorqid'), metadata.get('refurl'))
-        elif metadata.get('uncertaincreatorqid') and metadata.get('creatorqualifierpid'):
+        elif 'P170' not in claims and metadata.get('uncertaincreatorqid') and metadata.get('creatorqualifierpid'):
             if metadata.get('creatorqualifiernames') and metadata.get('creatorqualifiernames').get('en') and \
                     metadata.get('creatorqualifiernames').get('en') == 'attributed to':
                 newclaim = pywikibot.Claim(self.repo, 'P170')
@@ -841,6 +845,7 @@ class ArtDataBot:
         paint = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower().strip()).get('paint'))
         surface = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower().strip()).get('surface'))
         painting_surface = pywikibot.ItemPage(self.repo, 'Q861259')
+        # FIXME: Add painting mount too, see https://www.wikidata.org/wiki/Q107105674
 
         if 'P186' not in claims:
             newclaim = pywikibot.Claim(self.repo, 'P186')
@@ -1076,7 +1081,7 @@ class ArtDataBot:
 
     def addItemStatement(self, item, pid, qid, url):
         """
-        Helper function to add a statement or add missing reference to existing statement
+        Helper function to add a statement, or add missing reference, or update reference to existing statement
         """
         if not qid:
             return False
@@ -1088,6 +1093,11 @@ class ArtDataBot:
                 if claim and claim.getTarget() and claim.getTarget().title() and claim.getTarget().title() == qid:
                     if not claim.getSources():
                         self.addReference(item, claim, url)
+                    else:
+                        removable_source = self.is_removable_sources(claim.getSources())
+                        if removable_source:
+                            claim.removeSource(removable_source, summary='Removing to add better source')
+                            self.addReference(item, claim, url)
             return
 
         newclaim = pywikibot.Claim(self.repo, pid)
@@ -1113,6 +1123,21 @@ class ArtDataBot:
         refdate.setTarget(date)
         newclaim.addSources([refurl, refdate])
 
+    def is_removable_sources(self, sources):
+        """
+        Will return the source claim if the list of sources is one entry and only is imported from and nothing else
+        :param sources: The list of sources
+        :return: Source claim
+        """
+        if not len(sources) == 1:
+            return False
+        source = sources[0]
+        if not len(source) == 1:
+            return False
+        # FIXME: Handle Commons import cases like https://www.wikidata.org/wiki/Q112876539
+        if 'P143' not in source:
+            return False
+        return source.get('P143')[0]
 
 def main():
     print ( u'Dude, write your own bot')
