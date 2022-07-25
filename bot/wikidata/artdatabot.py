@@ -834,39 +834,69 @@ class ArtDataBot:
                     'paint on pine panel' : {'paint' : 'Q174219', 'surface' : 'Q106940268'},
                     'paint on poplar panel' : {'paint' : 'Q174219', 'surface' : 'Q106857865'},
                     'paint on walnut panel' : {'paint' : 'Q174219', 'surface' : 'Q107103575'},
-                    'paint on paper' : {'paint' : 'Q174219', 'surface' : 'Q11472'},
-                    'paint on copper' : {'paint' : 'Q174219', 'surface' : 'Q753'},
+                    'paint on paper': {'paint': 'Q174219', 'surface': 'Q11472'},
+                    'paint on copper': {'paint': 'Q174219', 'surface': 'Q753'},
+                    'black chalk on paper': {'paint': 'Q3387833', 'surface': 'Q11472'},
+                    'black chalk on cardboard': {'paint': 'Q3387833', 'surface': 'Q18668582'},
+                    'charcoal on paper': {'paint': 'Q1424515', 'surface': 'Q11472'},
+                    'charcoal on cardboard': {'paint': 'Q1424515', 'surface': 'Q18668582'},
+                    'oil on canvas on panel': {'paint': 'Q296955', 'surface': 'Q12321255', 'mount': 'Q106857709'},
+                    'oil on paper on panel': {'paint': 'Q296955', 'surface': 'Q11472', 'mount': 'Q106857709'},
+                    'oil on canvas on cardboard': {'paint': 'Q296955', 'surface': 'Q12321255', 'mount': 'Q18668582'},
+                    'oil on cardboard on panel': {'paint': 'Q296955', 'surface': 'Q18668582', 'mount': 'Q106857709'},
+                    'oil on paper on cardboard': {'paint': 'Q296955', 'surface': 'Q11472', 'mount': 'Q18668582'},
+                    'tempera on canvas on panel': {'paint': 'Q175166', 'surface': 'Q12321255', 'mount': 'Q106857709'},
                     }
         if not metadata.get('medium'):
             return
-        elif metadata.get('medium').lower().strip() not in mediums:
+        medium = metadata.get('medium').lower().strip()
+        if medium not in mediums:
             pywikibot.output('Unable to match medium "%s" to materials' % (metadata.get('medium'),))
             return
-        paint = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower().strip()).get('paint'))
-        surface = pywikibot.ItemPage(self.repo, mediums.get(metadata.get('medium').lower().strip()).get('surface'))
+        paint = pywikibot.ItemPage(self.repo, mediums.get(medium).get('paint'))
+        surface = pywikibot.ItemPage(self.repo, mediums.get(medium).get('surface'))
+        mount = None
+        if mediums.get(medium).get('mount'):
+            mount = pywikibot.ItemPage(self.repo, mediums.get(medium).get('mount'))
+
         painting_surface = pywikibot.ItemPage(self.repo, 'Q861259')
-        # FIXME: Add painting mount too, see https://www.wikidata.org/wiki/Q107105674
+        painting_mount = pywikibot.ItemPage(self.repo, 'Q107105674')
 
         if 'P186' not in claims:
+            # Paint
             newclaim = pywikibot.Claim(self.repo, 'P186')
             newclaim.setTarget(paint)
             pywikibot.output('Adding new paint claim to %s' % item)
             item.addClaim(newclaim)
             self.addReference(item, newclaim, metadata['refurl'])
 
+            # Surface
             newclaim = pywikibot.Claim(self.repo, 'P186')
             newclaim.setTarget(surface)
             pywikibot.output('Adding new painting surface claim to %s' % item)
             item.addClaim(newclaim)
-
+            # Surface qualifier
             newqualifier = pywikibot.Claim(self.repo, 'P518') #Applies to part
             newqualifier.setTarget(painting_surface)
             pywikibot.output('Adding new painting surface qualifier claim to %s' % item)
             newclaim.addQualifier(newqualifier)
             self.addReference(item, newclaim, metadata['refurl'])
-        elif 'P186' in claims and len(claims.get('P186'))==1:
+
+            # Mount if we have it
+            if mount:
+                newclaim = pywikibot.Claim(self.repo, 'P186')
+                newclaim.setTarget(mount)
+                pywikibot.output('Adding new painting mount claim to %s' % item)
+                item.addClaim(newclaim)
+                newqualifier = pywikibot.Claim(self.repo, 'P518')
+                newqualifier.setTarget(painting_mount)
+                pywikibot.output('Adding new painting mount qualifier claim to %s' % item)
+                newclaim.addQualifier(newqualifier)
+                self.addReference(item, newclaim, metadata['refurl'])
+
+        elif 'P186' in claims and len(claims.get('P186')) == 1 and not mount:
             madeclaim = claims.get('P186')[0]
-            if madeclaim.getTarget()==surface:
+            if madeclaim.getTarget() == surface:
                 if not madeclaim.getSources():
                     self.addReference(item, madeclaim, metadata['refurl'])
                 newclaim = pywikibot.Claim(self.repo, 'P186')
@@ -874,7 +904,7 @@ class ArtDataBot:
                 pywikibot.output('Adding missing paint claim to %s' % item)
                 item.addClaim(newclaim, summary='Adding missing paint statement')
                 self.addReference(item, newclaim, metadata['refurl'])
-            elif madeclaim.getTarget()==paint:
+            elif madeclaim.getTarget() == paint:
                 if not madeclaim.getSources():
                     self.addReference(item, madeclaim, metadata['refurl'])
                 newclaim = pywikibot.Claim(self.repo, 'P186')
@@ -887,7 +917,7 @@ class ArtDataBot:
                 pywikibot.output('Adding new painting surface qualifier claim to %s' % item)
                 newclaim.addQualifier(newqualifier)
                 self.addReference(item, newclaim, metadata['refurl'])
-        elif 'P186' in claims and len(claims.get('P186'))==2:
+        elif 'P186' in claims and len(claims.get('P186')) == 2 and not mount:
             for madeclaim in claims.get('P186'):
                 if madeclaim.getTarget()==surface or madeclaim.getTarget()==paint:
                     if not madeclaim.getSources():
