@@ -1,10 +1,15 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import paintings from the Dordrechts Museum to Wikidata.
+Bot to that was used to import paintings from the Dordrechts Museum to Wikidata.
 
-Using the v2 dimcon api, see
+It used the dimconv2 api, which was at this url:
 http://www.dimcon.nl/api/search/v2/?q=&qf=edm_dataProvider%3ADordrechts+Museum&qf=dc_type%3Aschilderij&rows=50&format=json&start=1
+
+This some Dutch publicly funded project that wasn't build to last, see:
+https://www.kennisvoorcollecties.nl/programmas/museometrie/verkenning-landschap-museometrie/
+
+API might still be available somewhere else.
 
 This bot uses artdatabot to upload it to Wikidata
 
@@ -16,9 +21,8 @@ import re
 
 def getDordrechtsGenerator():
     """
-    Generator to return Groninger Museum paintings
+    Generator to return Dordrecht Museum paintings
 
-    
     """
     basesearchurl = u'http://www.dimcon.nl/api/search/v2/?q=&qf=edm_dataProvider%%3ADordrechts+Museum&qf=dc_type%%3Aschilderij&format=json&start=%s&rows=%s'
     start = 1
