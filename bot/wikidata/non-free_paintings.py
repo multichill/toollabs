@@ -11,6 +11,8 @@ so we don't end up accidentally uploading these images. It takes the existing cl
 US cases are complicated, see https://commons.wikimedia.org/wiki/Commons:Hirtle_chart .
 Some of the US images might be free, but just clog up the queue and can still be uploaded based on the other property.
 
+The bot won't only work on paintings, but on all 2D works.
+
 """
 import pywikibot
 from pywikibot import pagegenerators, WikidataBot
@@ -38,8 +40,8 @@ class NonFreePaintingBot(WikidataBot):
         """
         query = """
 SELECT DISTINCT ?item WHERE {
-  ?item p:P4765 ?commonscompatible .
-  ?item wdt:P31 wd:Q3305213 .
+  ?item p:P4765 ?commonscompatible ;
+        wdt:P31/wdt:P279 wd:Q93184 .
   { ?item wdt:P571 ?inception . FILTER(YEAR(?inception) > (YEAR(NOW())-92) ) } UNION
   { ?item wdt:P170 ?creator . ?creator wdt:P569 ?dob . FILTER(YEAR(?dob) > (YEAR(NOW())-95) ) } UNION
   { ?item wdt:P170 ?creator . ?creator wdt:P570 ?dod . FILTER(YEAR(?dod) > (YEAR(NOW())-68) ) } .
