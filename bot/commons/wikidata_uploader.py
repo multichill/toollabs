@@ -384,7 +384,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
                 newimagesize = imagefile.latest_file_info.size
                 currentsize = claim.getTarget().latest_file_info.size
                 # Only replace if new one is at least 4 times larger and not a tiff file
-                if not currentsize * 4 < newimagesize and metadata.get('format') != 'Q215106':
+                if (currentsize * 4 < newimagesize) and metadata.get('format') != 'Q215106':
                     summary = u'replacing with much larger image'
                     claim.changeTarget(imagefile, summary=summary)
                     replacedimage = True
