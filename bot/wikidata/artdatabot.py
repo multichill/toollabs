@@ -308,6 +308,9 @@ class ArtDataBot:
         # Add religion or worldview (P140)
         self.addItemStatement(artworkItem, 'P140', metadata.get('religionqid'), metadata.get('refurl'))
 
+        # Add pendant of (P1639)
+        self.addItemStatement(artworkItem, 'P1639', metadata.get('pendantqid'), metadata.get('refurl'))
+
         # Add the material used (P186) based on the medium to the item.
         self.addMaterialUsed(artworkItem, metadata)
 

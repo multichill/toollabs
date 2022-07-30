@@ -55,7 +55,8 @@ class RKDImagesExpanderGenerator():
             * generator    - A generator that yields ItemPage objects.
         """
         self.generator = generator
-        self.rkd_artists = self.get_rkd_artists()
+        self.rkd_artists = self.get_id_lookup_table('P650')
+        self.rkd_images = self.get_id_lookup_table('P350')
         self.repo = pywikibot.Site().data_repository()
         self.object_types = {'painting': {'qid': 'Q3305213',
                                           'labels': {'en': 'painting',
@@ -115,13 +116,14 @@ class RKDImagesExpanderGenerator():
                                                      },
                                    }
 
-    def get_rkd_artists(self):
+    def get_id_lookup_table(self, id_property):
         """
-        Make a lookup table for RKDartists
+        Make a lookup table for provided id property
+        :param id_property: String like P350
         :return: The lookup table as a dict
         """
         result = {}
-        query = """SELECT ?item ?id WHERE { ?item wdt:P650 ?id }"""
+        query = """SELECT ?item ?id WHERE { ?item wdt:%s ?id }""" % (id_property,)
         sq = pywikibot.data.sparql.SparqlQuery()
         query_result = sq.select(query)
 
@@ -196,6 +198,7 @@ class RKDImagesExpanderGenerator():
         metadata.update(self.get_medium(rkdimages_docs))
         metadata.update(self.get_inception(rkdimages_docs))
         metadata.update(self.get_genre(rkdimages_docs))
+        metadata.update(self.get_pendant(rkdimages_docs))
         metadata.update(self.get_dimensions(rkdimages_docs))
 
         # Format?
@@ -479,6 +482,22 @@ class RKDImagesExpanderGenerator():
                     metadata['genreqid'] = genres.get(genre)
         return metadata
 
+    def get_pendant(self, rkdimages_docs):
+        """
+        Get the pendant of this one. Could later be changed to also get different kind of relations
+        :param rkdimages_docs:
+        :return:
+        """
+        metadata = {}
+        if rkdimages_docs.get('onderdeel_van') and len(rkdimages_docs.get('onderdeel_van')) == 1:
+            onderdeel_van = rkdimages_docs.get('onderdeel_van')[0]
+            if onderdeel_van.get('onderdeel_van_verband') == 'pendant':
+                if onderdeel_van.get('object_onderdeel_van') and len(onderdeel_van.get('object_onderdeel_van')) == 1:
+                    pendant_rkdimages_id = onderdeel_van.get('object_onderdeel_van')[0].get('priref')
+                    if pendant_rkdimages_id in self.rkd_images:
+                        metadata['pendantqid'] = self.rkd_images.get(pendant_rkdimages_id)
+        return metadata
+
     def get_dimensions(self, rkdimages_docs):
         """
         Get the width and height. The virtualFields also contains vorm-maten, but that appears to be just these two
@@ -664,6 +683,10 @@ LIMIT 10000"""
   ?item p:P31 [ prov:wasDerivedFrom [ pr:P143 ?reference ] ; ps:P31 wd:Q3305213 ] ;
         wdt:P350 [] .
   } LIMIT 2000"""
+        query = """SELECT ?item WHERE {
+  ?item wdt:P350 ?id ;
+        wdt:P170 wd:Q167654 .
+} LIMIT 10000"""
         generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     metadata_generator = RKDImagesExpanderGenerator(generator)
