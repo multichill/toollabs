@@ -1115,7 +1115,10 @@ def main(*args):
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Schloss Wilhelmshöhe',
                                },
                 u'Q702726' : { u'collectienaam' : u'Joods Historisch Museum',
-                               u'replacements' : [],
+                               u'replacements' : [('^(\d{3,3})$', 'M000\\1'),
+                                                  ('^(\d{4,4})$', 'M00\\1'),
+                                                  ('^(\d{5,5})$', 'M0\\1'),
+                                                  ('^JHM (\d{5,5})$', 'M0\\1'),],
                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jewish Historical Museum',
                                },
                 u'Q1421440' : { u'collectienaam' : u'Fitzwilliam Museum',
@@ -1289,7 +1292,11 @@ def main(*args):
                 u'Q475667' : { 'collectienaam' : 'Führermuseum',
                                'replacements' : [],
                                'pageTitle' : 'Wikidata:WikiProject sum of all paintings/RKD to match/Führermuseum',
-                                 }, # Next on the TODO is Museum Het Valkhof
+                                 },
+                u'Q15638014' : { 'collectienaam' : 'The Leiden Collection',
+                               'replacements' : [],
+                               'pageTitle' : 'Wikidata:WikiProject sum of all paintings/RKD to match/Leiden Collection',
+                               },# Next on the TODO is Museum Het Valkhof
                 #u'Q768717' : { u'collectienaam' : u'Private collection', # Probably still too big
                 #                u'replacements' : [],
                 #                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Private collection',
