@@ -255,14 +255,11 @@ class RKDImagesExpanderGenerator():
         one_attribution = False
         if rkdimages_docs.get('toeschrijving') and len(rkdimages_docs.get('toeschrijving')) == 1:
             toeschrijving = rkdimages_docs.get('toeschrijving')[0]
-            print (toeschrijving)
             if toeschrijving.get('status') and toeschrijving.get('status') == 'huidig':
                 one_attribution = True
         elif rkdimages_docs.get('toeschrijving') and len(rkdimages_docs.get('toeschrijving')) == 2:
             toeschrijving = rkdimages_docs.get('toeschrijving')[0]
             toeschrijving2 = rkdimages_docs.get('toeschrijving')[1]
-            print (toeschrijving)
-            print(toeschrijving2)
             toeschrijving.pop('opmerking_toeschrijving', None)
             if toeschrijving.get('status') and toeschrijving.get('status') == 'huidig':
                 if toeschrijving2.get('status') and toeschrijving2.get('status') == 'huidig':
@@ -393,8 +390,6 @@ class RKDImagesExpanderGenerator():
         latest_date = rkdimages_docs.get('zoekmarge_einddatum')
         if not earliest_date or not latest_date:
             return {}
-        print(rkdimages_docs.get('zoekmarge_begindatum'))
-        print(rkdimages_docs.get('zoekmarge_einddatum'))
         if rkdimages_docs.get('datering'):
             date = rkdimages_docs.get('datering')[0]
 
@@ -541,13 +536,27 @@ def main(*args):
     dryrun = False
     create = False
     source = False
+    query = ''
     for arg in pywikibot.handle_args(args):
-        if arg.startswith('-dry'):
+        if arg == '-dry':
             dryrun = True
-        elif arg=='-create':
+        elif arg == '-create':
             create = True
-        elif arg=='-source':
+        elif arg == '-source':
             source = True
+        elif arg == '-recentedited':
+            query = """SELECT ?item WHERE {
+  ?item wdt:P350 ?id ; schema:version ?revision
+} ORDER BY DESC(?revision) LIMIT 2000"""
+        elif arg == '-recentcreated':
+            query = """SELECT ?item WHERE {
+  ?item wdt:P350 ?id .
+  BIND (xsd:integer(STRAFTER(str(?item), "Q")) AS ?qid)
+} ORDER BY DESC(?qid) LIMIT 1000"""
+        elif arg == '-allrkdimages':
+            query = """SELECT ?item WHERE {
+  ?item wdt:P350 ?id .
+} ORDER BY ASC(xsd:integer(?id))"""
 
     repo = pywikibot.Site().data_repository()
     if create:
@@ -606,87 +615,89 @@ def main(*args):
     else:
         pywikibot.output(u'Going to try to expand existing artworks')
 
-        query = u"""SELECT DISTINCT ?item {
-            ?item wdt:P350 [] .
-            #?item wdt:P31 wd:Q5 . # Needs to be human
-            MINUS { ?item wdt:P1257 [] . # No Iconclass
-                    #?item wdt:P106 [] . # No occupation
-                    #?item wdt:P569 [] . # No date of birth
-                   } 
-            }"""
-        query = """SELECT DISTINCT ?item WHERE {
-  ?item wdt:P350 ?value.
-  MINUS {
-    ?item rdfs:label ?enlabel.
-    FILTER((LANG(?enlabel)) = "en")
-    ?item rdfs:label ?nllabel.
-    FILTER((LANG(?nllabel)) = "nl")    
-  }
-}
-LIMIT 100000"""
-        query = """SELECT DISTINCT ?item WHERE {
-  ?item wdt:P350 ?value.
-  MINUS {
-    ?item wdt:P170 []
-  }
-}
-LIMIT 10000"""
-        query2 = """SELECT ?item WHERE {
-  ?item wdt:P350 ?id ;
-        p:P170 ?creatorstatement .
-    FILTER NOT EXISTS { ?creatorstatement prov:wasDerivedFrom ?derivedFrom .}
-} LIMIT 10"""
-        query = """SELECT ?item WHERE {
-  ?item wdt:P350 ?id ;
-        p:P31 ?statement .
-    FILTER NOT EXISTS { ?statement prov:wasDerivedFrom ?derivedFrom .}
-} LIMIT 10000"""
-        query3 = """SELECT ?item WHERE {
-  ?item wdt:P350 ?id ;
-    FILTER NOT EXISTS { ?item wdt:P136 [] }
-} LIMIT 100"""
-        query = """SELECT ?item WHERE {
-  ?item wdt:P350 ?id ;
-    FILTER NOT EXISTS { ?item wdt:P186 [] }
-} LIMIT 10000"""
-        query = """SELECT ?item WHERE {
-  ?item wdt:P350 ?id ;
-    FILTER NOT EXISTS { ?item wdt:P31 [] ;
-                              wdt:P170 [] ;
-                              wdt:P571 [] ;
-                              wdt:P2048 [] ;
-                              wdt:P2049 [] ;
-                              wdt:P186 [] ;
-                              wdt:P136 [] ;
-                              wdt:P1476 [] .
-                      }
-} LIMIT 10000"""
-        query2 = """SELECT ?item WHERE {
-  ?item wdt:P350 ?id .
-  MINUS { ?item rdfs:label ?enlabel;
-                rdfs:label ?nllabel;
-                FILTER(LANG(?enlabel)="en" && LANG(?nllabel)="nl") }				
-} LIMIT 10000"""
-        query2 = """SELECT ?item WHERE {
-  ?item wdt:P350 ?id .
-  MINUS { ?item schema:description ?endescription;
-                schema:description ?nldescription.
-                FILTER(LANG(?endescription)="en" && LANG(?nldescription)="nl") }
-} LIMIT 1000"""
-        query = """SELECT ?item WHERE {
-  ?item wdt:P350 ?id ;
-    FILTER NOT EXISTS { ?item wdt:P31 [] ;
-                              wdt:P170 [] .
-                      }
-} LIMIT 10000"""
-        query2 = """SELECT ?item WHERE {
-  ?item p:P31 [ prov:wasDerivedFrom [ pr:P143 ?reference ] ; ps:P31 wd:Q3305213 ] ;
-        wdt:P350 [] .
-  } LIMIT 2000"""
-        query = """SELECT ?item WHERE {
-  ?item wdt:P350 ?id ;
-        wdt:P170 wd:Q167654 .
-} LIMIT 10000"""
+        if not query:
+
+            query = u"""SELECT DISTINCT ?item {
+                ?item wdt:P350 [] .
+                #?item wdt:P31 wd:Q5 . # Needs to be human
+                MINUS { ?item wdt:P1257 [] . # No Iconclass
+                        #?item wdt:P106 [] . # No occupation
+                        #?item wdt:P569 [] . # No date of birth
+                       } 
+                }"""
+            query = """SELECT DISTINCT ?item WHERE {
+      ?item wdt:P350 ?value.
+      MINUS {
+        ?item rdfs:label ?enlabel.
+        FILTER((LANG(?enlabel)) = "en")
+        ?item rdfs:label ?nllabel.
+        FILTER((LANG(?nllabel)) = "nl")    
+      }
+    }
+    LIMIT 100000"""
+            query = """SELECT DISTINCT ?item WHERE {
+      ?item wdt:P350 ?value.
+      MINUS {
+        ?item wdt:P170 []
+      }
+    }
+    LIMIT 10000"""
+            query2 = """SELECT ?item WHERE {
+      ?item wdt:P350 ?id ;
+            p:P170 ?creatorstatement .
+        FILTER NOT EXISTS { ?creatorstatement prov:wasDerivedFrom ?derivedFrom .}
+    } LIMIT 10"""
+            query = """SELECT ?item WHERE {
+      ?item wdt:P350 ?id ;
+            p:P31 ?statement .
+        FILTER NOT EXISTS { ?statement prov:wasDerivedFrom ?derivedFrom .}
+    } LIMIT 10000"""
+            query3 = """SELECT ?item WHERE {
+      ?item wdt:P350 ?id ;
+        FILTER NOT EXISTS { ?item wdt:P136 [] }
+    } LIMIT 100"""
+            query = """SELECT ?item WHERE {
+      ?item wdt:P350 ?id ;
+        FILTER NOT EXISTS { ?item wdt:P186 [] }
+    } LIMIT 10000"""
+            query = """SELECT ?item WHERE {
+      ?item wdt:P350 ?id ;
+        FILTER NOT EXISTS { ?item wdt:P31 [] ;
+                                  wdt:P170 [] ;
+                                  wdt:P571 [] ;
+                                  wdt:P2048 [] ;
+                                  wdt:P2049 [] ;
+                                  wdt:P186 [] ;
+                                  wdt:P136 [] ;
+                                  wdt:P1476 [] .
+                          }
+    } LIMIT 10000"""
+            query2 = """SELECT ?item WHERE {
+      ?item wdt:P350 ?id .
+      MINUS { ?item rdfs:label ?enlabel;
+                    rdfs:label ?nllabel;
+                    FILTER(LANG(?enlabel)="en" && LANG(?nllabel)="nl") }				
+    } LIMIT 10000"""
+            query2 = """SELECT ?item WHERE {
+      ?item wdt:P350 ?id .
+      MINUS { ?item schema:description ?endescription;
+                    schema:description ?nldescription.
+                    FILTER(LANG(?endescription)="en" && LANG(?nldescription)="nl") }
+    } LIMIT 1000"""
+            query = """SELECT ?item WHERE {
+      ?item wdt:P350 ?id ;
+        FILTER NOT EXISTS { ?item wdt:P31 [] ;
+                                  wdt:P170 [] .
+                          }
+    } LIMIT 10000"""
+            query2 = """SELECT ?item WHERE {
+      ?item p:P31 [ prov:wasDerivedFrom [ pr:P143 ?reference ] ; ps:P31 wd:Q3305213 ] ;
+            wdt:P350 [] .
+      } LIMIT 2000"""
+            query = """SELECT ?item WHERE {
+      ?item wdt:P350 ?id ;
+            wdt:P170 wd:Q167654 .
+    } LIMIT 10000"""
         generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
     metadata_generator = RKDImagesExpanderGenerator(generator)
