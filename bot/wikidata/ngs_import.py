@@ -4,7 +4,6 @@
 Bot to import paintings from the National Galleries of Scotland to Wikidata.
 
 Just loop over pages like https://art.nationalgalleries.org/search?object_types[29864]=29864&page=0
-Start at http://www.bellasartes.gob.ar/coleccion/objeto/pintura and use a session to retrieve the rest.
 
 This bot does use artdatabot to upload it to Wikidata and just asks the API for all it's paintings.
 
@@ -13,27 +12,25 @@ import artdatabot
 import pywikibot
 import requests
 import re
-import time
-from html.parser import HTMLParser
+import html
 
-def getNGSGenerator():
+def get_national_galleries_scotland_generator():
     """
     Generator to return National Galleries of Scotland paintings
     """
     basesearchurl = u'https://art.nationalgalleries.org/search?object_types[29864]=29864&page=%s'
-    htmlparser = HTMLParser()
 
     # Number per page seems to have changed, but that doesn't crash the bot
-    for i in range (0,125):
+    for i in range(0, 125):
         urls = []
         searchurl = basesearchurl % (i,)
-        print (searchurl)
+        print(searchurl)
         searchPage = requests.get(searchurl)
-        urlregex = u'\<a href\=\"(\/art-and-artists\/\d+\/[^\?]+)\?object_types%5B29864%5D=2986[^\"]+\"' # ?
+        urlregex = u'\<a href\=\"\/art-and-artists\/(\d+)\?object_types%5B29864%5D=2986[^\"]+\"' # ?
         matches = re.finditer(urlregex, searchPage.text)
         for match in matches:
             # To remove duplicates
-            url = u'https://art.nationalgalleries.org%s' % (match.group(1))
+            url = 'https://www.nationalgalleries.org/art-and-artists/%s' % (match.group(1))
             if url not in urls:
                 urls.append(url)
 
@@ -45,13 +42,17 @@ def getNGSGenerator():
             itempage = requests.get(url)
             metadata['url'] = url
 
+            metadata['artworkidpid'] = 'P8946'
+            metadata['artworkid'] = url.replace('https://www.nationalgalleries.org/art-and-artists/', '')
+
             metadata['collectionqid'] = u'Q2051997'
             metadata['collectionshort'] = u'NGoS'
 
             #No need to check, I'm actually searching for paintings.
             metadata['instanceofqid'] = u'Q3305213'
 
-            invregex = u'\<li class\=\"ngs-mimsy-data__item\"\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-label\"\>accession number\:\<\/div\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-values\"\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<\/li\>'
+            invregex = u'<li class\="ngs-mimsy-data__item"\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-label\"\>accession number\:\<\/div\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-values\"\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<\/li\>'
+            invregex = '<li class="ngs-mimsy-data__item">[\r\n\t\s]*<div class="ngs-mimsy-data__item-label">accession number:</div>[\r\n\t\s]*<div class="ngs-mimsy-data__item-values">[\r\n\t\s]*<div class="ngs-mimsy-data__item-value">([^\<]+)</div>'
             invmatch = re.search(invregex, itempage.text)
 
             if not invmatch:
@@ -63,17 +64,17 @@ def getNGSGenerator():
 
             # They have three locations, using inventory to guess the location
             if metadata['id'].startswith(u'NG ') or metadata['id'].startswith(u'NGL '):
-                metadata['locationqid'] = u'Q942713' # Scottish National Gallery (Q942713)
+                metadata['locationqid'] = u'Q942713'  # Scottish National Gallery (Q942713)
             elif metadata['id'].startswith(u'PG '):
-                metadata['locationqid'] = u'Q2441562' # Scottish National Portrait Gallery (Q2441562)
+                metadata['locationqid'] = u'Q2441562'  # Scottish National Portrait Gallery (Q2441562)
             elif metadata['id'].startswith(u'GMA '):
-                metadata['locationqid'] = u'Q1889944' # Scottish National Gallery of Modern Art (Q1889944)
+                metadata['locationqid'] = u'Q1889944'  # Scottish National Gallery of Modern Art (Q1889944)
             else:
                 metadata['locationqid'] = u'Q2051997'
 
             titleregex = u'\<li class\=\"ngs-mimsy-data__item\"\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-label\"\>title\:</div\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-values\"\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<\/li\>'
             titlematch = re.search(titleregex, itempage.text)
-            title = htmlparser.unescape(titlematch.group(1).strip())
+            title = html.unescape(titlematch.group(1).strip())
             #if not titlematch:
             #    pywikibot.output(u'No title match, something went wrong on %s' % (url,))
             #    continue
@@ -85,7 +86,7 @@ def getNGSGenerator():
 
             creatorregex = u'\<li class\=\"ngs-mimsy-data__item\"\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-label\"\>artists?\:</div\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-values\"\>[\r\n\t\s]*(\<a href\=\"[^\"]+\" title=\"[^\>]+\"\>)?(?P<creator>[^\<]+)\<\/'
             creatormatch = re.search(creatorregex, itempage.text)
-            name = htmlparser.unescape(creatormatch.group(u'creator').strip())
+            name = html.unescape(creatormatch.group(u'creator').strip())
             if u',' in name:
                 (surname, sep, firstname) = name.partition(u',')
                 name = u'%s %s' % (firstname.strip(), surname.strip(),)
@@ -123,30 +124,30 @@ def getNGSGenerator():
             otherdatematch = re.search(otherdateregex, itempage.text)
 
             if datematch:
-                metadata['inception'] = datematch.group(1)
+                metadata['inception'] = int(datematch.group(1))
             elif datedmatch:
-                metadata['inception'] = datedmatch.group(1)
+                metadata['inception'] = int(datedmatch.group(1))
             elif datecircamatch:
-                metadata['inception'] = datecircamatch.group(1)
+                metadata['inception'] = int(datecircamatch.group(1))
                 metadata['inceptioncirca'] = True
             elif periodmatch:
                 metadata['inceptionstart'] = int(periodmatch.group(1),)
                 metadata['inceptionend'] = int(periodmatch.group(2),)
             elif shortperiodmatch:
-                metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(2)))
-                metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1),shortperiodmatch.group(3)))
+                metadata['inceptionstart'] = int(u'%s%s' % (shortperiodmatch.group(1), shortperiodmatch.group(2)))
+                metadata['inceptionend'] = int(u'%s%s' % (shortperiodmatch.group(1), shortperiodmatch.group(3)))
             elif circaperiodmatch:
                 metadata['inceptionstart'] = int(circaperiodmatch.group(1),)
                 metadata['inceptionend'] = int(circaperiodmatch.group(2),)
                 metadata['inceptioncirca'] = True
             elif otherdatematch:
-                print (u'Could not parse date: "%s"' % (otherdatematch.group(1).strip(),))
+                print('Could not parse date: "%s"' % (otherdatematch.group(1).strip(),))
 
             mediumregex = u'\<li class\=\"ngs-mimsy-data__item\"\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-label\"\>materials\:\<\/div\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-values\"\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-value\"\>([^\<]+)\<\/div\>[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<\/li\>'
 
             mediummatch = re.search(mediumregex, itempage.text)
-            if mediummatch and mediummatch.group(1) == u'Oil on canvas':
-                metadata['medium'] = u'oil on canvas'
+            if mediummatch:
+                metadata['medium'] = html.unescape(mediummatch.group(1)).lower()
 
             measurementsregex = u'\<li class\=\"ngs-mimsy-data__item\"\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-label\"\>measurements\:</div\>[\r\n\t\s]*\<div class\=\"ngs-mimsy-data__item-values\"\>[\r\n\t\s]*([^\<]+)[\r\n\t\s]*\<\/div\>[\r\n\t\s]*\<\/li\>'
             measurementsmatch = re.search(measurementsregex, itempage.text)
@@ -164,17 +165,43 @@ def getNGSGenerator():
                     metadata['widthcm'] = match_3d.group(u'width').replace(u',', u'.')
                     metadata['depthcm'] = match_3d.group(u'depth').replace(u',', u'.')
 
+            # They seem to provide images "<span class="ngs-slider__slide-copyright">Creative Commons CC by NC</span>"
+
+            image_url_regex = '<meta property\="og:image" content="(https://www\.nationalgalleries\.org/sites/default/files/styles/thumbnail/public/externals/\d+\.jpg)\?itok\=[^"]+" />'
+            image_url_match = re.search(image_url_regex, itempage.text)
+
+            if image_url_match and '<span class="ngs-slider__slide-copyright">Creative Commons CC by NC</span>' in itempage.text:
+                recentinception = False
+                if metadata.get('inception') and metadata.get('inception') > 1924:
+                    recentinception = True
+                if metadata.get('inceptionend') and metadata.get('inceptionend') > 1924:
+                    recentinception = True
+                if not recentinception:
+                    metadata['imageurl'] = image_url_match.group(1)
+                    metadata['imageurlformat'] = 'Q2195'  # JPEG
+                    metadata['imageoperatedby'] = 'Q2051997'  # National Galleries Scotland
+                    metadata['imageurlforce'] = True  # Add all images
+
             yield metadata
 
 
-def main():
-    dictGen = getNGSGenerator()
+def main(*args):
+    dictGen = get_national_galleries_scotland_generator()
+    dryrun = False
+    create = False
 
-    #for painting in dictGen:
-    #    print (painting)
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dryrun = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dryrun:
+        for painting in dictGen:
+            print(painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 if __name__ == "__main__":
     main()
