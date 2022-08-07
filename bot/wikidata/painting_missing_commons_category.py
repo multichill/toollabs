@@ -48,8 +48,8 @@ class PaintingMissingCommonsCategoryBot:
                 pywikibot.output('Item does not have a sitelink to Commons, skipping')
                 continue
 
-            if not commons_category.namespace()==14:
-                pywikibot.output('Lnked page is not a category, skipping')
+            if not commons_category.namespace() == 14:
+                pywikibot.output('Linked page is not a category, skipping')
 
             new_claim = pywikibot.Claim(self.repo, 'P373')
             new_claim.setTarget(commons_category.title(underscore=False, with_ns=False))
@@ -74,6 +74,13 @@ def main():
   ?article schema:about ?item ;
            schema:isPartOf <https://commons.wikimedia.org/>.
   } LIMIT 2000"""
+
+    query = """SELECT ?item WHERE {
+  ?comm schema:about ?item ; 
+        schema:isPartOf <https://commons.wikimedia.org/> .
+  MINUS { ?item wdt:P373 [] }
+  ?item wdt:P31 wd:Q3305213
+  } LIMIT 1000"""
 
     repo = pywikibot.Site().data_repository()
     generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
