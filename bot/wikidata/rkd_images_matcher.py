@@ -714,10 +714,12 @@ LIMIT 250"""
                                     'replacements': [],
                                    }
                 result[qid] = collection_data
+            else:
+                result[qid] = None
     return result
 
 
-def guess_collection_name(qid, collection_names, sample_size=15):
+def guess_collection_name(qid, collection_names, sample_size=15, verbose=False):
     """
     Try to guess the name of the collection for qid
     :param qid: The id of the Wikidata item
@@ -755,7 +757,8 @@ LIMIT %s""" % (qid, sample_size)
         except ValueError:  # Throws simplejson.errors.JSONDecodeError
             pywikibot.output('Got invalid json for%s, skipping' % (rkdimages_id,))
             return None
-    print(json.dumps(collections, indent=4, sort_keys=True))
+    if verbose:
+        print(json.dumps(collections, indent=4, sort_keys=True))
 
     # Adjust the sample size for collections which are still smaller than the sample size
     if result_count < sample_size:
@@ -771,6 +774,34 @@ LIMIT %s""" % (qid, sample_size)
         elif len(top_collections) > 1 and collections.get(top_collections[0]) > collections.get(top_collections[1]):
             return top_collections[0]
     return None
+
+def check_manual_collections(manual_collections):
+    """
+    Check all the manual collections if they actually point to a collection that exists
+    :param manual_collections: Dict with the collections
+    :return: Nothing, print the results
+    """
+    base_search_url = 'https://api.rkd.nl/api/search/images?filters[collectienaam]=%s&filters[objectcategorie][]=schilderij&format=json&start=0&rows=10'
+    for collection in manual_collections:
+        collectienaam = manual_collections.get(collection).get('collectienaam')
+        search_url = base_search_url % (collectienaam.replace(u' ', u'+'),)
+        search_page = requests.get(search_url)
+        number_found = search_page.json().get('response').get('numFound')
+        if number_found == 0:
+            pywikibot.output('On %s the collectienaam %s did not return anything at all' % (collection, collectienaam))
+            collectienaam = guess_collection_name(collection, [], sample_size=15)
+            if collectienaam:
+                pywikibot.output('On %s the collectienaam should be set to "%s"' % (collection, collectienaam))
+        #else:
+        #    print('On %s the collectienaam %s returned %s' % (collection, collectienaam, number_found))
+
+    collections = get_collection_info(manual_collections)
+    for collection in collections:
+        if not collections.get('collection'):
+            pywikibot.output('Trying to guess a collection of %s' % (collection,))
+            collectienaam = guess_collection_name(collection, [], sample_size=25, verbose=True)
+            pywikibot.output('The trying for collection %s returned "%s"' % (collection, collectienaam))
+
 
 def get_artist_info():
     """
@@ -864,10 +895,10 @@ def main(*args):
                                u'replacements' : [],
                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Centraal Museum',
                                },
-                u'Q1499958' : { u'collectienaam' : u'Gemeentemuseum Den Haag',
+                u'Q1499958' : { u'collectienaam' : u'Kunstmuseum Den Haag',
                                u'replacements' : [(u'^(\d+) / .+$', u'\\1'), # Multiple inventory numbers
                                                   (u'^.+ / (\d+)$', u'\\1'),], # And vanished from website
-                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemeentemuseum Den Haag',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kunstmuseum Den Haag',
                                },
                 u'Q1542668' : { u'collectienaam' : u'Groninger Museum',
                                u'replacements' : [],
@@ -918,7 +949,7 @@ def main(*args):
                               u'replacements' : [], # TODO: Add better regex
                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Dordrechts Museum',
                               },
-                u'Q2098586' : { u'collectienaam' : u'Stedelijk Museum De Lakenhal',
+                u'Q2098586' : { u'collectienaam' : u'Museum De Lakenhal',
                               u'replacements' : [(u'^(\d+)$', u'S \\1'),],
                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Lakenhal',
                               },
@@ -955,7 +986,7 @@ def main(*args):
                                                   (u'^FM (\d.+)$', u'S\\1'),],
                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Fries Museum',
                                },
-                u'Q510324' : { u'collectienaam' : u'Philadelphia Museum of Art  - John G. Johnson Collection',
+                u'Q510324' : { u'collectienaam' : u'Philadelphia Museum of Art - John G. Johnson Collection',
                                u'replacements' : [(u'^(\d+)$', u'Cat. \\1'),
                                                   (u'^cat\. (\d+)$', u'Cat. \\1'),],
                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Philadelphia Museum of Art',
@@ -1048,7 +1079,7 @@ def main(*args):
                                 u'replacements' : [],
                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacques Goudstikker collection',
                                 },
-                u'Q28065304' : { u'collectienaam' : u'Goudstikker, erven Jacques',
+                u'Q28065304' : { u'collectienaam' : u'Goudstikker, heirs Jacques',
                                 u'replacements' : [],
                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Goudstikker heirs collection',
                                 },
@@ -1078,7 +1109,7 @@ def main(*args):
                                u'replacements' : [],
                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nelson-Atkins Museum of Art',
                                },
-                u'Q731126' : { u'collectienaam' : u'J. Paul Getty Museum, The',
+                u'Q731126' : { u'collectienaam' : u'J. Paul Getty Museum',
                                 u'replacements' : [],
                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/J. Paul Getty Museum',
                                 },
@@ -1176,11 +1207,11 @@ def main(*args):
                              u'replacements' : [],
                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Westfries Museum',
                              },
-                u'Q1616123' : { u'collectienaam' : u'Nederlands Scheepvaartmuseum',
+                u'Q1616123' : { u'collectienaam' : u'Het Scheepvaartmuseum',
                                 u'replacements' : [],
                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nederlands Scheepvaartmuseum',
                                 },
-                u'Q700959' : { u'collectienaam' : u'Wallraf-Richartz-Museum',
+                u'Q700959' : { u'collectienaam' : u'Wallraf-Richartz-Museum %26 Fondation Corboud',
                                 u'replacements' : [],
                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Wallraf-Richartz-Museum',
                                 },
@@ -1645,6 +1676,7 @@ def main(*args):
     collectionid = None
     artistid = None
     autoadd = 0
+    check_collections = False
 
     for arg in pywikibot.handle_args(args):
         if arg.startswith('-collectionid:'):
@@ -1665,8 +1697,12 @@ def main(*args):
                         u'Please enter the number of items you want to update automatically:'))
             else:
                 autoadd = int(arg[9:])
+        elif arg == '-checkcollections':
+            check_collections = True
 
-    if collectionid:
+    if check_collections:
+        check_manual_collections(manual_collections)
+    elif collectionid:
         collections = manual_collections
         if collectionid not in collections.keys():
             pywikibot.output(u'%s is not a valid collectionid!' % (collectionid,))
