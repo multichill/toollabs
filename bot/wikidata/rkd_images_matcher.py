@@ -8,7 +8,8 @@ import pywikibot
 import requests
 import pywikibot.data.sparql
 import re
-
+import json
+from operator import itemgetter
         
 def rkdImagesOnWikidata(collectionid=None):
     '''
@@ -41,10 +42,11 @@ def rkdImagesOnWikidata(collectionid=None):
     return result
 
 def paintingsInvOnWikidata(collectionid):
-    '''
-    Just return all the RKD images as a dict
+    """
+    Just return all the RKD images as a dict.
+    This will only return images with inventory number (P217) set.
     :return: Dict
-    '''
+    """
     result = {}
     # Need to use the long version here to get all ranks
     query = u"""SELECT DISTINCT ?item ?id ?url ?rkdimageid ?rkdartistid WHERE {
@@ -139,7 +141,7 @@ def rkdImagesGenerator(currentimages, invnumbers, collection, replacements):
     while True:
         searchUrl = basesearchurl % (collection.replace(u' ', u'+'), start, rows)
         #print searchUrl
-        searchPage = requests.get(searchUrl, verify=False)
+        searchPage = requests.get(searchUrl)  #, verify=False)
         searchJson = searchPage.json()
         numfound = searchJson.get('response').get('numFound')
         #print numfound
@@ -208,7 +210,7 @@ def rkdImagesArtistGenerator(aristname):
     while True:
         searchUrl = basesearchurl % (aristname.replace(u' ', u'+'), start, rows)
         #print searchUrl
-        searchPage = requests.get(searchUrl, verify=False)
+        searchPage = requests.get(searchUrl)  #, verify=False)
         searchJson = searchPage.json()
         #print searchJson
         numfound = searchJson.get('response').get('numFound')
@@ -260,7 +262,7 @@ def rkdImagesArtistGenerator(aristname):
             imageinfo[u'collection'] = collection
             yield imageinfo
 
-def processCollection(collectionid, collectienaam, replacements, pageTitle, autoadd):
+def processCollection(collectionid, collectienaam, replacements, reportpage, autoadd):
 
 
     currentimages = rkdImagesOnWikidata(collectionid)
@@ -431,7 +433,7 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
     text = text + u'\n[[Category:WikiProject sum of all paintings RKD to match|%s]]' % (collectienaam, )
     repo = pywikibot.Site().data_repository()
 
-    page = pywikibot.Page(repo, title=pageTitle)
+    page = pywikibot.Page(repo, title=reportpage)
     summary = u'%s RKDimages to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
                                                                                                                                                     totalautoadded,
                                                                                                                                                     totalnextadd,
@@ -440,11 +442,11 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
                                                                                                                                                     totailfailedoptions,
                                                                                                                                                     totalfailedelse,
                                                                                                                                                     )
-    page.put(text, summary)
+    page.put(text[0:2000000], summary)
 
     collectionstats = {u'collectionid' : collectionid,
                        u'collectienaam' : collectienaam,
-                       u'pageTitle' : pageTitle,
+                       u'reportpage' : reportpage,
                        u'totalimages' : totalimages,
                        u'totalautoadded' : totalautoadded,
                        u'totalnextadd' : totalnextadd,
@@ -458,7 +460,7 @@ def processCollection(collectionid, collectienaam, replacements, pageTitle, auto
     return collectionstats
 
 
-def processArtist(artistid, artistname, replacements, pageTitle, autoadd):
+def processArtist(artistid, artistname, replacements, reportpage, autoadd):
 
     #currentimages = rkdImagesOnWikidata(collectionid)
     allimages = rkdImagesOnWikidata()
@@ -520,13 +522,13 @@ def processArtist(artistid, artistname, replacements, pageTitle, autoadd):
     text = text + u'\n[[Category:WikiProject sum of all paintings RKD to match|%s]]' % (artistname, )
     repo = pywikibot.Site().data_repository()
 
-    page = pywikibot.Page(repo, title=pageTitle)
+    page = pywikibot.Page(repo, title=reportpage)
     summary = u'Updating RKD artist page'
     page.put(text, summary)
 
     artiststats = {u'artistid' : artistid,
                    u'artistname' : artistname,
-                   u'pageTitle' : pageTitle,
+                   u'reportpage' : reportpage,
                    u'rkdcount' : rkdcount,
                    u'rkdsuggestioncount' : rkdsuggestioncount,
                    u'wdsuggestioncount' : wdsuggestioncount,
@@ -581,8 +583,8 @@ def publishStatistics(artistsstats, collectionsstats):
     for collectionstats in collectionsstats:
         rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bcollectienaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (collectionstats.get('collectienaam').replace(u' ', u'%20'),
                                                                                                                                                                  collectionstats.get('collectienaam'), )
-        pagelink = u'[[%s|%s]]' % (collectionstats.get(u'pageTitle'),
-                                   collectionstats.get(u'pageTitle').replace(u'Wikidata:WikiProject sum of all paintings/RKD to match/', u''),
+        pagelink = u'[[%s|%s]]' % (collectionstats.get(u'reportpage'),
+                                   collectionstats.get(u'reportpage').replace(u'Wikidata:WikiProject sum of all paintings/RKD to match/', u''),
                                    )
         text = text + u'|-\n'
         text = text + u'|| {{Q|%s}} ' % (collectionstats.get(u'collectionid'),)
@@ -629,8 +631,8 @@ def publishStatistics(artistsstats, collectionsstats):
     for artiststats in artistsstats:
         rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bnaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (artiststats.get('artistname').replace(u' ', u'%20'),
                                                                                                                                                         artiststats.get('artistname'), )
-        pagelink = u'[[%s|%s]]' % (artiststats.get(u'pageTitle'),
-                                   artiststats.get(u'pageTitle').replace(u'Wikidata:WikiProject sum of all paintings/RKD to match/', u''),
+        pagelink = u'[[%s|%s]]' % (artiststats.get(u'reportpage'),
+                                   artiststats.get(u'reportpage').replace(u'Wikidata:WikiProject sum of all paintings/RKD to match/', u''),
                                    )
         text = text + u'|-\n'
         text = text + u'|| {{Q|%s}} ' % (artiststats.get(u'artistid'),)
@@ -661,62 +663,203 @@ def publishStatistics(artistsstats, collectionsstats):
                                                                                                                                                     )
     page.put(text, summary)
 
+def get_collection_info(manual_collections):
+    """
+    Do a query for the relevant collections to work on. Try to guess the collection name
+    :return:
+    """
+    result = {}
+
+    collection_names = ['Private collection']  # Keep a list of names already found so we can ignore these
+    for manual_collection in manual_collections:
+        collection_names.append(manual_collections.get(manual_collection).get('collectienaam'))
+
+    query = """SELECT ?item ?label (COUNT(*) AS ?count) WHERE {
+  ?painting wdt:P350 [] ;
+            wdt:P31 wd:Q3305213 ;
+            p:P195/ps:P195 ?item .
+  ?item rdfs:label ?label .
+  FILTER(LANG(?label)="en")
+  } GROUP BY ?item ?label
+ORDER BY DESC(?count)
+LIMIT 250"""
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        qid = resultitem.get('item').replace('http://www.wikidata.org/entity/', '')
+        report_page = 'Wikidata:WikiProject sum of all paintings/RKD to match/%s' % (resultitem.get('label'),)
+
+        if qid not in manual_collections:
+            print('Working on %s (%s)' % (resultitem.get('label'), qid))
+            collection_name = guess_collection_name(qid, collection_names)
+            collection_names.append(collection_name)
+            if collection_name:
+                print('Collection name %s was returned for %s (%s)' % (collection_name, resultitem.get('label'), qid))
+                collection_data = {'qid': qid,
+                                   'collectienaam': collection_name,
+                                    'reportpage': report_page,
+                                    'replacements': [],
+                                   }
+                result[qid] = collection_data
+    return result
+
+
+def guess_collection_name(qid, collection_names, sample_size=15):
+    """
+    Try to guess the name of the collection for qid
+    :param qid: The id of the Wikidata item
+    :param collection_names: List of collection names we already found and should be ignored
+    :param sample_size: How many sample items should be retrieved
+    :return: The name of the collection in RKDimages
+    """
+    collections = {}
+    result_count = 0
+    query = """SELECT ?item ?id (SHA1(CONCAT(str(?item),str(NOW()), str(RAND()))) as ?random) WHERE {
+  ?item wdt:P350 ?id;
+            wdt:P31 wd:Q3305213 ;
+            p:P195/ps:P195 wd:%s .  
+  } ORDER BY (?random)
+LIMIT %s""" % (qid, sample_size)
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        result_count += 1
+        qid = resultitem.get('item').replace('http://www.wikidata.org/entity/', '')
+        rkdimages_id = resultitem.get('id')
+        rkdimages_url = 'https://api.rkd.nl/api/record/images/%s?format=json&language=en' % (rkdimages_id,)
+
+        # Do some checking if it actually exists?
+        rkdimages_page = requests.get(rkdimages_url)
+        try:
+            rkdimages_json = rkdimages_page.json()
+            for collectie in rkdimages_json.get('response').get('docs')[0].get('collectie'):
+                collectienaam = collectie.get('collectienaam')
+                if not collectienaam in collection_names:
+                    if collectienaam not in collections:
+                        collections[collectienaam] = 0
+                    collections[collectienaam] +=1
+        except ValueError:  # Throws simplejson.errors.JSONDecodeError
+            pywikibot.output('Got invalid json for%s, skipping' % (rkdimages_id,))
+            return None
+    print(json.dumps(collections, indent=4, sort_keys=True))
+
+    # Adjust the sample size for collections which are still smaller than the sample size
+    if result_count < sample_size:
+        sample_size = result_count
+
+    top_collections = sorted(collections, key=collections.get, reverse=True)
+
+    if not collections:
+        return None
+    if collections.get(top_collections[0]) * 2 > sample_size:
+        if len(top_collections) == 1:
+            return top_collections[0]
+        elif len(top_collections) > 1 and collections.get(top_collections[0]) > collections.get(top_collections[1]):
+            return top_collections[0]
+    return None
+
+def get_artist_info():
+    """
+    Do a query for the relevant artists to work on
+    :return:
+    """
+    result = {}
+
+    query = """SELECT ?item ?label ?id (COUNT(*) AS ?count) WHERE {
+  ?painting wdt:P350 [] ;
+            wdt:P31 wd:Q3305213 ;
+            wdt:P170 ?item .
+  ?item wdt:P650 ?id ;
+        rdfs:label ?label .
+  FILTER(LANG(?label)="en")
+  } GROUP BY ?item ?label ?id 
+ORDER BY DESC(?count)
+LIMIT 250"""
+    sq = pywikibot.data.sparql.SparqlQuery()
+    queryresult = sq.select(query)
+
+    for resultitem in queryresult:
+        qid = resultitem.get('item').replace('http://www.wikidata.org/entity/', '')
+        report_page = 'Wikidata:WikiProject sum of all paintings/RKD to match/%s' % (resultitem.get('label'),)
+        rkdartists_id = resultitem.get('id')
+
+        rkdartists_url = 'https://api.rkd.nl/api/record/artists/%s?format=json&language=en' % (rkdartists_id,)
+
+        # Do some checking if it actually exists?
+        rkdartists_page = requests.get(rkdartists_url)
+        try:
+            rkdartists_json = rkdartists_page.json()
+            artistname = rkdartists_json.get('response').get('docs')[0].get('kunstenaarsnaam')
+        except ValueError:  # Throws simplejson.errors.JSONDecodeError
+            pywikibot.output('Got invalid json for%s, skipping' % (rkdartists_id,))
+            return None
+        artist_data = {'qid': qid,
+                       'artistname': artistname,
+                       'rkdartistsid': rkdartists_id,
+                       'reportpage': report_page,
+                       'replacements': [],
+                       }
+        result[qid] = artist_data
+    return result
+
 
 def main(*args):
 
     suggestions = u''
 
-    sources = { u'Q190804' : { u'collectienaam' : u'Rijksmuseum',
+    manual_collections = { u'Q190804' : { u'collectienaam' : u'Rijksmuseum',
                                u'replacements' : [(u'^(A|C)\s*(\d+)$', u'SK-\\1-\\2'),
                                                   (u'^[sS][kK]\s*-?(A|C)-?\s*(\d+)$', u'SK-\\1-\\2'),
                                                   (u'^cat\.(A|C)\s*(\d+)$', u'SK-\\1-\\2')],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rijksmuseum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rijksmuseum',
                              },
                 u'Q221092' : { u'collectienaam' : u'Koninklijk Kabinet van Schilderijen Mauritshuis',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Mauritshuis',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Mauritshuis',
                               },
                 u'Q1820897' : { u'collectienaam' : u'Amsterdam Museum',
                                u'replacements' : [(u'^S?(A|B)\s*(\d+)$', u'S\\1 \\2'), ],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Amsterdam Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Amsterdam Museum',
                                },
                 u'Q679527' : { u'collectienaam' : u'Museum Boijmans Van Beuningen',
                             u'replacements' : [(u'^(\d+)$', u'\\1 (OK)'), ],
-                            u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Boijmans',
+                            u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Boijmans',
                             },
                 u'Q924335' : { u'collectienaam' : u'Stedelijk Museum Amsterdam',
                             u'replacements' : [(u'^(\d+)$', u'A \\1'), # Switch to B at some point
                                                (u'^A(\d+)$', u'A \\1'),
                                                (u'^B(\d+)$', u'B \\1'),
                                                ],
-                            u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stedelijk',
+                            u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stedelijk',
                             },
                 u'Q160236' : { u'collectienaam' : u'Metropolitan Museum of Art, The', #u'Metropolitan Museum of Art (The Cloisters), The', #
                             u'replacements' : [],
-                            u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/MET',
+                            u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/MET',
                             },
                 u'Q214867' : { u'collectienaam' : u'National Gallery of Art (Washington)',
                             u'replacements' : [(u'^(\d+\.\d+\.\d+)[^\d]+.+$', u'\\1'), ],
-                            u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/NGA',
+                            u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/NGA',
                             },
                 u'Q132783' : { u'collectienaam' : u'Hermitage',
                                u'replacements' : [(u'^(\d+)$', u'ГЭ-\\1'),
                                                   (u'^GE (\d+)$', u'ГЭ-\\1'),
                                                   ],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Hermitage',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Hermitage',
                                },
                 u'Q260913' : { u'collectienaam' : u'Centraal Museum',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Centraal Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Centraal Museum',
                                },
                 u'Q1499958' : { u'collectienaam' : u'Gemeentemuseum Den Haag',
                                u'replacements' : [(u'^(\d+) / .+$', u'\\1'), # Multiple inventory numbers
                                                   (u'^.+ / (\d+)$', u'\\1'),], # And vanished from website
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemeentemuseum Den Haag',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemeentemuseum Den Haag',
                                },
                 u'Q1542668' : { u'collectienaam' : u'Groninger Museum',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Groninger Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Groninger Museum',
                                },
                 u'Q574961' : { u'collectienaam' : u'Frans Halsmuseum',
                                u'replacements' : [#(u'^(\d+[a-z]?)$', u'os I-\\1'),
@@ -724,23 +867,23 @@ def main(*args):
                                                   (u'^(I-\d+[a-z]?)$', u'os \\1'),
                                                   (u'^(I-\d+-\d+[a-z]?)$', u'os \\1'),
                                                   (u'^OK?S[ -]?([^\s]+)$', u'os \\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans Halsmuseum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans Halsmuseum',
                                },
                 u'Q842858' : { u'collectienaam' : u'Nationalmuseum Stockholm',
                                u'replacements' : [(u'^(\d+)$', u'NM \\1'),
                                                   (u'^NM(\d+)$', u'NM \\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nationalmuseum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nationalmuseum',
                                },
                 u'Q671384' : { u'collectienaam' : u'SMK - National Gallery of Denmark',
                                u'replacements' : [], #(u'^(\d+)$', u'KMS\\1'), # Mostly done, left overs manual
                                                      #(u'^KMS (\d+)$', u'KMS\\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/SMK',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/SMK',
                                },
                 u'Q95569' : { u'collectienaam' : u'Kunsthistorisches Museum',
                                u'replacements' : [(u'^(\d+)$', u'GG_\\1'),
                                                   (u'^GG (\d+)$', u'GG_\\1'),
                                                   ],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kunsthistorisches Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kunsthistorisches Museum',
                                },
                 u'Q160112' : { u'collectienaam' : u'Museo Nacional del Prado',
                               u'replacements' : [(u'^(\d\d\d\d)$', u'P00\\1'),
@@ -748,736 +891,743 @@ def main(*args):
                                                  (u'^PO? ?(\d\d\d\d)(\s*\(cat\. 2006\))?$', u'P00\\1'),
                                                  #(u'^00(\d\d\d\d)$', u'P0\\1'),
                                                  ],
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Prado',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Prado',
                               },
                 u'Q180788' : { u'collectienaam' : u'National Gallery (London)',
                               u'replacements' : [(u'^(\d+)$', u'NG\\1'),
                                                  (u'^NG (\d+)$', u'NG\\1'),],
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Gallery',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Gallery',
                               },
                 u'Q1471477' : { u'collectienaam' : u'Koninklijk Museum voor Schone Kunsten Antwerpen',
                               u'replacements' : [],
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/KMSKA',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/KMSKA',
                               },
                 u'Q2874177' : { u'collectienaam' : u'Dordrechts Museum',
                               u'replacements' : [], # TODO: Add better regex
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Dordrechts Museum',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Dordrechts Museum',
                               },
                 u'Q2098586' : { u'collectienaam' : u'Stedelijk Museum De Lakenhal',
                               u'replacements' : [(u'^(\d+)$', u'S \\1'),],
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Lakenhal',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Lakenhal',
                               },
                 u'Q2130225' : { u'collectienaam' : u'Het Schielandshuis',
                               u'replacements' : [(u'^(\d+)$', u'\\1-A-B'),],
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Rotterdam',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Rotterdam',
                               },
                 u'Q224124' : { u'collectienaam' : u'Van Gogh Museum',
                               u'replacements' : [(u'^F (\d+.+)$', u'F\\1'),], # A lot of them use F numbers
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Van Gogh Museum',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Van Gogh Museum',
                               },
                 u'Q3044768' : { u'collectienaam' : u'Musée du Louvre',
                                u'replacements' : [(u'^(\d+)$', u'INV \\1'),
                                                   (u'^(\w)\.(\w)\.\s?(\d+)', u'\\1\\2 \\3')],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Louvre',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Louvre',
                                },
                 u'Q812285' : { u'collectienaam' : u'Bayerische Staatsgemäldesammlungen', #u'Staatsgalerie im neuen Schloss Schleissheim', # u'Alte Pinakothek', #
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bavarian State Painting Collections',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bavarian State Painting Collections',
                                 },
                 u'Q154568' : { u'collectienaam' : u'Alte Pinakothek',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Alte Pinakothek',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Alte Pinakothek',
                                },
                 u'Q848313' : { u'collectienaam' : u'Fries Museum',
-                               u'replacements' : [(u'^(\d\d)$', u'S000\\1'),
-                                                  (u'^(\d\d\d)$', u'S00\\1'),
-                                                  (u'^(\d\d\d\d)$', u'S0\\1'),
-                                                  (u'^(\d.+)$', u'S\\1'),
+                               u'replacements' : [(u'^S?(\d\d)$', u'S000\\1'),
+                                                  (u'^S?(\d\d\d)$', u'S00\\1'),
+                                                  (u'^S?(\d\d\d\d)$', u'S0\\1'),
+                                                  (u'^S?(\d\d\d\d)$', u'S0\\1'),
                                                   (u'^S (\d.+)$', u'S\\1'),
+                                                  (u'^S?(\d\d\d\d)-(\d)$', u'S\\1-00\\2'),
+                                                  (u'^S?(\d\d\d\d)-(\d\d)$', u'S\\1-0\\2'),
+                                                  (u'^S?(\d\d)-(\d+)$', u'S19\\1-0\\2'),
                                                   (u'^FM (\d.+)$', u'S\\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Fries Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Fries Museum',
                                },
                 u'Q510324' : { u'collectienaam' : u'Philadelphia Museum of Art  - John G. Johnson Collection',
                                u'replacements' : [(u'^(\d+)$', u'Cat. \\1'),
                                                   (u'^cat\. (\d+)$', u'Cat. \\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Philadelphia Museum of Art',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Philadelphia Museum of Art',
                                },
                 u'Q1051928' : { u'collectienaam' : u'Kröller-Müller Museum',
                                u'replacements' : [(u'^KM([^\s]+.+)$', u'KM \\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kröller-Müller',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kröller-Müller',
                                },
                 u'Q239303' : { u'collectienaam' : u'Art Institute of Chicago, The',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Art Institute of Chicago',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Art Institute of Chicago',
                                 },
                 u'Q1201549' : { u'collectienaam' : u'Detroit Institute of Arts',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Detroit Institute of Arts',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Detroit Institute of Arts',
                                },
                 u'Q49133' : { u'collectienaam' : u'Museum of Fine Arts Boston',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Fine Arts Boston',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Fine Arts Boston',
                                 },
                 u'Q2365880' : { u'collectienaam' : u'Museum voor Schone Kunsten Gent',
                               u'replacements' : [],
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/MSK Gent',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/MSK Gent',
                               },
                 u'Q12013217' : { u'collectienaam' : u'Noordbrabants Museum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Noordbrabants Museum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Noordbrabants Museum',
                                 },
                 u'Q1459037' : { u'collectienaam' : u'Royal Collection, The', # Royal Collection - Windsor Castle
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Royal Collection',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Royal Collection',
                                  },
                 u'Q153306' : { u'collectienaam' : u'Muzeum Narodowe w Warszawie',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Museum in Warsaw',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Museum in Warsaw',
                                 },
-                u'Q2051997' : { u'collectienaam' : u'Scottish National Gallery',
+                u'Q2051997' : { u'collectienaam' : u'National Galleries Scotland',
                                u'replacements' : [(u'^(\d+)$', u'NG \\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Galleries of Scotland',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Galleries of Scotland',
                                },
                 u'Q1641836' : { u'collectienaam' : u'Los Angeles County Museum of Art',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/LACMA',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/LACMA',
                                 },
                 u'Q176251' : { u'collectienaam' : u'Museo Thyssen-Bornemisza',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museo Thyssen-Bornemisza',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museo Thyssen-Bornemisza',
                                 },
                 u'Q2066737' : { u'collectienaam' : u'Instituut Collectie Nederland',
                                u'replacements' : [(u'^(.+)\s(.+)$', u'\\1\\2'), # Remove the extra space
                                                   (u'^(C\d+)\;(\d+)$', u'\\1'), # C numbers sometimes have junk in it
                                                   ],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Instituut Collectie Nederland',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Instituut Collectie Nederland',
                                },
                 u'Q28045660' : { u'collectienaam' : u'Dienst voor \'s Rijks Verspreide Kunstvoorwerpen',
                                 u'replacements' : [(u'^(.+)\s(.+)$', u'\\1\\2'),], # Remove the extra space
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Dienst Verspreide Rijkscollecties',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Dienst Verspreide Rijkscollecties',
                                 },
                 u'Q28045665' : { u'collectienaam' : u'Stichting Nederlands Kunstbezit',
                                  u'replacements' : [#(u'^(\d+)$', u'NK\\1'),
                                                     (u'^S?N[kK] (\d+)$', u'NK\\1'),],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stichting Nederlands Kunstbezit',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stichting Nederlands Kunstbezit',
                                  },
                 u'Q28045674' : { u'collectienaam' : u'Rijksdienst Beeldende Kunst',
                                  u'replacements' : [(u'^(.+)\s(.+)$', u'\\1\\2'),], # Remove the extra space
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rijksdienst Beeldende Kunst',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rijksdienst Beeldende Kunst',
                                  },
                 u'Q1053735' : { u'collectienaam' : u'Central Collecting Point',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Munich Central Collecting Point',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Munich Central Collecting Point',
                                  },
                 u'Q1241163' : { u'collectienaam' : u'Dulwich Picture Gallery',
                                 u'replacements' : [(u'^DPG\s?(\d\d)$', u'DPG0\\1'),
                                                    (u'^DPG (\d+)$', u'DPG\\1'),
                                                    (u'^(\d\d)$', u'DPG0\\1'),
                                                    (u'^(\d+)$', u'DPG\\1'),],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Dulwich Picture Gallery',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Dulwich Picture Gallery',
                                 },
                 u'Q18600731' : { u'collectienaam' : u'Instituut Collectie Nederland', #u'Rijksdienst voor het Cultureel Erfgoed', u'Dienst voor \'s Rijks Verspreide Kunstvoorwerpen',
                                 u'replacements' : [(u'^(.+)\s(.+)$', u'\\1\\2'), # Remove the extra space
                                                    (u'^(C\d+)\;(\d+)$', u'\\1'), # C numbers sometimes have junk in it
                                                    ],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rijksdienst voor het Cultureel Erfgoed',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rijksdienst voor het Cultureel Erfgoed',
                                 },
                 u'Q2324618' : { u'collectienaam' : u'Staatliches Museum Schwerin',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Staatliches Museum Schwerin',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Staatliches Museum Schwerin',
                                  },
                 u'Q2284748' : { u'collectienaam' : u'Goudstikker, Jacques',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacques Goudstikker collection',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacques Goudstikker collection',
                                 },
                 u'Q28065304' : { u'collectienaam' : u'Goudstikker, erven Jacques',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Goudstikker heirs collection',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Goudstikker heirs collection',
                                 },
                 u'Q19750488' : { u'collectienaam' : u'Hoop, Adriaan van der',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Adriaan van der Hoop collection',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Adriaan van der Hoop collection',
                                  },
                 u'Q51252' : { u'collectienaam' : u'Uffizi, Galleria degli',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Uffizi',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Uffizi',
                                  },
                 u'Q1954426' : { u'collectienaam' : u'Museum Catharijneconvent',
                               u'replacements' : [(u'^([\w\w]{2,4}) [sS][\s0]*(\d+\w?)$', u'\\1 s\\2'),
                                                  (u'^([\w\w]{2,4}) [sS]s\?(\d+)$', u'\\1 s\\2'),
                                                  ],
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Catharijneconvent',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Catharijneconvent',
                               },
                 u'Q892727' : { u'collectienaam' : u'Bonnefantenmuseum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bonnefantenmuseum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bonnefantenmuseum',
                                 },
                 u'Q281903' : { u'collectienaam' : u'Stedelijk Museum Het Prinsenhof',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Prinsenhof',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Prinsenhof',
                                },
                 u'Q1976985' : { u'collectienaam' : u'Nelson-Atkins Museum of Art, The',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nelson-Atkins Museum of Art',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nelson-Atkins Museum of Art',
                                },
                 u'Q731126' : { u'collectienaam' : u'J. Paul Getty Museum, The',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/J. Paul Getty Museum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/J. Paul Getty Museum',
                                 },
                 u'Q2628596' : { u'collectienaam' : u'Palais des Beaux-Arts de Lille',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Palais des Beaux-Arts de Lille',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Palais des Beaux-Arts de Lille',
                                },
                 u'Q1948674' : { u'collectienaam' : u'Groeningemuseum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Groeningemuseum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Groeningemuseum',
                                 },
                 u'Q430682' : { u'collectienaam' : u'Tate Gallery',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Tate',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Tate',
                                 },
                 u'Q1565911' : { u'collectienaam' : u'Museum of Fine Arts Houston',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Fine Arts Houston',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Fine Arts Houston',
                                },
                 u'Q474563' : { u'collectienaam' : u'Teylers Museum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Teylers Museum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Teylers Museum',
                                 },
                 u'Q657415' : { u'collectienaam' : u'Cleveland Museum of Art, The',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Cleveland Museum of Art',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Cleveland Museum of Art',
                                },
                 u'Q866498' : { u'collectienaam' : u'Galleria Palatina (Palazzo Pitti)',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Galleria Palatina',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Galleria Palatina',
                                },
                 u'Q1700481' : { u'collectienaam' : u'Minneapolis Institute of Arts',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Minneapolis Institute of Arts',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Minneapolis Institute of Arts',
                                },
                 u'Q238587' : { u'collectienaam' : u'National Portrait Gallery',
                                 u'replacements' : [(u'^(\d+)$', u'NPG \\1'),],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Portrait Gallery',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Portrait Gallery',
                                 },
                 u'Q23402' : { u'collectienaam' : u'Musée d\'Orsay',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Musée d\'Orsay',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Musée d\'Orsay',
                                },
                 u'Q1416890' : { u'collectienaam' : u'Fine Arts Museums of San Francisco',
                               u'replacements' : [],
-                              u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Fine Arts Museums of San Francisco',
+                              u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Fine Arts Museums of San Francisco',
                               },
                 u'Q1117704' : { u'collectienaam' : u'Indianapolis Museum of Art',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Indianapolis Museum of Art',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Indianapolis Museum of Art',
                                 },
                 u'Q2970522' : { u'collectienaam' : u'Cincinnati Art Museum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Cincinnati Art Museum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Cincinnati Art Museum',
                                 },
                 u'Q210081' : { u'collectienaam' : u'Walters Art Museum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Walters Art Museum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Walters Art Museum',
                                 },
                 u'Q188740' : { u'collectienaam' : u'Museum of Modern Art, The',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Modern Art',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Modern Art',
                                },
                 u'Q1505892' : { u'collectienaam' : u'Rijksmuseum Twenthe',
                                u'replacements' : [(u'^(\d)$', u'000\\1'),
                                                   (u'^(\d\d)$', u'00\\1'),
                                                   (u'^(\d\d\d)$', u'0\\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rijksmuseum Twenthe',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rijksmuseum Twenthe',
                                },
                 u'Q658725' : { u'collectienaam' : u'Staatliche Kunsthalle Karlsruhe',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Staatliche Kunsthalle Karlsruhe',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Staatliche Kunsthalle Karlsruhe',
                                 },
                 u'Q377500' : { u'collectienaam' : u'Koninklijke Musea voor Schone Kunsten van België',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Royal Museums of Fine Arts of Belgium',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Royal Museums of Fine Arts of Belgium',
                                },
                 u'Q165631' : { u'collectienaam' : u'Gemäldegalerie (Staatliche Museen zu Berlin)',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemäldegalerie, Berlin',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemäldegalerie, Berlin',
                                },
                 u'Q431431' : { u'collectienaam' : u'Singer Museum',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Singer Laren',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Singer Laren',
                                },
                 u'Q163804' : { u'collectienaam' : u'Städel Museum',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Städel Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Städel Museum',
                                },
                 u'Q653002' : { u'collectienaam' : u'Staatliche Kunstsammlungen Dresden - Gemäldegalerie Alte Meister',
                                u'replacements' : [(u'^(\d+)$', u'Gal.-Nr. \\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemäldegalerie Alte Meister, Dresden',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemäldegalerie Alte Meister, Dresden',
                                },
                 u'Q2382575' : { u'collectienaam' : u'Westfries Museum',
                              u'replacements' : [],
-                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Westfries Museum',
+                             u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Westfries Museum',
                              },
                 u'Q1616123' : { u'collectienaam' : u'Nederlands Scheepvaartmuseum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nederlands Scheepvaartmuseum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nederlands Scheepvaartmuseum',
                                 },
                 u'Q700959' : { u'collectienaam' : u'Wallraf-Richartz-Museum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Wallraf-Richartz-Museum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Wallraf-Richartz-Museum',
                                 },
                 u'Q714783' : { u'collectienaam' : u'Gripsholm Slott',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gripsholm Castle',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gripsholm Castle',
                                },
                 u'Q255409' : { u'collectienaam' : u'De Mesdag Collectie',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Mesdag Collectie',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Mesdag Collectie',
                                },
                 u'Q678082' : { u'collectienaam' : u'Herzog Anton Ulrich-Museum',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Herzog Anton Ulrich Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Herzog Anton Ulrich Museum',
                                },
                 u'Q61942636' : { u'collectienaam' : u'Bisschoppelijk Museum (Haarlem)',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bisschoppelijk Museum Haarlem',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bisschoppelijk Museum Haarlem',
                                },
                 u'Q1258370' : { u'collectienaam' : u'Drents Museum',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Drents Museum',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Drents Museum',
                                  },
                 u'Q692381' : { u'collectienaam' : u'Paleis Het Loo Nationaal Museum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Het Loo Palace',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Het Loo Palace',
                                 },
                 u'Q4623539' : { u'collectienaam' : u'Stedelijk Museum Alkmaar',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stedelijk Museum Alkmaar',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stedelijk Museum Alkmaar',
                                },
                 u'Q2425770' : { u'collectienaam' : u'Museum Simon van Gijn',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Huis Van Gijn',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Huis Van Gijn',
                                 },
                 u'Q840886' : { u'collectienaam' : u'Szépmüvészeti Múzeum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Fine Arts, Budapest',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Fine Arts, Budapest',
                                 },
                 u'Q11722011' : { u'collectienaam' : u'Haags Historisch Museum',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Haags Historisch Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Haags Historisch Museum',
                                },
                 u'Q4872' : { u'collectienaam' : u'Pushkin Museum',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Pushkin Museum',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Pushkin Museum',
                                  },
                 u'Q2216754' : { u'collectienaam' : u'Museum Bredius',
                              u'replacements' : [],
-                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Bredius',
+                             u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Bredius',
                              },
                 u'Q169542' : { u'collectienaam' : u'Hamburger Kunsthalle',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kunsthalle Hamburg',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kunsthalle Hamburg',
                                 },
                 u'Q226103' : { u'collectienaam' : u'The National Museum of History Frederiksborg Castle',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frederiksborg Palace',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frederiksborg Palace',
                                },
                 u'Q2114028' : { u'collectienaam' : u'Museum voor Moderne Kunst Arnhem',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Arnhem',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Arnhem',
                                },
                 u'Q43655709' : { u'collectienaam' : u'Aartsbisschoppelijk Museum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Aartsbisschoppelijk Museum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Aartsbisschoppelijk Museum',
                                 },
                 u'Q468169' : { u'collectienaam' : u'Suermondt-Ludwig-Museum',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Suermondt-Ludwig-Museum',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Suermondt-Ludwig-Museum',
                                  },
                 u'Q1419555' : { u'collectienaam' : u'Národní Galerie v Praze',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Gallery in Prague',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Gallery in Prague',
                                },
                 u'Q2131198' : { u'collectienaam' : u'Slot Zuylen',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Slot Zuylen',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Slot Zuylen',
                                 },
                 u'Q1519002' : { u'collectienaam' : u'Musée Fabre',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Musée Fabre',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Musée Fabre',
                                 },
                 u'Q566661' : { u'collectienaam' : u'Museum der bildenden Künste Leipzig',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum der bildenden Künste',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum der bildenden Künste',
                                 },
                 u'Q687186' : { u'collectienaam' : u'Museum Schloss Wilhelmshöhe',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Schloss Wilhelmshöhe',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Schloss Wilhelmshöhe',
                                },
                 u'Q702726' : { u'collectienaam' : u'Joods Historisch Museum',
                                u'replacements' : [('^(\d{3,3})$', 'M000\\1'),
                                                   ('^(\d{4,4})$', 'M00\\1'),
                                                   ('^(\d{5,5})$', 'M0\\1'),
                                                   ('^JHM (\d{5,5})$', 'M0\\1'),],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jewish Historical Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jewish Historical Museum',
                                },
                 u'Q1421440' : { u'collectienaam' : u'Fitzwilliam Museum',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Fitzwilliam Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Fitzwilliam Museum',
                                },
                 u'Q1501215' : { u'collectienaam' : u'Düsseldorfer Galerie',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Düsseldorfer Galerie',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Düsseldorfer Galerie',
                                },
                 u'Q878678' : { u'collectienaam' : u'Lindenau-Museum Altenburg',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Lindenau-Museum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Lindenau-Museum',
                                 },
                 u'Q1568434' : { u'collectienaam' : u'Yale University Art Gallery',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Yale University Art Gallery',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Yale University Art Gallery',
                                },
-                u'Q7374509' : { u'collectienaam' : u'National Maritime Museum',
+                u'Q7374509' : { u'collectienaam' : u'National Maritime Museum (Greenwich)',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Royal Museums Greenwich',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Royal Museums Greenwich',
                                 },
                 u'Q303139' : { u'collectienaam' : u'Österreichische Galerie Belvedere',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Österreichische Galerie Belvedere',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Österreichische Galerie Belvedere',
                                 },
                 u'Q2362660' : { u'collectienaam' : u'M – Museum Leuven',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/M – Museum Leuven',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/M – Museum Leuven',
                                 },
                 u'Q29908492' : { u'collectienaam' : u'Museum Flehite',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Flehite',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Flehite',
                                 },
                 u'Q333515' : { u'collectienaam' : u'National Trust, The',
                                  u'replacements' : [(u'^NT\s*(\d+)$', u'\\1')],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Trust',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Trust',
                                  },
                 u'Q107452734' : { u'collectienaam' : u'Staatlichen Galerie (Mannheim)',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Staatlichen Galerie',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Staatlichen Galerie',
                                },
                 u'Q107452829' : { u'collectienaam' : u'Willem V (Prince of Oranje-Nassau)',
                                   u'replacements' : [],
-                                  u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Willem V',
+                                  u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Willem V',
                                   },
                 u'Q107452904' : { u'collectienaam' : u'William I (King of the Netherlands)',
                                   u'replacements' : [],
-                                  u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Willem I',
+                                  u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Willem I',
                                   },
                 u'Q18702715' : { u'collectienaam' : u'Stichting Historische Verzamelingen van het Huis Oranje-Nassau',
                                   u'replacements' : [],
-                                  u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stichting Historische Verzamelingen van het Huis Oranje-Nassau',
+                                  u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stichting Historische Verzamelingen van het Huis Oranje-Nassau',
                                   },
                 u'Q1059456' : { u'collectienaam' : u'New-York Historical Society',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/New-York Historical Society',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/New-York Historical Society',
                                  },
                 u'Q194626' : { u'collectienaam' : u'Kunstmuseum Basel',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kunstmuseum Basel',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Kunstmuseum Basel',
                                 },
                 u'Q1329563' : { u'collectienaam' : u'Muzeum Narodowe we Wroclawiu',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Museum in Wrocław',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Museum in Wrocław',
                                },
                 u'Q22669065' : { u'collectienaam' : u'Staatsgalerie im neuen Schloss Schleissheim',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Schleißheim State Gallery',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Schleißheim State Gallery',
                                 },
                 u'Q2436387' : { u'collectienaam' : u'Museum De Fundatie',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum de Fundatie',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum de Fundatie',
                                  },
                 u'Q1327919' : { u'collectienaam' : u'Wallace Collection',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Wallace Collection',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Wallace Collection',
                                 },
                 u'Q228640' : { u'collectienaam' : u'Zuiderzeemuseum',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Zuiderzeemuseum',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Zuiderzeemuseum',
                                 },
                 u'Q194533' : { u'collectienaam' : u'Muzeum Narodowe w Poznaniu',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Museum Poznań',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Museum Poznań',
                                },
                 u'Q451555' : { u'collectienaam' : u'Bildergalerie am Schloss Sanssouci',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Sanssouci Picture Gallery',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Sanssouci Picture Gallery',
                                },
                 u'Q3330220' : { u'collectienaam' : u'Musée des Beaux-Arts de Quimper',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Musée des Beaux-Arts de Quimper',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Musée des Beaux-Arts de Quimper',
                                },
                 u'Q4360916' : { u'collectienaam' : u'Museum Gouda',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Gouda',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Gouda',
                                 },
                 u'Q511' : { u'collectienaam' : u'Musée des Beaux-Arts de Lyon',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Fine Arts of Lyon',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum of Fine Arts of Lyon',
                                 },
                 u'Q23959785' : { u'collectienaam' : u'Nationale Konst-gallerij',
                             u'replacements' : [],
-                            u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nationale Konst-gallerij',
+                            u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nationale Konst-gallerij',
                             },
                 u'Q14388973' : { u'collectienaam' : u'Stedelijk Museum Zwolle',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stedelijk Museum Zwolle',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Stedelijk Museum Zwolle',
                                  },
                 u'Q414219' : { u'collectienaam' : u'Akademie der bildenden Künste Wien',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Academy of Fine Arts Vienna',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Academy of Fine Arts Vienna',
                                  },
                 u'Q1743116' : { u'collectienaam' : u'Toledo Museum of Art',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Toledo Museum of Art',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Toledo Museum of Art',
                                },
                 u'Q1699233' : { u'collectienaam' : u'Museum Mayer van den Bergh',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Mayer van den Bergh',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Mayer van den Bergh',
                                 },
                 u'Q1798475' : { u'collectienaam' : u'LWL - Museum für Kunst und Kultur',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/LWL-Museum für Kunst und Kultur',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/LWL-Museum für Kunst und Kultur',
                                 },
                 u'Q2018379' : { u'collectienaam' : u'National Gallery of Ireland',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Gallery of Ireland',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/National Gallery of Ireland',
                                 },
                 u'Q493160' : { u'collectienaam' : u'Ons\' Lieve Heer op Solder',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Ons\' Lieve Heer op Solder',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Ons\' Lieve Heer op Solder',
                                 },
                 u'Q2153365' : { u'collectienaam' : u'Zeeuws Museum',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Zeeuws Museum',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Zeeuws Museum',
                                },
                 u'Q314082' : { u'collectienaam' : u'Niedersächsisches Landesmuseum Hannover',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Niedersächsisches Landesmuseum Hannover',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Niedersächsisches Landesmuseum Hannover',
                                 },
                 u'Q2191110' : { u'collectienaam' : u'Museum Van Loon',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Van Loon',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Museum Van Loon',
                                },
                 u'Q107453163' : { u'collectienaam' : u'Liechtenstein - The Princely Collections',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Princely Collections of the House of Liechtenstein',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Princely Collections of the House of Liechtenstein',
                                 },
                 u'Q76638284' : { u'collectienaam' : u'Anhaltische Gemäldegalerie - Schloss Georgium',
                                   u'replacements' : [],
-                                  u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Anhaltische Gemäldegalerie',
+                                  u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Anhaltische Gemäldegalerie',
                                   },
                 u'Q18015075' : { u'collectienaam' : u'Nederlandsch Museum voor Geschiedenis en Kunst',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nederlandsch Museum voor Geschiedenis en Kunst',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nederlandsch Museum voor Geschiedenis en Kunst',
                                  },
                 u'Q17402020' : { u'collectienaam' : u'Marinemuseum',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Marinemuseum Den Helder',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Marinemuseum Den Helder',
                                  },
                 u'Q13742032' : { u'collectienaam' : u'Kasteel-Museum Sypesteyn',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Sypesteyn',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Sypesteyn',
                                  },
                 u'Q1501219' : { u'collectienaam' : u'Gemäldegalerie Alte Meister (Museumslandschaft Hessen Kassel)',
                                  u'replacements' : [],
-                                 u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemäldegalerie Alte Meister, Kassel',
+                                 u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gemäldegalerie Alte Meister, Kassel',
                                  },
                 u'Q475667' : { 'collectienaam' : 'Führermuseum',
                                'replacements' : [],
-                               'pageTitle' : 'Wikidata:WikiProject sum of all paintings/RKD to match/Führermuseum',
+                               'reportpage' : 'Wikidata:WikiProject sum of all paintings/RKD to match/Führermuseum',
                                  },
                 u'Q15638014' : { 'collectienaam' : 'The Leiden Collection',
                                'replacements' : [],
-                               'pageTitle' : 'Wikidata:WikiProject sum of all paintings/RKD to match/Leiden Collection',
-                               },# Next on the TODO is Museum Het Valkhof
+                               'reportpage' : 'Wikidata:WikiProject sum of all paintings/RKD to match/Leiden Collection',
+                               },
+                'Q54082797': { 'collectienaam' : 'Phoebus Foundation, The',
+                               'replacements' : [],
+                               'reportpage' : 'Wikidata:WikiProject sum of all paintings/RKD to match/Phoebus Foundation',
+                               },  # Next on the TODO is Museum Het Valkhof
                 #u'Q768717' : { u'collectienaam' : u'Private collection', # Probably still too big
                 #                u'replacements' : [],
-                #                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Private collection',
+                #                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Private collection',
                 #                },
 
                }
-    artists = { u'Q711737' : { u'artistname' : u'Berchem, Nicolaes',
+    manual_artists = { u'Q711737' : { u'artistname' : u'Berchem, Nicolaes',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nicolaes Pieterszoon Berchem',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nicolaes Pieterszoon Berchem',
                              },
                 u'Q374039' : { u'artistname' : u'Bol, Ferdinand',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Ferdinand Bol',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Ferdinand Bol',
                                },
                 u'Q346808' : { u'artistname' : u'Borch, Gerard ter (II)',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gerard ter Borch',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gerard ter Borch',
                                },
                 u'Q130531' : { u'artistname' : u'Bosch, Jheronimus',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Hieronymus Bosch',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Hieronymus Bosch',
                                },
                 u'Q289441' : { u'artistname' : u'Breitner, George Hendrik',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/George Hendrik Breitner',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/George Hendrik Breitner',
                                },
                 u'Q153472' : { u'artistname' : u'Cleve, Joos van',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Joos van Cleve',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Joos van Cleve',
                                 },
                 u'Q367798' : { u'artistname' : u'Coorte, Adriaen',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Adriaen Coorte',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Adriaen Coorte',
                                },
                 u'Q313194' : { u'artistname' : u'Cuyp, Aelbert',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Aelbert Cuyp',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Aelbert Cuyp',
                                },
                 u'Q160422' : { u'artistname' : u'Doesburg, Theo van',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Theo van Doesburg',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Theo van Doesburg',
                                },
                 u'Q335927' : { u'artistname' : u'Dou, Gerard',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gerrit Dou',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gerrit Dou',
                                },
                 u'Q150679' : { u'artistname' : u'Dyck, Anthony van',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Anthony van Dyck',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Anthony van Dyck',
                                },
                 u'Q624802' : { u'artistname' : u'Fijt, Joannes',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan Fyt',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan Fyt',
                                },
                 u'Q1442507' : { u'artistname' : u'Francken, Frans (II)',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans Francken the Younger',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans Francken the Younger',
                                 },
                 u'Q5582' : { u'artistname' : u'Gogh, Vincent van',
                              u'replacements' : [],
-                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Vincent van Gogh',
+                             u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Vincent van Gogh',
                              },
                 u'Q315996' : { u'artistname' : u'Goyen, Jan van',
                              u'replacements' : [],
-                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan van Goyen',
+                             u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan van Goyen',
                              },
                 u'Q167654' : { u'artistname' : u'Hals, Frans (I)',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans Hals',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans Hals',
                                },
                 u'Q538350' : { u'artistname' : u'Heemskerck, Maarten van',
                              u'replacements' : [],
-                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Maarten van Heemskerck',
+                             u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Maarten van Heemskerck',
                              },
                 u'Q380704' : { u'artistname' : u'Helst, Bartholomeus van der',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bartholomeus van der Helst',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Bartholomeus van der Helst',
                                },
                 u'Q370567' : { u'artistname' : u'Heyden, Jan van der',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan van der Heyden',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan van der Heyden',
                                },
                 u'Q314548' : { u'artistname' : u'Honthorst, Gerard van',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gerard van Honthorst',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gerard van Honthorst',
                                },
                 u'Q314889' : { u'artistname' : u'Hooch, Pieter de',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Pieter de Hooch',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Pieter de Hooch',
                                },
                 u'Q979534' : { u'artistname' : u'Israels, Isaac',
                              u'replacements' : [],
-                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Isaac Israëls',
+                             u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Isaac Israëls',
                              },
                 u'Q528460' : { u'artistname' : u'Israëls, Jozef',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jozef Israëls',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jozef Israëls',
                                },
                 u'Q270658' : { u'artistname' : u'Jordaens, Jacob (I)',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacob Jordaens',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacob Jordaens',
                                },
                 u'Q2500930' : { u'artistname' : u'Kat, Otto B. de',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Otto B. de Kat',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Otto B. de Kat',
                                },
                 u'Q505150' : { u'artistname' : u'Maes, Nicolaes',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nicolaes Maes',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Nicolaes Maes',
                                },
                 u'Q978158' : { u'artistname' : u'Maris, Jacob',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacob Maris',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacob Maris',
                                },
                 u'Q1375830' : { u'artistname' : u'Maris, Matthijs',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Matthijs Maris',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Matthijs Maris',
                                },
                 u'Q591907' : { u'artistname' : u'Mauve, Anton',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Anton Mauve',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Anton Mauve',
                                },
                 u'Q355213' : { u'artistname' : u'Metsu, Gabriel',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gabriël Metsu',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Gabriël Metsu',
                                },
                 u'Q864092' : { u'artistname' : u'Mierevelt, Michiel van',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Michiel van Mierevelt',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Michiel van Mierevelt',
                                },
                 u'Q959236' : { u'artistname' : u'Mieris, Frans van (I)',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans van Mieris the Elder',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Frans van Mieris the Elder',
                                },
                 u'Q151803' : { u'artistname' : u'Mondriaan, Piet',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Piet Mondrian',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Piet Mondrian',
                                },
                 u'Q352438' : { u'artistname' : u'Ostade, Adriaen van',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Adriaen van Ostade',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Adriaen van Ostade',
                                },
                 u'Q5598' : { u'artistname' : u'Rembrandt',
                                u'replacements' : [],
-                               u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rembrandt',
+                               u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Rembrandt',
                                },
                 u'Q5599' : { u'artistname' : u'Rubens, Peter Paul',
                              u'replacements' : [],
-                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Peter Paul Rubens',
+                             u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Peter Paul Rubens',
                             },
                 u'Q213612' : { u'artistname' : u'Ruisdael, Jacob van',
                              u'replacements' : [],
-                             u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacob van Ruisdael',
+                             u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jacob van Ruisdael',
                              },
                 u'Q1682227' : { u'artistname' : u'Sluijters, Jan',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan Sluyters',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan Sluyters',
                               },
                 u'Q205863' : { u'artistname' : u'Steen, Jan',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan Steen',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Jan Steen',
                                 },
                 u'Q335022' : { u'artistname' : u'Teniers, David (II)',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/David Teniers the Younger',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/David Teniers the Younger',
                                 },
                 u'Q41264' : { u'artistname' : u'Vermeer, Johannes',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Johannes Vermeer',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Johannes Vermeer',
                                 },
                 u'Q1691988' : { u'artistname' : u'Weissenbruch, Jan Hendrik',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Johan Hendrik Weissenbruch',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Johan Hendrik Weissenbruch',
                                 },
                 u'Q2614892' : { u'artistname' : u'Witsen, Willem',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Willem Witsen',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Willem Witsen',
                                 },
                 u'Q454671' : { u'artistname' : u'Wouwerman, Philips',
                                 u'replacements' : [],
-                                u'pageTitle' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Philips Wouwerman',
+                                u'reportpage' : u'Wikidata:WikiProject sum of all paintings/RKD to match/Philips Wouwerman',
                                 },
                 }
     collectionid = None
@@ -1505,43 +1655,53 @@ def main(*args):
                 autoadd = int(arg[9:])
 
     if collectionid:
-        if collectionid not in sources.keys():
+        collections = manual_collections
+        if collectionid not in collections.keys():
             pywikibot.output(u'%s is not a valid collectionid!' % (collectionid,))
             return
         processCollection(collectionid,
-                          sources[collectionid][u'collectienaam'],
-                          sources[collectionid][u'replacements'],
-                          sources[collectionid][u'pageTitle'],
+                          collections[collectionid]['collectienaam'],
+                          collections[collectionid]['replacements'],
+                          collections[collectionid]['reportpage'],
                           autoadd,
                           )
     elif artistid:
+        artists = manual_artists
         processArtist(artistid,
-                      artists[artistid][u'artistname'],
-                      artists[artistid][u'replacements'],
-                      artists[artistid][u'pageTitle'],
+                      artists[artistid]['artistname'],
+                      artists[artistid]['replacements'],
+                      artists[artistid]['reportpage'],
                       autoadd,
                       )
 
     else:
         artistsstats = []
+        artists = get_artist_info()
+        artists.update(manual_artists)  # This is for overrides, might be needed
         for artistid in artists.keys():
             artiststats = processArtist(artistid,
-                                        artists[artistid][u'artistname'],
-                                        artists[artistid][u'replacements'],
-                                        artists[artistid][u'pageTitle'],
+                                        artists[artistid]['artistname'],
+                                        artists[artistid]['replacements'],
+                                        artists[artistid]['reportpage'],
                                         autoadd,
                                         )
             artistsstats.append(artiststats)
-        collectionsstats = []
-        for collectionid in sources.keys():
-            collectionstats = processCollection(collectionid,
-                                                sources[collectionid][u'collectienaam'],
-                                                sources[collectionid][u'replacements'],
-                                                sources[collectionid][u'pageTitle'],
+
+        collections = get_collection_info(manual_collections)
+        collections.update(manual_collections)
+
+        collections_stats = []
+        for collectionid in collections:  # Should I sort this?
+            collection_stats = processCollection(collectionid,
+                                                collections[collectionid]['collectienaam'],
+                                                collections[collectionid]['replacements'],
+                                                collections[collectionid]['reportpage'],
                                                 autoadd,
                                                 )
-            collectionsstats.append(collectionstats)
-        publishStatistics(artistsstats, collectionsstats)
+            collections_stats.append(collection_stats)
+
+
+        publishStatistics(artistsstats, collections_stats)
 
 if __name__ == "__main__":
     main()
