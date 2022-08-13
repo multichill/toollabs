@@ -149,52 +149,48 @@ def rkdImagesGenerator(currentimages, invnumbers, collection, replacements):
             return
         start = start + rows
         for rkdimage in  searchJson.get('response').get('docs'):
-            if rkdimage.get(u'priref') in currentimages:
-                pywikibot.output(u'RKDimage id %s found on %s' % (rkdimage.get(u'priref'),
-                                                                  currentimages.get(rkdimage.get(u'priref'))))
+            imageinfo = {}
+            imageinfo[u'id'] = rkdimage.get(u'priref')
+            if rkdimage.get(u'benaming_kunstwerk') and rkdimage.get(u'benaming_kunstwerk')[0]:
+                imageinfo[u'title_nl'] = rkdimage.get(u'benaming_kunstwerk')[0]
             else:
-                imageinfo = {}
-                imageinfo[u'id'] = rkdimage.get(u'priref')
-                if rkdimage.get(u'benaming_kunstwerk') and rkdimage.get(u'benaming_kunstwerk')[0]: 
-                    imageinfo[u'title_nl'] = rkdimage.get(u'benaming_kunstwerk')[0]
-                else:
-                    imageinfo[u'title_nl'] = u'(geen titel)'
-                imageinfo[u'title_en'] = rkdimage.get(u'titel_engels')
-                imageinfo[u'creator'] = rkdimage.get(u'kunstenaar')
-                if rkdimage.get(u'toeschrijving'):
-                    imageinfo[u'rkdartistid'] = rkdimage.get(u'toeschrijving')[0].get(u'naam_linkref')
-                    # Overwrite creator with something more readable
-                    imageinfo[u'creator'] = rkdimage.get(u'toeschrijving')[0].get(u'naam_inverted')
-                imageinfo[u'invnum'] = None
-                imageinfo[u'qid'] = None
-                imageinfo[u'url'] = None
-                #print rkdimage.get(u'collectie')
-                for collectie in rkdimage.get(u'collectie'):
-                    #First we have to extract the collection name. This can be a string or a dict
-                    collectienaam = None
-                    if collectie.get('collectienaam'):
-                        if collectie.get('collectienaam')[0]:
-                            if collectie.get('collectienaam')[0].get('collectienaam'):
-                                collectienaam = collectie.get('collectienaam')[0].get('collectienaam')
-                        else:
-                            collectienaam = collectie.get('collectienaam')
-                    # And is it the one we're looking for?
-                    if collectienaam == collection:
-                        invnum = collectie.get('inventarisnummer')
-                        if invnum:
-                            for (regex, replace) in replacements:
-                                invnum = re.sub(regex, replace, invnum)
-                        imageinfo[u'invnum'] = invnum
-                        imageinfo[u'startime'] = collectie.get('begindatum_in_collectie')
-                        if invnum in invnumbers:
-                            pywikibot.output(u'Found a Wikidata id!')
-                            imageinfo[u'qid'] = invnumbers.get(invnum).get('qid')
-                            if invnumbers.get(invnum).get('url'):
-                                imageinfo[u'url'] = invnumbers.get(invnum).get('url')
-                            # Break out of the loop, otherwise the inventory might get overwritten
-                            break
+                imageinfo[u'title_nl'] = u'(geen titel)'
+            imageinfo[u'title_en'] = rkdimage.get(u'titel_engels')
+            imageinfo[u'creator'] = rkdimage.get(u'kunstenaar')
+            if rkdimage.get(u'toeschrijving'):
+                imageinfo[u'rkdartistid'] = rkdimage.get(u'toeschrijving')[0].get(u'naam_linkref')
+                # Overwrite creator with something more readable
+                imageinfo[u'creator'] = rkdimage.get(u'toeschrijving')[0].get(u'naam_inverted')
+            imageinfo[u'invnum'] = None
+            imageinfo[u'qid'] = None
+            imageinfo[u'url'] = None
+            #print rkdimage.get(u'collectie')
+            for collectie in rkdimage.get(u'collectie'):
+                #First we have to extract the collection name. This can be a string or a dict
+                collectienaam = None
+                if collectie.get('collectienaam'):
+                    if collectie.get('collectienaam')[0]:
+                        if collectie.get('collectienaam')[0].get('collectienaam'):
+                            collectienaam = collectie.get('collectienaam')[0].get('collectienaam')
+                    else:
+                        collectienaam = collectie.get('collectienaam')
+                # And is it the one we're looking for?
+                if collectienaam == collection:
+                    invnum = collectie.get('inventarisnummer')
+                    if invnum:
+                        for (regex, replace) in replacements:
+                            invnum = re.sub(regex, replace, invnum)
+                    imageinfo[u'invnum'] = invnum
+                    imageinfo[u'startime'] = collectie.get('begindatum_in_collectie')
+                    if invnum in invnumbers:
+                        #pywikibot.output(u'Found a Wikidata id!')
+                        imageinfo[u'qid'] = invnumbers.get(invnum).get('qid')
+                        if invnumbers.get(invnum).get('url'):
+                            imageinfo[u'url'] = invnumbers.get(invnum).get('url')
+                        # Break out of the loop, otherwise the inventory might get overwritten
+                        break
 
-                yield imageinfo
+            yield imageinfo
 
 def rkdImagesArtistGenerator(aristname):
     '''
@@ -315,6 +311,7 @@ def processCollection(collectionid, collectienaam, replacements, reportpage, aut
     addtext = u''
 
     totalimages = 0
+    totaltolink = 0
     totalautoadded = 0
     totalnextadd = 0
     totalsuggestions = 0
@@ -322,6 +319,7 @@ def processCollection(collectionid, collectienaam, replacements, reportpage, aut
     totailfailedoptions= 0
     totalfailedelse = 0
     bestsuggestions = ''
+    othersuggestions = ''
 
     i = 0
     addcluster = 10
@@ -330,16 +328,18 @@ def processCollection(collectionid, collectienaam, replacements, reportpage, aut
 
     imagedict = {}
     for rkdimageid in gen:
-        invnum = rkdimageid.get(u'invnum')
-        if not invnum:
-            invnum = ''
-        if not invnum in imagedict:
-            imagedict[invnum] = []
-        imagedict[invnum].append(rkdimageid)
+        totalimages += 1
+        if rkdimageid.get('id') not in currentimages:
+            invnum = rkdimageid.get('invnum')
+            if not invnum:
+                invnum = ''
+            if invnum not in imagedict:
+                imagedict[invnum] = []
+            imagedict[invnum].append(rkdimageid)
 
     for invnum in sorted(list(imagedict.keys())):
         for rkdimageid in imagedict.get(invnum):
-            totalimages = totalimages + 1
+            totaltolink = totaltolink + 1
             # We found a match, just not sure how solid it is
             if rkdimageid.get(u'qid'):
                 # We found the same inventory number. If the creator matches too than I'm confident enough to add it by bot
@@ -360,28 +360,30 @@ def processCollection(collectionid, collectienaam, replacements, reportpage, aut
                             totalautoadded = totalautoadded + 1
                         else:
                             suggestionstext = suggestionstext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
+                            othersuggestions += u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
 
-                            addtext = addtext + u'%(qid)s\tP350\t"%(id)s"\n' % rkdimageid
+                            #addtext = addtext + u'%(qid)s\tP350\t"%(id)s"\n' % rkdimageid
                             i = i + 1
                             totalsuggestions = totalsuggestions + 1
-                            if not i % addcluster:
-                                suggestionstext = suggestionstext + addlink % (addtext, addcluster)
-                                addtext = u''
+                            #if not i % addcluster:
+                            #    suggestionstext = suggestionstext + addlink % (addtext, addcluster)
+                            #    addtext = u''
 
                     else:
                         nextaddedtext = nextaddedtext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
-                        bestsuggestions+= u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
+                        bestsuggestions += u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
                         totalnextadd = totalnextadd + 1
                 # Something is not adding up, add it to the suggestions list
                 else:
                     suggestionstext = suggestionstext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
+                    othersuggestions += u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
 
-                    addtext = addtext + u'%(qid)s\tP350\t"%(id)s"\n' % rkdimageid
+                    #addtext = addtext + u'%(qid)s\tP350\t"%(id)s"\n' % rkdimageid
                     i = i + 1
                     totalsuggestions = totalsuggestions + 1
-                    if not i % addcluster:
-                        suggestionstext = suggestionstext + addlink % (addtext, addcluster)
-                        addtext = u''
+                    #if not i % addcluster:
+                    #    suggestionstext = suggestionstext + addlink % (addtext, addcluster)
+                    #    addtext = u''
 
                 #if i > 5000:
                 #    break
@@ -422,7 +424,8 @@ def processCollection(collectionid, collectienaam, replacements, reportpage, aut
     text = text + suggestionstext
     text = text + failedtext
     text = text + u'\n== Statistics ==\n'
-    text = text + u'* RKDimages needing a link: %s\n' % (totalimages,)
+    text = text + u'* RKDimages in this collection: %s\n' % (totalimages,)
+    text = text + u'* Needing a link: %s\n' % (totaltolink,)
     text = text + u'* Auto added links this run: %s\n' % (totalautoadded,)
     text = text + u'* To auto add nex run: %s\n' % (totalnextadd,)
     text = text + u'* Number of suggestions: %s\n' % (totalsuggestions,)
@@ -434,13 +437,14 @@ def processCollection(collectionid, collectienaam, replacements, reportpage, aut
     repo = pywikibot.Site().data_repository()
 
     page = pywikibot.Page(repo, title=reportpage)
-    summary = u'%s RKDimages to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
-                                                                                                                                                    totalautoadded,
-                                                                                                                                                    totalnextadd,
-                                                                                                                                                    totalsuggestions,
-                                                                                                                                                    totalfailedinuse,
-                                                                                                                                                    totailfailedoptions,
-                                                                                                                                                    totalfailedelse,
+    summary = u'%s RKDimages, %s to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
+                                                                                                                                                        totaltolink,
+                                                                                                                                                        totalautoadded,
+                                                                                                                                                        totalnextadd,
+                                                                                                                                                        totalsuggestions,
+                                                                                                                                                        totalfailedinuse,
+                                                                                                                                                        totailfailedoptions,
+                                                                                                                                                        totalfailedelse,
                                                                                                                                                     )
     page.put(text[0:2000000], summary)
 
@@ -448,6 +452,7 @@ def processCollection(collectionid, collectienaam, replacements, reportpage, aut
                        u'collectienaam' : collectienaam,
                        u'reportpage' : reportpage,
                        u'totalimages' : totalimages,
+                       u'totaltolink': totaltolink,
                        u'totalautoadded' : totalautoadded,
                        u'totalnextadd' : totalnextadd,
                        u'totalsuggestions' : totalsuggestions,
@@ -455,6 +460,7 @@ def processCollection(collectionid, collectienaam, replacements, reportpage, aut
                        u'totailfailedoptions' : totailfailedoptions,
                        u'totalfailedelse' : totalfailedelse,
                        u'bestsuggestions' : bestsuggestions,
+                       u'othersuggestions': othersuggestions,
                        }
 
     return collectionstats
@@ -487,10 +493,7 @@ def processArtist(artistid, artistname, replacements, reportpage, autoadd):
     rkdsuggestioncount = 0
     for imageinfo in genrkd:
         rkdcount = rkdcount + 1
-        if imageinfo.get('id') in allimages:
-            #FIXME: Better info
-            pywikibot.output(u'Already in use')
-        else:
+        if imageinfo.get('id') not in allimages:
             rkdsuggestioncount = rkdsuggestioncount + 1
             text = text + u'|-\n'
             text = text + u'| [https://rkd.nl/explore/images/%(id)s %(id)s]\n| %(title)s \n| %(inception)s \n| %(collection)s\n' % imageinfo
@@ -569,9 +572,10 @@ def publishStatistics(artistsstats, collectionsstats):
     text = text + u'\nSee also the [[Wikidata:WikiProject sum of all paintings/RKD to match/Oldest additions|oldest]] and [[Wikidata:WikiProject sum of all paintings/RKD to match/Recent additions|recent additions]] to RKDimages.\n'
     text = text + u'== Collections ==\n'
     text = text + u'{| class="wikitable sortable"\n'
-    text = text + u'! Collection !! RKDimages !! Page !! RKDimages left to match !! Auto added !! Auto next !! Suggestions !! Failed in use !! Failed options !! Failed else\n'
+    text = text + u'! Collection !! RKDimages !! Page !! Total RKDimages || Left to match !! Auto added !! Auto next !! Suggestions !! Failed in use !! Failed options !! Failed else\n'
 
     totalimages = 0
+    totaltolink = 0
     totalautoadded = 0
     totalnextadd = 0
     totalsuggestions = 0
@@ -579,6 +583,7 @@ def publishStatistics(artistsstats, collectionsstats):
     totailfailedoptions= 0
     totalfailedelse = 0
     bestsuggestions = ''
+    othersuggestions = ''
 
     for collectionstats in collectionsstats:
         rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bcollectienaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (collectionstats.get('collectienaam').replace(u' ', u'%20'),
@@ -591,6 +596,7 @@ def publishStatistics(artistsstats, collectionsstats):
         text = text + u'|| %s ' % (rkdimageslink,)
         text = text + u'|| %s ' % (pagelink,)
         text = text + u'|| %s ' % (collectionstats.get(u'totalimages'),)
+        text = text + u'|| %s ' % (collectionstats.get(u'totaltolink'),)
         text = text + u'|| %s ' % (collectionstats.get(u'totalautoadded'),)
         text = text + u'|| %s ' % (collectionstats.get(u'totalnextadd'),)
         text = text + u'|| %s ' % (collectionstats.get(u'totalsuggestions'),)
@@ -599,6 +605,7 @@ def publishStatistics(artistsstats, collectionsstats):
         text = text + u'|| %s \n' % (collectionstats.get(u'totalfailedelse'),)
 
         totalimages = totalimages + collectionstats.get(u'totalimages')
+        totaltolink = totaltolink + collectionstats.get(u'totaltolink')
         totalautoadded = totalautoadded + collectionstats.get(u'totalautoadded')
         totalnextadd = totalnextadd + collectionstats.get(u'totalnextadd')
         totalsuggestions = totalsuggestions + collectionstats.get(u'totalsuggestions')
@@ -606,19 +613,23 @@ def publishStatistics(artistsstats, collectionsstats):
         totailfailedoptions = totailfailedoptions + collectionstats.get(u'totailfailedoptions')
         totalfailedelse = totalfailedelse + collectionstats.get(u'totalfailedelse')
         bestsuggestions += collectionstats.get(u'bestsuggestions')
+        othersuggestions += collectionstats.get('othersuggestions')
 
     text = text + u'|- class="sortbottom"\n'
-    text = text + u'| || || || %s || %s || %s || %s || %s || %s || %s\n' % (totalimages,
-                                                                            totalautoadded,
-                                                                            totalnextadd,
-                                                                            totalsuggestions,
-                                                                            totalfailedinuse,
-                                                                            totailfailedoptions,
-                                                                            totalfailedelse,
+    text = text + u'| || || || %s || %s || %s || %s || %s || %s || %s || %s\n' % (totalimages,
+                                                                                  totaltolink,
+                                                                                  totalautoadded,
+                                                                                  totalnextadd,
+                                                                                  totalsuggestions,
+                                                                                  totalfailedinuse,
+                                                                                  totailfailedoptions,
+                                                                                  totalfailedelse,
                                                                             )
     text = text + u'|}\n\n'
     text = text + u'=== Best suggestions ===\n'
     text = text + bestsuggestions + '\n\n'
+    text = text + u'=== Other suggestions ===\n'
+    text = text + othersuggestions + '\n\n'
 
     totalrkd = 0
     totalrkdsuggestions = 0
@@ -653,13 +664,14 @@ def publishStatistics(artistsstats, collectionsstats):
                                                     )
     text = text + u'|}\n\n[[Category:WikiProject sum of all paintings RKD to match| ]]'
 
-    summary = u'%s RKDimages to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
-                                                                                                                                                    totalautoadded,
-                                                                                                                                                    totalnextadd,
-                                                                                                                                                    totalsuggestions,
-                                                                                                                                                    totalfailedinuse,
-                                                                                                                                                    totailfailedoptions,
-                                                                                                                                                    totalfailedelse,
+    summary = u'%s RKDimages, %s to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
+                                                                                                                                                        totaltolink,
+                                                                                                                                                        totalautoadded,
+                                                                                                                                                        totalnextadd,
+                                                                                                                                                        totalsuggestions,
+                                                                                                                                                        totalfailedinuse,
+                                                                                                                                                        totailfailedoptions,
+                                                                                                                                                        totalfailedelse,
                                                                                                                                                     )
     page.put(text, summary)
 
@@ -1691,7 +1703,7 @@ def main(*args):
         collections.update(manual_collections)
 
         collections_stats = []
-        for collectionid in collections:  # Should I sort this?
+        for collectionid in collections.keys():  # Should I sort this?
             collection_stats = processCollection(collectionid,
                                                 collections[collectionid]['collectienaam'],
                                                 collections[collectionid]['replacements'],
