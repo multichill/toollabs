@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Tool to match RKD images on Wikidata with RKD images and make some sort of easy result
+Tool to match RKDimages on Wikidata with RKDimages and make some sort of easy result
 
 """
 import pywikibot
