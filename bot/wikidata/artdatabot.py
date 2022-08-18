@@ -190,60 +190,13 @@ class ArtDataBot:
         if metadata.get(u'acquisitiondate'):
             if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
                                                                      metadata[u'acquisitiondate'].isnumeric()): # It's a year
-                #FIXME: Xqt broke this. Need to make sure it's an int
                 acdate = pywikibot.WbTime(year=int(metadata[u'acquisitiondate']))
                 colqualifier = pywikibot.Claim(self.repo, u'P580')
                 colqualifier.setTarget(acdate)
                 pywikibot.output('Adding new acquisition date qualifier claim to collection on %s' % artworkItem)
                 collectionclaim.addQualifier(colqualifier)
-        # FIXME: Still have to rewrite this part
-        '''
-        if metadata.get(u'acquisitiondate'):
-            colqualifier = pywikibot.Claim(self.repo, u'P580')
-            acdate = None
-            if len(painting[u'acquisitiondate'])==4 and painting[u'acquisitiondate'].isnumeric(): # It's a year
-                acdate = pywikibot.WbTime(year=painting[u'acquisitiondate'])
-            elif len(painting[u'acquisitiondate'].split(u'-', 2))==3:
-                (acday, acmonth, acyear) = painting[u'acquisitiondate'].split(u'-', 2)
-                acdate = pywikibot.WbTime(year=int(acyear), month=int(acmonth), day=int(acday))
-            if acdate:
-                colqualifier.setTarget(acdate)
-
-        '''
 
         self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
-
-        # For the meta collections the option to add extra inventory number and extra collections
-        """"
-        if metadata.get(u'extracollectionqid'):
-            extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid'))
-            collectionclaim = pywikibot.Claim(self.repo, u'P195')
-            collectionclaim.setTarget(extracollectionitem)
-            pywikibot.output('Adding collection claim to %s' % artworkItem)
-            artworkItem.addClaim(collectionclaim)
-
-            if metadata.get(u'extraid'):
-                newclaim = pywikibot.Claim(self.repo, self.idProperty)
-                newclaim.setTarget(metadata[u'extraid'])
-                pywikibot.output('Adding extra new id claim to %s' % artworkItem)
-                artworkItem.addClaim(newclaim)
-
-                self.addReference(artworkItem, newclaim, metadata[u'idrefurl'])
-
-                newqualifier = pywikibot.Claim(self.repo, u'P195') #Add collection, isQualifier=True
-                newqualifier.setTarget(extracollectionitem)
-                pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
-                newclaim.addQualifier(newqualifier)
-
-        # And in some cases we need this one
-        if metadata.get(u'extracollectionqid2'):
-            extracollectionitem = pywikibot.ItemPage(self.repo, metadata.get(u'extracollectionqid2'))
-            collectionclaim = pywikibot.Claim(self.repo, u'P195')
-            collectionclaim.setTarget(extracollectionitem)
-            pywikibot.output('Adding collection claim to %s' % artworkItem)
-            artworkItem.addClaim(collectionclaim)
-        """
-
         return artworkItem
 
     def doWaybackup(self, metadata):
@@ -676,6 +629,13 @@ class ArtDataBot:
         :param metadata: All the metadata about this artwork
         :return: Nothing, updates item in place
         """
+        if metadata.get('extracollectionqids'):
+            for extracollectionqid in metadata.get('extracollectionqids'):
+                self.addCollection(item, extracollectionqid, metadata)
+                # TODO: Figure out how to handle the inventory numbers
+                #if metadata.get('extraid'):
+                #    self.addExtraId(item, metadata.get('extraid'), metadata.get('extracollectionqid'), metadata)
+
         if metadata.get('extracollectionqid'):
             self.addCollection(item, metadata.get('extracollectionqid'), metadata)
             if metadata.get('extraid'):
@@ -698,13 +658,16 @@ class ArtDataBot:
         :param metadata: All the metadata about this artwork (for the reference)
         :return: Nothing, updates item in place
         """
+        if collectionqid == 'Q768717':
+            # TODO: Add private collection handling. This makes sure I don't produce junk
+            return
         claims = item.get().get('claims')
 
         foundCollection = False
         collectionitem = pywikibot.ItemPage(self.repo, collectionqid)
         if 'P195' in claims:
             for collectionclaim in claims.get('P195'):
-                if collectionclaim.getTarget()==collectionitem:
+                if collectionclaim.getTarget() == collectionitem:
                     foundCollection = True
 
         if not foundCollection:
@@ -734,7 +697,7 @@ class ArtDataBot:
                 # Only check if we already got an id in the collection (to prevent adding the wrong id over and over)
                 if idclaim.qualifiers and idclaim.qualifiers.get('P195'):
                     qualifier = idclaim.qualifiers.get('P195')[0]
-                    if qualifier.getTarget()==collectionitem:
+                    if qualifier.getTarget() == collectionitem:
                         foundIdentifier = True
 
         if not foundIdentifier:
