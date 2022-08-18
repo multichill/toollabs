@@ -18,6 +18,7 @@ import requests
 import re
 import datetime
 import time
+import json
 import artdatabot
 
 
@@ -58,6 +59,7 @@ class RKDImagesExpanderGenerator():
         self.rkd_artists = self.get_id_lookup_table('P650')
         self.rkd_images = self.get_id_lookup_table('P350')
         self.repo = pywikibot.Site().data_repository()
+        self.rkd_collections = self.get_collection_lookup_table()
         self.object_types = {'painting': {'qid': 'Q3305213',
                                           'labels': {'en': 'painting',
                                                      'nl': 'schilderij',
@@ -69,6 +71,7 @@ class RKDImagesExpanderGenerator():
                                          'labels': {'en': 'drawing', 'nl': 'tekening'}
                                          },
                              }
+        # TODO: Move to the function
         self.connector_word = {'nl': 'van', 'en': 'by', 'de': 'von', 'fr': 'de'}
         self.creator_qualifiers = {'attributed to': {'pid': 'P5102',  # nature of statement (P5102)
                                                      'labels': {'en': 'attributed to',
@@ -130,6 +133,20 @@ class RKDImagesExpanderGenerator():
         for result_item in query_result:
             qid = result_item.get('item').replace('http://www.wikidata.org/entity/', '')
             result[result_item.get('id')] = qid
+        return result
+
+    def get_collection_lookup_table(self):
+        """
+        Use config at https://www.wikidata.org/wiki/User:BotMultichillT/rkdimages_collections.js for lookup table
+        :return: The lookup table as a dict
+        """
+        result = {}
+        configpage = pywikibot.Page(self.repo, title='User:BotMultichillT/rkdimages collections.js')
+        (comments, sep, jsondata) = configpage.get().partition('[')
+        jsondata = '[' + jsondata
+        configjson = json.loads(jsondata)
+        for collection_info in configjson:
+            result[collection_info.get('collectienaam')] = collection_info.get('qid')
         return result
 
     def __iter__(self):
@@ -200,6 +217,7 @@ class RKDImagesExpanderGenerator():
         metadata.update(self.get_genre(rkdimages_docs))
         metadata.update(self.get_pendant(rkdimages_docs))
         metadata.update(self.get_dimensions(rkdimages_docs))
+        metadata.update(self.get_collections(rkdimages_docs))
 
         # Format?
         # Depicts?
@@ -512,8 +530,22 @@ class RKDImagesExpanderGenerator():
             elif rkdimages_docs.get('eenheid') == 'mm':
                 metadata['heightcm'] = '%s' % (float(height.replace(',', '.'))/10, )
                 metadata['widthcm'] = '%s' % (float(width.replace(',', '.'))/10, )
-
         return metadata
+
+    def get_collections(self, rkdimages_docs):
+        """
+        Get the collections.
+
+        TODO: Implement private collection handling
+        :param rkdimages_docs:
+        :return:
+        """
+        collections = []
+        if rkdimages_docs.get('collectie'):
+            for collection_info in rkdimages_docs.get('collectie'):
+                if collection_info.get('collectienaam') in self.rkd_collections:
+                    collections.append(self.rkd_collections.get(collection_info.get('collectienaam')))
+        return {'extracollectionqids': collections}
 
     def isRemovableSource(self, source):
         """
