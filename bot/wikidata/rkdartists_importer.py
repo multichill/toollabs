@@ -16,6 +16,7 @@ import requests
 import re
 import datetime
 import time
+import itertools
 
 class RKDArtistsImporterBot:
     """
@@ -289,12 +290,25 @@ class RKDArtistsImporterBot:
                 pywikibot.output(u'Instance of (P31) is not set to human (Q5), skipping')
                 continue
 
-            rkdartistsid = claims.get(u'P650')[0].getTarget()
+            rkdartistsid = None
+
+            for rkdclaim in claims.get('P650'):
+                if rkdclaim.getRank() == 'preferred':
+                    rkdartistsid = rkdclaim.getTarget()
+                    break
+                elif rkdclaim.getRank() == 'normal':
+                    rkdartistsid = rkdclaim.getTarget()
+                elif rkdclaim.getRank() == 'deprecated':
+                    pywikibot.output('The link to %s is deprecated, skipping' % (rkdclaim.getTarget()))
+            if not rkdartistsid:
+                pywikibot.output(u'No RKDArtists I can use found, skipping')
+                continue
+
             rkdartistsurl = u'https://api.rkd.nl/api/record/artists/%s?format=json' % (rkdartistsid,)
             refurl = u'https://rkd.nl/explore/artists/%s' % (rkdartistsid,)
 
             # Do some checking if it actually exists
-            rkdartistsPage = requests.get(rkdartistsurl, verify=False)
+            rkdartistsPage = requests.get(rkdartistsurl)
 
             # Check if we got json
             if not rkdartistsPage.headers.get('content-type')=='application/json':
@@ -356,7 +370,7 @@ class RKDArtistsImporterBot:
         """
         Add any missing labels in one of the key languages
         """
-        mylangs = [u'ca', u'da', u'de', u'en', u'es', u'fr', u'it', u'nl', u'pt', u'sv']
+        mylangs = [u'ca', u'da', u'de', u'en', u'es', u'fr', u'it', u'nl', u'pt', 'pt-br', u'sv']
         kunstenaarsnaam = rkdartistsdocs.get('virtualFields').get('hoofdTitel').get('kunstenaarsnaam')
         if kunstenaarsnaam.get('label') == u'Voorkeursnaam':
             data = itempage.get()
@@ -374,7 +388,7 @@ class RKDArtistsImporterBot:
                 try:
                     pywikibot.output(summary)
                     itempage.editLabels(wdlabels, summary=summary)
-                except pywikibot.exceptions.APIError:
+                except pywikibot.exceptions.OtherPageSaveError:
                     pywikibot.output(u'Couldn\'t update the labels, conflicts with another item')
 
     def addGender(self, itempage, rkdartistsdocs, refurl, claim=None):
@@ -470,7 +484,7 @@ class RKDArtistsImporterBot:
         :param itempage: The ItemPage to update
         :param rkdartistsdocs: The json with the RKD information
         :param refurl: The url to add as reference
-        :param clams: Existing claim to update (more precise and/or source it)
+        :param claim: Existing claim to update (more precise and/or source it)
         :return:
         '''
         if rkdartistsdocs.get('geboortedatum_begin') and \
@@ -499,7 +513,7 @@ class RKDArtistsImporterBot:
         :param itempage: The ItemPage to update
         :param rkdartistsdocs: The json with the RKD information
         :param refurl: The url to add as reference
-        :param clams: Existing claim to update (more precise and/or source it)
+        :param claim: Existing claim to update (more precise and/or source it)
         :return:
         '''
         if rkdartistsdocs.get('sterfdatum_begin') and \
@@ -527,7 +541,7 @@ class RKDArtistsImporterBot:
         :param itempage: The ItemPage to update
         :param rkdartistsdocs: The json with the RKD information
         :param refurl: The url to add as reference
-        :param clams: Existing claim to update (more precise and/or source it)
+        :param claim: Existing claim to update (more precise and/or source it)
         :return:
         '''
         if rkdartistsdocs.get('werkzame_periode_begin'):
@@ -557,7 +571,7 @@ class RKDArtistsImporterBot:
         :param itempage: The ItemPage to update
         :param rkdartistsdocs: The json with the RKD information
         :param refurl: The url to add as reference
-        :param clams: Existing claim to update (more precise and/or source it)
+        :param claim: Existing claim to update (more precise and/or source it)
         :return:
         '''
         if rkdartistsdocs.get('werkzame_periode_eind'):
@@ -587,7 +601,7 @@ class RKDArtistsImporterBot:
         :param itempage: The ItemPage to update
         :param rkdartistsdocs: The json with the RKD information
         :param refurl: The url to add as reference
-        :param clams: Existing claim to update (more precise and/or source it)
+        :param claim: Existing claim to update (more precise and/or source it)
         :return:
         '''
         if rkdartistsdocs.get('werkzame_periode_begin') and \
@@ -1023,7 +1037,7 @@ class RKDArtistsCreatorBot:
 
             url = baseurl % (limit, i)
             #print (url)
-            rkdartistsApiPage = requests.get(url, verify=False)
+            rkdartistsApiPage = requests.get(url)
             rkdartistsApiPageJson = rkdartistsApiPage.json()
             #print (rkdartistsApiPageJson)
             if rkdartistsApiPageJson.get('content') and rkdartistsApiPageJson.get('content').get('message'):
@@ -1168,7 +1182,7 @@ class RKDArtistsCreatorBot:
 
         # Add the id to the item so we can get back to it later
         newclaim = pywikibot.Claim(self.repo, u'P650')
-        newclaim.setTarget(unicode(priref))
+        newclaim.setTarget('%s' % (priref,))
         pywikibot.output('Adding new RKDartists ID claim to %s' % artistItem)
         artistItem.addClaim(newclaim)
 
@@ -1193,14 +1207,17 @@ def main(*args):
     """
     create = False
     source = False
-    newest = True
+    newest = False
+    missing_label = False
     for arg in pywikibot.handle_args(args):
-        if arg=='-create':
+        if arg == '-create':
             create = True
-        elif arg=='-source':
+        elif arg == '-source':
             source = True
-        elif arg=='-newest':
+        elif arg == '-newest':
             newest = True
+        elif arg == '-missinglabel':
+            missing_label = True
 
     repo = pywikibot.Site().data_repository()
     if create:
@@ -1262,6 +1279,14 @@ def main(*args):
         } ORDER BY DESC(?itemid)
         LIMIT 1000"""
         generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    elif missing_label:
+        pywikibot.output('Going to work on items missing label')
+        generators = []
+        for lang in ['de', 'en', 'es', 'fr', 'nl']:  # The languages for which we have a constraint
+            search_string = 'haswbstatement:P650 haswbstatement:P31=Q5 -haslabel:%s' % (lang,)
+            gen = pagegenerators.SearchPageGenerator(search_string, total=5000, namespaces=[0], site=repo)
+            generators.append(gen)
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators._filter_unique_pages(itertools.chain(*generators))))
     else:
         pywikibot.output(u'Going to try to expand existing artists')
 
