@@ -1208,6 +1208,7 @@ def main(*args):
     create = False
     source = False
     newest = False
+    recent_edited = False
     missing_label = False
     for arg in pywikibot.handle_args(args):
         if arg == '-create':
@@ -1216,6 +1217,8 @@ def main(*args):
             source = True
         elif arg == '-newest':
             newest = True
+        elif arg == '-recentedited':
+            recent_edited = True
         elif arg == '-missinglabel':
             missing_label = True
 
@@ -1279,6 +1282,14 @@ def main(*args):
         } ORDER BY DESC(?itemid)
         LIMIT 1000"""
         generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+    elif recent_edited:
+        pywikibot.output(u'Going to work on the 2000 recently edited artists')
+
+        query = u"""SELECT ?item WHERE {
+  ?item wdt:P650 ?id ; schema:version ?revision
+} ORDER BY DESC(?revision) LIMIT 1000"""
+        generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
+
     elif missing_label:
         pywikibot.output('Going to work on items missing label')
         generators = []
