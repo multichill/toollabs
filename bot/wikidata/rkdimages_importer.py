@@ -146,7 +146,7 @@ class RKDImagesExpanderGenerator():
         jsondata = '[' + jsondata
         configjson = json.loads(jsondata)
         for collection_info in configjson:
-            if not collection_info.get('skip_collection'):
+            if collection_info.get('collectienaam') and not collection_info.get('skip_collection'):
                 if collection_info.get('use_collection'):
                     result[collection_info.get('collectienaam')] = collection_info.get('use_collection')
                 else:
