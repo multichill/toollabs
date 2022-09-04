@@ -146,7 +146,11 @@ class RKDImagesExpanderGenerator():
         jsondata = '[' + jsondata
         configjson = json.loads(jsondata)
         for collection_info in configjson:
-            result[collection_info.get('collectienaam')] = collection_info.get('qid')
+            if not collection_info.get('skip_collection'):
+                if collection_info.get('use_collection'):
+                    result[collection_info.get('collectienaam')] = collection_info.get('use_collection')
+                else:
+                    result[collection_info.get('collectienaam')] = collection_info.get('qid')
         return result
 
     def __iter__(self):
@@ -173,7 +177,10 @@ class RKDImagesExpanderGenerator():
 
             rkdimagesid = None
             for claim in claims.get('P350'):
-                if claim.getRank() in ['normal', 'preferred']:
+                if claim.getRank() == 'preferred':
+                    rkdimagesid = claim.getTarget()
+                    break  # It's preferred, so we'll take it
+                elif claim.getRank() == 'normal':
                     rkdimagesid = claim.getTarget()
 
             if rkdimagesid:
