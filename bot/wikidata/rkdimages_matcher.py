@@ -38,36 +38,28 @@ class RKDimagesMatcher:
         self.collection_stats = []
         self.artist_stats = []
 
+        self.manual_collections = self.get_manual_collections()
+        self.manual_artists = self.get_manual_artists()
+
         if run_mode == 'check_collections':
-            self.manual_collections = self.get_manual_collections()
             self.automatic_collections = self.get_automatic_collections()
-            self.collections.update(self.automatic_collections)
         elif run_mode == 'single_collection':
             self.all_rkdimages_wikidata = self.rkdimages_on_wikidata()
-            self.manual_collections = self.get_manual_collections()
-            self.collections.update(self.manual_collections)
             if work_qid not in self.collections:
                 self.automatic_collections = self.get_automatic_collections()
-                self.collections.update(self.automatic_collections)
         elif run_mode == 'single_artist':
             self.all_rkdimages_wikidata = self.rkdimages_on_wikidata()
-            self.manual_artists = self.get_manual_artists()
-            self.artists.update(self.manual_artists)
             if work_qid not in self.artists:
                 self.automatic_artists = self.get_automatic_artists()
-                self.artists.update(self.automatic_artists)
         elif run_mode == 'full':
             self.all_rkdimages_wikidata = self.rkdimages_on_wikidata()
-
-            self.manual_collections = self.get_manual_collections()
-            self.collections.update(self.manual_collections)
             self.automatic_collections = self.get_automatic_collections()
-            self.collections.update(self.automatic_collections)
-
-            self.manual_artists = self.get_manual_artists()
-            self.artists.update(self.manual_artists)
             self.automatic_artists = self.get_automatic_artists()
-            self.artists.update(self.automatic_artists)
+        self.collections.update(self.manual_collections)
+        self.collections.update(self.automatic_collections)
+        self.artists.update(self.manual_artists)
+        self.artists.update(self.automatic_artists)
+        self.rkd_collectienaam = self.get_rkd_collectienaam(self.collections)
 
     def rkdimages_on_wikidata(self, collection_qid=None):
         """
@@ -595,6 +587,18 @@ class RKDimagesMatcher:
             result[qid] = artist_data
         return result
 
+    def get_rkd_collectienaam(self, collections):
+        """
+        Make a collectienaam lookup table
+        :param collections: The collections we found
+        :return: Lookup table
+        """
+        result = {}
+        for collection in collections:
+            if collections.get(collection).get('collectienaam'):
+                result[collections.get(collection).get('collectienaam')] = collection
+        return result
+
     def run(self):
         """
         Do the actual run
@@ -820,11 +824,17 @@ class RKDimagesMatcher:
                 if len(rkdimage.get(u'collectie')) > 0 :
                     for collectie in rkdimage.get(u'collectie'):
                         if collectie.get('collectienaam'):
+                            collectienaam = None
                             if isinstance(collectie.get('collectienaam'), str):
                                 # For some reason I sometimes get a list.
-                                collection = collection + collectie.get('collectienaam')
-                            else:
-                                collection = collection + collectie.get('collectienaam')[0].get('collectienaam')
+                                collectienaam = collectie.get('collectienaam')
+                            elif collectie.get('collectienaam')[0].get('collectienaam'):
+                                collectienaam = collectie.get('collectienaam')[0].get('collectienaam')
+                            if collectienaam:
+                                if collectienaam in self.rkd_collectienaam:
+                                    collection += '{{Q|%s}}' % (self.rkd_collectienaam.get(collectienaam), )
+                                else:
+                                    collection += collectienaam
                             if collectie.get('inventarisnummer') or collectie.get('begindatum_in_collectie'):
                                 collection = collection + u' (%s, %s)' % (collectie.get('inventarisnummer'),
                                                                           collectie.get('begindatum_in_collectie'),)
