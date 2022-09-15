@@ -39,7 +39,9 @@ class RKDimagesMatcher:
         self.artist_stats = []
 
         self.manual_collections = self.get_manual_collections()
+        self.collections.update(self.manual_collections)
         self.manual_artists = self.get_manual_artists()
+        self.artists.update(self.manual_artists)
 
         if run_mode == 'check_collections':
             self.automatic_collections = self.get_automatic_collections()
@@ -55,9 +57,7 @@ class RKDimagesMatcher:
             self.all_rkdimages_wikidata = self.rkdimages_on_wikidata()
             self.automatic_collections = self.get_automatic_collections()
             self.automatic_artists = self.get_automatic_artists()
-        self.collections.update(self.manual_collections)
         self.collections.update(self.automatic_collections)
-        self.artists.update(self.manual_artists)
         self.artists.update(self.automatic_artists)
         self.rkd_collectienaam = self.get_rkd_collectienaam(self.collections)
 
@@ -595,7 +595,7 @@ class RKDimagesMatcher:
         """
         result = {}
         for collection in collections:
-            if collections.get(collection).get('collectienaam'):
+            if collections.get(collection) and collections.get(collection).get('collectienaam'):
                 result[collections.get(collection).get('collectienaam')] = collection
         return result
 
@@ -616,7 +616,13 @@ class RKDimagesMatcher:
                 pywikibot.output('%s is not a valid artist qid!' % (self.work_qid,))
                 return
             self.process_artist(self.work_qid)
+        elif self.run_mode == 'oldest':
+            self.process_period('oldest')
+        elif self.run_mode == 'newest':
+            self.process_period('newest')
         elif self.run_mode == 'full':
+            self.process_period('oldest')
+            self.process_period('newest')
             for collection_qid in self.collections:
                 self.process_collection(collection_qid)
             for artist_qid in self.artists:
@@ -852,6 +858,8 @@ class RKDimagesMatcher:
         if not self.collections.get(collection_qid):
             return
         collection_info = self.collections.get(collection_qid)
+        if not collection_info:
+            return
         collectienaam = collection_info.get('collectienaam')
         if not collectienaam:
             return
@@ -1161,6 +1169,14 @@ class RKDimagesMatcher:
 
         return True
 
+    def process_period(self, period):
+        """
+
+        :param period:
+        :return:
+        """
+        return
+
     def publish_statistics(self):
         page = pywikibot.Page(self.repo, title=u'Wikidata:WikiProject sum of all paintings/RKD to match')
         text = u'This pages gives an overview of [https://rkd.nl/en/explore/images#filters%5Bobjectcategorie%5D%5B%5D=painting paintings in RKDimages] to match with paintings in [[Wikidata:WikiProject sum of all paintings/Collection|collections]] and [[Wikidata:WikiProject sum of all paintings/Creator|creators]] on Wikidata.\n'
@@ -1387,6 +1403,10 @@ def main(*args):
                 autoadd = int(arg[9:])
         elif arg == '-checkcollections':
             run_mode = 'check_collections'
+        elif arg == '-oldest':
+            run_mode = 'oldest'
+        elif arg == '-newest':
+            run_mode = 'newest'
 
     rkimages_matcher = RKDimagesMatcher(run_mode=run_mode, work_qid=work_qid)
     rkimages_matcher.run()
