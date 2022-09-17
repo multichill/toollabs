@@ -22,10 +22,12 @@ class RKDimagesMatcher:
         :param work_qid:
         """
         self.repo = pywikibot.Site().data_repository()
+        self.max_length = 2000
         self.run_mode = run_mode
         self.work_qid = work_qid
 
         self.all_rkdimages_wikidata = None
+        self.all_rkdartists_wikidata = None
 
         self.manual_collections = {}
         self.automatic_collections = {}
@@ -53,8 +55,12 @@ class RKDimagesMatcher:
             self.all_rkdimages_wikidata = self.rkdimages_on_wikidata()
             if work_qid not in self.artists:
                 self.automatic_artists = self.get_automatic_artists()
+        elif run_mode == 'oldest' or run_mode == 'newest':
+            self.all_rkdimages_wikidata = self.rkdimages_on_wikidata()
+            self.all_rkdartists_wikidata = self.rkdartists_on_wikidata()
         elif run_mode == 'full':
             self.all_rkdimages_wikidata = self.rkdimages_on_wikidata()
+            self.all_rkdartists_wikidata = self.rkdartists_on_wikidata()
             self.automatic_collections = self.get_automatic_collections()
             self.automatic_artists = self.get_automatic_artists()
         self.collections.update(self.automatic_collections)
@@ -90,6 +96,21 @@ class RKDimagesMatcher:
             except ValueError:
                 # Unknown value will trigger this
                 pass
+        return result
+
+    def rkdartists_on_wikidata(self):
+        """
+        Get all rkdartists on Wikidata
+        :return: Lookup table
+        """
+        result = {}
+        query = 'SELECT ?item ?id WHERE { ?item wdt:P650 ?id }'
+        sq = pywikibot.data.sparql.SparqlQuery()
+        query_result = sq.select(query)
+
+        for result_item in query_result:
+            qid = result_item.get('item').replace('http://www.wikidata.org/entity/', '')
+            result[result_item.get('id')] = qid
         return result
 
     def get_manual_collections(self):
@@ -728,6 +749,9 @@ class RKDimagesMatcher:
             #print searchUrl
             searchPage = requests.get(searchUrl)  #, verify=False)
             searchJson = searchPage.json()
+            if not searchJson.get('response') or not searchJson.get('response').get('numFound'):
+                # If we don't get a valid response, just return
+                return
             numfound = searchJson.get('response').get('numFound')
             #print numfound
             if not start < numfound:
@@ -1175,7 +1199,130 @@ class RKDimagesMatcher:
         :param period:
         :return:
         """
-        return
+        if period == 'oldest':
+            generator = self.get_period_generator('asc')
+            page_title = 'Wikidata:WikiProject sum of all paintings/RKD to match/Oldest additions'
+            see_also = 'See also the [[Wikidata:WikiProject sum of all paintings/RKD to match/Recent additions|Recent additions]].\n\n'
+            sort_key = 'Oldest additions'
+        elif period == 'newest':
+            generator = self.get_period_generator('desc')
+            page_title = 'Wikidata:WikiProject sum of all paintings/RKD to match/Recent additions'
+            see_also = 'See also the [[Wikidata:WikiProject sum of all paintings/RKD to match/Oldest additions|Oldest additions]].\n\n'
+            sort_key = 'Recent additions'
+        else:
+            return
+
+        text = u'This is an overview of additions to [https://rkd.nl/en/explore/images#filters%5Bobjectcategorie%5D%5B%5D=painting&start=0 paintings in RKDimages] to [[Wikidata:WikiProject sum of all paintings/RKD to match|match]].\n'
+        #text += u'This page lists %s suggestions from %s to %s.\n' % (self.maxlength,
+        #                                                              self.highestrkdimage,
+        #                                                              self.lowestrkdimage)
+        text += see_also
+        text += u'{| class="wikitable sortable"\n'
+        text += u'|-\n! RKDimage !! Title !! Creator !! Collection !! Query !! Create\n'
+        lowest_rkdimage = None
+        highest_rkdimage = None
+        for foundimage in generator:
+            if not lowest_rkdimage:
+                lowest_rkdimage = foundimage.get('id')
+            elif foundimage.get('id') < lowest_rkdimage:
+                lowest_rkdimage = foundimage.get('id')
+            if not highest_rkdimage:
+                highest_rkdimage = foundimage.get('id')
+            elif foundimage.get('id') > highest_rkdimage:
+                highest_rkdimage = foundimage.get('id')
+
+            text += u'|-\n'
+            text += u'| [%(url)s %(id)s]\n' % foundimage
+            text += u'| %(title_nl)s / %(title_en)s\n' % foundimage
+            if foundimage.get(u'artistqid'):
+                text += '| {{Q|%(artistqid)s}} <small>([https://rkd.nl/explore/artists/%(rkdartistid)s %(creator)s])</small>\n' % foundimage
+            else:
+                text += '| [https://rkd.nl/explore/artists/%(rkdartistid)s %(creator)s]\n' % foundimage
+
+
+            text += u'| %(collection)s\n' % foundimage
+            text += u'| \n'
+            text += u'| \n'
+        text += u'|}\n'
+        text += u'\n[[Category:WikiProject sum of all paintings RKD to match| %s]]' % (sort_key, )
+
+        page = pywikibot.Page(self.repo, title=page_title)
+        summary = u'Updating %s RKDimages suggestions with %s suggestions from %s to %s' % (period,
+                                                                                            self.max_length,
+                                                                                            lowest_rkdimage,
+                                                                                            highest_rkdimage)
+        page.put(text, summary)
+
+    def get_period_generator(self, sort_priref):
+        """
+        Get a generator that returns metadata from RKDimages
+        :param sort_priref: asc or desc
+        :return: A generator yielding metdata
+        """
+        start = 0
+        rows = 50
+        base_search_url = 'https://api.rkd.nl/api/search/images?filters[objectcategorie][]=schilderij&sort[priref]=%s&format=json&start=%s&rows=%s'
+        count = 0
+        while count < self.max_length:
+            search_url = base_search_url % (sort_priref, start, rows)
+            search_page = requests.get(search_url)
+            search_json = search_page.json()
+            #print(search_json)
+            if not search_json.get('response') or not search_json.get('response').get('numFound'):
+                # If we don't get a valid response, just return
+                return
+            numfound = search_json.get('response').get('numFound')
+
+            if not start < numfound:
+                return
+            start = start + rows
+            for rkdimage in search_json.get('response').get('docs'):
+                rkdimage_id = rkdimage.get('priref')
+
+                if rkdimage_id not in self.all_rkdimages_wikidata:
+                    imageinfo = {}
+                    imageinfo['id'] = rkdimage_id
+                    imageinfo[u'url'] = 'https://rkd.nl/explore/images/%s'  % (rkdimage_id,)
+                    if rkdimage.get('benaming_kunstwerk') and rkdimage.get('benaming_kunstwerk')[0]:
+                        imageinfo['title_nl'] = rkdimage.get('benaming_kunstwerk')[0]
+                    else:
+                        imageinfo[u'title_nl'] = '(geen titel)'
+                    imageinfo['title_en'] = rkdimage.get('titel_engels')
+                    imageinfo['creator'] = rkdimage.get('kunstenaar')
+                    if rkdimage.get('toeschrijving'):
+                        imageinfo[u'rkdartistid'] = rkdimage.get(u'toeschrijving')[0].get(u'naam_linkref')
+                        # Overwrite creator with something more readable
+                        imageinfo[u'creator'] = rkdimage.get(u'toeschrijving')[0].get(u'naam_inverted')
+                    imageinfo['artistqid'] = None
+                    if imageinfo.get('rkdartistid') in self.all_rkdartists_wikidata:
+                        imageinfo[u'artistqid'] = self.all_rkdartists_wikidata.get(imageinfo.get('rkdartistid'))
+
+                    collection = ''
+                    if len(rkdimage.get(u'collectie')) > 0 :
+                        for collectie in rkdimage.get('collectie'):
+                            if collectie.get('collectienaam'):
+                                collectienaam = None
+                                if isinstance(collectie.get('collectienaam'), str):
+                                    # For some reason I sometimes get a list.
+                                    collectienaam = collectie.get('collectienaam')
+                                elif collectie.get('collectienaam')[0].get('collectienaam'):
+                                    collectienaam = collectie.get('collectienaam')[0].get('collectienaam')
+                                if collectienaam:
+                                    if collectienaam in self.rkd_collectienaam:
+                                        collection_qid = self.rkd_collectienaam.get(collectienaam)
+                                        if collection_qid in self.collections:
+                                            collection += '[[%s|%s]]' % (self.collections.get(collection_qid).get('reportpage'), collectienaam)
+                                        else:
+                                            collection += '{{Q|%s}}' % (self.rkd_collectienaam.get(collectienaam), )
+                                    else:
+                                        collection += collectienaam
+                                if collectie.get('inventarisnummer') or collectie.get('begindatum_in_collectie'):
+                                    collection = collection + u' (%s, %s)' % (collectie.get('inventarisnummer'),
+                                                                              collectie.get('begindatum_in_collectie'),)
+                                collection = collection + u'<BR/>\n'
+                    imageinfo['collection'] = collection
+                    count += 1
+                    yield imageinfo
 
     def publish_statistics(self):
         page = pywikibot.Page(self.repo, title=u'Wikidata:WikiProject sum of all paintings/RKD to match')
