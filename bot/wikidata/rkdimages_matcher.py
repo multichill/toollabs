@@ -167,11 +167,11 @@ class RKDimagesMatcher:
             report_page = 'Wikidata:WikiProject sum of all paintings/RKD to match/%s' % (result_item.get('label'),)
 
             if qid not in self.manual_collections and qid not in use_collections:
-                print('Working on %s (%s)' % (result_item.get('label'), qid))
+                pywikibot.output('Working on %s (%s)' % (result_item.get('label'), qid))
                 collection_name = self.guess_collection_name(qid, collection_names)
                 collection_names.append(collection_name)
                 if collection_name:
-                    print('Collection name %s was returned for %s (%s)' % (collection_name, result_item.get('label'), qid))
+                    pywikibot.output('Collection name %s was returned for %s (%s)' % (collection_name, result_item.get('label'), qid))
                     collection_data = {'qid': qid,
                                        'collectienaam': collection_name,
                                        'reportpage': report_page,
@@ -509,8 +509,6 @@ class RKDimagesMatcher:
         } ORDER BY ?item LIMIT 1000000""" % (artist_qid, )
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
-        #print query
-        #print queryresult
 
         previousqid = None
 
@@ -537,11 +535,11 @@ class RKDimagesMatcher:
 
         #return result
 
-    def rkdimages_collection_generator(self, invnumbers, collection, replacements):
+    def rkdimages_collection_generator(self, invnumbers, collectienaam, replacements):
         """
         Get all the RKDimages for one collection
         :param invnumbers: The inventory numbers we found on Wikidata
-        :param collection: The name of the collection in RKDimages ("collectienaam")
+        :param collectienaam: The name of the collection in RKDimages ("collectienaam")
         :param replacements: The replacements to do on the inventory numbers
         :return: Generator yield dicts
         """
@@ -549,15 +547,13 @@ class RKDimagesMatcher:
         rows = 50
         basesearchurl = u'https://api.rkd.nl/api/search/images?filters[collectienaam]=%s&filters[objectcategorie][]=schilderij&format=json&start=%s&rows=%s'
         while True:
-            searchUrl = basesearchurl % (collection.replace(u' ', u'+'), start, rows)
-            #print searchUrl
+            searchUrl = basesearchurl % (urllib.parse.quote_plus(collectienaam), start, rows)
             searchPage = requests.get(searchUrl)  #, verify=False)
             searchJson = searchPage.json()
             if not searchJson.get('response') or not searchJson.get('response').get('numFound'):
                 # If we don't get a valid response, just return
                 return
             numfound = searchJson.get('response').get('numFound')
-            #print numfound
             if not start < numfound:
                 return
             start = start + rows
@@ -577,18 +573,17 @@ class RKDimagesMatcher:
                 imageinfo[u'invnum'] = None
                 imageinfo[u'qid'] = None
                 imageinfo[u'url'] = None
-                #print rkdimage.get(u'collectie')
                 for collectie in rkdimage.get(u'collectie'):
                     #First we have to extract the collection name. This can be a string or a dict
-                    collectienaam = None
+                    collectienaam_found = None
                     if collectie.get('collectienaam'):
                         if collectie.get('collectienaam')[0]:
                             if collectie.get('collectienaam')[0].get('collectienaam'):
-                                collectienaam = collectie.get('collectienaam')[0].get('collectienaam')
+                                collectienaam_found = collectie.get('collectienaam')[0].get('collectienaam')
                         else:
-                            collectienaam = collectie.get('collectienaam')
+                            collectienaam_found = collectie.get('collectienaam')
                     # And is it the one we're looking for?
-                    if collectienaam == collection:
+                    if collectienaam == collectienaam_found:
                         invnum = collectie.get('inventarisnummer')
                         if invnum:
                             for (regex, replace) in replacements:
@@ -616,13 +611,10 @@ class RKDimagesMatcher:
         rows = 50
         basesearchurl = u'https://api.rkd.nl/api/search/images?filters[naam]=%s&filters[objectcategorie][]=schilderij&format=json&start=%s&rows=%s'
         while True:
-            searchUrl = basesearchurl % (artistname.replace(u' ', u'+'), start, rows)
-            #print searchUrl
-            searchPage = requests.get(searchUrl)  #, verify=False)
+            searchUrl = basesearchurl % (urllib.parse.quote_plus(artistname), start, rows)
+            searchPage = requests.get(searchUrl)
             searchJson = searchPage.json()
-            #print searchJson
             numfound = searchJson.get('response').get('numFound')
-            #print numfound
             if not start < numfound:
                 return
             start = start + rows
@@ -709,7 +701,7 @@ class RKDimagesMatcher:
         failedtext = u''  # List of links that failed, but might have some suggestions
         text = u''  # Everything combined in the end
 
-        text = text + u'This page gives an overview of [https://rkd.nl/en/explore/images#filters%%5Bcollectienaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s paintings in RKDimages] ' % (collectienaam.replace(u' ', u'%20'), collectienaam, )
+        text = text + u'This page gives an overview of [https://rkd.nl/en/explore/images#filters%%5Bcollectienaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s paintings in RKDimages] ' % (urllib.parse.quote_plus(collectienaam), collectienaam, )
         if collection_info.get('qid') == collection_qid:
             text = text + u'that are not in use on a painting item here on Wikidata in the {{Q|%s}} collection.\n' % (collection_qid, )
         else:
@@ -922,7 +914,6 @@ class RKDimagesMatcher:
         text = text + u'! Inception\n'
         text = text + u'! Collection(s)\n'
 
-        #print currentimages
         genrkd = self.rkdImagesArtistGenerator(artistname)
         rkdcount = 0
         rkdsuggestioncount = 0
@@ -1071,7 +1062,6 @@ class RKDimagesMatcher:
             search_url = base_search_url % (sort_priref, start, rows)
             search_page = requests.get(search_url)
             search_json = search_page.json()
-            #print(search_json)
             if not search_json.get('response') or not search_json.get('response').get('numFound'):
                 # If we don't get a valid response, just return
                 return
@@ -1276,7 +1266,7 @@ class RKDimagesMatcher:
                 pywikibot.output('Got invalid json for%s, skipping' % (rkdimages_id,))
                 return None
         if verbose:
-            print(json.dumps(collections, indent=4, sort_keys=True))
+            pywikibot.output(json.dumps(collections, indent=4, sort_keys=True))
 
         # Adjust the sample size for collections which are still smaller than the sample size
         if result_count < sample_size:
@@ -1304,7 +1294,7 @@ class RKDimagesMatcher:
             if self.manual_collections.get(collection).get('use_collection'):
                 use_collections.append(self.manual_collections.get(collection).get('use_collection'))
             if collectienaam:
-                search_url = base_search_url % (collectienaam.replace(u' ', u'+'),)
+                search_url = base_search_url % (urllib.parse.quote_plus(collectienaam),)
                 search_page = requests.get(search_url)
                 number_found = search_page.json().get('response').get('numFound')
                 if number_found == 0:
@@ -1312,8 +1302,6 @@ class RKDimagesMatcher:
                     collectienaam = self.guess_collection_name(collection, [], sample_size=15)
                     if collectienaam:
                         pywikibot.output('On %s the collectienaam should be set to "%s"' % (collection, collectienaam))
-                #else:
-                #    print('On %s the collectienaam %s returned %s' % (collection, collectienaam, number_found))
 
         for collection in self.automatic_collections:
             if not self.automatic_collections.get(collection) and collection not in use_collections:
@@ -1331,18 +1319,17 @@ class RKDimagesMatcher:
         rows = 50
         base_search_url = 'https://api.rkd.nl/api/search/images?filters[objectcategorie][]=schilderij&sort[priref]=desc&format=json&start=%s&rows=%s'
 
-        while True: # count < self.max_length:
+        while True:
             search_url = base_search_url % (start, rows)
             search_page = requests.get(search_url)
             search_json = search_page.json()
-            #print(search_json)
             if not search_json.get('response') or not search_json.get('response').get('numFound'):
                 # If we don't get a valid response, just go to the next page
                 continue
             numfound = search_json.get('response').get('numFound')
 
             if not start < numfound:
-                return
+                break
             start = start + rows
             for rkdimage in search_json.get('response').get('docs'):
                 if len(rkdimage.get('collectie')) > 0 :
@@ -1359,11 +1346,9 @@ class RKDimagesMatcher:
                                     if collectienaam not in collection_names:
                                         collection_names[collectienaam] = 0
                                     collection_names[collectienaam] +=1
-            print('Overview of collections not used yet on Wikidata:')
-            for collectienaam in sorted(collection_names, key=collection_names.get, reverse=True)[:100]:
-                print('* "%s" - %s' % (collectienaam, collection_names.get(collectienaam)))
-
-
+        pywikibot.output('Overview of collections not used yet on Wikidata:')
+        for collectienaam in sorted(collection_names, key=collection_names.get, reverse=True)[:100]:
+            pywikibot.output('* "%s" - %s' % (collectienaam, collection_names.get(collectienaam)))
 
 
 def main(*args):
