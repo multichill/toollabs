@@ -1256,12 +1256,14 @@ class RKDimagesMatcher:
             rkdimages_page = requests.get(rkdimages_url)
             try:
                 rkdimages_json = rkdimages_page.json()
-                for collectie in rkdimages_json.get('response').get('docs')[0].get('collectie'):
-                    collectienaam = collectie.get('collectienaam')
-                    if not collectienaam in collection_names:
-                        if collectienaam not in collections:
-                            collections[collectienaam] = 0
-                        collections[collectienaam] +=1
+                for rkdimage in rkdimages_json.get('response').get('docs'):
+                    if len(rkdimage.get('collectie')) > 0 :
+                        for collectie in rkdimage.get('collectie'):
+                            collectienaam = collectie.get('collectienaam')
+                            if not collectienaam in collection_names:
+                                if collectienaam not in collections:
+                                    collections[collectienaam] = 0
+                                collections[collectienaam] += 1
             except ValueError:  # Throws simplejson.errors.JSONDecodeError
                 pywikibot.output('Got invalid json for%s, skipping' % (rkdimages_id,))
                 return None
