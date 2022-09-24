@@ -54,6 +54,14 @@ class ArtUKPublicDomain():
                 pywikibot.output(u'Already has an image suggestion, done')
                 continue
 
+            if len(claims.get('P1679')) != 1:
+                pywikibot.output('More than one claim, skipping this one')
+                continue
+
+            if claims.get('P1679')[0].getRank() == 'deprecated':
+                pywikibot.output('The claim is deprecated, skipping this one')
+                continue
+
             artukid = claims.get(u'P1679')[0].getTarget()
             artukidurl = 'https://artuk.org/discover/artworks/%s' % (artukid,)
 
