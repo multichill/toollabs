@@ -614,6 +614,9 @@ class RKDimagesMatcher:
             searchUrl = basesearchurl % (urllib.parse.quote_plus(artistname), start, rows)
             searchPage = requests.get(searchUrl)
             searchJson = searchPage.json()
+            if not searchJson.get('response') or not searchJson.get('response').get('numFound'):
+                # If we don't get a valid response, just return
+                return
             numfound = searchJson.get('response').get('numFound')
             if not start < numfound:
                 return
