@@ -6,7 +6,7 @@ Bot to add Commons category (P373) on items that do have a sitelink to a Commons
 Uses https://commons.wikimedia.org/wiki/Category:Uses_of_Wikidata_Infobox_missing_Commons_Category_statement
 """
 import pywikibot
-# from pywikibot import pagegenerators
+from pywikibot import pagegenerators
 
 
 class ItemMissingCommonsCategoryBot:
@@ -26,10 +26,10 @@ class ItemMissingCommonsCategoryBot:
         Return the items linked from https://commons.wikimedia.org/wiki/Category:Uses_of_Wikidata_Infobox_missing_Commons_Category_statement
         :return: Generator
         """
-        #category = pywikibot.Category(self.commons, title='Category:Uses of Wikidata Infobox missing Commons Category statement')
-        #return pagegenerators.SubCategoriesPageGenerator(category)
-        searchstring = 'category: incategory:Uses_of_Wikidata_Infobox_missing_Commons_Category_statement incategory:Uses_of_Wikidata_Infobox'
-        return self.commons.search(searchstring, namespaces=[14])
+        category = pywikibot.Category(self.commons, title='Category:Uses of Wikidata Infobox missing Commons Category statement')
+        return pagegenerators.SubCategoriesPageGenerator(category)
+        #searchstring = 'category: incategory:Uses_of_Wikidata_Infobox_missing_Commons_Category_statement incategory:Uses_of_Wikidata_Infobox'
+        #return self.commons.search(searchstring, namespaces=[14])
 
     def run(self):
         """
