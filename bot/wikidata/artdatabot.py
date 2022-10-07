@@ -669,13 +669,15 @@ class ArtDataBot:
             for collectionclaim in claims.get('P195'):
                 if collectionclaim.getTarget() == collectionitem:
                     foundCollection = True
+                    if not collectionclaim.getSources():
+                        self.addReference(item, collectionclaim, metadata['refurl'])
 
         if not foundCollection:
             newclaim = pywikibot.Claim(self.repo, u'P195')
             newclaim.setTarget(collectionitem)
             pywikibot.output('Adding (extra) collection claim to %s' % item)
             item.addClaim(newclaim)
-            self.addReference(item, newclaim, metadata[u'refurl'])
+            self.addReference(item, newclaim, metadata['refurl'])
 
     def addExtraId(self, item, extraid, collectionqid, metadata):
         """
