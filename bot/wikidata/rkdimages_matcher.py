@@ -474,7 +474,7 @@ class RKDimagesMatcher:
         OPTIONAL { ?item wdt:P350 ?rkdimageid } .
         OPTIONAL { ?item wdt:P170 ?creator .
         ?creator wdt:P650 ?rkdartistid }
-        } LIMIT 10000""" % (collection_qid, collection_qid, collection_qid, collection_qid)
+        } LIMIT 30000""" % (collection_qid, collection_qid, collection_qid, collection_qid)
         sq = pywikibot.data.sparql.SparqlQuery()
         query_result = sq.select(query)
 
