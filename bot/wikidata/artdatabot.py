@@ -670,7 +670,10 @@ class ArtDataBot:
                 if collectionclaim.getTarget() == collectionitem:
                     foundCollection = True
                     if not collectionclaim.getSources():
-                        self.addReference(item, collectionclaim, metadata['refurl'])
+                        try:
+                            self.addReference(item, collectionclaim, metadata['refurl'])
+                        except pywikibot.exceptions.APIError:
+                            pywikibot.output('Unable to add reference to collection on %s, probably double' % item)
 
         if not foundCollection:
             newclaim = pywikibot.Claim(self.repo, u'P195')
