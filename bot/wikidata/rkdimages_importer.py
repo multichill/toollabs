@@ -550,8 +550,15 @@ class RKDImagesExpanderGenerator():
         collections = []
         if rkdimages_docs.get('collectie'):
             for collection_info in rkdimages_docs.get('collectie'):
-                if collection_info.get('collectienaam') in self.rkd_collections:
-                    collections.append(self.rkd_collections.get(collection_info.get('collectienaam')))
+                if collection_info.get('collectienaam'):
+                    collectienaam = None
+                    if isinstance(collection_info.get('collectienaam'), str):
+                        # For some reason I sometimes get a list.
+                        collectienaam = collection_info.get('collectienaam')
+                    elif collection_info.get('collectienaam')[0].get('collectienaam'):
+                        collectienaam = collection_info.get('collectienaam')[0].get('collectienaam')
+                    if collectienaam and collectienaam in self.rkd_collections:
+                        collections.append(self.rkd_collections.get(collectienaam))
         return {'extracollectionqids': collections}
 
     def isRemovableSource(self, source):
