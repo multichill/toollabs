@@ -24,7 +24,17 @@ def getRCEGenerator():
     Generator to return RCE paintings
 
     """
-    basesearchurl = u'http://data.collectienederland.nl/api/search/v2/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aschilderij&format=json&start=%s&rows=%s'
+    # Over 10.000 breaks so had to mess with facets
+    # "&qf[]=europeana_dataProvider%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf[]=dc_type%3Aschilderij&qf[]=icn_material_facet%3Aolieverf"
+    basesearchurl = 'http://data.collectienederland.nl/api/search/v1/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aschilderij&format=json&start=%s&rows=%s'
+    #basesearchurl = 'http://data.collectienederland.nl/api/search/v1/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aschilderij&qf[]=icn_material_facet%%3Aolieverf&format=json&start=%s&rows=%s'
+    #basesearchurl = 'http://data.collectienederland.nl/api/search/v1/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aschilderij&qf[]=icn_material_facet%%3Aacrylverf&format=json&start=%s&rows=%s'
+    #basesearchurl = 'http://data.collectienederland.nl/api/search/v1/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aschilderij&qf[]=icn_material_facet%%3Adoek&format=json&start=%s&rows=%s'
+    #basesearchurl = 'http://data.collectienederland.nl/api/search/v1/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aschilderij&qf[]=icn_material_facet%%3Apaneel&format=json&start=%s&rows=%s'
+    #basesearchurl = 'http://data.collectienederland.nl/api/search/v1/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aschilderij&qf[]=icn_material_facet%%3Akoper&format=json&start=%s&rows=%s'
+    #basesearchurl = 'http://data.collectienederland.nl/api/search/v1/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aolieverfschildering&format=json&start=%s&rows=%s'
+    #basesearchurl = 'http://data.collectienederland.nl/api/search/v1/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Apastel&format=json&start=%s&rows=%s'
+
     #basesearchurl = u'http://data.collectienederland.nl/api/search/v2/?q=&qf=edm_dataProvider%%3ARijksdienst+voor+het+Cultureel+Erfgoed&qf=dc_type%%3Aminiatuur&format=json&start=%s&rows=%s'
     start = 1
     rows = 50
@@ -148,8 +158,8 @@ def getRCEGenerator():
             #print (itemfields)
             metadata = {}
 
-            collectionid = itemfields.get('delving_spec').get('value')
-            if collectionid==u'rijkscollectie-rce' or collectionid==u'rce-kunstcollectie':
+            collectionid = itemfields.get('delving_spec')[0]
+            if collectionid in ['rijkscollectie-rce', 'rce-kunstcollectie', 'rce-bkr-collectie']:
                 metadata['collectionqid'] = u'Q18600731'
                 metadata['collectionshort'] = u'RCE'
                 # It's a meta collection, leaving out the location
@@ -163,22 +173,22 @@ def getRCEGenerator():
             metadata['instanceofqid'] = u'Q3305213'
 
             # Get the ID. This needs to burn if it's not available
-            metadata['id'] = itemfields.get('dc_identifier')[0].get('value')
+            metadata['id'] = itemfields.get('dc_identifier')[0]
             if u'?' in metadata['id']:
                 # Some messed up records in there!
                 print (u'mess')
-                time.sleep(5)
+                #time.sleep(5)
                 continue
             metadata['idpid'] = u'P217'
 
             if itemfields.get('dc_title'):
-                title = itemfields.get('dc_title')[0].get('value')
+                title = itemfields.get('dc_title')[0]
                 if len(title) > 220:
                     title = title[0:200]
                 metadata['title'] = { u'nl' : title,
                                     }
 
-            metadata['url'] = itemfields.get('system').get('about_uri').replace(u'http://', u'https://')
+            metadata['url'] = itemfields.get('europeana_aggregatedCHO')[0].replace('http://data.collectienederland.nl/resource/document', 'https://data.collectienederland.nl/resource/aggregation')
 
             ## Is this enough or do we need to use requests to see if all urls point somewhere?
             #metadata['url'] = metadata['refurl'].replace(u'http://data.collectienederland.nl/resource/aggregation/dordrechts-museum/', u'https://www.dordrechtsmuseum.nl/objecten/id/')
@@ -186,8 +196,8 @@ def getRCEGenerator():
             name = u''
             if itemfields.get('dc_creator'):
                 for possiblename in itemfields.get('dc_creator'):
-                    if possiblename.get('value')!=u'onbekend':
-                        name = possiblename.get('value')
+                    if possiblename !=  'onbekend':
+                        name = possiblename
 
             if not name:
                 name = u'onbekend'
@@ -198,10 +208,10 @@ def getRCEGenerator():
 
             creatordob = u''
             creatordod = u''
-            if itemfields.get('rda_dateOfBirth'):
-                creatordob = itemfields.get('rda_dateOfBirth')[0].get(u'value')
-            if itemfields.get('rda_dateOfDeath'):
-                creatordod = itemfields.get('rda_dateOfDeath')[0].get(u'value')
+            if itemfields.get('icn_creatorYearOfBirth'):
+                creatordob = itemfields.get('icn_creatorYearOfBirth')[0]
+            if itemfields.get('icn_creatorYearOfDeath'):
+                creatordod = itemfields.get('icn_creatorYearOfDeath')[0]
 
             # Expand the crap names with livespan information
             if creatordob and creatordod:
@@ -228,13 +238,13 @@ def getRCEGenerator():
 
             if itemfields.get('dcterms_medium'):
                 if len(itemfields.get('dcterms_medium')) == 1:
-                    if itemfields.get('dcterms_medium')[0].get('value') == u'doek, olieverf':
+                    if itemfields.get('dcterms_medium')[0] == u'doek, olieverf':
                         metadata['medium'] = u'oil on canvas'
                     else:
-                        print('Unable to match %s ' % (itemfields.get('dcterms_medium')[0].get('value'),))
+                        print('Unable to match %s ' % (itemfields.get('dcterms_medium')[0],))
                 elif len(itemfields.get('dcterms_medium')) == 2:
-                    material1 = itemfields.get('dcterms_medium')[0].get('value')
-                    material2 = itemfields.get('dcterms_medium')[1].get('value')
+                    material1 = itemfields.get('dcterms_medium')[0]
+                    material2 = itemfields.get('dcterms_medium')[1]
                     if (material1 == 'doek' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'doek'):
                         metadata['medium'] = 'oil on canvas'
                     elif (material1 == 'linnen' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'linnen'):
@@ -263,11 +273,27 @@ def getRCEGenerator():
                         metadata['medium'] = 'watercolor on paper'
                     else:
                         print('Unable to match %s & %s' % (material1, material2,))
+                elif len(itemfields.get('dcterms_medium')) == 3:
+                    rce_materials = set(itemfields.get('dcterms_medium'))
+                    if rce_materials == {'olieverf', 'doek', 'paneel'}:
+                        metadata['medium'] = 'oil on canvas on panel'
+                    elif rce_materials == {'olieverf', 'papier', 'paneel'}:
+                        metadata['medium'] = 'oil on paper on panel'
+                    elif rce_materials == {'olieverf', 'karton', 'paneel'}:
+                        metadata['medium'] = 'oil on cardboard on panel'
+                    elif rce_materials == {'olieverf', 'koper', 'paneel'}:
+                        metadata['medium'] = 'oil on copper on panel'
+                    elif rce_materials == {'olieverf', 'doek', 'karton'}:
+                        metadata['medium'] = 'oil on canvas on cardboard'
+                    elif rce_materials == {'olieverf', 'papier', 'karton'}:
+                        metadata['medium'] = 'oil on paper on cardboard'
+                    else:
+                        print('Unable to match %s' % (rce_materials,))
                 elif len(itemfields.get('dcterms_medium')) > 2:
                     print ('That is a lof of medium fields %s' % (itemfields.get('dcterms_medium'),))
 
             if itemfields.get('dcterms_created'):
-                dcvalue = itemfields.get('dcterms_created')[0].get('value')
+                dcvalue = itemfields.get('dcterms_created')[0]
                 dateregex = u'^(\d\d\d\d)$'
                 periodregex = u'^(\d\d\d\d)\s*[–-]\s*(\d\d\d\d)$'
                 datematch = re.match(dateregex, dcvalue)
@@ -284,7 +310,7 @@ def getRCEGenerator():
             # TODO: Check if this still works
             # Where did it come from????
             if itemfields.get('dcterms_provenance'):
-                provenance = itemfields.get('dcterms_provenance')[0].get('value')
+                provenance = itemfields.get('dcterms_provenance')[0]
                 if provenance not in provenancecounts:
                     provenancecounts[provenance] = 0
                 provenancecounts[provenance] = provenancecounts[provenance] + 1
@@ -297,7 +323,7 @@ def getRCEGenerator():
             # TODO: Check if this still works
             # And where is it hiding now?
             if itemfields.get('nave_location'):
-                location = itemfields.get('nave_location')[0].get('value')
+                location = itemfields.get('nave_location')[0]
                 if location not in locationcounts:
                     locationcounts[location] = 0
                 locationcounts[location] = locationcounts[location] + 1
@@ -321,7 +347,7 @@ def getRCEGenerator():
 
             if itemfields.get('dc_subject'):
                 for dcsubject in itemfields.get('dc_subject'):
-                    dcvalue = dcsubject.get(u'value')
+                    dcvalue = dcsubject
                     if dcvalue=='schilderkunst':
                         continue
                     if dcvalue in genres:
@@ -336,7 +362,7 @@ def getRCEGenerator():
 
                 # Add a genre
             if not metadata.get(u'genreqid') and itemfields.get('dc_description'):
-                dcdesc = itemfields.get('dc_description')[0].get('value')
+                dcdesc = itemfields.get('dc_description')[0]
                 if dcdesc.startswith(u'Portret van'):
                     metadata[u'genreqid'] = u'Q134307'
                 elif dcdesc.startswith(u'Stilleven '):
@@ -347,7 +373,7 @@ def getRCEGenerator():
             dcformatregex = u'^(breedte|diepte \/ diameter|hoogte)\:\s*([\d\.]+)\s*cm$'
             if itemfields.get('dc_format'):
                 for dcformat in itemfields.get('dc_format'):
-                    dcvalue = dcformat.get(u'value')
+                    dcvalue = dcformat
                     dcformatmatch = re.match(dcformatregex, dcvalue)
                     if dcformatmatch:
                         if dcformatmatch.group(1)==u'breedte':
@@ -360,11 +386,11 @@ def getRCEGenerator():
                             print (u'Found weird type: %s' % (dcvalue,))
 
             # High resolution tiff images for some, jpgeg for all images!!!!!
-            if itemfields.get('nave_allowSourceDownload') and itemfields.get('nave_allowSourceDownload')[0].get('value')=='true':
+            if itemfields.get('nave_allowSourceDownload') and itemfields.get('nave_allowSourceDownload')[0] == 'true':
                 if itemfields.get('nave_thumbLarge'):
-                    imageurl = itemfields.get('nave_thumbLarge')[0].get('value').replace(u'https://images.memorix.nl/rce/thumb/fullsize/', u'https://images.memorix.nl/rce/download/fullsize/')
+                    imageurl = itemfields.get('nave_thumbLarge')[0].replace(u'https://images.memorix.nl/rce/thumb/fullsize/', u'https://images.memorix.nl/rce/download/fullsize/')
                     metadata[u'imageurl'] = imageurl
-                    metadata[u'imagesourceurl'] = itemfields.get('edm_isShownAt')[0].get('value')
+                    metadata[u'imagesourceurl'] = itemfields.get('edm_isShownAt')[0]
                     metadata[u'imageurlformat'] = u'Q2195' # JPEG
                     metadata[u'imageurlforce'] = False # Already did a full forced run
 
