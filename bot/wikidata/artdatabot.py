@@ -264,6 +264,14 @@ class ArtDataBot:
         # Add pendant of (P1639)
         self.addItemStatement(artworkItem, 'P1639', metadata.get('pendantqid'), metadata.get('refurl'))
 
+        # Add part of (P361)
+        self.addItemStatement(artworkItem, 'P361', metadata.get('partofqid'), metadata.get('refurl'))
+
+        # Add part of the series (P179)
+        self.addItemStatement(artworkItem, 'P179', metadata.get('partofseriesqid'), metadata.get('refurl'))
+
+        # TODO: Add has part (P527) which is a list
+
         # Add the material used (P186) based on the medium to the item.
         self.addMaterialUsed(artworkItem, metadata)
 

@@ -222,7 +222,7 @@ class RKDImagesExpanderGenerator():
         metadata.update(self.get_medium(rkdimages_docs))
         metadata.update(self.get_inception(rkdimages_docs))
         metadata.update(self.get_genre(rkdimages_docs))
-        metadata.update(self.get_pendant(rkdimages_docs))
+        metadata.update(self.get_part_of_related(rkdimages_docs))
         metadata.update(self.get_dimensions(rkdimages_docs))
         metadata.update(self.get_collections(rkdimages_docs))
 
@@ -502,9 +502,12 @@ class RKDImagesExpanderGenerator():
                     metadata['genreqid'] = genres.get(genre)
         return metadata
 
-    def get_pendant(self, rkdimages_docs):
+    def get_part_of_related(self, rkdimages_docs):
         """
-        Get the pendant of this one. Could later be changed to also get different kind of relations
+        Get related entries. Currently supported:
+        * pendant of (P1639)
+        * part of the series (P179)
+        Could later be changed to also get more kind of relations
         :param rkdimages_docs:
         :return:
         """
@@ -513,9 +516,15 @@ class RKDImagesExpanderGenerator():
             onderdeel_van = rkdimages_docs.get('onderdeel_van')[0]
             if onderdeel_van.get('onderdeel_van_verband') == 'pendant':
                 if onderdeel_van.get('object_onderdeel_van') and len(onderdeel_van.get('object_onderdeel_van')) == 1:
-                    pendant_rkdimages_id = onderdeel_van.get('object_onderdeel_van')[0].get('priref')
-                    if pendant_rkdimages_id in self.rkd_images:
-                        metadata['pendantqid'] = self.rkd_images.get(pendant_rkdimages_id)
+                    onderdeel_van_rkdimages_id = onderdeel_van.get('object_onderdeel_van')[0].get('priref')
+                    if onderdeel_van_rkdimages_id in self.rkd_images:
+                        metadata['pendantqid'] = self.rkd_images.get(onderdeel_van_rkdimages_id)
+            elif rkdimages_docs.get('fysiek_verband') and len(rkdimages_docs.get('fysiek_verband')) == 1 \
+                    and rkdimages_docs.get('fysiek_verband')[0] == 'part of a series':
+                onderdeel_van_rkdimages_id = onderdeel_van.get('object_onderdeel_van')[0].get('priref')
+                if onderdeel_van_rkdimages_id in self.rkd_images:
+                    metadata['partofseriesqid'] = self.rkd_images.get(onderdeel_van_rkdimages_id)
+
         return metadata
 
     def get_dimensions(self, rkdimages_docs):
