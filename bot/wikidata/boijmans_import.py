@@ -1,187 +1,189 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to scrape paintings from the Boijmans website. Uses artdatabot to do the actual work
+Bot to scrape paintings from the Boijmans website. Uses artdatabot to do the actual work.
 
-
+Their search engine provides json these days, see https://www.algolia.com/doc/api-reference/api-methods/search/
+Maximum 1000 results so I have to play around a bit to find all.
 """
 import artdatabot
 import pywikibot
-import re
-import HTMLParser
 import requests
+import json
+import time
 
-def getPaintingGenerator(boijmansartists):
-    '''
+def get_Boijmans_painting_generator():
+    """
     The Boijmans painting generator
-    '''
-    
-    basesearchurl = u'http://collectie.boijmans.nl/nl/objects?start=%s&search=&sort=&filters=objecttype:schilderij'
+    """
+    departments = ['', 'Oude Kunst', 'Moderne Kunst']
+    index_names = ['production_collection_artworks',
+                   'production_collection_artworks_date_asc',
+                   'production_collection_artworks_date_desc',
+                   'production_collection_artworks_title_asc',
+                   'production_collection_artworks_title_desc',
+                   'production_collection_artworks_artist_asc',
+                   'production_collection_artworks_artist_desc',
+                   ]
 
-    htmlparser = HTMLParser.HTMLParser()
 
-    # http://collectie.boijmans.nl/nl?p=54&f.type=schilderij is acting up
+    found_ids = [] # To keep track what we have already seen
+    #boijmans_artists = boijmans_artists_on_wikidata()
+    session = requests.Session()
+    referer = 'https://www.boijmans.nl/'
 
-    # Nerds start at 0
-    for i in range(0, 2026, 25):
-        searchurl = basesearchurl % (i,)
+    searchurl = 'https://s1zzm36i7l-dsn.algolia.net/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(3.33.0)%3B%20Browser%20(lite)%3B%20instantsearch.js%20(3.6.0)%3B%20Vue%20(2.6.10)%3B%20Vue%20InstantSearch%20(2.3.0)%3B%20JS%20Helper%202.26.1&x-algolia-application-id=S1ZZM36I7L&x-algolia-api-key=c5a5dbed3cdf3ee64bc109c7e15f15cf'
 
-        print (searchurl)
-        searchPage = requests.get(searchurl)
-
-        urls = []
-        urlregex = u'\<a href\=\"(http\:\/\/collectie\.boijmans\.nl\/nl\/object\/\d+)\/'
-        matches = re.finditer(urlregex, searchPage.text)
-        for match in matches:
-            # To remove duplicates
-            url = match.group(1)
-            if url not in urls:
-                urls.append(url)
-
-        for url in urls:
-            #url = u'http://collectie.boijmans.nl/nl/collection/%s' % (match.group(1),)
-            urlen = url.replace(u'http://collectie.boijmans.nl/nl/object/', u'http://collectie.boijmans.nl/en/object/')
-
-            print (url)
-            itempage = requests.get(url)
-            itemenpage = requests.get(urlen)
-
-            if u'500 - Serverfout' in itempage.text:
-                pywikibot.output(u'Getting a 500 - Serverfout at %s, skipping' % (url,))
-                continue
-
-            metadata = {}
-            metadata['url'] = url
-            metadata['describedbyurl'] = url.replace(u'http://collectie.boijmans.nl/nl/object/', u'http://collectie.boijmans.nl/object/')
-
-            metadata['collectionqid'] = u'Q679527'
-            metadata['collectionshort'] = u'Boijmans'
-            metadata['locationqid'] = u'Q679527'
-
-            #No need to check, I'm actually searching for paintings.
-            metadata['instanceofqid'] = u'Q3305213'
-
-            metadata['idpid'] = u'P217'
-
-            metadata['artworkidpid'] = u'P5499'
-            metadata['artworkid'] = url.replace(u'http://collectie.boijmans.nl/nl/object/', u'')
-
-            invregex = u'\<th scope\=\"heading\"\>Inventarisnummer\<\/th\>[\s\t\r\n]*\<td\>([^\<]+)\<\/td\>'
-            invmatch = re.search(invregex, itempage.text)
-
-            metadata['id'] = invmatch.group(1).strip()
-
-            titleregex = u'\<div class\=\"object_title bg\"\>[\s\t\r\n]*\<div class\=\"restrict\"\>[\s\t\r\n]*\<h1\>([^\<]+)\<\/h1\>'
-
-            titlematch = re.search(titleregex, itempage.text)
-            title = htmlparser.unescape(titlematch.group(1).strip())
-
-            titleenmatch = re.search(titleregex, itemenpage.text)
-            titleen = htmlparser.unescape(titleenmatch.group(1).strip())
-
-            if len(title) > 220:
-                title = title[0:200]
-
-            if len(titleen) > 220:
-                titleen = titleen[0:200]
-
-            metadata['title'] = { u'en' : titleen,
-                                  u'nl' : title,
-                                  }
-
-            creatorregex = u'\<th scope\=\"heading\"\>Makers\<\/th\>[\s\t\r\n]*\<td\>[\s\t\r\n]*\<span class\=\"subfield\"\>([^\<]+)\:\<\/span\>[\s\t\r\n]*\<a href\=\"http\:\/\/collectie\.boijmans\.nl\/nl\/maker\/(\d+)\/[^\"]*\"\>([^\<]+)\<\/a\>'
-
-            creatormatch = re.search(creatorregex, itempage.text)
-
-            if creatormatch and not creatormatch.group(3)==u'Anoniem':
-                artistrole =  creatormatch.group(1)
-                artistid = creatormatch.group(2)
-                name = htmlparser.unescape(creatormatch.group(3)).strip()
-
-                if artistrole==u'Kunstenaar' or artistrole==u'Schilder':
-                    metadata['creatorname'] = name
-                    metadata['description'] = { u'nl' : u'schilderij van %s' % (name, ),
-                                                u'en' : u'painting by %s' % (name, ),
-                                                }
-                    if artistid in boijmansartists:
-                        pywikibot.output (u'Found Boijmans id %s on %s' % (artistid, boijmansartists.get(artistid)))
-                        metadata['creatorqid'] = boijmansartists.get(artistid)
+    for department in departments:
+        for index_name in index_names:
+            nbPages = 50
+            page = 0
+            while page < nbPages:
+                if department:
+                    params = "query=&facetFilters=%5B%5B%22department%3A" + department + "%22%5D%2C%5B%22objectname.tree.name%3Aschilderij%22%5D%5D&page=" + str(page)
                 else:
-                    metadata['description'] = { u'nl' : u'schilderij %s %s' % (artistrole.lower(), name, ),
-                                                }
+                    params = "query=&facetFilters=objectname.tree.name:schilderij&page=" + str(page)
+                searchrequest = { "requests": [ {"indexName": index_name, "params": params } ], }
+                search_page = session.post(searchurl,
+                                           data=json.dumps(searchrequest),
+                                           headers={'X-Requested-With' : 'XMLHttpRequest',
+                                                    'referer' : referer,
+                                                    u'Content-Type' : u'application/json; charset=utf-8',
+                                                    }
+                                           )
+                page += 1
+                nbPages = search_page.json().get('results')[0].get('nbPages')
+                for iteminfo in search_page.json().get('results')[0].get('hits'):
+                    tms_id = '%s' % (iteminfo.get('tms_id'),)  # Has to be a string
+                    if tms_id in found_ids:
+                        # Already been here, go to the next
+                        continue
+                    found_ids.append(tms_id)
 
-            else:
-                metadata['description'] = { u'nl' : u'schilderij van anonieme schilder',
-                                            u'en' : u'painting by anonymous paintiner',
-                                            }
-                metadata['creatorqid'] = u'Q4233718'
+                    #print(json.dumps(iteminfo, indent=4, sort_keys=True))
 
-            dateregex = u'filters\=date\%3A(\d\d\d\d)-(\d\d\d\d)\&amp\;0\"\>(\d\d\d\d)\<\/a\>'
-            datematch = re.search(dateregex, itempage.text)
-            if datematch:
-                if datematch.group(1)==datematch.group(2) and datematch.group(1)==datematch.group(3):
-                    metadata['inception'] = u'%s' % (datematch.group(1),)
+                    metadata = {}
+                    metadata['url'] = iteminfo.get('url')
 
-            acquisitiondateregex = u'\<th scope\=\"heading\"\>Verwervingsdatum\<\/th\>[\s\t\r\n]*\<td\>\<a href\=\"[^\"]+\"\>([^<]+)\<\/td\>'
-            acquisitiondatematch = re.search(acquisitiondateregex, itempage.text)
-            if acquisitiondatematch:
-                metadata['acquisitiondate'] = acquisitiondatematch.group(1)
+                    metadata['collectionqid'] = u'Q679527'
+                    metadata['collectionshort'] = u'Boijmans'
+                    metadata['locationqid'] = u'Q679527'
 
-            mediumregex = u'\<th scope\=\"heading\"\>Materiaal en techniek\<\/th\>[\s\t\r\n]*\<td\>([^\<]+)\<\/td\>'
-            mediummatch = re.search(mediumregex, itempage.text)
+                    #No need to check, I'm actually searching for paintings.
+                    metadata['instanceofqid'] = u'Q3305213'
 
-            # Only return if a valid medium is found
-            if mediummatch:
-                if mediummatch.group(1).lower()==u'olieverf op doek':
-                    metadata['medium'] = u'oil on canvas'
+                    metadata['id'] = iteminfo.get('identifier')
+                    metadata['idpid'] = u'P217'
 
-            # Doing measurements in one go here because of the structure of the page
-            measurements2dregex = u'\<th scope\=\"heading\"\>Afmetingen[\s\t\r\n]*\<\/th\>[\s\t\r\n]*\<td\>[\s\t\r\n]*\<span class\=\"subfield\"\>(?P<typeA>Hoogte|Breedte)\:\<\/span\>\s*(?P<valueA>\d+(,\d+)?)\s*cm\s*\<br\/\>[\s\t\r\n]*\<span class\=\"subfield\"\>(?P<typeB>Hoogte|Breedte)\:\<\/span\>\s*(?P<valueB>\d+(,\d+)?)\s*cm\<br\/\>[\s\t\r\n]*\<\/td\>'
-            measurements3dregex = u'\<th scope\=\"heading\"\>Afmetingen[\s\t\r\n]*\<\/th\>[\s\t\r\n]*\<td\>[\s\t\r\n]*\<span class\=\"subfield\"\>(?P<typeA>Hoogte|Breedte|Diepte)\:\<\/span\>\s*(?P<valueA>\d+(,\d+)?)\s*cm\s*\<br\/\>[\s\t\r\n]*\<span class\=\"subfield\"\>(?P<typeB>Hoogte|Breedte|Diepte)\:\<\/span\>\s*(?P<valueB>\d+(,\d+)?)\s*cm\<br\/\>[\s\t\r\n]*\<span class\=\"subfield\"\>(?P<typeC>Hoogte|Breedte|Diepte)\:\<\/span\>\s*(?P<valueC>\d+(,\d+)?)\s*cm\<br\/\>[\s\t\r\n]*\<\/td\>'
+                    metadata['artworkidpid'] = u'P5499'
+                    metadata['artworkid'] = tms_id
 
-            match_2d = re.search(measurements2dregex, itempage.text)
-            match_3d = re.search(measurements3dregex, itempage.text)
+                    # API returns the Dutch title
 
-            if match_2d:
-                if match_2d.group(u'typeA') == u'Hoogte':
-                    metadata['heightcm'] = match_2d.group(u'valueA').replace(u',', u'.')
-                elif match_2d.group(u'typeA') == u'Breedte':
-                    metadata['widthcm'] = match_2d.group(u'valueA').replace(u',', u'.')
+                    metadata['title'] = {'nl': iteminfo.get('title').strip(),}
+                    metadata['creatorname'] = iteminfo.get('main_artist')
+                    if iteminfo.get('artists'):
+                        if len(iteminfo.get('artists')) == 1:
+                            # TO DO: Add more languages
+                            metadata['description'] = {'nl': '%s van %s' % ('schilderij', metadata.get('creatorname'),),
+                                                       'en': '%s by %s' % ('painting', metadata.get('creatorname'),),
+                                                       'de': '%s von %s' % ('Gemälde', metadata.get('creatorname'), ),
+                                                       'fr': '%s de %s' % ('peinture', metadata.get('creatorname'), ),
+                                                        }
+                            # DISABLED: The returned ID is different than what we're using
+                            #if artistid in boijmans_artists:
+                            #    pywikibot.output (u'Found Boijmans id %s on %s' % (artistid, boijmans_artists.get(artistid)))
+                            #    metadata['creatorqid'] = boijmans_artists.get(artistid)
+                        elif len(iteminfo.get('artists'))>1:
+                            metadata['description'] = {'nl': 'schilderij van %s' % (metadata.get('creatorname'), ),}
 
-                if match_2d.group(u'typeB') == u'Hoogte':
-                    metadata['heightcm'] = match_2d.group(u'valueB').replace(u',', u'.')
-                elif match_2d.group(u'typeB') == u'Breedte':
-                    metadata['widthcm'] = match_2d.group(u'valueB').replace(u',', u'.')
-            elif match_3d:
-                if match_3d.group(u'typeA') == u'Hoogte':
-                    metadata['heightcm'] = match_3d.group(u'valueA').replace(u',', u'.')
-                elif match_3d.group(u'typeA') == u'Breedte':
-                    metadata['widthcm'] = match_3d.group(u'valueA').replace(u',', u'.')
-                elif match_3d.group(u'typeA') == u'Diepte':
-                    metadata['depthcm'] = match_3d.group(u'valueA').replace(u',', u'.')
+                    if iteminfo.get('aquisitiondate_year'):
+                        metadata['acquisitiondate'] = iteminfo.get('aquisitiondate_year')
 
-                if match_3d.group(u'typeB') == u'Hoogte':
-                    metadata['heightcm'] = match_3d.group(u'valueB').replace(u',', u'.')
-                elif match_3d.group(u'typeB') == u'Breedte':
-                    metadata['widthcm'] = match_3d.group(u'valueB').replace(u',', u'.')
-                elif match_3d.group(u'typeB') == u'Diepte':
-                    metadata['depthcm'] = match_3d.group(u'valueB').replace(u',', u'.')
+                    if iteminfo.get('dating_start') and iteminfo.get('dating_end'):
+                        dating_average = int((iteminfo.get('dating_start') + iteminfo.get('dating_end')) /2)
+                        if iteminfo.get('dating_indication') == str(iteminfo.get('dating_start')) and \
+                            iteminfo.get('dating_indication') == iteminfo.get('dating_end'):
+                            metadata['inception'] = iteminfo.get('dating_indication')
+                        elif iteminfo.get('dating_indication') == 'circa %s' % (dating_average,):
+                            metadata['inception'] = dating_average
+                            metadata['inceptioncirca'] = True
+                        elif iteminfo.get('dating_start') > 1200 and iteminfo.get('dating_end') > 1200:
+                            metadata['inceptionstart'] = iteminfo.get('dating_start')
+                            metadata['inceptionend'] = iteminfo.get('dating_end')
 
-                if match_3d.group(u'typeC') == u'Hoogte':
-                    metadata['heightcm'] = match_3d.group(u'valueC').replace(u',', u'.')
-                elif match_3d.group(u'typeC') == u'Breedte':
-                    metadata['widthcm'] = match_3d.group(u'valueC').replace(u',', u'.')
-                elif match_3d.group(u'typeC') == u'Diepte':
-                    metadata['depthcm'] = match_3d.group(u'valueC').replace(u',', u'.')
+                    if iteminfo.get('material'):
+                        materials = set()
+                        for material in iteminfo.get('material'):
+                            materials.add(material.get('name'))
 
-            yield metadata
+                        if materials == {'olieverf', 'doek'} or materials == {'olieverf', 'canvas'} :
+                            metadata['medium'] = 'oil on canvas'
+                        elif materials == {'olieverf', 'paneel'}:
+                            metadata['medium'] = 'oil on panel'
+                        elif materials == {'olieverf', 'koper'}:
+                            metadata['medium'] = 'oil on copper'
+                        #elif (material1 == 'papier' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'papier'):
+                        #    metadata['medium'] = 'oil on paper'
+                        #elif (material1 == 'doek' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'doek'):
+                        #    metadata['medium'] = 'tempera on canvas'
+                        #elif (material1 == 'paneel' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'paneel'):
+                        #    metadata['medium'] = 'tempera on panel'
+                        #elif (material1 == 'doek' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'doek'):
+                        #    metadata['medium'] = 'acrylic paint on canvas'
+                        elif materials == {'acryl', 'doek'}:
+                            metadata['medium'] = 'acrylic paint on canvas'
+                        #elif (material1 == 'paneel' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'paneel'):
+                        #    metadata['medium'] = 'acrylic paint on panel'
+                        #elif (material1 == 'papier' and material2 == 'aquarel') or (material1 == 'aquarel' and material2 == 'papier'):
+                        #    metadata['medium'] = 'watercolor on paper'
+                        #else:
+                        #    print('Unable to match %s & %s' % (material1, material2,))
+                        elif materials == {'olieverf', 'doek', 'paneel'}:
+                            metadata['medium'] = 'oil on canvas on panel'
+                        elif materials == {'olieverf', 'papier', 'paneel'}:
+                            metadata['medium'] = 'oil on paper on panel'
+                        elif materials == {'olieverf', 'karton', 'paneel'}:
+                            metadata['medium'] = 'oil on cardboard on panel'
+                        elif materials == {'olieverf', 'koper', 'paneel'}:
+                            metadata['medium'] = 'oil on copper on panel'
+                        elif materials == {'olieverf', 'doek', 'karton'}:
+                            metadata['medium'] = 'oil on canvas on cardboard'
+                        elif materials == {'olieverf', 'papier', 'karton'}:
+                            metadata['medium'] = 'oil on paper on cardboard'
+                        else:
+                            print('Unable to match %s' % (materials,))
+                    if iteminfo.get('dating_end') and iteminfo.get('dating_end') < 1925 and \
+                        iteminfo.get('modal_data_url'):
+                        try:
+                            time.sleep(10)
+                            modal_page = requests.get(iteminfo.get('modal_data_url'))
+                            metadata['imageurl'] = modal_page.json().get('image')
+                            metadata['imagesourceurl'] = modal_page.json().get('url')
+                            metadata['imageurlformat'] = 'Q2195'  # JPEG
+                            metadata['imageurlforce'] = False  # Really shitty quality
+                            metadata['imageoperatedby'] = 'Q679527'
+                        except ValueError:
+                            pywikibot.output('url %s failed, retrying' % (iteminfo.get('modal_data_url'),))
+                            time.sleep(120)
+                            try:
+                                modal_page = requests.get(iteminfo.get('modal_data_url'))
+                                metadata['imageurl'] = modal_page.json().get('image')
+                                metadata['imagesourceurl'] = modal_page.json().get('url')
+                                metadata['imageurlformat'] = 'Q2195'  # JPEG
+                                metadata['imageurlforce'] = False  # Really shitty quality
+                                metadata['imageoperatedby'] = 'Q679527'
+                            except ValueError:
+                                pywikibot.output('url %s completely failed' % (iteminfo.get('modal_data_url'),))
+                    yield metadata
+    pywikibot.output('Found %s paintings in this run ' % (len(found_ids),))
 
 
-def boijmansArtistsOnWikidata():
-    '''
+def boijmans_artists_on_wikidata():
+    """
     Just return all the Boijmans people as a dict
     :return: Dict
-    '''
+    """
     result = {}
     query = u'SELECT ?item ?id WHERE { ?item wdt:P3888 ?id . ?item wdt:P31 wd:Q5 }'
     sq = pywikibot.data.sparql.SparqlQuery()
@@ -203,12 +205,11 @@ def main(*args):
         if arg.startswith('-create'):
             create = True
 
-    boijmansartists = boijmansArtistsOnWikidata()
-    paintingGen = getPaintingGenerator(boijmansartists)
+    paintingGen = get_Boijmans_painting_generator()
 
     if dryrun:
         for painting in paintingGen:
-            print (painting)
+            print(painting)
     else:
         artDataBot = artdatabot.ArtDataBot(paintingGen, create=create)
         artDataBot.run()
