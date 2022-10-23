@@ -136,9 +136,9 @@ def get_flehite_generator():
                 materials.add(material_match.group(1))
 
             if materials == {'olieverf', 'doek'} or materials == {'olieverf', 'canvas'} \
-                    or {'textiel', 'verf', 'olieverf', 'doek'}:
+                    or materials == {'textiel', 'verf', 'olieverf', 'doek'}:
                 metadata['medium'] = 'oil on canvas'
-            elif materials == {'olieverf', 'paneel'} or {'hout', 'olieverf', 'paneel'}:
+            elif materials == {'olieverf', 'paneel'} or materials == {'hout', 'olieverf', 'paneel'}:
                 metadata['medium'] = 'oil on panel'
             elif materials == {'olieverf', 'koper'}:
                 metadata['medium'] = 'oil on copper'
