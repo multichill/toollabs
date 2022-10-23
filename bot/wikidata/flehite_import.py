@@ -19,16 +19,16 @@ def get_flehite_generator():
     """
     Generator to return Museum Flehite paintings
     """
-    starturl = 'https://ais.axiellcollections.cloud/FLEHITE/search/detail?database=collect&fieldname=Field_Objectname&value=schilderij'
+    start_url = 'https://ais.axiellcollections.cloud/FLEHITE/search/detail?database=collect&fieldname=Field_Objectname&value=schilderij'
     session = requests.Session()
-    session.get(starturl)
+    session.get(start_url)
 
     base_search_url = 'https://ais.axiellcollections.cloud/FLEHITE/resultsnavigate/%s'
 
     for i in range(1, 59):
         search_url = base_search_url % (i,)
 
-        print (search_url)
+        print(search_url)
         search_page = session.get(search_url)
 
         work_url_regex = '<a title="" href="https?://ais\.axiellcollections\.cloud/FLEHITE/Details/collect/(\d+)">'
@@ -41,8 +41,6 @@ def get_flehite_generator():
             item_page = session.get(url)
             pywikibot.output(url)
             metadata['url'] = url
-
-            #print (urlitem_page.text)
 
             metadata['collectionqid'] = 'Q29908492'
             metadata['collectionshort'] = 'Flehite'
@@ -67,8 +65,6 @@ def get_flehite_generator():
                 title = title.replace('\t', '').replace('\n', '')
                 metadata['title'] = {'nl': title, }
 
-
-
             creator_regex = '<div class="label">Vervaardiger</div><div class="value"><a href="http[^\"]+">([^\<]+)</a></div>'
             creator_match = re.search(creator_regex, item_page.text)
 
@@ -81,107 +77,127 @@ def get_flehite_generator():
                 metadata['creatorname'] = name
 
                 if name in ['onbekend', 'anoniem']:
-                    metadata['description'] = { 'nl' : 'schilderij van anonieme schilder',
-                                                'en' : 'painting by anonymous painter',
-                                                }
+                    metadata['description'] = {'nl': 'schilderij van anonieme schilder',
+                                               'en': 'painting by anonymous painter',
+                                               }
                     metadata['creatorqid'] = 'Q4233718'
                 else:
-                    metadata['description'] = { 'nl' : '%s van %s' % ('schilderij', metadata.get('creatorname'),),
-                                                'en' : '%s by %s' % ('painting', metadata.get('creatorname'),),
-                                                'de' : '%s von %s' % ('Gemälde', metadata.get('creatorname'), ),
-                                                'fr' : '%s de %s' % ('peinture', metadata.get('creatorname'), ),
+                    metadata['description'] = { 'nl': '%s van %s' % ('schilderij', metadata.get('creatorname'),),
+                                                'en': '%s by %s' % ('painting', metadata.get('creatorname'),),
+                                                'de': '%s von %s' % ('Gemälde', metadata.get('creatorname'), ),
+                                                'fr': '%s de %s' % ('peinture', metadata.get('creatorname'), ),
                                                 }
 
-            yield metadata
-            continue
+            date_regex = '<div class="label">Datum</div><div class="value">([^\<]+)</div>'
+            date_match = re.search(date_regex, item_page.text)
+            if date_match:
+                date = date_match.group(1).strip()
+                year_regex = '^\s*(\d\d\d\d)\s*$'
+                date_circa_regex = '^ca?\.\s*(\d\d\d\d)$'
+                period_regex = '^(\d\d\d\d)\s*[--\/]\s*(\d\d\d\d)$'
+                circa_period_regex = '^ca?\.\s*(\d\d\d\d)–(\d\d\d\d)$'
+                short_period_regex = '^(\d\d)(\d\d)[--\/](\d\d)$'
+                circa_short_period_regex = '^ca?\.\s*(\d\d)(\d\d)[-–/](\d\d)$'
 
-            # TODO: Add inception
-            # TODO: Add material
-            # TODO: Add size
+                year_match = re.match(year_regex, date)
+                date_circa_match = re.match(date_circa_regex, date)
+                period_match = re.match(period_regex, date)
+                circa_period_match = re.match(circa_period_regex, date)
+                short_period_match = re.match(short_period_regex, date)
+                circa_short_period_match = re.match(circa_short_period_regex, date)
 
-            if False:
+                if year_match:
+                    # Don't worry about cleaning up here.
+                    metadata['inception'] = int(year_match.group(1))
+                elif date_circa_match:
+                    metadata['inception'] = int(date_circa_match.group(1))
+                    metadata['inceptioncirca'] = True
+                elif period_match:
+                    metadata['inceptionstart'] = int(period_match.group(1),)
+                    metadata['inceptionend'] = int(period_match.group(2),)
+                elif circa_period_match:
+                    metadata['inceptionstart'] = int(circa_period_match.group(1),)
+                    metadata['inceptionend'] = int(circa_period_match.group(2),)
+                    metadata['inceptioncirca'] = True
+                elif short_period_match:
+                    metadata['inceptionstart'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(2), ))
+                    metadata['inceptionend'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(3), ))
+                elif circa_short_period_match:
+                    metadata['inceptionstart'] = int('%s%s' % (circa_short_period_match.group(1), circa_short_period_match.group(2), ))
+                    metadata['inceptionend'] = int('%s%s' % (circa_short_period_match.group(1), circa_short_period_match.group(3), ))
+                    metadata['inceptioncirca'] = True
+                else:
+                    print('Could not parse date: "%s"' % (date,))
 
-                date_regex = '<span class="detailFieldLabel">Date</span><span property="dateCreated" itemprop="dateCreated" class="detailFieldValue">([^<]+)</span>'
-                date_match = re.search(date_regex, itempage.text)
-                if date_match:
-                    date = date_match.group(1)
-                    year_regex = '^(\d\d\d\d)$'
-                    date_circa_regex = '^ca?\.\s*(\d\d\d\d)$'
-                    period_regex = '^(\d\d\d\d)[--\/](\d\d\d\d)$'
-                    circa_period_regex = '^ca?\.\s*(\d\d\d\d)–(\d\d\d\d)$'
-                    short_period_regex = '^(\d\d)(\d\d)[--\/](\d\d)$'
-                    circa_short_period_regex = '^ca?\.\s*(\d\d)(\d\d)[-–/](\d\d)$'
+            material_regex = '<a href="http://ais\.axiellcollections\.cloud/FLEHITE/search/detail\?database=collect&amp;fieldname=Field_Material&amp;value=[^\"]+">([^\<]+)</a>'
+            material_matches = re.finditer(material_regex, item_page.text)
+            materials = set()
+            for material_match in material_matches:
+                materials.add(material_match.group(1))
 
-                    year_match = re.match(year_regex, date)
-                    date_circa_match = re.match(date_circa_regex, date)
-                    period_match = re.match(period_regex, date)
-                    circa_period_match = re.match(circa_period_regex, date)
-                    short_period_match = re.match(short_period_regex, date)
-                    circa_short_period_match = re.match(circa_short_period_regex, date)
+            if materials == {'olieverf', 'doek'} or materials == {'olieverf', 'canvas'} \
+                    or {'textiel', 'verf', 'olieverf', 'doek'}:
+                metadata['medium'] = 'oil on canvas'
+            elif materials == {'olieverf', 'paneel'} or {'hout', 'olieverf', 'paneel'}:
+                metadata['medium'] = 'oil on panel'
+            elif materials == {'olieverf', 'koper'}:
+                metadata['medium'] = 'oil on copper'
+            elif materials == {'olieverf', 'papier'}:
+                metadata['medium'] = 'oil on paper'
+            elif materials == {'olieverf', 'karton'}:
+                metadata['medium'] = 'oil on cardboard'
+                #elif (material1 == 'doek' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'doek'):
+                #    metadata['medium'] = 'tempera on canvas'
+                #elif (material1 == 'paneel' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'paneel'):
+                #    metadata['medium'] = 'tempera on panel'
+                #elif (material1 == 'doek' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'doek'):
+                #    metadata['medium'] = 'acrylic paint on canvas'
+            elif materials == {'acryl', 'doek'}:
+                metadata['medium'] = 'acrylic paint on canvas'
+                #elif (material1 == 'paneel' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'paneel'):
+                #    metadata['medium'] = 'acrylic paint on panel'
+                #elif (material1 == 'papier' and material2 == 'aquarel') or (material1 == 'aquarel' and material2 == 'papier'):
+                #    metadata['medium'] = 'watercolor on paper'
+                #else:
+                #    print('Unable to match %s & %s' % (material1, material2,))
+            elif materials == {'olieverf', 'doek', 'paneel'}:
+                metadata['medium'] = 'oil on canvas on panel'
+            elif materials == {'olieverf', 'papier', 'paneel'}:
+                metadata['medium'] = 'oil on paper on panel'
+            elif materials == {'olieverf', 'karton', 'paneel'}:
+                metadata['medium'] = 'oil on cardboard on panel'
+            elif materials == {'olieverf', 'koper', 'paneel'}:
+                metadata['medium'] = 'oil on copper on panel'
+            elif materials == {'olieverf', 'doek', 'karton'}:
+                metadata['medium'] = 'oil on canvas on cardboard'
+            elif materials == {'olieverf', 'papier', 'karton'}:
+                metadata['medium'] = 'oil on paper on cardboard'
+            else:
+                print('Unable to match %s' % (materials,))
 
-                    if year_match:
-                        # Don't worry about cleaning up here.
-                        metadata['inception'] = int(year_match.group(1))
-                    elif date_circa_match:
-                        metadata['inception'] = int(date_circa_match.group(1))
-                        metadata['inceptioncirca'] = True
-                    elif period_match:
-                        metadata['inceptionstart'] = int(period_match.group(1),)
-                        metadata['inceptionend'] = int(period_match.group(2),)
-                    elif circa_period_match:
-                        metadata['inceptionstart'] = int(circa_period_match.group(1),)
-                        metadata['inceptionend'] = int(circa_period_match.group(2),)
-                        metadata['inceptioncirca'] = True
-                    elif short_period_match:
-                        metadata['inceptionstart'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(2), ))
-                        metadata['inceptionend'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(3), ))
-                    elif circa_short_period_match:
-                        metadata['inceptionstart'] = int('%s%s' % (circa_short_period_match.group(1), circa_short_period_match.group(2), ))
-                        metadata['inceptionend'] = int('%s%s' % (circa_short_period_match.group(1), circa_short_period_match.group(3), ))
-                        metadata['inceptioncirca'] = True
-                    else:
-                        print('Could not parse date: "%s"' % (date,))
+            simple_2d_regex = '<div class="label">Formaat</div><div class="value"><ul>hoogte:\s*(?P<height>\d+(\.\d+)?)\scm<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm<br></ul>'
+            simple_2d_match = re.search(simple_2d_regex, item_page.text)
+            if simple_2d_match:
+                metadata['heightcm'] = simple_2d_match.group('height')
+                metadata['widthcm'] = simple_2d_match.group(u'width')
 
-                medium_regex = '<span class="detailFieldLabel">Medium</span><span property="artMedium" itemprop="artMedium" class="detailFieldValue">([^<]+)</span>'
-                medium_match = re.search(medium_regex, itempage.text)
-                # Artdatabot will sort this out
-                if medium_match:
-                    metadata['medium'] = medium_match.group(1).lower()
-
-                dimensions_regex = '<div class="detailField dimensionsField"><span class="detailFieldLabel">Dimensions</span><span class="detailFieldValue">[^\(]+\(([^\)]+ cm)\)</span>'
-                dimensions_match = re.search(dimensions_regex, itempage.text)
-
-                if dimensions_match:
-                    dimensions = dimensions_match.group(1)
-                    regex_2d = '\s*(?P<height>\d+(\.\d+)?)\s*×\s*(?P<width>\d+(\.\d+)?)\s*cm\s*$'
-                    match_2d = re.match(regex_2d, dimensions)
-                    if match_2d:
-                        metadata['heightcm'] = match_2d.group('height')
-                        metadata['widthcm'] = match_2d.group(u'width')
-
-                ### Nothing useful here, might be part of the inventory number
-                #acquisitiondateregex = '\<div class\=\"detailField creditlineField\"\>[^\<]+,\s*(\d\d\d\d)\<\/div\>'
-                #acquisitiondatematch = re.search(acquisitiondateregex, itempage.text)
-                #if acquisitiondatematch:
-                #    metadata['acquisitiondate'] = int(acquisitiondatematch.group(1))
-
-                # Image url is provided and it's a US collection. Just check the date
-                image_regex = '<meta content="(https://ink\.nbmaa\.org/internal/media/dispatcher/\d+/full)" name="og:image">'
-                image_match = re.search(image_regex, itempage.text)
-                if image_match:
-                    recent_inception = False
-                    if metadata.get('inception') and metadata.get('inception') > 1924:
-                        recent_inception = True
-                    if metadata.get('inceptionend') and metadata.get('inceptionend') > 1924:
-                        recent_inception = True
-                    if not recent_inception:
-                        metadata['imageurl'] = image_match.group(1)
-                        metadata['imageurlformat'] = 'Q2195' #JPEG
+            image_regex = 'href="(https://ais\.axiellcollections\.cloud/FLEHITE/AxiellWebAPI_images/wwwopac\.ashx\?command=getcontent&amp;server=images&amp;value=[^\"]+\.jpg&amp;folderId=[^\"]+&amp;imageformat=jpg)">'
+            image_match = re.search(image_regex, item_page.text)
+            if image_match:
+                image_url = html.unescape(image_match.group(1)).replace(' ', '%20')
+                recent_inception = False
+                if metadata.get('inception') and metadata.get('inception') > 1924:
+                    recent_inception = True
+                if metadata.get('inceptionend') and metadata.get('inceptionend') > 1924:
+                    recent_inception = True
+                if not recent_inception:
+                    metadata['imageurl'] = image_url
+                    metadata['imageurlformat'] = 'Q2195'  # JPEG
                     #    metadata['imageurllicense'] = 'Q18199165' # cc-by-sa.40
-                        metadata['imageoperatedby'] = 'Q7005718'
-                    #    # Can use this to add suggestions everywhere
-                    #    metadata['imageurlforce'] = True
-                yield metadata
+                    metadata['imageoperatedby'] = 'Q29908492'
+                #    # Can use this to add suggestions everywhere
+                #    metadata['imageurlforce'] = True
+            yield metadata
 
 
 def main(*args):
@@ -201,6 +217,7 @@ def main(*args):
     else:
         artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
         artDataBot.run()
+
 
 if __name__ == "__main__":
     main()
