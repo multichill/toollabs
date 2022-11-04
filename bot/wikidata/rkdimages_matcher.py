@@ -78,15 +78,21 @@ class RKDimagesMatcher:
         result = {}
         if collection_qid:
             # Need to use the long version here to get all ranks
-            query = u"""SELECT DISTINCT ?item ?id WHERE {
-            ?item wdt:P350 ?id .
+            query = """SELECT DISTINCT ?item ?id WHERE {
+            ?item p:P350 ?idstatement .
+            ?idstatement ps:P350 ?id .
+            MINUS { ?idstatement wikibase:rank wikibase:DeprecatedRank }
             { ?item p:P195 ?colstatement .
             ?colstatement ps:P195 wd:%s . } UNION
             { ?item p:P276 ?locationstatement .
             ?locationstatement ps:P276 wd:%s . }
             }""" % (collection_qid, collection_qid)
         else:
-            query = u'SELECT ?item ?id WHERE { ?item wdt:P350 ?id  }'
+            query = """SELECT ?item ?id WHERE {
+            ?item p:P350 ?idstatement.
+            ?idstatement ps:P350 ?id.
+            MINUS { ?idstatement wikibase:rank wikibase:DeprecatedRank. }
+            }"""
         sq = pywikibot.data.sparql.SparqlQuery()
         query_result = sq.select(query)
 
@@ -133,6 +139,14 @@ class RKDimagesMatcher:
         configjson = json.loads(jsondata)
         for collection_info in configjson:
             result[collection_info.get('qid')] = collection_info
+        # Can do override here
+        #result['Q2066737'] = {"qid": "Q2066737",
+        #                      "collectienaam": "Instituut Collectie Nederland",
+        #                      "reportpage": "Wikidata:WikiProject sum of all paintings/RKD to match/Instituut Collectie Nederland",
+        #                      "use_collection" : "Q18600731",
+        #                      "replacements": [("^(.+)\s(.+)$", "\\1\\2"),],
+        #                      }
+
         return result
 
     def get_automatic_collections(self):
@@ -400,7 +414,7 @@ class RKDimagesMatcher:
                 artistname = rkdartists_json.get('response').get('docs')[0].get('kunstenaarsnaam')
             except ValueError:  # Throws simplejson.errors.JSONDecodeError
                 pywikibot.output('Got invalid json for%s, skipping' % (rkdartists_id,))
-                return None
+                continue
             artist_data = {'qid': qid,
                            'artistname': artistname,
                            'rkdartistsid': rkdartists_id,
