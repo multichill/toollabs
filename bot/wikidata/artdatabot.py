@@ -296,6 +296,9 @@ class ArtDataBot:
         # Add catalog code
         self.addCatalogCode(artworkItem, metadata)
 
+        # Add Iconclass
+        self.add_iconclass(artworkItem, metadata)
+
     def addLabels(self, item, metadata):
         """
         Add the (missing) labels to the item based.
@@ -1093,6 +1096,30 @@ class ArtDataBot:
                     pywikibot.output('Adding additional described at claim to %s' % item)
                     item.addClaim(newclaim)
 
+    def add_iconclass(self, item, metadata):
+        """
+        Add depicts iconclass to item
+        :param item:
+        :param metadata:
+        :return:
+        """
+        claims = item.get().get('claims')
+
+        if metadata.get('depictsiconclass'):
+            current_iconclass = []
+            if claims.get('P1257'):
+                for claim in claims.get('P1257'):
+                    current_iconclass.append(claim.getTarget())
+
+            for depictsiconclass in set(metadata.get('depictsiconclass')):
+                if depictsiconclass not in current_iconclass:
+                    newclaim = pywikibot.Claim(self.repo, 'P1257')
+                    newclaim.setTarget(depictsiconclass)
+                    pywikibot.output('Adding depicts Iconclass notation claim to %s' % item)
+                    item.addClaim(newclaim)
+                    self.addReference(item, newclaim, metadata.get('refurl'))
+                    # TO DO: Add sourcing of existing statements
+
     def addItemStatement(self, item, pid, qid, url):
         """
         Helper function to add a statement, or add missing reference, or update reference to existing statement
@@ -1123,7 +1150,7 @@ class ArtDataBot:
         pywikibot.output(u'Adding %s->%s to %s' % (pid, qid, item))
         item.addClaim(newclaim)
         self.addReference(item, newclaim, url)
-        
+
     def addReference(self, item, newclaim, url):
         """
         Add a reference with a retrieval url and todays date
