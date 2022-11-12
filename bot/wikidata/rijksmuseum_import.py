@@ -162,7 +162,7 @@ def getRijksmuseumGenerator():
             if record.get('acquisition'):
                 if record.get('acquisition').get('date'):
                     # This is not going to work yet. Artdatabot only understands years
-                    acquisitiondateRegex = u'^(\d\d\d\d)-01-01T00:00:00Z$'
+                    acquisitiondateRegex = u'^\+?(\d\d\d\d)-01-01T00:00:00Z?$'
                     acquisitiondateMatch = re.match(acquisitiondateRegex, record.get('acquisition').get('date'))
                     if acquisitiondateMatch:
                         metadata['acquisitiondate'] = acquisitiondateMatch.group(1)
@@ -234,6 +234,9 @@ def getRijksmuseumGenerator():
                 metadata[u'imageurl'] = imageurl
                 metadata[u'imageurlformat'] = u'Q2195' #JPEG
                 metadata['imageoperatedby'] = 'Q190804'
+            if record.get('classification') and record.get('classification').get('iconClassIdentifier'):
+                # Add the list of iconclass classifications
+                metadata['depictsiconclass'] = record.get('classification').get('iconClassIdentifier')
             yield metadata
     return
     
