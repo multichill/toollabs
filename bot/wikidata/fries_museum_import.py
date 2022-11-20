@@ -3,11 +3,8 @@
 """
 Bot to import paintings from the Van Fries Museum to Wikidata.
 
-Uses the Collectie Nederland API which returns EDM (Europeana Data Model) formatted data, see
-https://www.collectienederland.nl/search/?qf%5B%5D=edm_dataProvider%3AFries+Museum&qf=dc_type%3Aschilderij&rows=50&format=json&start=1
-
-This data is quite outdated so I should probably switch to:
-https://prod.tresoar.hubs.delving.org/api/search/v1/?query=schilderij&facet.field=icn_technique_facet&facet.field=dc_creator_facet&facet.field=icn_productionPeriod_facet&facet.field=icn_subjectDepicted_facet&hqf[]=delving_spec:friesmuseum&page=1&format=json
+Updated to use the tresoar API instead of the Collectie Nederland API see
+https://prod.tresoar.hubs.delving.org/api/search/v1/?query=schilderij&hqf[]=delving_spec:friesmuseum&start=61&rows=10&format=json
 
 This bot uses artdatabot to upload it to Wikidata
 
@@ -21,11 +18,10 @@ def getFriesGenerator():
     """
     Generator to return Fries Museum paintings
     """
-    basesearchurl = 'https://www.collectienederland.nl/search/?qf%%5B%%5D=edm_dataProvider%%3AFries+Museum&qf=dc_type%%3Aschilderij&format=json&start=%s&rows=%s'
+    basesearchurl = 'https://prod.tresoar.hubs.delving.org/api/search/v1/?query=schilderij&hqf[]=delving_spec:friesmuseum&format=json&start=%s&rows=%s'
     start = 1
     rows = 50
     hasNext = True
-
 
     while hasNext:
         searchUrl = basesearchurl % (start, rows)
@@ -37,129 +33,122 @@ def getFriesGenerator():
 
         for item in searchJson.get('result').get('items'):
             itemfields = item.get('item').get('fields')
-            #print (itemfields)
+            # print (itemfields)
             metadata = {}
 
-            if itemfields.get('legacy').get('delving_collection') == 'fries-museum':
+            if itemfields.get('delving_collection')[0] == 'friesmuseum':
                 metadata['collectionqid'] = 'Q848313'
                 metadata['collectionshort'] = 'Fries Museum'
                 metadata['locationqid'] = 'Q848313'
             else:
-                #Another collection, skip
+                print('# Another collection, skip')
                 continue
 
-            #No need to check, I'm actually searching for paintings.
-            metadata['instanceofqid'] = 'Q3305213'
+            if itemfields.get('icn_objectSoort') and len(itemfields.get('icn_objectSoort')) == 1 and \
+                    itemfields.get('icn_objectSoort')[0] == 'schilderij':
+                metadata['instanceofqid'] = 'Q3305213'
+            else:
+                print('# Not a painting, skip')
+                continue
 
             # Get the ID. This needs to burn if it's not available
-            metadata['id'] = itemfields.get('dc_identifier')[0].get('value')
+            metadata['id'] = itemfields.get('icn_objectNumber')[0]
             metadata['idpid'] = u'P217'
 
-            if itemfields.get('dc_title'):
-                title = itemfields.get('dc_title')[0].get('value')
+            if itemfields.get('dc_title') and len(itemfields.get('dc_title')) == 1:
+                title = itemfields.get('dc_title')[0]
                 metadata['title'] = {'nl': title, }
 
-            metadata['refurl'] = itemfields.get('entryURI')
+            # Tresoar url is broken
+            # metadata['refurl'] =
 
             # This points to the old very broken website
-            # metadata['url'] = itemfields.get('edm_isShownAt')[0].get('value')
-            metadata['url'] = 'https://collectie.friesmuseum.nl/?diw-id=tresoar_friesmuseum_%s' % (metadata['id'],)
+            metadata['url'] = 'https://collectie.friesmuseum.nl/?diw-id=%s' % (item.get('item').get('doc_id'),)
 
-            name = itemfields.get('dc_creator')[0].get('value')
-            if u',' in name:
-                (surname, sep, firstname) = name.partition(u',')
-                name = '%s %s' % (firstname.strip(), surname.strip(),)
-            metadata['creatorname'] = name
+            if itemfields.get('dc_creator') and len(itemfields.get('dc_creator')) == 1:
+                name = itemfields.get('dc_creator')[0]
+                if u',' in name:
+                    (surname, sep, firstname) = name.partition(u',')
+                    name = '%s %s' % (firstname.strip(), surname.strip(),)
+                metadata['creatorname'] = name
 
-            if metadata['creatorname'] == 'onbekend':
-                metadata['creatorname'] = 'anonymous'
-                metadata['description'] = {'nl': 'schilderij van anonieme schilder',
-                                           'en': 'painting by anonymous painter',
-                                           }
-                metadata['creatorqid'] = 'Q4233718'
-            else:
-                metadata['description'] = {'nl': '%s van %s' % ('schilderij', metadata.get('creatorname'),),
-                                           'en': '%s by %s' % ('painting', metadata.get('creatorname'),),
-                                           }
-
-            paints = {'olieverf': 'oil',
-                      'waterverf': 'watercolor',
-                      'acrylverf': 'acrylic',
-
-                      }
-            surfaces = {'doek': 'canvas',
-                        'paneel': 'panel',
-                        'panel': 'panel',
-                        'papier': 'paper',
-                        'karton': 'cardboard',
-                        }
-            paint = None
-            surface = None
-
-            if itemfields.get('dcterms_medium') and len(itemfields.get('dcterms_medium')) >= 2:
-                material_1 = itemfields.get('dcterms_medium')[0].get('value').strip()
-                material_2 = itemfields.get('dcterms_medium')[1].get('value').strip()
-
-                for material in (material_1, material_2):
-                    if material in paints:
-                        paint = paints.get(material)
-                    elif material in surfaces:
-                        surface = surfaces.get(material)
-                    else:
-                        print('Unknown material %s' % (material,))
-
-            if paint and surface:
-                metadata['medium'] = '%s on %s' % (paint, surface)
-
-            if itemfields.get('dcterms_created'):
-                date = itemfields.get('dcterms_created')[0].get('value')
-                year_regex = '^(\d\d\d\d)$'
-                date_circa_regex = '^ca?\.\s*(\d\d\d\d)$'
-                period_regex = '^(\d\d\d\d)\s*[--\/]\s*(\d\d\d\d)$'
-                circa_period_regex = '^ca?\.\s*(\d\d\d\d)\s*[--\/]\s*(\d\d\d\d)$'
-                short_period_regex = '^(\d\d)(\d\d)[--\/](\d\d)$'
-                circa_short_period_regex = '^ca?\.\s*(\d\d)(\d\d)[-–/](\d\d)$'
-
-                year_match = re.match(year_regex, date)
-                date_circa_match = re.match(date_circa_regex, date)
-                period_match = re.match(period_regex, date)
-                circa_period_match = re.match(circa_period_regex, date)
-                short_period_match = re.match(short_period_regex, date)
-                circa_short_period_match = re.match(circa_short_period_regex, date)
-
-                if year_match:
-                    # Don't worry about cleaning up here.
-                    metadata['inception'] = int(year_match.group(1))
-                elif date_circa_match:
-                    metadata['inception'] = int(date_circa_match.group(1))
-                    metadata['inceptioncirca'] = True
-                elif period_match:
-                    metadata['inceptionstart'] = int(period_match.group(1),)
-                    metadata['inceptionend'] = int(period_match.group(2),)
-                elif circa_period_match:
-                    metadata['inceptionstart'] = int(circa_period_match.group(1),)
-                    metadata['inceptionend'] = int(circa_period_match.group(2),)
-                    metadata['inceptioncirca'] = True
-                elif short_period_match:
-                    metadata['inceptionstart'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(2), ))
-                    metadata['inceptionend'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(3), ))
-                elif circa_short_period_match:
-                    metadata['inceptionstart'] = int('%s%s' % (circa_short_period_match.group(1), circa_short_period_match.group(2), ))
-                    metadata['inceptionend'] = int('%s%s' % (circa_short_period_match.group(1), circa_short_period_match.group(3), ))
-                    metadata['inceptioncirca'] = True
+                if metadata['creatorname'] == 'onbekend':
+                    metadata['creatorname'] = 'anonymous'
+                    metadata['description'] = {'nl': 'schilderij van anonieme schilder',
+                                               'en': 'painting by anonymous painter',
+                                               }
+                    metadata['creatorqid'] = 'Q4233718'
                 else:
-                    print('Could not parse date: "%s"' % (date,))
+                    metadata['description'] = {'nl': '%s van %s' % ('schilderij', metadata.get('creatorname'),),
+                                               'en': '%s by %s' % ('painting', metadata.get('creatorname'),),
+                                               'de': '%s von %s' % ('Gemälde', metadata.get('creatorname'), ),
+                                               'fr': '%s de %s' % ('peinture', metadata.get('creatorname'), ),
+                                               }
 
-            if itemfields.get('edm_hasview'):
+            if itemfields.get('icn_material'):
+                materials = set()
+                for material in itemfields.get('icn_material'):
+                    materials.add(material)
+
+                if materials == {'olieverf', 'doek'} or materials == {'olieverf', 'canvas'} :
+                    metadata['medium'] = 'oil on canvas'
+                elif materials == {'olieverf', 'paneel'}:
+                    metadata['medium'] = 'oil on panel'
+                elif materials == {'olieverf', 'koper'}:
+                    metadata['medium'] = 'oil on copper'
+                    #elif (material1 == 'papier' and material2 == 'olieverf') or (material1 == 'olieverf' and material2 == 'papier'):
+                    #    metadata['medium'] = 'oil on paper'
+                    #elif (material1 == 'doek' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'doek'):
+                    #    metadata['medium'] = 'tempera on canvas'
+                    #elif (material1 == 'paneel' and material2 == 'tempera') or (material1 == 'tempera' and material2 == 'paneel'):
+                    #    metadata['medium'] = 'tempera on panel'
+                    #elif (material1 == 'doek' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'doek'):
+                    #    metadata['medium'] = 'acrylic paint on canvas'
+                elif materials == {'acryl', 'doek'}:
+                    metadata['medium'] = 'acrylic paint on canvas'
+                    #elif (material1 == 'paneel' and material2 == 'acrylverf') or (material1 == 'acrylverf' and material2 == 'paneel'):
+                    #    metadata['medium'] = 'acrylic paint on panel'
+                    #elif (material1 == 'papier' and material2 == 'aquarel') or (material1 == 'aquarel' and material2 == 'papier'):
+                    #    metadata['medium'] = 'watercolor on paper'
+                    #else:
+                    #    print('Unable to match %s & %s' % (material1, material2,))
+                elif materials == {'olieverf', 'doek', 'paneel'}:
+                    metadata['medium'] = 'oil on canvas on panel'
+                elif materials == {'olieverf', 'papier', 'paneel'}:
+                    metadata['medium'] = 'oil on paper on panel'
+                elif materials == {'olieverf', 'karton', 'paneel'}:
+                    metadata['medium'] = 'oil on cardboard on panel'
+                elif materials == {'olieverf', 'koper', 'paneel'}:
+                    metadata['medium'] = 'oil on copper on panel'
+                elif materials == {'olieverf', 'doek', 'karton'}:
+                    metadata['medium'] = 'oil on canvas on cardboard'
+                elif materials == {'olieverf', 'papier', 'karton'}:
+                    metadata['medium'] = 'oil on paper on cardboard'
+                else:
+                    print('Unable to match %s' % (materials,))
+
+            try:
+                if itemfields.get('icn_productionStart') and itemfields.get('icn_productionEnd'):
+                    period = '%s - %s' % (itemfields.get('icn_productionStart')[0], itemfields.get('icn_productionEnd')[0])
+                    if itemfields.get('icn_productionPeriod') and itemfields.get('icn_productionPeriod')[0] == period:
+                        metadata['inceptionstart'] = int(itemfields.get('icn_productionStart')[0])
+                        metadata['inceptionend'] = int(itemfields.get('icn_productionEnd')[0])
+                    elif itemfields.get('icn_productionStart') == itemfields.get('icn_productionEnd'):
+                        metadata['inception'] = int(itemfields.get('icn_productionStart')[0])
+            except ValueError:
+                # Weird date
+                pass
+
+            if itemfields.get('europeana_hasView'):
                 recentinception = False
                 if metadata.get('inception') and metadata.get('inception') > 1924:
                     recentinception = True
                 if metadata.get('inceptionend') and metadata.get('inceptionend') > 1924:
                     recentinception = True
                 if not recentinception:
-                    metadata['imageurl'] = '%s000' % (itemfields.get('edm_hasview')[0].get('value'))
+                    metadata['imageurl'] = itemfields.get('europeana_hasView')[0]
                     metadata['imageurlformat'] = 'Q2195'  # JPEG
-                    metadata['imageoperatedby'] = 'Q1766396'  # Rijksdienst voor het Cultureel Erfgoed (Q1766396)
+                    metadata['imageoperatedby'] = 'Q2267622'  # Tresoar
 
             yield metadata
 
