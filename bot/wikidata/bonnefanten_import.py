@@ -66,6 +66,9 @@ def get_bonnefanten_generator():
             creator_regex = '<div class="[^"]+ object-label"><p>Vervaardiger</p></div>[\s\r\t\n]*<div class="[^"]+ object-value"><p><a href="https://www\.bonnefanten\.nl/nl/maker/[^"]+">([^<]+)</a> \(<a href="/nl/@@search\?creator_role=schilder">schilder</a>\)[^<]*</p></div>'
             creator_match = re.search(creator_regex, item_page.text)
 
+            some_creator_regex = '<div class="[^"]+ object-label"><p>Vervaardiger</p></div>'
+            some_creator_match = re.search(some_creator_regex, item_page.text)
+
             if creator_match:
                 name = html.unescape(creator_match.group(1)).strip()
                 #if ',' in name:
@@ -85,6 +88,12 @@ def get_bonnefanten_generator():
                                                 'de': '%s von %s' % ('Gemälde', metadata.get('creatorname'), ),
                                                 'fr': '%s de %s' % ('peinture', metadata.get('creatorname'), ),
                                                 }
+            elif not some_creator_match:
+                # No creator mentioned at all
+                metadata['description'] = {'nl': 'schilderij van anonieme schilder',
+                                           'en': 'painting by anonymous painter',
+                                           }
+                metadata['creatorqid'] = 'Q4233718'
 
             date_regex = '<div class="[^"]+ object-label"><p>Datering</p></div>[\s\r\t\n]*<div class="[^"]+ object-value"><p>([^<]+)</p></div>'
             date_match = re.search(date_regex, item_page.text)
@@ -186,15 +195,14 @@ def get_bonnefanten_generator():
 
             # Collectie Bonnefanten, langdurig bruikleen LGOG <- what's that?
 
-            # Disable for now
-            #if credit_match:
-            #    credit_line = credit_match.group(1)
-            #    if credit_line.startswith('Collectie Bonnefanten, langdurig bruikleen Rijksmuseum.'):
-            #        metadata['extracollectionqid'] = 'Q190804'
-            #    elif credit_line.startswith('Collectie Bonnefanten, in langdurig bruikleen van Koninklijk Kabinet van Schilderijen Mauritshuis, Den Haag.'):
-            #        metadata['extracollectionqid'] = 'Q221092'
-            #    elif credit_line.startswith('Collectie Bonnefanten, langdurig bruikleen Rijksdienst voor het Cultureel Erfgoed.'):
-            #        metadata['extracollectionqid'] = 'Q18600731'
+            if credit_match:
+                credit_line = credit_match.group(1)
+                if credit_line.startswith('Collectie Bonnefanten, langdurig bruikleen Rijksmuseum.'):
+                    metadata['extracollectionqid'] = 'Q190804'
+                elif credit_line.startswith('Collectie Bonnefanten, in langdurig bruikleen van Koninklijk Kabinet van Schilderijen Mauritshuis, Den Haag.'):
+                    metadata['extracollectionqid'] = 'Q221092'
+                elif credit_line.startswith('Collectie Bonnefanten, langdurig bruikleen Rijksdienst voor het Cultureel Erfgoed.'):
+                    metadata['extracollectionqid'] = 'Q18600731'
 
             # Sizes are all over the place so skipping for now
             #simple_2d_regex = '<div class="label">Formaat</div><div class="value"><ul>hoogte:\s*(?P<height>\d+(\.\d+)?)\scm<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm<br>'
@@ -209,17 +217,16 @@ def get_bonnefanten_generator():
             dc_rights_regex = '<meta name="DC.rights" content="([^"]+)" />'
             dc_rights_match = re.search(dc_rights_regex, item_page.text)
 
-            pd_text = 'Gebruik van deze afbeelding is toegestaan voor iedereen. De afbeelding mag worden bewerkt en verder verspreid o.v.v. naam vervaardiger, titel, datering, ©naam fotograaf/ Bonnefanten.'
+            pd_text = 'Gebruik van deze afbeelding is toegestaan voor iedereen. De afbeelding mag worden bewerkt en verder verspreid o.v.v. naam vervaardiger, titel, datering, ©naam fotograaf'
             cc_text = 'Gebruik van deze afbeelding is toegestaan voor iedereen. De afbeelding mag worden bewerkt en verder verspreid o.v.v. naam vervaardiger, titel, datering, CC BY SA 3.0, ©naam fotograaf. Meer info: www.creativecommons.nl.'
 
             if dc_rights_match and og_image_match:
-                if dc_rights_match.group(1) == pd_text:
+                if dc_rights_match.group(1).startswith(pd_text):
                     image_url = '%s/@@images/image/large' % (og_image_match.group(1),)
                     metadata['imageurl'] = image_url
                     metadata['imageurlformat'] = 'Q27996264'  # JPEG
                     metadata['imageoperatedby'] = 'Q892727'
-                    metadata['imageurlforce'] = True
-
+                    # metadata['imageurlforce'] = True
             yield metadata
 
 
