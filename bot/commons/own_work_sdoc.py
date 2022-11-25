@@ -1114,9 +1114,9 @@ class OwnWorkBot:
         cameramodel = None
 
         for namevalue in metadata:
-            if namevalue.get('name')=='Make':
+            if namevalue.get('name') == 'Make' and namevalue.get('value'):
                 cameramake = namevalue.get('value').strip()
-            elif namevalue.get('name')=='Model':
+            elif namevalue.get('name') == 'Model' and namevalue.get('value'):
                 cameramodel = namevalue.get('value').strip()
 
         if not cameramake or not cameramodel:
