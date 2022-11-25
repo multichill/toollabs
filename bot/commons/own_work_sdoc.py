@@ -528,13 +528,14 @@ class OwnWorkBot:
             pywikibot.output(summary)
 
             token = self.site.tokens['csrf']
-            postdata = {'action' : u'wbeditentity',
-                        'format' : u'json',
-                        'id' : mediaid,
-                        'data' : json.dumps(itemdata),
-                        'token' : token,
-                        'summary' : summary,
-                        'bot' : True,
+            postdata = {'action': 'wbeditentity',
+                        'format': 'json',
+                        'id': mediaid,
+                        'data': json.dumps(itemdata),
+                        'token': token,
+                        'summary': summary,
+                        'bot': True,
+                        'tags': 'BotSDC'
                         }
             if currentdata:
                 # This only works when the entity has been created
