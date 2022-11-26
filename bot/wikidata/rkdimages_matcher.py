@@ -897,7 +897,7 @@ class RKDimagesMatcher:
             else:
                 text = text + 'has been completely matched to the {{Q|%s}}/{{Q|%s}} collection.\n' % (collection_qid, collection_info.get('qid'))
             text = text + 'Have a look at [[Wikidata:WikiProject sum of all paintings/RKD to match#Collections]] for other collections to match.\n'
-            text = text + u'\n[[Category:WikiProject sum of all paintings RKD to match|%s]]' % (collectienaam, )
+            text = text + u'\n[[Category:WikiProject sum of all paintings RKD completely matched|%s]]' % (collectienaam, )
             summary = 'All %s RKDimages in this collection have been matched' % (totalimages,)
         else:
             summary = u'%s RKDimages, %s to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
