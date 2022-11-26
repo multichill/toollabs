@@ -765,6 +765,7 @@ class RKDimagesMatcher:
         totalfailedelse = 0
         bestsuggestions = ''
         othersuggestions = ''
+        failedsuggestions = ''
 
         i = 0
         addcluster = 10
@@ -835,9 +836,11 @@ class RKDimagesMatcher:
                 # Failed to find a Qid to suggest
                 else:
                     failedtext = failedtext + u'* [https://rkd.nl/explore/images/%(id)s %(id)s] -  %(invnum)s - %(title_nl)s - %(title_en)s' % rkdimageid
+                    failedsuggestions += u'* [https://rkd.nl/explore/images/%(id)s %(id)s] -  %(invnum)s - %(title_nl)s - %(title_en)s' % rkdimageid
                     # The id is used on some other Wikidata item.
                     if rkdimageid['id'] in self.all_rkdimages_wikidata.keys():
                         failedtext = failedtext + u' -> Id already in use on {{Q|%s}}\n' % self.all_rkdimages_wikidata.get(rkdimageid['id'])
+                        failedsuggestions += u' -> Id already in use on {{Q|%s}}\n' % self.all_rkdimages_wikidata.get(rkdimageid['id'])
                         totalfailedinuse = totalfailedinuse + 1
 
                     # Anonymous (rkd id 1984) will make the list explode
@@ -848,16 +851,21 @@ class RKDimagesMatcher:
                                     and invitem.get(u'rkdartistid')==rkdimageid.get(u'rkdartistid'):
                                 if firstsuggestion:
                                     failedtext = failedtext + u' -> Paintings by \'\'%s\'\' that still need a link: ' % (rkdimageid.get(u'creator'),)
+                                    failedsuggestions += u' -> Paintings by \'\'%s\'\' that still need a link: ' % (rkdimageid.get(u'creator'),)
                                     firstsuggestion = False
                                     totailfailedoptions = totailfailedoptions + 1
                                 else:
                                     failedtext = failedtext + u', '
+                                    failedsuggestions += u', '
                                 failedtext = failedtext + u'{{Q|%s}}' % (invitem.get(u'qid'),)
+                                failedsuggestions += u'{{Q|%s}}' % (invitem.get(u'qid'),)
                         failedtext = failedtext + u'\n'
+                        failedsuggestions += u'\n'
                         if firstsuggestion:
                             totalfailedelse = totalfailedelse + 1
                     else:
                         failedtext = failedtext + u'\n'
+                        failedsuggestions += u'\n'
                         totalfailedelse = totalfailedelse + 1
 
         # Add the last link if needed
@@ -880,32 +888,44 @@ class RKDimagesMatcher:
 
         text = text + u'\n[[Category:WikiProject sum of all paintings RKD to match|%s]]' % (collectienaam, )
 
-
         page = pywikibot.Page(self.repo, title=reportpage)
-        summary = u'%s RKDimages, %s to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
-                                                                                                                                                            totaltolink,
-                                                                                                                                                            totalautoadded,
-                                                                                                                                                            totalnextadd,
-                                                                                                                                                            totalsuggestions,
-                                                                                                                                                            totalfailedinuse,
-                                                                                                                                                            totailfailedoptions,
-                                                                                                                                                            totalfailedelse,
-                                                                                                                                                        )
+
+        if collection_info.get('completely_matched') and totaltolink == 0:
+            text = 'The collection [https://rkd.nl/en/explore/images#filters%%5Bcollectienaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s paintings in RKDimages] ' % (urllib.parse.quote_plus(collectienaam), collectienaam, )
+            if collection_info.get('qid') == collection_qid:
+                text = text + 'has been completely matched to the {{Q|%s}} collection.\n' % (collection_qid, )
+            else:
+                text = text + 'has been completely matched to the {{Q|%s}}/{{Q|%s}} collection.\n' % (collection_qid, collection_info.get('qid'))
+            text = text + 'Have a look at [[Wikidata:WikiProject sum of all paintings/RKD to match#Collections]] for other collections to match.\n'
+            text = text + u'\n[[Category:WikiProject sum of all paintings RKD to match|%s]]' % (collectienaam, )
+            summary = 'All %s RKDimages in this collection have been matched' % (totalimages,)
+        else:
+            summary = u'%s RKDimages, %s to link, autoadd now %s, autoadd next %s , suggestions %s, failed in use %s, failed with options %s, left fails %s' % (totalimages,
+                                                                                                                                                                totaltolink,
+                                                                                                                                                                totalautoadded,
+                                                                                                                                                                totalnextadd,
+                                                                                                                                                                totalsuggestions,
+                                                                                                                                                                totalfailedinuse,
+                                                                                                                                                                totailfailedoptions,
+                                                                                                                                                                totalfailedelse,
+                                                                                                                                                            )
         page.put(text[0:2000000], summary)
 
-        collectionstats = {u'collectionid' : collection_qid,
-                           u'collectienaam' : collectienaam,
-                           u'reportpage' : reportpage,
-                           u'totalimages' : totalimages,
+        collectionstats = {u'collectionid': collection_qid,
+                           u'collectienaam': collectienaam,
+                           u'reportpage': reportpage,
+                           u'totalimages': totalimages,
                            u'totaltolink': totaltolink,
-                           u'totalautoadded' : totalautoadded,
-                           u'totalnextadd' : totalnextadd,
-                           u'totalsuggestions' : totalsuggestions,
-                           u'totalfailedinuse' : totalfailedinuse,
+                           u'totalautoadded': totalautoadded,
+                           u'totalnextadd': totalnextadd,
+                           u'totalsuggestions': totalsuggestions,
+                           u'totalfailedinuse': totalfailedinuse,
                            u'totailfailedoptions' : totailfailedoptions,
-                           u'totalfailedelse' : totalfailedelse,
-                           u'bestsuggestions' : bestsuggestions,
+                           u'totalfailedelse': totalfailedelse,
+                           u'bestsuggestions': bestsuggestions,
                            u'othersuggestions': othersuggestions,
+                           u'failedsuggestions': failedsuggestions,
+                           u'completely_matched': collection_info.get('completely_matched')
                            }
         self.collection_stats.append(collectionstats)
 
@@ -1153,6 +1173,8 @@ class RKDimagesMatcher:
         totalfailedelse = 0
         bestsuggestions = ''
         othersuggestions = ''
+        failedsuggestions = ''
+        completed_collections = ''
 
         for collectionstats in self.collection_stats:
             rkdimageslink = '[https://rkd.nl/en/explore/images#filters%%5Bcollectienaam%%5D=%s&filters%%5Bobjectcategorie%%5D%%5B%%5D=painting %s in RKDimages] ' % (collectionstats.get('collectienaam').replace(u' ', u'%20'),
@@ -1183,6 +1205,10 @@ class RKDimagesMatcher:
             totalfailedelse = totalfailedelse + collectionstats.get(u'totalfailedelse')
             bestsuggestions += collectionstats.get(u'bestsuggestions')  # FIXME: Move to different list
             othersuggestions += collectionstats.get('othersuggestions')  # FIXME: Move to different list too
+            if collectionstats.get('completely_matched'):
+                failedsuggestions += collectionstats.get('failedsuggestions')  # FIXME: Move to different list too
+            elif collectionstats.get(u'totalimages') > 0 and collectionstats.get(u'totaltolink') == 0:
+                completed_collections += '* %s\n' % (pagelink,)
 
         text = text + u'|- class="sortbottom"\n'
         text = text + u'| || || || %s || %s || %s || %s || %s || %s || %s || %s\n' % (totalimages,
@@ -1195,10 +1221,17 @@ class RKDimagesMatcher:
                                                                                       totalfailedelse,
                                                                                 )
         text = text + u'|}\n\n'
+        text = text + u'<small>Collections configuration is at [[User:BotMultichillT/rkdimages collections.js]]</small>\n'
         text = text + u'=== Best suggestions ===\n'
         text = text + bestsuggestions + '\n\n'
         text = text + u'=== Other suggestions ===\n'
         text = text + othersuggestions + '\n\n'
+        text = text + u'=== Suggestions from previously completely matched collections ===\n'
+        text = text + failedsuggestions + '\n\n'
+        if completed_collections:
+            text = text + u'=== Completed collections ===\n'
+            text = text + u'These collections appear to have been completed. Configuration at [[User:BotMultichillT/rkdimages collections.js]] should be updated.\n'
+            text = text + completed_collections + '\n\n'
 
         totalrkd = 0
         totalrkdsuggestions = 0
