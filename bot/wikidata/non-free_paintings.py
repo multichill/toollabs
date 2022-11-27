@@ -41,7 +41,7 @@ class NonFreePaintingBot(WikidataBot):
         query = """
 SELECT DISTINCT ?item WHERE {
   ?item p:P4765 ?commonscompatible ;
-        wdt:P31/wdt:P279 wd:Q93184 .
+        wdt:P31/wdt:P279 wd:Q110304307 .
   { ?item wdt:P571 ?inception . FILTER(YEAR(?inception) > (YEAR(NOW())-92) ) } UNION
   { ?item wdt:P170 ?creator . ?creator wdt:P569 ?dob . FILTER(YEAR(?dob) > (YEAR(NOW())-95) ) } UNION
   { ?item wdt:P170 ?creator . ?creator wdt:P570 ?dod . FILTER(YEAR(?dod) > (YEAR(NOW())-68) ) } .
