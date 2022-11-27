@@ -19,7 +19,7 @@ import html
 
 def get_groninger_generator():
     """
-    Generator to return Museum Mayer van den Bergh paintings
+    Generator to return Groninger Museum paintings
     """
     start_url = 'https://collectie.groningermuseum.nl/search/detail?database=collect&fieldname=Field_Objectname&value=schilderijen'
 
@@ -243,8 +243,7 @@ def get_groninger_generator():
                     metadata['imageurlformat'] = 'Q2195'  # JPEG
                     #    metadata['imageurllicense'] = 'Q18199165' # cc-by-sa.40
                     metadata['imageoperatedby'] = 'Q1542668'
-                #    # Can use this to add suggestions everywhere
-                    metadata['imageurlforce'] = True
+                    metadata['imageurlforce'] = False  # Used this to add suggestions everywhere
             yield metadata
 
 
