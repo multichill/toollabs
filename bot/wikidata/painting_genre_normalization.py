@@ -18,23 +18,25 @@ class PaintingGenreBot(WikidataBot):
         """
         super(PaintingGenreBot, self).__init__()
         self.use_from_page = False
-        self.genres = { 'Q1400853': 'Q134307',  # portrait painting -> portrait
-                        'Q2414609': 'Q2864737',  # religious painting -> religious art
-                        'Q214127': 'Q1047337',  # genre painting -> genre art
-                        'Q107425': 'Q191163',  # landscape -> landscape art
-                        'Q333357': 'Q128115',  # abstract painting -> abstract art
-                        'Q18535': 'Q2839016',  # allegory (figure of speech) -> allegory (art genre)
-                        'Q11766730': 'Q2839016',  # allegorical painting (Q11766730) -> allegory (art genre)
-                        'Q11766734': 'Q158607',  # marine painting (Q11766734) -> marine art (Q158607)
-                        'Q3368492': 'Q390001',  # pastorale in painting (Q3368492) -> pastoral (Q390001)
-                        'Q2302151': 'Q16875712',  # animal painting (Q2302151) ->  animal art (Q16875712)
-                        'Q18809567': 'Q134307',  # three-quarter portrait (Q18809567) -> portrait
-                        'Q18809572': 'Q134307',  # half-length portrait (Q18809572) -> portrait
-                        'Q241045': 'Q134307',  # portrait at bust length (Q241045) -> portrait
-                        'Q18809626': 'Q134307',  # full-length portrait (Q18809626) -> portrait
-                        'Q18809589': 'Q134307',  # full-frontal portrait (Q18809589) -> portrait
-                        'Q645717': 'Q2864737',  # Christian art (Q645717) -> religious art
-                        }
+        self.genres = {'Q1400853': 'Q134307',  # portrait painting -> portrait
+                       'Q2414609': 'Q2864737',  # religious painting -> religious art
+                       'Q214127': 'Q1047337',  # genre painting -> genre art
+                       'Q107425': 'Q191163',  # landscape -> landscape art
+                       'Q29969011': 'Q1935974',  # urban landscape -> cityscape
+                       'Q333357': 'Q128115',  # abstract painting -> abstract art
+                       'Q162150': 'Q128115',  # abstraction -> abstract art
+                       'Q18535': 'Q2839016',  # allegory (figure of speech) -> allegory (art genre)
+                       'Q11766730': 'Q2839016',  # allegorical painting (Q11766730) -> allegory (art genre)
+                       'Q11766734': 'Q158607',  # marine painting (Q11766734) -> marine art (Q158607)
+                       'Q3368492': 'Q390001',  # pastorale in painting (Q3368492) -> pastoral (Q390001)
+                       'Q2302151': 'Q16875712',  # animal painting (Q2302151) ->  animal art (Q16875712)
+                       'Q18809567': 'Q134307',  # three-quarter portrait (Q18809567) -> portrait
+                       'Q18809572': 'Q134307',  # half-length portrait (Q18809572) -> portrait
+                       'Q241045': 'Q134307',  # portrait at bust length (Q241045) -> portrait
+                       'Q18809626': 'Q134307',  # full-length portrait (Q18809626) -> portrait
+                       'Q18809589': 'Q134307',  # full-frontal portrait (Q18809589) -> portrait
+                       'Q645717': 'Q2864737',  # Christian art (Q645717) -> religious art
+                       }
         self.generator = self.getGenerator()
 
     def getGenerator(self):
