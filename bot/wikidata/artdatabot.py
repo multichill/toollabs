@@ -126,6 +126,7 @@ class ArtDataBot:
         """
         data = {'labels': {},
                 'descriptions': {},
+                'claims': [],
                 }
 
         # loop over stuff
@@ -137,8 +138,33 @@ class ArtDataBot:
             for lang, description in metadata['description'].items():
                 data['descriptions'][lang] = {'language': lang, 'value': description}
 
+        # Add the id to the item so we can get back to it later
+        newclaim = pywikibot.Claim(self.repo, self.idProperty)
+        newclaim.setTarget(metadata['id'])
+
+        newqualifier = pywikibot.Claim(self.repo, 'P195')
+        newqualifier.setTarget(self.collectionitem)
+        self.queue_qualifier(newclaim, newqualifier)
+        self.addReference(None, newclaim, metadata['refurl'], queue=True)
+        data['claims'].append(newclaim.toJSON())
+
+        collectionclaim = pywikibot.Claim(self.repo, u'P195')
+        collectionclaim.setTarget(self.collectionitem)
+
+        # Add the date they got it as a qualifier to the collection
+        if metadata.get(u'acquisitiondate'):
+            if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate']) == 4 and \
+                                                             metadata[u'acquisitiondate'].isnumeric()):  # It's a year
+                acdate = pywikibot.WbTime(year=int(metadata[u'acquisitiondate']))
+                colqualifier = pywikibot.Claim(self.repo, u'P580')
+                colqualifier.setTarget(acdate)
+                self.queue_qualifier(collectionclaim, colqualifier)
+
+        self.addReference(None, collectionclaim, metadata[u'refurl'], queue=True)
+        data['claims'].append(collectionclaim.toJSON())
+
         identification = {}
-        summary = u'Creating new item with data from %s ' % (metadata[u'url'],)
+        summary = 'Creating new item with data from %s ' % (metadata['url'],)
         pywikibot.output(summary)
         try:
             result = self.repo.editEntity(identification, data, summary=summary)
@@ -167,37 +193,8 @@ class ArtDataBot:
         artworkItem = pywikibot.ItemPage(self.repo, title=artworkItemTitle)
 
         # Add to self.artworkIds so that we don't create dupes
-        self.artworkIds[metadata[u'id']]=artworkItemTitle
+        self.artworkIds[metadata[u'id']] = artworkItemTitle
 
-        # Add the id to the item so we can get back to it later
-        newclaim = pywikibot.Claim(self.repo, self.idProperty)
-        newclaim.setTarget(metadata[u'id'])
-        pywikibot.output('Adding new id claim to %s' % artworkItem)
-        artworkItem.addClaim(newclaim)
-
-        self.addReference(artworkItem, newclaim, metadata[u'idrefurl'])
-
-        newqualifier = pywikibot.Claim(self.repo, u'P195') #Add collection, isQualifier=True
-        newqualifier.setTarget(self.collectionitem)
-        pywikibot.output('Adding new qualifier claim to %s' % artworkItem)
-        newclaim.addQualifier(newqualifier)
-
-        collectionclaim = pywikibot.Claim(self.repo, u'P195')
-        collectionclaim.setTarget(self.collectionitem)
-        pywikibot.output('Adding collection claim to %s' % artworkItem)
-        artworkItem.addClaim(collectionclaim)
-
-        # Add the date they got it as a qualifier to the collection
-        if metadata.get(u'acquisitiondate'):
-            if type(metadata[u'acquisitiondate']) is int or (len(metadata[u'acquisitiondate'])==4 and \
-                                                                     metadata[u'acquisitiondate'].isnumeric()): # It's a year
-                acdate = pywikibot.WbTime(year=int(metadata[u'acquisitiondate']))
-                colqualifier = pywikibot.Claim(self.repo, u'P580')
-                colqualifier.setTarget(acdate)
-                pywikibot.output('Adding new acquisition date qualifier claim to collection on %s' % artworkItem)
-                collectionclaim.addQualifier(colqualifier)
-
-        self.addReference(artworkItem, collectionclaim, metadata[u'refurl'])
         return artworkItem
 
     def doWaybackup(self, metadata):
@@ -256,7 +253,7 @@ class ArtDataBot:
         self.addItemStatement(artworkItem, u'P1071', metadata.get(u'madeinqid'), metadata.get(u'refurl'), queue=True)
 
         # Add title (P1476) to the item.
-        self.addTitle(artworkItem, metadata)
+        self.addTitle(artworkItem, metadata, queue=True)
 
         # Add genre (P136) to the item
         self.addItemStatement(artworkItem, 'P136', metadata.get('genreqid'), metadata.get('refurl'), queue=True)
@@ -428,7 +425,6 @@ class ArtDataBot:
 
         newclaim = pywikibot.Claim(self.repo, 'P170')
         newclaim.setSnakType('somevalue')
-        item.addClaim(newclaim)
 
         newqualifier = pywikibot.Claim(self.repo, 'P3831')
         anonymous = pywikibot.ItemPage(self.repo, 'Q4233718')
@@ -436,6 +432,7 @@ class ArtDataBot:
         if queue:
             self.queue_qualifier(newclaim, newqualifier)
         else:
+            item.addClaim(newclaim)
             newclaim.addQualifier(newqualifier)
 
         if metadata.get('creatorqualifierpid') and metadata.get('uncertaincreatorqid'):
@@ -456,7 +453,7 @@ class ArtDataBot:
         else:
             self.addReference(item, newclaim, metadata.get('refurl'))
 
-    def addTitle(self, item, metadata):
+    def addTitle(self, item, metadata, queue=False):
         """
         Add the title (P1476) to the item. For now just skip items that already have a title
         :param item: The artwork item to work on
@@ -473,18 +470,22 @@ class ArtDataBot:
             for lang in metadata.get(u'title'):
                 # To prevent any empty titles
                 if metadata.get(u'title').get(lang):
-                    try:
-                        newtitle = pywikibot.WbMonolingualText(text=metadata.get(u'title').get(lang).strip(),
-                                                               language=lang,
-                                                               )
-                        newclaim = pywikibot.Claim(self.repo, u'P1476')
-                        newclaim.setTarget(newtitle)
-                        pywikibot.output('Adding title to %s' % item)
-                        item.addClaim(newclaim)
-                        self.addReference(item, newclaim, metadata[u'refurl'])
-                    except pywikibot.exceptions.OtherPageSaveError:
-                        pywikibot.output(u'The title was malformed, skipping it')
-                        pass
+                    newtitle = pywikibot.WbMonolingualText(text=metadata.get(u'title').get(lang).strip(),
+                                                           language=lang,
+                                                           )
+                    newclaim = pywikibot.Claim(self.repo, u'P1476')
+                    newclaim.setTarget(newtitle)
+                    if queue:
+                        self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                        self.statements_queue.append(newclaim.toJSON())
+                    else:
+                        try:
+                            pywikibot.output('Adding title to %s' % item)
+                            item.addClaim(newclaim)
+                            self.addReference(item, newclaim, metadata[u'refurl'])
+                        except pywikibot.exceptions.OtherPageSaveError:
+                            pywikibot.output(u'The title was malformed, skipping it')
+                            pass
 
     def addInception(self, item, metadata, queue=False):
         """
@@ -1315,7 +1316,6 @@ class ArtDataBot:
         """
         Add a reference with a retrieval url and todays date
         """
-        pywikibot.output('Adding new reference claim to %s' % item)
         refurl = pywikibot.Claim(self.repo, u'P854')
         refurl.setTarget(url)
         refdate = pywikibot.Claim(self.repo, u'P813')
@@ -1329,6 +1329,7 @@ class ArtDataBot:
                 source[refclaim.getID()].append(refclaim)
             newclaim.sources.append(source)
         else:
+            pywikibot.output('Adding new reference claim to %s' % item)
             newclaim.addSources([refurl, refdate])
 
     def is_removable_sources(self, sources):
