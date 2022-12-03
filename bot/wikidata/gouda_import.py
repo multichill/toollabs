@@ -75,7 +75,7 @@ def get_gouda_generator():
             creator_regex = '<div class="label">Vervaardiger</div><div class="value"><div>\s*<a href="https://collectie\.museumgouda\.nl/search/detail[^\"]+">([^\<]+)</a>\s*\(kunstenaar\)[^<]*</div>'
             creator_match = re.search(creator_regex, item_page.text)
 
-            uncertain_creator_regex = '<div class="label" valign="top">Vervaardiger</div><div class="value"><div>([^\<]+)<a href="https://collectie\.museumgouda\.nl/search/detail[^\"]+">([^\<]+)</a>\s*\(kunstenaar\)[^<]*</div>'
+            uncertain_creator_regex = '<div class="label">Vervaardiger</div><div class="value"><div>([^\<]+)<a href="https://collectie\.museumgouda\.nl/search/detail[^\"]+">([^\<]+)</a>\s*\(kunstenaar\)[^<]*</div>'
             uncertain_creator_match = re.search(uncertain_creator_regex, item_page.text)
 
             if creator_match:
@@ -113,9 +113,9 @@ def get_gouda_generator():
             if date_match:
                 date = date_match.group(1).strip()
                 year_regex = '^\s*(\d\d\d\d)\s*$'
-                date_circa_regex = '^ca?\.\s*(\d\d\d\d)$'
+                date_circa_regex = '^circa\s*(\d\d\d\d)$'
                 period_regex = '^(\d\d\d\d)\s*[--\/]\s*(\d\d\d\d)$'
-                circa_period_regex = '^ca?\.\s*(\d\d\d\d)\s*[--\/]\s*c?i?r?ca\.?\s*(\d\d\d\d)$'
+                circa_period_regex = '^circa\s*(\d\d\d\d)\s*[--\/]\s*circa\s*(\d\d\d\d)$'
                 short_period_regex = '^(\d\d)(\d\d)[--\/](\d\d)$'
                 circa_short_period_regex = '^ca?\.\s*(\d\d)(\d\d)[-–/](\d\d)$'
 
@@ -223,12 +223,13 @@ def get_gouda_generator():
                 print('Unable to match genre for %s' % (object_names,))
             """
 
-            # All sorts of sizes. First two should be of the actual painting
-            #simple_2d_regex = '<div class="label">Formaat</div><div class="value"><ul>hoogte:\s*(?P<height>\d+(\.\d+)?)\scm<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm<br>'
-            #simple_2d_match = re.search(simple_2d_regex, item_page.text)
-            #if simple_2d_match:
-            #    metadata['heightcm'] = simple_2d_match.group('height')
-            #    metadata['widthcm'] = simple_2d_match.group(u'width')
+            # All sorts of sizes, just doing the simple one
+            simple_2d_regex = '<div class="label">Formaat</div><div class="value"><ul>hoogte:\s*(?P<height>\d+(\.\d+)?)\scm<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm<br></ul></div>'
+
+            simple_2d_match = re.search(simple_2d_regex, item_page.text)
+            if simple_2d_match:
+                metadata['heightcm'] = simple_2d_match.group('height')
+                metadata['widthcm'] = simple_2d_match.group(u'width')
 
             image_regex = 'href="(https://collectie\.museumgouda\.nl/Content/GetContent\?command=getcontent&amp;server=images&amp;value=[^\"]+\.jpg&amp;imageformat=jpg)">'
             image_match = re.search(image_regex, item_page.text)
