@@ -99,28 +99,13 @@ class OldestRKDimagesCreator:
         if image_info.get('title_en'):
             data['labels']['en'] = {'language': 'en', 'value': image_info.get('title_en')}
 
-        toclaim = {'mainsnak': {'snaktype': 'value',
-                                'property': 'P31',
-                                'datavalue': {'value': {'numeric-id': 3305213,
-                                                        'id': 'Q3305213',
-                                                        },
-                                              'type': 'wikibase-entityid',
-                                              }
-                                },
-                   'type': 'statement',
-                   'rank': 'normal',
-                   }
-        data['claims'].append(toclaim)
-        toclaim = {'mainsnak': {'snaktype': 'value',
-                                'property': 'P350',
-                                'datavalue': {'value': image_info.get('id'),
-                                              'type': 'string',
-                                              },
-                                },
-                   'type': 'statement',
-                   'rank': 'normal',
-                   }
-        data['claims'].append(toclaim)
+        newclaim = pywikibot.Claim(self.repo, 'P31')
+        newclaim.setTarget(pywikibot.ItemPage(self.repo, 'Q3305213'))
+        data['claims'].append(newclaim.toJSON())
+
+        newclaim = pywikibot.Claim(self.repo, 'P350')
+        newclaim.setTarget(image_info.get('id'))
+        data['claims'].append(newclaim.toJSON())
 
         identification = {}
         summary = 'Starting new painting item for %s ' % (image_info['url'],)
