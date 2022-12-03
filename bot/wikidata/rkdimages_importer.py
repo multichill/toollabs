@@ -419,7 +419,7 @@ class RKDImagesExpanderGenerator():
             date = rkdimages_docs.get('datering')[0]
 
             year_regex = '^(\d\d\d\d)(\s*gedateerd)?$'
-            date_circa_regex = '^ca?\.\s*(\d\d\d\d)$'
+            date_circa_regex = '^ca?\.\s*(\d\d\d\d)(\s*gedateerd)?$'
             period_regex = '^(\d\d\d\d)[-–\/](\d\d\d\d)$'
             circa_period_regex = '^ca?\.\s*(\d\d\d\d)[-–\/](\d\d\d\d)$'
             short_period_regex = '^(\d\d)(\d\d)[-–\/](\d\d)$'
