@@ -225,6 +225,7 @@ class RKDImagesExpanderGenerator():
         metadata.update(self.get_part_of_related(rkdimages_docs))
         metadata.update(self.get_dimensions(rkdimages_docs))
         metadata.update(self.get_collections(rkdimages_docs))
+        metadata.update(self.get_iconclass(rkdimages_docs))
 
         # Format?
         # Depicts?
@@ -483,6 +484,11 @@ class RKDImagesExpanderGenerator():
                   'still life': 'Q170571',  # still life (Q170571)
                   'abstraction': 'Q128115'  # abstract art (Q128115)
                   }
+        christian_keywords = ['Old Testament and Apocrypha',
+                              'New Testament and Apocrypha',
+                              'Christian religious scene',
+                              ]
+
         if rkdimages_docs.get('genre') and len(rkdimages_docs.get('genre')) == 1:
             genre = rkdimages_docs.get('genre')[0]
             first_keyword = None
@@ -490,7 +496,7 @@ class RKDImagesExpanderGenerator():
                 first_keyword = rkdimages_docs.get('RKD_algemene_trefwoorden')[0]
             if genre:
                 if genre in ['history (as a genre)', 'history (genre)'] and first_keyword:
-                    if first_keyword in ['Old Testament and Apocrypha', 'New Testament and Apocrypha']:
+                    if first_keyword in christian_keywords:
                         metadata['genreqid'] = 'Q2864737'  # religious art (Q2864737)
                         metadata['religionqid'] = 'Q5043'  # Christianity (Q5043)
                     elif first_keyword in ['mythology', 'Greek mythology', 'Roman mythology']:
@@ -498,6 +504,9 @@ class RKDImagesExpanderGenerator():
                 elif genre == 'undetermined' and first_keyword:
                     if first_keyword in genres:
                         metadata['genreqid'] = genres.get(first_keyword)
+                    elif first_keyword in christian_keywords:
+                        metadata['genreqid'] = 'Q2864737'  # religious art (Q2864737)
+                        metadata['religionqid'] = 'Q5043'  # Christianity (Q5043)
                 elif genre in genres:
                     metadata['genreqid'] = genres.get(genre)
         return metadata
@@ -570,6 +579,19 @@ class RKDImagesExpanderGenerator():
                         collections.append(self.rkd_collections.get(collectienaam))
         return {'extracollectionqids': collections}
 
+    def get_iconclass(self, rkdimages_docs):
+        """
+        Get the iconclass codes
+        :param rkdimages_docs:
+        :return:
+        """
+        iconclass = []
+        if rkdimages_docs.get('iconclass'):
+            for iconclassinfo in rkdimages_docs.get('iconclass'):
+                if iconclassinfo.get('iconclass_code'):
+                    iconclass.append(iconclassinfo.get('iconclass_code'))
+        return {'depictsiconclass': iconclass}
+
     def isRemovableSource(self, source):
         """
         Will return the source claim if the source is imported from and nothing else
@@ -612,6 +634,16 @@ def main(*args):
             query = """SELECT ?item WHERE {
   ?item wdt:P350 ?id .
 } ORDER BY ASC(xsd:integer(?id))"""
+        elif arg == '-missinggenre':
+            query = """SELECT ?item WHERE {
+	?item wdt:P350 ?value .
+	MINUS { ?item wdt:P136 [] } }"""
+        elif arg == '-missingpendant':
+            query = """SELECT ?item WHERE {
+	?item2 wdt:P350 [];
+           wdt:P1639 ?item .
+  ?item wdt:P350 ?value .
+MINUS { ?item wdt:P1639 [] } }"""
 
     repo = pywikibot.Site().data_repository()
     if create:
