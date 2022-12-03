@@ -19,6 +19,7 @@ import time
 import itertools
 import copy
 import requests
+from collections import defaultdict
 
 class ArtDataBot:
     """
@@ -237,55 +238,57 @@ class ArtDataBot:
         # Add the (missing) descriptions to the item.
         self.addDescriptions(artworkItem, metadata)
 
+        self.statements_queue = []
+
         # Add instance of (P31) to the item.
-        self.addItemStatement(artworkItem, u'P31', metadata.get(u'instanceofqid'), metadata.get(u'refurl'))
+        self.addItemStatement(artworkItem, u'P31', metadata.get(u'instanceofqid'), metadata.get(u'refurl'), queue=True)
 
         # Add location (P276) to the item.
-        self.addItemStatement(artworkItem, u'P276', metadata.get(u'locationqid'), metadata.get(u'refurl'))
+        self.addItemStatement(artworkItem, u'P276', metadata.get(u'locationqid'), metadata.get(u'refurl'), queue=True)
 
         # Add creator (P170) to the item.
-        self.add_creator(artworkItem, metadata)
+        self.add_creator(artworkItem, metadata, queue=True)
 
         # Add inception (P571) to the item.
-        self.addInception(artworkItem, metadata)
+        self.addInception(artworkItem, metadata, queue=True)
 
         # Add location of creation (P1071) to the item.
-        self.addItemStatement(artworkItem, u'P1071', metadata.get(u'madeinqid'), metadata.get(u'refurl'))
+        self.addItemStatement(artworkItem, u'P1071', metadata.get(u'madeinqid'), metadata.get(u'refurl'), queue=True)
 
         # Add title (P1476) to the item.
         self.addTitle(artworkItem, metadata)
 
         # Add genre (P136) to the item
-        self.addItemStatement(artworkItem, 'P136', metadata.get('genreqid'), metadata.get('refurl'))
+        self.addItemStatement(artworkItem, 'P136', metadata.get('genreqid'), metadata.get('refurl'), queue=True)
 
         # Add religion or worldview (P140)
-        self.addItemStatement(artworkItem, 'P140', metadata.get('religionqid'), metadata.get('refurl'))
+        self.addItemStatement(artworkItem, 'P140', metadata.get('religionqid'), metadata.get('refurl'), queue=True)
 
         # Add pendant of (P1639)
-        self.addItemStatement(artworkItem, 'P1639', metadata.get('pendantqid'), metadata.get('refurl'))
+        self.addItemStatement(artworkItem, 'P1639', metadata.get('pendantqid'), metadata.get('refurl'), queue=True)
 
         # Add part of (P361)
-        self.addItemStatement(artworkItem, 'P361', metadata.get('partofqid'), metadata.get('refurl'))
+        self.addItemStatement(artworkItem, 'P361', metadata.get('partofqid'), metadata.get('refurl'), queue=True)
 
         # Add part of the series (P179)
-        self.addItemStatement(artworkItem, 'P179', metadata.get('partofseriesqid'), metadata.get('refurl'))
+        self.addItemStatement(artworkItem, 'P179', metadata.get('partofseriesqid'), metadata.get('refurl'), queue=True)
 
         # TODO: Add has part (P527) which is a list
 
         # Add the material used (P186) based on the medium to the item.
-        self.addMaterialUsed(artworkItem, metadata)
+        self.addMaterialUsed(artworkItem, metadata, queue=True)
 
         # Add the dimensions height (P2048), width (P2049) and thickness (P2610) to the item.
-        self.addDimensions(artworkItem, metadata)
+        self.addDimensions(artworkItem, metadata, queue=True)
 
         # Add Commons compatible image available at URL (P4765) to an image that can be uploaded to Commons.
-        self.addImageSuggestion(artworkItem, metadata)
+        self.addImageSuggestion(artworkItem, metadata, queue=True)
 
         # Add the IIIF manifest (P6108) to the item.
-        self.addIiifManifestUrl(artworkItem, metadata)
+        self.addIiifManifestUrl(artworkItem, metadata, queue=True)
 
         # Add a link to the item in a collection. Either described at URL (P973) or custom.
-        self.addCollectionLink(artworkItem, metadata)
+        self.addCollectionLink(artworkItem, metadata, queue=True)
 
         # Update the collection with a start and end date
         self.updateCollection(artworkItem, metadata)
@@ -294,10 +297,13 @@ class ArtDataBot:
         self.add_extra_collections(artworkItem, metadata)
 
         # Add catalog code
-        self.addCatalogCode(artworkItem, metadata)
+        self.addCatalogCode(artworkItem, metadata, queue=True)
 
         # Add Iconclass
-        self.add_iconclass(artworkItem, metadata)
+        self.add_iconclass(artworkItem, metadata, queue=True)
+
+        # Save all the queued statements
+        self.save_statements(artworkItem)
 
     def addLabels(self, item, metadata):
         """
@@ -365,7 +371,7 @@ class ArtDataBot:
                                                                       metadata['id'],)
                         item.editDescriptions(descriptions, summary=summary)
 
-    def add_creator(self, item, metadata):
+    def add_creator(self, item, metadata, queue=False):
         """
         Add the creator statement
 
@@ -376,10 +382,10 @@ class ArtDataBot:
         claims = item.get().get('claims')
         if metadata.get('creatorqid'):
             if metadata.get('creatorqid') == 'Q4233718':
-                self.add_anonymous_creator(item, metadata)
+                self.add_anonymous_creator(item, metadata, queue=queue)
             else:
                 # Normal non anoymous creator to add
-                self.addItemStatement(item, 'P170', metadata.get('creatorqid'), metadata.get('refurl'))
+                self.addItemStatement(item, 'P170', metadata.get('creatorqid'), metadata.get('refurl'), queue=queue)
         elif 'P170' not in claims and metadata.get('uncertaincreatorqid') and metadata.get('creatorqualifierpid'):
             if metadata.get('creatorqualifiernames') and metadata.get('creatorqualifiernames').get('en') and \
                     metadata.get('creatorqualifiernames').get('en') == 'attributed to':
@@ -388,7 +394,6 @@ class ArtDataBot:
                 if destitem.isRedirectPage():
                     destitem = destitem.getRedirectTarget()
                 newclaim.setTarget(destitem)
-                item.addClaim(newclaim)
 
                 # nature of statement (P5102) -> attribution (Q230768)
                 newqualifier = pywikibot.Claim(self.repo, 'P5102')
@@ -396,12 +401,18 @@ class ArtDataBot:
                 if attribution_item.isRedirectPage():
                     attribution_item = attribution_item.getRedirectTarget()
                 newqualifier.setTarget(attribution_item)
-                newclaim.addQualifier(newqualifier)
-                self.addReference(item, newclaim, metadata.get('refurl'))
-            else:
-                self.add_anonymous_creator(item, metadata)
 
-    def add_anonymous_creator(self, item, metadata):
+                if queue:
+                    self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                    self.statements_queue.append(newclaim.toJSON())
+                else:
+                    item.addClaim(newclaim)
+                    newclaim.addQualifier(newqualifier)
+                    self.addReference(item, newclaim, metadata.get('refurl'))
+            else:
+                self.add_anonymous_creator(item, metadata, queue=queue)
+
+    def add_anonymous_creator(self, item, metadata, queue=False):
         """
         Add the creator statement for an anonymous creator.
 
@@ -422,7 +433,10 @@ class ArtDataBot:
         newqualifier = pywikibot.Claim(self.repo, 'P3831')
         anonymous = pywikibot.ItemPage(self.repo, 'Q4233718')
         newqualifier.setTarget(anonymous)
-        newclaim.addQualifier(newqualifier)
+        if queue:
+            self.queue_qualifier(newclaim, newqualifier)
+        else:
+            newclaim.addQualifier(newqualifier)
 
         if metadata.get('creatorqualifierpid') and metadata.get('uncertaincreatorqid'):
             newqualifier = pywikibot.Claim(self.repo, metadata.get('creatorqualifierpid'))
@@ -430,9 +444,17 @@ class ArtDataBot:
             if destitem.isRedirectPage():
                 destitem = destitem.getRedirectTarget()
             newqualifier.setTarget(destitem)
-            newclaim.addQualifier(newqualifier)
 
-        self.addReference(item, newclaim, metadata.get('refurl'))
+            if queue:
+                self.queue_qualifier(newclaim, newqualifier)
+            else:
+                newclaim.addQualifier(newqualifier)
+
+        if queue:
+            self.addReference(item, newclaim, metadata['refurl'], queue=True)
+            self.statements_queue.append(newclaim.toJSON())
+        else:
+            self.addReference(item, newclaim, metadata.get('refurl'))
 
     def addTitle(self, item, metadata):
         """
@@ -464,7 +486,7 @@ class ArtDataBot:
                         pywikibot.output(u'The title was malformed, skipping it')
                         pass
 
-    def addInception(self, item, metadata):
+    def addInception(self, item, metadata, queue=False):
         """
         Add the inception to the item.
 
@@ -485,16 +507,25 @@ class ArtDataBot:
                 newdate = pywikibot.WbTime(year=metadata[u'inception'])
                 newclaim = pywikibot.Claim(self.repo, u'P571')
                 newclaim.setTarget(newdate)
-                pywikibot.output('Adding date of creation claim to %s' % item)
-                item.addClaim(newclaim)
+                if not queue:
+                    pywikibot.output('Adding date of creation claim to %s' % item)
+                    item.addClaim(newclaim)
 
                 # Handle circa dates
                 if metadata.get(u'inceptioncirca'):
                     newqualifier = pywikibot.Claim(self.repo, u'P1480')
                     newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q5727902'))
-                    pywikibot.output('Adding new circa qualifier claim to %s' % item)
-                    newclaim.addQualifier(newqualifier)
-                self.addReference(item, newclaim, metadata[u'refurl'])
+                    if queue:
+                        self.queue_qualifier(newclaim, newqualifier)
+                    else:
+                        pywikibot.output('Adding new circa qualifier claim to %s' % item)
+                        newclaim.addQualifier(newqualifier)
+
+                if queue:
+                    self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                    self.statements_queue.append(newclaim.toJSON())
+                else:
+                    self.addReference(item, newclaim, metadata[u'refurl'])
 
         elif metadata.get(u'inceptionstart') and metadata.get(u'inceptionend'):
             if metadata.get(u'inceptionstart')==metadata.get(u'inceptionend'):
@@ -502,16 +533,25 @@ class ArtDataBot:
                 newdate = pywikibot.WbTime(year=metadata[u'inceptionstart'])
                 newclaim = pywikibot.Claim(self.repo, u'P571')
                 newclaim.setTarget(newdate)
-                pywikibot.output('Adding date of creation claim to %s' % item)
-                item.addClaim(newclaim)
+                if not queue:
+                    pywikibot.output('Adding date of creation claim to %s' % item)
+                    item.addClaim(newclaim)
 
                 # Handle circa dates
                 if metadata.get(u'inceptioncirca'):
                     newqualifier = pywikibot.Claim(self.repo, u'P1480')
                     newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q5727902'))
-                    pywikibot.output('Adding new circa qualifier claim to %s' % item)
-                    newclaim.addQualifier(newqualifier)
-                self.addReference(item, newclaim, metadata[u'refurl'])
+                    if queue:
+                        self.queue_qualifier(newclaim, newqualifier)
+                    else:
+                        pywikibot.output('Adding new circa qualifier claim to %s' % item)
+                        newclaim.addQualifier(newqualifier)
+
+                if queue:
+                    self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                    self.statements_queue.append(newclaim.toJSON())
+                else:
+                    self.addReference(item, newclaim, metadata[u'refurl'])
             else:
                 if len(str(metadata.get(u'inceptionstart')))!=4 or len(str(metadata.get(u'inceptionend')))!=4:
                     return
@@ -545,24 +585,39 @@ class ArtDataBot:
 
                 newclaim = pywikibot.Claim(self.repo, u'P571')
                 newclaim.setTarget(newdate)
-                pywikibot.output('Adding date of creation claim to %s' % item)
-                item.addClaim(newclaim)
+                if not queue:
+                    pywikibot.output('Adding date of creation claim to %s' % item)
+                    item.addClaim(newclaim)
 
                 earliestqualifier = pywikibot.Claim(self.repo, u'P1319')
                 earliestqualifier.setTarget(earliestdate)
-                newclaim.addQualifier(earliestqualifier)
+                if queue:
+                    self.queue_qualifier(newclaim, earliestqualifier)
+                else:
+                    newclaim.addQualifier(earliestqualifier)
 
                 latestqualifier = pywikibot.Claim(self.repo, u'P1326')
                 latestqualifier.setTarget(latestdate)
-                newclaim.addQualifier(latestqualifier)
+                if queue:
+                    self.queue_qualifier(newclaim, latestqualifier)
+                else:
+                    newclaim.addQualifier(latestqualifier)
 
                 # Handle circa dates
                 if metadata.get(u'inceptioncirca'):
                     newqualifier = pywikibot.Claim(self.repo, u'P1480')
                     newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q5727902'))
-                    pywikibot.output('Adding new circa qualifier claim to %s' % item)
-                    newclaim.addQualifier(newqualifier)
-                self.addReference(item, newclaim, metadata[u'refurl'])
+                    if queue:
+                        self.queue_qualifier(newclaim, newqualifier)
+                    else:
+                        pywikibot.output('Adding new circa qualifier claim to %s' % item)
+                        newclaim.addQualifier(newqualifier)
+
+                if queue:
+                    self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                    self.statements_queue.append(newclaim.toJSON())
+                else:
+                    self.addReference(item, newclaim, metadata[u'refurl'])
 
     def updateCollection(self, item, metadata):
         """
@@ -660,7 +715,7 @@ class ArtDataBot:
             if metadata.get('extraid3'):
                 self.addExtraId(item, metadata.get('extraid3'), metadata.get('extracollectionqid3'), metadata)
 
-    def addCollection(self, item, collectionqid, metadata):
+    def addCollection(self, item, collectionqid, metadata, queue=False):
         """
         Add an extra collection if it's not already in the item
 
@@ -729,7 +784,7 @@ class ArtDataBot:
             pywikibot.output('Adding new qualifier claim to %s' % item)
             newclaim.addQualifier(newqualifier)
 
-    def addCatalogCode(self, item, metadata):
+    def addCatalogCode(self, item, metadata, queue=False):
         """
         Add the catalog code in a catalog if the catalog is not already in the item
 
@@ -752,20 +807,26 @@ class ArtDataBot:
                     if qualifier.getTarget() == catalog_item:
                         found_catalog = True
 
-        if not found_catalog:
-            newclaim = pywikibot.Claim(self.repo, 'P528')
-            newclaim.setTarget(metadata.get('catalog_code'))
+        if found_catalog:
+            return
+
+        newclaim = pywikibot.Claim(self.repo, 'P528')
+        newclaim.setTarget(metadata.get('catalog_code'))
+        newqualifier = pywikibot.Claim(self.repo, 'P972')
+        newqualifier.setTarget(catalog_item)
+
+        if queue:
+            self.queue_qualifier(newclaim, newqualifier)
+            self.addReference(item, newclaim, metadata['refurl'], queue=True)
+            self.statements_queue.append(newclaim.toJSON())
+        else:
             pywikibot.output('Adding catalog code claim to %s' % item)
             item.addClaim(newclaim)
-
-            self.addReference(item, newclaim, metadata['refurl'])
-
-            newqualifier = pywikibot.Claim(self.repo, 'P972')
-            newqualifier.setTarget(catalog_item)
             pywikibot.output('Adding new qualifier claim to %s' % item)
             newclaim.addQualifier(newqualifier)
+            self.addReference(item, newclaim, metadata['refurl'])
 
-    def addMaterialUsed(self, item, metadata):
+    def addMaterialUsed(self, item, metadata, queue=False):
         """
         Add the material used (P186) based on the medium to the item.
 
@@ -853,33 +914,50 @@ class ArtDataBot:
             # Paint
             newclaim = pywikibot.Claim(self.repo, 'P186')
             newclaim.setTarget(paint)
-            pywikibot.output('Adding new paint claim to %s' % item)
-            item.addClaim(newclaim)
-            self.addReference(item, newclaim, metadata['refurl'])
+            if queue:
+                self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                self.statements_queue.append(newclaim.toJSON())
+            else:
+                pywikibot.output('Adding new paint claim to %s' % item)
+                item.addClaim(newclaim)
+                self.addReference(item, newclaim, metadata['refurl'])
 
             # Surface
             newclaim = pywikibot.Claim(self.repo, 'P186')
             newclaim.setTarget(surface)
-            pywikibot.output('Adding new painting surface claim to %s' % item)
-            item.addClaim(newclaim)
             # Surface qualifier
             newqualifier = pywikibot.Claim(self.repo, 'P518') #Applies to part
             newqualifier.setTarget(painting_surface)
-            pywikibot.output('Adding new painting surface qualifier claim to %s' % item)
-            newclaim.addQualifier(newqualifier)
-            self.addReference(item, newclaim, metadata['refurl'])
+
+            if queue:
+                self.queue_qualifier(newclaim, newqualifier)
+                self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                self.statements_queue.append(newclaim.toJSON())
+            else:
+                pywikibot.output('Adding new painting surface claim to %s' % item)
+                item.addClaim(newclaim)
+                pywikibot.output('Adding new painting surface qualifier claim to %s' % item)
+                newclaim.addQualifier(newqualifier)
+                self.addReference(item, newclaim, metadata['refurl'])
 
             # Mount if we have it
             if mount:
                 newclaim = pywikibot.Claim(self.repo, 'P186')
                 newclaim.setTarget(mount)
-                pywikibot.output('Adding new painting mount claim to %s' % item)
-                item.addClaim(newclaim)
+
                 newqualifier = pywikibot.Claim(self.repo, 'P518')
                 newqualifier.setTarget(painting_mount)
-                pywikibot.output('Adding new painting mount qualifier claim to %s' % item)
-                newclaim.addQualifier(newqualifier)
-                self.addReference(item, newclaim, metadata['refurl'])
+
+                if queue:
+                    self.queue_qualifier(newclaim, newqualifier)
+                    self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                    self.statements_queue.append(newclaim.toJSON())
+                else:
+                    pywikibot.output('Adding new painting mount claim to %s' % item)
+                    item.addClaim(newclaim)
+                    pywikibot.output('Adding new painting mount qualifier claim to %s' % item)
+                    newclaim.addQualifier(newqualifier)
+                    self.addReference(item, newclaim, metadata['refurl'])
 
         elif 'P186' in claims and len(claims.get('P186')) == 1 and not mount:
             madeclaim = claims.get('P186')[0]
@@ -910,7 +988,7 @@ class ArtDataBot:
                     if not madeclaim.getSources():
                         self.addReference(item, madeclaim, metadata['refurl'])
 
-    def addDimensions(self, item, metadata):
+    def addDimensions(self, item, metadata, queue=False):
         """
         Add the dimensions height (P2048), width (P2049) and thickness (P2610) to the item.
 
@@ -927,9 +1005,13 @@ class ArtDataBot:
                                              site=self.repo)
             newclaim = pywikibot.Claim(self.repo, u'P2048')
             newclaim.setTarget(newheight)
-            pywikibot.output('Adding height in cm claim to %s' % item)
-            item.addClaim(newclaim)
-            self.addReference(item, newclaim, metadata[u'refurl'])
+            if queue:
+                self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                self.statements_queue.append(newclaim.toJSON())
+            else:
+                pywikibot.output('Adding height in cm claim to %s' % item)
+                item.addClaim(newclaim)
+                self.addReference(item, newclaim, metadata[u'refurl'])
 
         # Width in centimetres.
         if u'P2049' not in claims and metadata.get(u'widthcm'):
@@ -938,9 +1020,13 @@ class ArtDataBot:
                                             site=self.repo)
             newclaim = pywikibot.Claim(self.repo, u'P2049')
             newclaim.setTarget(newwidth)
-            pywikibot.output('Adding width in cm claim to %s' % item)
-            item.addClaim(newclaim)
-            self.addReference(item, newclaim, metadata[u'refurl'])
+            if queue:
+                self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                self.statements_queue.append(newclaim.toJSON())
+            else:
+                pywikibot.output('Adding width in cm claim to %s' % item)
+                item.addClaim(newclaim)
+                self.addReference(item, newclaim, metadata[u'refurl'])
 
         # Depth (or thickness) in centimetres. Some museums provide this, but not a lot
         if u'P2610' not in claims and metadata.get(u'depthcm'):
@@ -949,11 +1035,15 @@ class ArtDataBot:
                                             site=self.repo)
             newclaim = pywikibot.Claim(self.repo, u'P2610')
             newclaim.setTarget(newdepth)
-            pywikibot.output('Adding depth in cm claim to %s' % item)
-            item.addClaim(newclaim)
-            self.addReference(item, newclaim, metadata[u'refurl'])
+            if queue:
+                self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                self.statements_queue.append(newclaim.toJSON())
+            else:
+                pywikibot.output('Adding depth in cm claim to %s' % item)
+                item.addClaim(newclaim)
+                self.addReference(item, newclaim, metadata[u'refurl'])
 
-    def addImageSuggestion(self, item, metadata):
+    def addImageSuggestion(self, item, metadata, queue=False):
         """
         Add  Commons compatible image available at URL (P4765) to an image that can be uploaded to Commons
 
@@ -996,21 +1086,28 @@ class ArtDataBot:
                 if currentsize * 4 > newimagesize:
                     return
 
-        newclaim = pywikibot.Claim(self.repo, u'P4765')
-        newclaim.setTarget(metadata[u'imageurl'])
-        pywikibot.output('Adding commons compatible image available at URL claim to %s' % item)
-        item.addClaim(newclaim)
+        newclaim = pywikibot.Claim(self.repo, 'P4765')
+        newclaim.setTarget(metadata['imageurl'])
+        if not queue:
+            pywikibot.output('Adding commons compatible image available at URL claim to %s' % item)
+            item.addClaim(newclaim)
 
-        if metadata.get(u'imageurlformat'):
+        if metadata.get('imageurlformat'):
             newqualifier = pywikibot.Claim(self.repo, u'P2701')
             newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get(u'imageurlformat')))
-            pywikibot.output('Adding new qualifier claim to %s' % item)
-            newclaim.addQualifier(newqualifier)
+            if queue:
+                self.queue_qualifier(newclaim, newqualifier)
+            else:
+                pywikibot.output('Adding new qualifier claim to %s' % item)
+                newclaim.addQualifier(newqualifier)
 
         newqualifier = pywikibot.Claim(self.repo, u'P2699')
         newqualifier.setTarget(metadata[u'imagesourceurl'])
-        pywikibot.output('Adding new qualifier claim to %s' % item)
-        newclaim.addQualifier(newqualifier)
+        if queue:
+            self.queue_qualifier(newclaim, newqualifier)
+        else:
+            pywikibot.output('Adding new qualifier claim to %s' % item)
+            newclaim.addQualifier(newqualifier)
 
         if metadata.get('title'):
             if metadata.get('title').get(u'en'):
@@ -1020,28 +1117,43 @@ class ArtDataBot:
                 title = pywikibot.WbMonolingualText(metadata.get('title').get(lang), lang)
             newqualifier = pywikibot.Claim(self.repo, u'P1476')
             newqualifier.setTarget(title)
-            pywikibot.output('Adding new qualifier claim to %s' % item)
-            newclaim.addQualifier(newqualifier)
+            if queue:
+                self.queue_qualifier(newclaim, newqualifier)
+            else:
+                pywikibot.output('Adding new qualifier claim to %s' % item)
+                newclaim.addQualifier(newqualifier)
 
         if metadata.get('creatorname'):
             newqualifier = pywikibot.Claim(self.repo, u'P2093')
             newqualifier.setTarget(metadata.get('creatorname'))
-            pywikibot.output('Adding new qualifier claim to %s' % item)
-            newclaim.addQualifier(newqualifier)
+            if queue:
+                self.queue_qualifier(newclaim, newqualifier)
+            else:
+                pywikibot.output('Adding new qualifier claim to %s' % item)
+                newclaim.addQualifier(newqualifier)
 
         if metadata.get(u'imageurllicense'):
             newqualifier = pywikibot.Claim(self.repo, u'P275')
             newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get(u'imageurllicense')))
-            pywikibot.output('Adding new qualifier claim to %s' % item)
-            newclaim.addQualifier(newqualifier)
+            if queue:
+                self.queue_qualifier(newclaim, newqualifier)
+            else:
+                pywikibot.output('Adding new qualifier claim to %s' % item)
+                newclaim.addQualifier(newqualifier)
 
         if metadata.get(u'imageoperatedby'):
             newqualifier = pywikibot.Claim(self.repo, u'P137')
             newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get(u'imageoperatedby')))
-            pywikibot.output('Adding new qualifier claim to %s' % item)
-            newclaim.addQualifier(newqualifier)
+            if queue:
+                self.queue_qualifier(newclaim, newqualifier)
+            else:
+                pywikibot.output('Adding new qualifier claim to %s' % item)
+                newclaim.addQualifier(newqualifier)
 
-    def addIiifManifestUrl(self, item, metadata):
+        if queue:
+            self.statements_queue.append(newclaim.toJSON())
+
+    def addIiifManifestUrl(self, item, metadata, queue=False):
         """
         Add the  IIIF manifest (P6108) to the item.
 
@@ -1054,11 +1166,15 @@ class ArtDataBot:
         if u'P6108' not in claims and metadata.get(u'iiifmanifesturl'):
             newclaim = pywikibot.Claim(self.repo, u'P6108')
             newclaim.setTarget(metadata[u'iiifmanifesturl'])
-            pywikibot.output('Adding IIIF manifest url claim to %s' % item)
-            item.addClaim(newclaim)
-            self.addReference(item, newclaim, metadata[u'refurl'])
+            if queue:
+                self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                self.statements_queue.append(newclaim.toJSON())
+            else:
+                pywikibot.output('Adding IIIF manifest url claim to %s' % item)
+                item.addClaim(newclaim)
+                self.addReference(item, newclaim, metadata[u'refurl'])
 
-    def addCollectionLink(self, item, metadata):
+    def addCollectionLink(self, item, metadata, queue=False):
         """
         Add a link to the item in a collection.
         This is either described at URL (P973) or a customer per collection id
@@ -1076,15 +1192,21 @@ class ArtDataBot:
             if metadata.get('artworkidpid') not in claims:
                 newclaim = pywikibot.Claim(self.repo, metadata.get('artworkidpid') )
                 newclaim.setTarget(metadata['artworkid'])
-                pywikibot.output('Adding artwork id claim to %s' % item)
-                item.addClaim(newclaim)
+                if queue:
+                    self.statements_queue.append(newclaim.toJSON())
+                else:
+                    pywikibot.output('Adding artwork id claim to %s' % item)
+                    item.addClaim(newclaim)
         # Described at url
         elif metadata.get(u'describedbyurl'):
             if u'P973' not in claims:
                 newclaim = pywikibot.Claim(self.repo, u'P973')
                 newclaim.setTarget(metadata[u'describedbyurl'])
-                pywikibot.output('Adding described at claim to %s' % item)
-                item.addClaim(newclaim)
+                if queue:
+                    self.statements_queue.append(newclaim.toJSON())
+                else:
+                    pywikibot.output('Adding described at claim to %s' % item)
+                    item.addClaim(newclaim)
             else:
                 foundurl = False
                 for claim in claims.get(u'P973'):
@@ -1096,7 +1218,7 @@ class ArtDataBot:
                     pywikibot.output('Adding additional described at claim to %s' % item)
                     item.addClaim(newclaim)
 
-    def add_iconclass(self, item, metadata):
+    def add_iconclass(self, item, metadata, queue=False):
         """
         Add depicts iconclass to item
         :param item:
@@ -1115,12 +1237,33 @@ class ArtDataBot:
                 if depictsiconclass not in current_iconclass:
                     newclaim = pywikibot.Claim(self.repo, 'P1257')
                     newclaim.setTarget(depictsiconclass)
-                    pywikibot.output('Adding depicts Iconclass notation claim to %s' % item)
-                    item.addClaim(newclaim)
-                    self.addReference(item, newclaim, metadata.get('refurl'))
-                    # TO DO: Add sourcing of existing statements
+                    if queue:
+                        self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                        self.statements_queue.append(newclaim.toJSON())
+                    else:
+                        pywikibot.output('Adding depicts Iconclass notation claim to %s' % item)
+                        item.addClaim(newclaim)
+                        self.addReference(item, newclaim, metadata.get('refurl'))
+                        # TO DO: Add sourcing of existing statements
 
-    def addItemStatement(self, item, pid, qid, url):
+    def save_statements(self, item):
+        """
+        Save the queued statements
+        """
+        if not self.statements_queue:
+            return
+        properties = set()
+        for statement in self.statements_queue:
+            properties.add(statement.get('mainsnak').get('property'))
+
+        summary = 'Added'
+        for prop in properties:
+            summary += ' [[Property:%s]]' % (prop,)
+
+        pywikibot.output(summary)
+        item.editEntity(data={'claims': self.statements_queue}, summary=summary)
+
+    def addItemStatement(self, item, pid, qid, url, queue=False):
         """
         Helper function to add a statement, or add missing reference, or update reference to existing statement
         """
@@ -1147,11 +1290,28 @@ class ArtDataBot:
             destitem = destitem.getRedirectTarget()
 
         newclaim.setTarget(destitem)
-        pywikibot.output(u'Adding %s->%s to %s' % (pid, qid, item))
-        item.addClaim(newclaim)
-        self.addReference(item, newclaim, url)
+        if queue:
+            self.addReference(item, newclaim, url, queue=True)
+            self.statements_queue.append(newclaim.toJSON())
+        else:
+            pywikibot.output(u'Adding %s->%s to %s' % (pid, qid, item))
+            item.addClaim(newclaim)
+            self.addReference(item, newclaim, url)
 
-    def addReference(self, item, newclaim, url):
+    def queue_qualifier(self, newclaim, qualifier):
+        """
+        Helper function to queue a qualifier
+        :param newclaim: The claim to add the qualifier to
+        :param qualifier: The qualifier to add
+        :return:
+        """
+        qualifier.isQualifier = True
+        if qualifier.getID() in newclaim.qualifiers:
+            newclaim.qualifiers[qualifier.getID()].append(qualifier)
+        else:
+            newclaim.qualifiers[qualifier.getID()] = [qualifier]
+
+    def addReference(self, item, newclaim, url, queue=False):
         """
         Add a reference with a retrieval url and todays date
         """
@@ -1162,7 +1322,14 @@ class ArtDataBot:
         today = datetime.datetime.today()
         date = pywikibot.WbTime(year=today.year, month=today.month, day=today.day)
         refdate.setTarget(date)
-        newclaim.addSources([refurl, refdate])
+        if queue:
+            source = defaultdict(list)
+            for refclaim in [refurl, refdate]:
+                refclaim.isReference = True
+                source[refclaim.getID()].append(refclaim)
+            newclaim.sources.append(source)
+        else:
+            newclaim.addSources([refurl, refdate])
 
     def is_removable_sources(self, sources):
         """
