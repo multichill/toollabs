@@ -68,7 +68,7 @@ def get_museum_de_waag_generator():
                 # Chop chop, might have long titles
                 if len(title) > 220:
                     title = title[0:200]
-                title = title.replace('\t', '').replace('\n', '')
+                title = title.replace('\t', '').replace('\n', '').strip()
                 metadata['title'] = {'nl': title, }
 
             creator_regex = '<div class="label">Vervaardiger</div>[\s\t\r\n]*<div class="value"><a href="https://deventer\.adlibhosting\.com/ais6_museumdewaag/search/detail\?database=museum&amp;fieldname=Field_Creator[^"]+">([^<]+)</a>\s*</div>'
@@ -240,7 +240,6 @@ def get_museum_de_waag_generator():
             """
 
             # The size data starts with the right one
-            simple_2d_regex = '<div class="label">Afmetingen</div>[\s\t\r\n]*<div class="value">[\s\t\r\n]*<ul>hoogte:\s*(?P<height>\d+(\.\d+)?)\s*cm\s*<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm<br>.*</ul>'
             simple_2d_regex = '<div class="label">Formaat</div>[\s\t\r\n]*<div class="value">[\s\t\r\n]*<ul>hoogte:\s*(?P<height>\d+(\.\d+)?)\s*cm\s*<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm<br>.*</ul>'
 
             simple_2d_match = re.search(simple_2d_regex, item_page.text)
@@ -253,7 +252,7 @@ def get_museum_de_waag_generator():
             image_match = re.search(image_regex, item_page.text)
 
             if image_match:
-                image_url = html.unescape(image_match.group(1)).replace(' ', '%20')
+                image_url = html.unescape(image_match.group(1))
                 recent_inception = False
                 if metadata.get('inception') and metadata.get('inception') > 1924:
                     recent_inception = True
