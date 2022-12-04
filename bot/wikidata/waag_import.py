@@ -1,9 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import paintings from the Stedelijk Museum Alkmaar to Wikidata.
+Bot to import paintings from Museum De Waag to Wikidata.
 
-The have Adlib/Axiel running at https://smalkmaar.adlibhosting.com/ais6/results
+The have Adlib/Axiel running at https://deventer.adlibhosting.com/ais6_museumdewaag/results
 No API found, going to scrape it.
 
 Use artdatabot to upload it to Wikidata
@@ -15,43 +15,43 @@ import requests
 import re
 import html
 
-def get_stedelijk_museum_alkmaar_generator():
+def get_museum_de_waag_generator():
     """
-    Generator to return  Stedelijk Museum Alkmaar paintings
+    Generator to return Museum De Waag paintings
     """
-    start_url = 'https://smalkmaar.adlibhosting.com/ais6/search/detail?database=museum&fieldname=Field_Objectname&value=schilderij'
+    start_url = 'https://deventer.adlibhosting.com/ais6_museumdewaag/search/detail?database=museum&fieldname=Field_Objectname&value=schilderij'
 
     session = requests.Session()
     session.get(start_url)
 
-    base_search_url = 'https://smalkmaar.adlibhosting.com/ais6/resultsnavigate/%s'
+    base_search_url = 'https://deventer.adlibhosting.com/ais6_museumdewaag/resultsnavigate/%s'
 
-    for i in range(1, 67):
+    for i in range(1, 104):
         search_url = base_search_url % (i,)
 
         print(search_url)
         search_page = session.get(search_url)
 
-        work_url_regex = '<a title="[^"]+" href="https://smalkmaar.adlibhosting.com/ais6/Details/museum/(\d+)">'
+        work_url_regex = '<a title="[^"]+" href="https://deventer\.adlibhosting\.com/ais6_museumdewaag/Details/museum/(\d+)">'
         matches = re.finditer(work_url_regex, search_page.text)
 
         for match in matches:
             metadata = {}
-            url = 'https://smalkmaar.adlibhosting.com/ais6/Details/museum/%s' % (match.group(1),)
+            url = 'https://deventer.adlibhosting.com/ais6_museumdewaag/Details/museum/%s' % (match.group(1),)
 
             item_page = session.get(url)
             pywikibot.output(url)
             metadata['url'] = url
 
-            metadata['collectionqid'] = 'Q4623539'
-            metadata['collectionshort'] = 'smalkmaar'
-            metadata['locationqid'] = 'Q4623539'
+            metadata['collectionqid'] = 'Q40304752'
+            metadata['collectionshort'] = 'De Waag'
+            metadata['locationqid'] = 'Q40304752'
 
             # Searching for paintings
             metadata['instanceofqid'] = 'Q3305213'
             metadata['idpid'] = 'P217'
 
-            inv_regex = '<span class="label">Object number</span><span class="value">([^<]+)</span>'
+            inv_regex = '<div class="label">Inventarisnummer</div>[\s\t\r\n]*<div class="value">([^<]+)</div>'
             inv_match = re.search(inv_regex, item_page.text)
 
             #if not inv_match:
@@ -60,7 +60,7 @@ def get_stedelijk_museum_alkmaar_generator():
 
             metadata['id'] = html.unescape(inv_match.group(1).replace('&nbsp;', ' ')).strip()
 
-            title_regex = '<span class="label">Title</span><span class="value">([^<]+)</span>'
+            title_regex = '<div class="label">Titel</div>[\s\t\r\n]*<div class="value">([^<]+)</div>'
             title_match = re.search(title_regex, item_page.text)
             if title_match:
                 title = html.unescape(title_match.group(1)).strip()
@@ -71,7 +71,7 @@ def get_stedelijk_museum_alkmaar_generator():
                 title = title.replace('\t', '').replace('\n', '')
                 metadata['title'] = {'nl': title, }
 
-            creator_regex = '<span class="label">Creator</span><span class="value"><a href="https://smalkmaar\.adlibhosting\.com/ais6/search/detail\?database=museum&amp;fieldname=Field_Creator[^"]+">([^<]+)</a>\s*(\((schilder|kunstenaar)\)‎)?\s*</span></div>'
+            creator_regex = '<div class="label">Vervaardiger</div>[\s\t\r\n]*<div class="value"><a href="https://deventer\.adlibhosting\.com/ais6_museumdewaag/search/detail\?database=museum&amp;fieldname=Field_Creator[^"]+">([^<]+)</a>\s*</div>'
             creator_match = re.search(creator_regex, item_page.text)
 
             uncertain_creator_regex = '<div class="label">Vervaardiger</div>[\s\t\r\n]*<div class="value">([^\<]+)<a href="https://collectie\.museumgouda\.nl/search/detail[^\"]+">([^\<]+)</a>\s*\(kunstenaar\)[^<]*</div>'
@@ -82,13 +82,18 @@ def get_stedelijk_museum_alkmaar_generator():
 
             if creator_match:
                 name = html.unescape(creator_match.group(1)).strip()
-                if ',' in name:
+                name_regex = '([^,]+), ([^\<]+) (\([^\)]*\d\d\d\d[^\)]*\))'
+                name_match = re.match(name_regex, name)
+
+                if name_match:
+                    name = '%s %s %s' % (name_match.group(2), name_match.group(1), name_match.group(3),)
+                elif ',' in name:
                     (surname, sep, firstname) = name.partition(',')
                     name = '%s %s' % (firstname.strip(), surname.strip(),)
 
-                metadata['creatorname'] = name
+                metadata['creatorname'] = name.strip()
 
-                if name in ['onbekend', 'anoniem']:
+                if name in ['onbekend', 'anoniem', 'Anoniem;']:
                     metadata['description'] = {'nl': 'schilderij van anonieme schilder',
                                                'en': 'painting by anonymous painter',
                                                }
@@ -119,12 +124,12 @@ def get_stedelijk_museum_alkmaar_generator():
                 else:
                     metadata['description'] = {'nl': 'schilderij van %s' % (metadata.get('creatorname'),)}
 
-            date_regex = '<span class="label">Production date</span><span class="value">\s*([^<]+)</span>'
+            date_regex = '<div class="label">(Datum|Vervaardiging periode)</div>[\s\t\r\n]*<div class="value">\s*([^<]+)</div>'
             date_match = re.search(date_regex, item_page.text)
             if date_match:
-                date = date_match.group(1).strip()
+                date = date_match.group(2).strip()
                 year_regex = '^\s*(\d\d\d\d)\s*$'
-                date_circa_regex = '^c?i?r?ca\.?\s*(\d\d\d\d)$'
+                date_circa_regex = '^c?i?r?ca\.?:?\s*(\d\d\d\d)$'
                 period_regex = '^(\d\d\d\d)\s*[--\/]\s*(\d\d\d\d)$'
                 circa_period_regex = '^c?i?r?ca\.?\s*(\d\d\d\d)\s*[--\/]\s*c?i?r?ca\.?\s*(\d\d\d\d)$'
                 short_period_regex = '^(\d\d)(\d\d)[--\/](\d\d)$'
@@ -160,14 +165,14 @@ def get_stedelijk_museum_alkmaar_generator():
                 else:
                     print('Could not parse date: "%s"' % (date,))
 
-            material_regex = '<a href="https://smalkmaar\.adlibhosting\.com/ais6/search/detail\?database=museum&amp;fieldname=Field_Material&amp;value=[^\"]+">([^\<]+)</a>'
+            material_regex = '<a href="https://deventer\.adlibhosting\.com/ais6_museumdewaag/search/detail\?database=museum&amp;fieldname=Field_Material&amp;value=[^\"]+">([^\<]+)</a>'
             material_matches = re.finditer(material_regex, item_page.text)
             materials = set()
             for material_match in material_matches:
                 materials.add(material_match.group(1))
 
             if materials == {'olieverf', 'doek'} or materials == {'olieverf', 'canvas'} \
-                    or materials == {'verf', 'doek', 'olieverf'} or materials == {'olieverf', 'textiel', 'doek'}:
+                    or materials == {'verf', 'doek', 'olieverf'} or materials == {'linnen', 'olieverf'}:
                 metadata['medium'] = 'oil on canvas'
             elif materials == {'olieverf', 'paneel'} or materials == {'olieverf', 'paneel (hout)'} \
                     or materials == {'verf', 'paneel', 'olieverf'} or materials == {'olieverf', 'paneel', 'hout'}:
@@ -234,21 +239,17 @@ def get_stedelijk_museum_alkmaar_generator():
                 print('Unable to match genre for %s' % (object_names,))
             """
 
-            # They only seem to have the size of the complete thing (so with frame)
-            #dagmaat_2d_regex = '<div class="label">Afmetingen</div>[\s\t\r\n]*<div class="value">[\s\t\r\n]*<ul>.*hoogte:\s*(?P<height>\d+(\.\d+)?)\s*cm\s*\(dagmaat\)<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm \(dagmaat\)<br>.*</ul>'
-            #simple_2d_regex = '<div class="label">Afmetingen</div>[\s\t\r\n]*<div class="value">[\s\t\r\n]*<ul>hoogte:\s*(?P<height>\d+(\.\d+)?)\s*cm\s*<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm<br>.*</ul>'
+            # The size data starts with the right one
+            simple_2d_regex = '<div class="label">Afmetingen</div>[\s\t\r\n]*<div class="value">[\s\t\r\n]*<ul>hoogte:\s*(?P<height>\d+(\.\d+)?)\s*cm\s*<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm<br>.*</ul>'
+            simple_2d_regex = '<div class="label">Formaat</div>[\s\t\r\n]*<div class="value">[\s\t\r\n]*<ul>hoogte:\s*(?P<height>\d+(\.\d+)?)\s*cm\s*<br>breedte:\s*(?P<width>\d+(\.\d+)?)\s*cm<br>.*</ul>'
 
-            #dagmaat_2d_match = re.search(dagmaat_2d_regex, item_page.text)
-            #simple_2d_match = re.search(simple_2d_regex, item_page.text)
-            #if dagmaat_2d_match:
-            #    metadata['heightcm'] = dagmaat_2d_match.group('height')
-            #    metadata['widthcm'] = dagmaat_2d_match.group(u'width')
-            #elif simple_2d_match:
-            #    metadata['heightcm'] = simple_2d_match.group('height')
-            #    metadata['widthcm'] = simple_2d_match.group(u'width')
+            simple_2d_match = re.search(simple_2d_regex, item_page.text)
+            if simple_2d_match:
+                metadata['heightcm'] = simple_2d_match.group('height')
+                metadata['widthcm'] = simple_2d_match.group(u'width')
 
 
-            image_regex = 'href="(https://smalkmaar\.adlibhosting\.com/ais6/webapi/wwwopac\.ashx\?command=getcontent&amp;server=images&amp;value=[^"]+&amp;imageformat=jpg)" title="'
+            image_regex = 'href="(https://deventer\.adlibhosting\.com/ais6_museumdewaag/webapi/wwwopac.ashx\?command=getcontent&amp;server=images&amp;value=[^"]+&amp;imageformat=jpg)" title="'
             image_match = re.search(image_regex, item_page.text)
 
             if image_match:
@@ -277,7 +278,7 @@ def main(*args):
         if arg.startswith('-create'):
             create = True
 
-    paintingGen = get_stedelijk_museum_alkmaar_generator()
+    paintingGen = get_museum_de_waag_generator()
 
     if dryrun:
         for painting in paintingGen:
