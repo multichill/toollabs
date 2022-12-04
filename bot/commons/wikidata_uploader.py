@@ -32,12 +32,17 @@ class WikidataUploaderBot:
     """
     A bot to enrich and create paintings on Wikidata
     """
-    def __init__(self):
+    def __init__(self, collection_qid=None):
         """
         Arguments:
-            * generator    - A generator that yields Dict objects.
+            * collection_qid    - Only work on this collection
 
         """
+        self.collection_qid = collection_qid
+        if collection_qid:
+            self.query_condition = '\n?item wdt:P195 wd:%s .\n' % (collection_qid, )
+        else:
+            self.query_condition = ''
         self.generatorDied95Creators = self.getGeneratorDied95Creators()
         self.generatorPre1890AnonymousWorks = self.getGeneratorPre1890AnonymousWorks()
         self.generatorDied70Produced95Works = self.getGeneratorDied70Produced95Works()
@@ -55,7 +60,7 @@ class WikidataUploaderBot:
         """
         query = """
 SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatorcategory WHERE {
-  ?item p:P4765 ?image .
+  ?item p:P4765 ?image . %s
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
   ?item p:P217 ?invstatement .
@@ -77,7 +82,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   ?creator schema:dateModified ?creatordate .
   OPTIONAL { ?creator wdt:P373 ?creatorcategory } .
   } ORDER BY DESC(?itemdate)
-  LIMIT 15000"""
+  LIMIT 15000""" % (self.query_condition, )
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
@@ -102,7 +107,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         schema:dateModified ?itemdate ;
         wdt:P571 ?inception ;
         wdt:P195 ?collection ;
-        p:P217 ?invstatement .
+        p:P217 ?invstatement . %s
   ?invstatement ps:P217 ?inv ;
                 pq:P195 ?collection . 
   ?collection rdfs:label ?collectionLabel. FILTER(LANG(?collectionLabel) = "en").
@@ -117,7 +122,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   BIND(YEAR(?inception) AS ?inceptionyear)
   FILTER(?inceptionyear < 1890) .
   } ORDER BY DESC(?itemdate)
-  LIMIT 15000"""
+  LIMIT 15000""" % (self.query_condition, )
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
@@ -140,7 +145,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         """
         query = """
 SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory ?creator ?creatordate ?deathyear ?creatorcategory WHERE {
-  ?item p:P4765 ?image .
+  ?item p:P4765 ?image . %s
   ?item schema:dateModified ?itemdate .
   ?item wdt:P31 wd:Q3305213 .
   ?item p:P217 ?invstatement .
@@ -164,7 +169,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   FILTER(YEAR(?inception) < (YEAR(NOW())-95) && ?dob < ?inception ) .
   OPTIONAL { ?creator wdt:P373 ?creatorcategory } .
   } ORDER BY DESC(?itemdate)
-  LIMIT 15000"""
+  LIMIT 15000""" % (self.query_condition, )
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
@@ -184,7 +189,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         """
         query = """
 SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname ?license ?operator ?collectionLabel ?collectioncategory WHERE {
-  ?item p:P4765 ?image .
+  ?item p:P4765 ?image . %s
   ?item p:P6216 [
     ps:P6216 wd:Q19652 ;
              pq:P1001 wd:Q60332278 ;
@@ -205,7 +210,7 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
   OPTIONAL { ?image pq:P275 ?license } .
   OPTIONAL { ?image pq:P137 ?operator } .
   } ORDER BY DESC(?itemdate)
-  LIMIT 15000"""
+  LIMIT 15000""" % (self.query_condition, )
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
@@ -234,19 +239,23 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         for metadata in self.generatorPublicDomain100pma:
             if self.isReadyToUpload(metadata):
                 self.uploadPainting(metadata)
-        self.reportDuplicates()
+
+        if not self.collection_qid:
+            self.reportDuplicates()
 
     def isReadyToUpload(self, metadata):
         """
         Just wait two days to spread it out a bit
         """
+        if self.collection_qid:
+            return True
         format = u'%Y-%m-%dT%H:%M:%SZ'
         now = datetime.datetime.utcnow()
         itemdelta = now - datetime.datetime.strptime(metadata.get('itemdate'), format)
         if metadata.get('creatordate'):
             creatordelta = now - datetime.datetime.strptime(metadata.get('creatordate'), format)
         else:
-            creatordelta = datetime.timedelta(days=999) # Just something high for if it isn't set.
+            creatordelta = datetime.timedelta(days=999)  # Just something high for if it isn't set.
 
         # Both item and creator should at least be 2 days old
         if itemdelta.days > 2 and creatordelta.days > 2:
@@ -626,8 +635,18 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         page.put(text, summary)
 
 
-def main():
-    wikidataUploaderBot = WikidataUploaderBot()
+def main(*args):
+    collection_qid = None
+
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-collectionid:'):
+            if len(arg) == 14:
+                collection_qid = pywikibot.input(
+                    u'Please enter the collectionid you want to work on:')
+            else:
+                collection_qid = arg[14:]
+
+    wikidataUploaderBot = WikidataUploaderBot(collection_qid=collection_qid)
     wikidataUploaderBot.run()
 
 if __name__ == "__main__":
