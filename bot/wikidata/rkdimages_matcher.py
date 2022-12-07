@@ -837,6 +837,7 @@ class RKDimagesMatcher:
                 else:
                     failedtext = failedtext + u'* [https://rkd.nl/explore/images/%(id)s %(id)s] -  %(invnum)s - %(title_nl)s - %(title_en)s' % rkdimageid
                     failedsuggestions += u'* [https://rkd.nl/explore/images/%(id)s %(id)s] -  %(invnum)s - %(title_nl)s - %(title_en)s' % rkdimageid
+                    failedsuggestions += u' {{Q|%s}}' % (collection_info.get('qid'),)
                     # The id is used on some other Wikidata item.
                     if rkdimageid['id'] in self.all_rkdimages_wikidata.keys():
                         failedtext = failedtext + u' -> Id already in use on {{Q|%s}}\n' % self.all_rkdimages_wikidata.get(rkdimageid['id'])
