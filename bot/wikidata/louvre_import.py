@@ -83,7 +83,11 @@ def get_louvre_generator():
     # Musée de Chartres, Chartres - 19
     # Mairie, Versailles - 17
 
+    owners = {'Campana, Giampietro, marquis di Cavelli': 'Q15934283',
+              }
+
     missing_loaners = {}
+    missing_owners = {}
 
     for i in range(1, 514):
         search_url = base_search_url % (i,)
@@ -115,6 +119,8 @@ def get_louvre_generator():
             metadata['idpid'] = 'P217'
 
             if item_json.get('objectNumber')[0].get('type') == 'Numéro principal':
+                metadata['id'] = item_json.get('objectNumber')[0].get('value')
+            elif len(item_json.get('objectNumber')) == 1:
                 metadata['id'] = item_json.get('objectNumber')[0].get('value')
             else:
                 print('ID FAILED, skipping this one for now')
@@ -254,6 +260,16 @@ def get_louvre_generator():
             # TODO: Add previous owner Campana???
 
             # TODO: Add MNR collection isMuseesNationauxRecuperation:True
+            if item_json.get('isMuseesNationauxRecuperation'):
+                metadata['extracollectionqid2'] = 'Q19013512'
+            elif item_json.get('previousOwner') and len(item_json.get('previousOwner')) ==1:
+                previous_owner = item_json.get('previousOwner')[0].get('value')
+                if previous_owner in owners:
+                    metadata['extracollectionqid2'] = owners.get(previous_owner)
+                else:
+                    if previous_owner not in missing_owners:
+                        missing_owners[previous_owner] = 0
+                    missing_owners[previous_owner] += 1
 
             yield metadata
             continue
@@ -272,8 +288,6 @@ def get_louvre_generator():
                 if 'bruikleen RCE' in credit_line_match.group(1):
                     metadata['extracollectionqid'] = 'Q18600731'
 
-
-
             image_regex = 'href="(https://dordrecht\.adlibhosting\.com/ais6/webapi/wwwopac\.ashx\?command=getcontent&amp;server=image&amp;imageformat=jpg&amp;value=[^"]+)"'
             image_match = re.search(image_regex, item_page.text)
 
@@ -291,8 +305,10 @@ def get_louvre_generator():
                     metadata['imageoperatedby'] = metadata.get('collectionqid')
                     metadata['imageurlforce'] = False  # Used this to add suggestions everywhere
             yield metadata
-        for loaner in sorted(missing_loaners, key=missing_loaners.get, reverse=True)[0:25]:
-            print('%s - %s' % (loaner, missing_loaners.get(loaner)))
+        for owner in sorted(missing_owners, key=missing_owners.get, reverse=True)[0:25]:
+            print('%s - %s' % (owner, missing_owners.get(owner)))
+    for loaner in sorted(missing_loaners, key=missing_loaners.get, reverse=True)[0:25]:
+        print('%s - %s' % (loaner, missing_loaners.get(loaner)))
 
 def main(*args):
     dryrun = False
