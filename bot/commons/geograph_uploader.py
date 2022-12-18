@@ -109,7 +109,7 @@ class GeographUploaderBot:
                         imagefile.get(force=True)
                         uploadsuccess = True
                         pywikibot.output('Got an API error, but looks like uploading worked for %(imageurl)s' % metadata)
-                    except pywikibot.exceptions.NoPage:
+                    except pywikibot.exceptions.NoPageError:
                         # The upload really failed
                         pywikibot.output('Failed to upload image %(imageurl)s' % metadata)
                         uploadsuccess = False
@@ -272,6 +272,9 @@ class GeographUploaderBot:
         if toclaims:
             claims.extend(toclaims)
         toclaim = self.getLocation(metadata)
+        if toclaim:
+            claims.append(toclaim)
+        toclaim = self.getMIMEType(metadata)
         if toclaim:
             claims.append(toclaim)
         result['claims'] = claims
@@ -537,6 +540,24 @@ class GeographUploaderBot:
                    'rank': 'normal',
                    }
         return toclaim
+
+    def getMIMEType(self, metadata):
+        """
+
+        :param metadata:
+        :return:
+        """
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P1163',
+                                 'datavalue': { 'value': 'image/jpeg',
+                                                'type' : 'string',
+                                                }
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        return toclaim
+
 
 def getFilteredGeographGenerator(startid, endid):
     """
