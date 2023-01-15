@@ -5,16 +5,9 @@ Bot to import art data to Wikidata.
 
 """
 import pywikibot
-from pywikibot import pagegenerators
 import re
 import pywikibot.data.sparql
 import datetime
-import posixpath
-import hashlib
-import io
-import base64
-import tempfile
-import os
 import time
 import itertools
 import copy
@@ -44,10 +37,9 @@ class ArtDataBot:
         self.artworkIds = self.fillCache(self.collectionqid,self.idProperty)
 
     def fillCache(self, collectionqid, idProperty):
-        '''
+        """
         Build an ID cache so we can quickly look up the id's for property
-
-        '''
+        """
         result = {}
         sq = pywikibot.data.sparql.SparqlQuery()
 
@@ -73,7 +65,6 @@ class ArtDataBot:
         """
         Starts the robot.
         """
-            
         for metadata in self.generator:
             metadata = self.enrichMetadata(metadata)
 
@@ -98,7 +89,6 @@ class ArtDataBot:
         :param metadata: The current metadata dict
         :return: The enriched metadata dict
         """
-
         # Do some url magic so that all url fields are always filled
         if not metadata.get('refurl'):
             metadata['refurl']=metadata['url']
@@ -662,7 +652,7 @@ class ArtDataBot:
     def parse_date(self, date_string):
         """
         Try to parse a data
-        :param datestring: The date string to pars
+        :param date_string: The date string to pars
         :return: pywikibot.WbTime
         """
         date_regex = '^(\d\d\d\d)-(\d\d)-(\d\d)'
@@ -1359,9 +1349,10 @@ class ArtDataBot:
             return False
         return source.get('P143')[0]
 
+
 def main():
-    print ( u'Dude, write your own bot')
-    
+    print('Dude, write your own bot')
+
 
 if __name__ == "__main__":
     main()
