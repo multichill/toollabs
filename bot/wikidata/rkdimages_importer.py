@@ -478,9 +478,13 @@ class RKDImagesExpanderGenerator():
                   'architecture (genre)': 'Q18353841',  # architectural painting (Q18353841)
                   'cityscape': 'Q1935974',  # cityscape (Q1935974)
                   'genre': 'Q1047337',  # genre art (Q1047337)
-                  'landscape (as genre)': 'Q191163',  # landscape art (Q191163)
-                  'marine (as genre)': 'Q158607',  # marine art (Q158607)
+                  'landscape (genre)': 'Q191163',  # landscape art (Q191163)
+                  'landscape (as genre)': 'Q191163',  # landscape art (Q191163), not sure if this one is still needed
+                  'marine (genre)': 'Q158607',  # marine art (Q158607)
+                  'marine (as genre)': 'Q158607',  # marine art (Q158607), not sure if this one is still needed
                   'portrait': 'Q134307',  # portrait (Q134307)
+                  'man\'s portrait': 'Q134307',  # portrait (Q134307)
+                  'woman\'s portrait': 'Q134307',  # portrait (Q134307)
                   'still life': 'Q170571',  # still life (Q170571)
                   'abstraction': 'Q128115'  # abstract art (Q128115)
                   }
@@ -501,6 +505,8 @@ class RKDImagesExpanderGenerator():
                         metadata['religionqid'] = 'Q5043'  # Christianity (Q5043)
                     elif first_keyword in ['mythology', 'Greek mythology', 'Roman mythology']:
                         metadata['genreqid'] = 'Q3374376'  # mythological painting (Q3374376)
+                elif genre == 'landscape (genre)' and first_keyword == 'marine (genre)':
+                    metadata['genreqid'] = 'Q158607'  # marine art (Q158607)
                 elif genre == 'undetermined' and first_keyword:
                     if first_keyword in genres:
                         metadata['genreqid'] = genres.get(first_keyword)
