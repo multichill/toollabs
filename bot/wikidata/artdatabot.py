@@ -243,6 +243,9 @@ class ArtDataBot:
         # Add location (P276) to the item.
         self.addItemStatement(artworkItem, u'P276', metadata.get(u'locationqid'), metadata.get(u'refurl'), queue=True)
 
+        # Add owned by (P127) to the item.
+        self.addItemStatement(artworkItem, u'P127', metadata.get(u'ownedbyqid'), metadata.get(u'refurl'), queue=True)
+
         # Add creator (P170) to the item.
         self.add_creator(artworkItem, metadata, queue=True)
 
@@ -1066,10 +1069,15 @@ class ArtDataBot:
             # Already has a non-free artwork image URL
             return
 
+        # Simple url clean up
+        imageurl = metadata.get(u'imageurl')
+        for a, b in [(' ', '%20'), ('[', '%5B'), (']', '%5B')]:
+            imageurl = imageurl.replace(a, b)
+
         if u'P18' in claims and not metadata.get(u'imageurlforce'):
             if not metadata.get(u'imageupgrade'):
                 return
-            newimage = requests.get(metadata.get(u'imageurl'), stream=True)
+            newimage = requests.get(imageurl, stream=True)
             if not newimage.headers.get('Content-length'):
                 return
             if not newimage.headers.get('Content-length').isnumeric():
@@ -1088,7 +1096,7 @@ class ArtDataBot:
                     return
 
         newclaim = pywikibot.Claim(self.repo, 'P4765')
-        newclaim.setTarget(metadata['imageurl'])
+        newclaim.setTarget(imageurl)
         if not queue:
             pywikibot.output('Adding commons compatible image available at URL claim to %s' % item)
             item.addClaim(newclaim)
@@ -1216,8 +1224,11 @@ class ArtDataBot:
                 if not foundurl:
                     newclaim = pywikibot.Claim(self.repo, u'P973')
                     newclaim.setTarget(metadata[u'describedbyurl'])
-                    pywikibot.output('Adding additional described at claim to %s' % item)
-                    item.addClaim(newclaim)
+                    if queue:
+                        self.statements_queue.append(newclaim.toJSON())
+                    else:
+                        pywikibot.output('Adding additional described at claim to %s' % item)
+                        item.addClaim(newclaim)
 
     def add_iconclass(self, item, metadata, queue=False):
         """
