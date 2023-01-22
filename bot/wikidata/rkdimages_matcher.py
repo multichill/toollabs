@@ -16,7 +16,7 @@ class RKDimagesMatcher:
     """
     Program to do the matching of RKDimages with Wikidata
     """
-    def __init__(self, run_mode='full', work_qid=None):
+    def __init__(self, run_mode='full', work_qid=None, autoadd=0):
         """
         Setup the bot
         :param run_mode:
@@ -26,6 +26,7 @@ class RKDimagesMatcher:
         self.max_length = 2000
         self.run_mode = run_mode
         self.work_qid = work_qid
+        self.autoadd = autoadd
 
         self.all_rkdimages_wikidata = None
         self.all_rkdartists_wikidata = None
@@ -685,11 +686,10 @@ class RKDimagesMatcher:
                 imageinfo[u'collection'] = collection
                 yield imageinfo
 
-    def process_collection(self, collection_qid, autoadd=0):
+    def process_collection(self, collection_qid):
         """
 
         :param collection_qid:
-        :param autoadd:
         :return:
         """
         if not self.collections.get(collection_qid):
@@ -726,14 +726,14 @@ class RKDimagesMatcher:
         text = text + u'This pages is split up in several sections.\n__TOC__'
 
         autoaddedtext = autoaddedtext + u'\n== Auto added links ==\n'
-        autoaddedtext = autoaddedtext + u'A maxiumum of %s links have been added in the previous bot run. Please review.\n' % (autoadd,)
+        autoaddedtext = autoaddedtext + u'A maxiumum of %s links have been added in the previous bot run. Please review.\n' % (self.autoadd,)
         autoaddedtext = autoaddedtext + u'If you find an incorrect link, you have two options:\n'
         autoaddedtext = autoaddedtext + u'# Move it to the right painting in the same collection.\n'
         autoaddedtext = autoaddedtext + u'# Set the rank to deprecated so the bot won\'t add it again.\n'
         autoaddedtext = autoaddedtext + u'-----\n\n'
 
         nextaddedtext = nextaddedtext + u'\n== Links to add on next run ==\n'
-        nextaddedtext = nextaddedtext + u'On this run the bot added a maximum of %s links. Next up are these links. \n' % (autoadd,)
+        nextaddedtext = nextaddedtext + u'On this run the bot added a maximum of %s links. Next up are these links. \n' % (self.autoadd,)
         nextaddedtext = nextaddedtext + u'-----\n\n'
 
         suggestionstext = suggestionstext + u'== Suggestions to add ==\n'
@@ -792,7 +792,7 @@ class RKDimagesMatcher:
                     if invnumbers[invnum].get(u'rkdartistid') and \
                                     invnumbers[invnum].get(u'rkdartistid') == rkdimageid.get(u'rkdartistid') and \
                             rkdimageid.get(u'qid') not in self.all_rkdimages_wikidata.values():
-                        if autoadd > 0:
+                        if self.autoadd > 0:
                             summary = u'Based on [[%s]]' % (collection_qid,)
                             summary = summary + u' / %(invnum)s / https://rkd.nl/explore/artists/%(rkdartistid)s (name: %(creator)s)' % rkdimageid
                             #summary = u'Based on [[%s]] / %s / [https://rkd.nl/explore/artists/%s %s]' % (collection_qid,
@@ -802,7 +802,7 @@ class RKDimagesMatcher:
                             addsuccess = self.addRkdimagesLink(rkdimageid.get('qid'), rkdimageid.get('id'), summary)
                             if addsuccess:
                                 autoaddedtext = autoaddedtext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
-                                autoadd = autoadd - 1
+                                self.autoadd = self.autoadd - 1
                                 totalautoadded = totalautoadded + 1
                             else:
                                 suggestionstext = suggestionstext + u'* {{Q|%(qid)s}} - [https://rkd.nl/explore/images/%(id)s %(id)s] - [%(url)s %(invnum)s] - %(title_nl)s - %(title_en)s\n' % rkdimageid
@@ -1443,7 +1443,7 @@ def main(*args):
         elif arg == '-newest':
             run_mode = 'newest'
 
-    rkimages_matcher = RKDimagesMatcher(run_mode=run_mode, work_qid=work_qid)
+    rkimages_matcher = RKDimagesMatcher(run_mode=run_mode, work_qid=work_qid, autoadd=autoadd)
     rkimages_matcher.run()
 
 
