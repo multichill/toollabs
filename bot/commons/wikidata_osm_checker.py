@@ -132,6 +132,9 @@ class WikidataOsmChecker:
             text += self.check_completeness_links(self.wd_item_commons_category.get(admin_level), 'Wikidata', 'Commons category')
             text += self.check_interlinks(self.wd_item_relation.get(admin_level), self.osm_item_relation.get(admin_level))
 
+        # Might produce very large reports that exceed the max page size
+        if len(text) > 2000000:
+            text = text[0:800000]
         text += '\n[[Category:Commons reverse geocoding]]\n'
 
         page = pywikibot.Page(self.site, title=self.report_page)
@@ -267,6 +270,272 @@ def main(*args):
             do_edits = True
 
     regions = {
+        'be': {
+            'report_page': 'Commons:Reverse geocoding/Reports/Belgium',
+            'region_item': 'Q31',
+            'admin_levels': {
+                6: {'label': 'province',
+                    'item': 'Q83116',
+                    'count': 10,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q83116.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P300 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="Belgium"]["admin_level"="2"];
+rel(area)[admin_level="6"][boundary="administrative"];
+out tags;''',
+                    'id_property': 'P300',
+                    'id_tag': 'ISO3166-2',
+                    'id_transform': False,
+                    },
+                7: {'label': 'arrondissement',
+                    'item': 'Q91028',
+                    'count': 43,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+          ?item p:P31 ?instancestatement.
+          ?instancestatement ps:P31 wd:Q91028.
+          MINUS { ?instancestatement pq:P582 [] } .  
+          OPTIONAL { ?item wdt:P402 ?osmrelation } .
+          OPTIONAL { ?item wdt:P373 ?commonscategory } .
+          OPTIONAL { ?item wdt:P605 ?id } .
+          }''',
+                    'overpass': '''[timeout:600][out:json];
+    area["name:en"="Belgium"]["admin_level"="2"];
+    rel(area)[admin_level="7"][boundary="administrative"];
+    out tags;''',
+                    'id_property': 'P605',
+                    'id_tag': 'ref:nuts',
+                    'id_transform': False,
+                },
+                8: {'label': 'municipality',
+                    'item': 'Q493522',
+                    'count': 581,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+          ?item p:P31 ?instancestatement.
+          ?instancestatement ps:P31 wd:Q493522.
+          MINUS { ?instancestatement pq:P582 [] } .  
+          OPTIONAL { ?item wdt:P402 ?osmrelation } .
+          OPTIONAL { ?item wdt:P373 ?commonscategory } .
+          OPTIONAL { ?item wdt:P1567 ?id } .
+          }''',
+                    'overpass': '''[timeout:600][out:json];
+    area["name:en"="Belgium"]["admin_level"="2"];
+    rel(area)[admin_level="8"][boundary="administrative"];
+    out tags;''',
+                    'id_property': 'P1567',
+                    'id_tag': 'ref:INS',
+                    'id_transform': False,
+                    },
+                9: {'label': 'municipality section',
+                    'item': 'Q2785216',
+                    'count': 2500,  # Unable to find how many exactly. 2501 on Wikidata & 1661 on OpenStreetMap.
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+          ?item p:P31 ?instancestatement.
+          ?instancestatement ps:P31 wd:Q2785216.
+          MINUS { ?instancestatement pq:P582 [] } .  
+          OPTIONAL { ?item wdt:P402 ?osmrelation } .
+          OPTIONAL { ?item wdt:P373 ?commonscategory } .
+          OPTIONAL { ?item wdt:P1567 ?id } .
+          }''',
+                    'overpass': '''[timeout:600][out:json];
+    area["name:en"="Belgium"]["admin_level"="2"];
+    rel(area)[admin_level="9"][boundary="administrative"];
+    out tags;''',
+                    'id_property': 'P1567',
+                    'id_tag': 'ref:INS',
+                    'id_transform': False,
+                    },
+            },
+        },
+        'fr': {
+            'report_page': 'Commons:Reverse geocoding/Reports/France',
+            'region_item': 'Q142',
+            'admin_levels': {
+                4: {'label': 'region',
+                    'item': 'Q36784',
+                    'count': 18,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q36784.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item p:P402 ?osmstatement . 
+            { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q36784 }          
+            }   
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P300 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="France"]["admin_level"="2"];
+rel(area)[admin_level="4"][boundary="administrative"];
+out tags;''',
+                    'id_property': 'P300',
+                    'id_tag': 'ISO3166-2',
+                    'id_transform': False,
+                    },
+                6: {'label': 'department',
+                    'item': 'Q6465',
+                    'count': 101,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q6465.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item p:P402 ?osmstatement . 
+            { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q6465 }          
+            }   
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P300 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="France"]["admin_level"="2"];
+rel(area)[admin_level="6"][boundary="administrative"];
+out tags;''',
+                    'id_property': 'P300',
+                    'id_tag': 'ISO3166-2',
+                    'id_transform': False,
+                    },
+                7: {'label': 'Arrondissement',
+                    'item': 'Q194203',
+                    'count': 332,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q194203.
+      MINUS { ?instancestatement pq:P582 [] } .
+      MINUS { ?item wdt:P576 [] } .  
+      OPTIONAL { ?item p:P402 ?osmstatement . 
+            { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q194203 }          
+            }   
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P3423 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="France"]["admin_level"="2"];
+rel(area)[admin_level="7"][boundary="administrative"];
+out tags;''',
+                    'id_property': 'P3423',
+                    'id_tag': 'ref:INSEE',
+                    'id_transform': False,
+                    },
+                8: {'label': 'commune',
+                    'item': 'Q484170',
+                    'count': 34965,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q484170.
+      MINUS { ?instancestatement pq:P582 [] } .
+      MINUS { ?item wdt:P576 [] } .  
+      OPTIONAL { ?item p:P402 ?osmstatement . 
+            { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q484170 }          
+            }   
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P374 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="France"]["admin_level"="2"];
+rel(area)[admin_level="8"][boundary="administrative"];
+out tags;''',
+                    'id_property': 'P374',
+                    'id_tag': 'ref:INSEE',
+                    'id_transform': False,
+                    },
+            },
+        },
+        'gb-eng': {
+            'report_page': 'Commons:Reverse geocoding/Reports/England',
+            'region_item': 'Q21',
+            'admin_levels': {
+                8: {'label': 'district',
+                     'item': 'Q349084',
+                     'count': 309,
+                     'sparql': '''SELECT DISTINCT ?item ?osmrelation ?commonscategory ?id WHERE {
+  ?item p:P31 ?instancestatement .
+  ?instancestatement ps:P31/wdt:P279* wd:Q349084 .
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P836 ?id } .
+      }''',
+                     'overpass': '''[timeout:600][out:json];
+area["name"="England"]["admin_level"="4"];
+rel(area)[admin_level="8"][boundary="administrative"];
+out tags;''',
+                     'id_property': 'P836',
+                     'id_tag': 'ref:gss',
+                     'id_transform': False,
+                     },
+                10: {'label': 'civil parish',
+                     'item': 'Q1115575',
+                     'count': 10449,
+                     'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q1115575.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P836 ?id } .
+      }''',
+                     'overpass': '''[timeout:600][out:json];
+area["name"="England"]["admin_level"="4"];
+rel(area)[admin_level="10"][designation="civil_parish"];
+out tags;''',
+                     'id_property': 'P836',
+                     'id_tag': 'ref:gss',
+                     'id_transform': False,
+                     },
+            }
+        },
+        'gb-wls': {
+            'report_page': 'Commons:Reverse geocoding/Reports/Wales',
+            'region_item': 'Q25',
+            'admin_levels': {
+                6: {'label': 'principal area',
+                    'item': 'Q15979307',
+                    'count': 22,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q15979307.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P836 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="Wales"];
+rel(area)[admin_level="6"][designation="principal_area"];
+out tags;''',
+                    'id_property': 'P836',
+                    'id_tag': 'ref:gss',
+                    'id_transform': False,
+                    },
+                10: {'label': 'community',
+                    'item': 'Q2630741',
+                    'count': 878,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q2630741.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P836 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="Wales"];
+rel(area)[admin_level="10"][designation="community"];
+out tags;''',
+                    'id_property': 'P836',
+                    'id_tag': 'ref:gss',
+                    'id_transform': False,
+                    },
+            }
+        },
         'lu': {
             'report_page': 'Commons:Reverse geocoding/Reports/Luxembourg',
             'country_item': 'Q32',
@@ -370,7 +639,7 @@ def main(*args):
   }''',
                      'overpass': '''[timeout:600][out:json];
     area[name="Nederland"];
-    rel(area)[admin_level="10"][boundary="administrative"]["ref:woonplaatscode"];
+    rel(area)[admin_level="10"][boundary="administrative"];
     out tags;''',
                      'id_property': 'P981',
                      'id_tag': 'ref:woonplaatscode',
