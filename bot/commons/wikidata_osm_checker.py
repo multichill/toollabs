@@ -95,8 +95,10 @@ class WikidataOsmChecker:
             if id_tag:
                 id = element.get('tags').get(id_tag)
                 if id_transform:
-                    # TODO: Add transformations
-                    pass
+                    try:
+                        id = id_transform % (id, )
+                    except TypeError:
+                        id = id_transform % (int(id), )
             else:
                 id = None
             self.osm_relation_item[admin_level].add((osmrelation, qid))
@@ -111,26 +113,33 @@ class WikidataOsmChecker:
         text = 'This is the [[Commons:Reverse geocoding|reverse geocoding]] [[Commons:Reverse geocoding/Reports|report]] for {{SUBPAGENAME}}.\n'
         for admin_level in self.admin_levels:
             text += '== %s ==\n' % (self.admin_levels.get(admin_level).get('label'),)
+            item = requests.utils.quote(self.admin_levels.get(admin_level).get('item'))
+            text += 'Working on {{Q|%s}} which corresponds to admin level %s on OpenStreetMap\n' % (item, admin_level)
+
             sparql_query = requests.utils.quote(self.admin_levels.get(admin_level).get('sparql'))
             overpass_query = requests.utils.quote(self.admin_levels.get(admin_level).get('overpass'))
             text += '* [https://query.wikidata.org/#%s SPARQL query]\n' % (sparql_query, )
             text += '* [http://overpass-api.de/api/interpreter?data=%s overpass query]\n' % (overpass_query, )
+
+            id_property = self.admin_levels.get(admin_level).get('id_property')
+            id_tag = self.admin_levels.get(admin_level).get('id_tag')
+            if id_property and id_tag:
+                text += '* {{P|%s}} will be matched with OSM tag "[[openstreetmap:key:%s|%s]]"\n' % (id_property, id_tag, id_tag)
             text += self.check_count(admin_level)
 
             text += self.check_completeness_links(self.wd_item_relation.get(admin_level), 'Wikidata', 'OpenStreetMap')
             text += self.check_completeness_links(self.osm_relation_item.get(admin_level), 'OpenStreetMap', 'Wikidata')
+            text += self.check_interlinks(self.wd_item_relation.get(admin_level), self.osm_item_relation.get(admin_level))
 
-            id_property = self.admin_levels.get(admin_level).get('id_property')
-            id_tag = self.admin_levels.get(admin_level).get('id_tag')
+            if not self.admin_levels.get(admin_level).get('no_commons_category'):
+                text += self.check_completeness_links(self.wd_item_commons_category.get(admin_level), 'Wikidata', 'Commons category')
 
             if id_property and id_tag:
                 id_property_text = '{{P|%s}}' % (id_property)
                 id_tag_text = 'tag "%s"' % (id_tag)
                 text += self.check_completeness_links(self.wd_item_id.get(admin_level), 'Wikidata', id_property_text)
                 text += self.check_completeness_links(self.osm_relation_id.get(admin_level), 'OpenStreetMap', id_tag_text)
-
-            text += self.check_completeness_links(self.wd_item_commons_category.get(admin_level), 'Wikidata', 'Commons category')
-            text += self.check_interlinks(self.wd_item_relation.get(admin_level), self.osm_item_relation.get(admin_level))
+                text += self.check_id_interlinks(self.wd_item_relation_id.get(admin_level), self.osm_item_relation_id.get(admin_level))
 
         # Might produce very large reports that exceed the max page size
         if len(text) > 2000000:
@@ -234,6 +243,41 @@ class WikidataOsmChecker:
                 text += '* https://www.openstreetmap.org/relation/%s is missing Wikidata tag\n' % (osm,)
         return text
 
+    def check_id_interlinks(self, wikidata_set, openstreetmap_set):
+        """
+        Check if all Wikidata items link with ID link to OpenStreetMap and the other way around
+
+        :param wikidata_set:
+        :param openstreetmap_set:
+        :return:
+        """
+        text = '=== Identifier comparison Wikidata and OpenStreetMap ===\n'
+        if wikidata_set == openstreetmap_set:
+            text += '* {{Done|}} the links with identifiers from Wikidata are exactly the same as the links with identifiers from OpenStreetMap\n'
+            return text
+        matched = wikidata_set & openstreetmap_set
+        wikidata_not_osm = wikidata_set - openstreetmap_set
+        osm_not_wikidata = openstreetmap_set - wikidata_set
+
+        text += '* {{Not done|}} %s matched, %s Wikidata not OpenStreetmap and %s OpenStreetmap not Wikidata\n' % (len(matched), len(wikidata_not_osm), len(osm_not_wikidata),)
+        text += 'Details:\n'
+        for (qid, osm, id) in wikidata_not_osm:
+            if osm:
+                # Only work on items that have OSM, otherwise it will show up in the other report
+                if id:
+                    text += '* {{Q|%s}} links identier %s, but that doesn\'t match https://www.openstreetmap.org/relation/%s\n' % (qid, id, osm)
+                else:
+                    text += '* {{Q|%s}} is missing identifier link, but does link to https://www.openstreetmap.org/relation/%s\n' % (qid, osm)
+
+        for (qid, osm, id) in osm_not_wikidata:
+            if qid:
+                # Only work on items that have Wikidata, otherwise it will show up in the other report
+                if id:
+                    text += '* https://www.openstreetmap.org/relation/%s links identier %s, but doesn\'t match {{Q|%s}}\n' % (osm, id, qid)
+                else:
+                    text += '* https://www.openstreetmap.org/relation/%s is missing identifier link, but does link to {{Q|%s}}\n' % (osm, qid)
+        return text
+
 
     def add_missing_osm_backlink(self, qid, osm):
         """
@@ -244,6 +288,8 @@ class WikidataOsmChecker:
         :return: If it was added or not
         """
         item = pywikibot.ItemPage(self.repo, qid)
+        if item.isRedirectPage():
+            item = item.getRedirectTarget()
         data = item.get()
         claims = data.get('claims')
 
@@ -311,6 +357,7 @@ out tags;''',
                     'id_property': 'P605',
                     'id_tag': 'ref:nuts',
                     'id_transform': False,
+                    'no_commons_category': True,
                 },
                 8: {'label': 'municipality',
                     'item': 'Q493522',
@@ -348,6 +395,95 @@ out tags;''',
     out tags;''',
                     'id_property': 'P1567',
                     'id_tag': 'ref:INS',
+                    'id_transform': False,
+                    },
+            },
+        },
+        'es': {
+            'report_page': 'Commons:Reverse geocoding/Reports/Spain',
+            'region_item': 'Q29',
+            'admin_levels': {
+                4: {'label': 'autonomous community',
+                    'item': 'Q10742',
+                    'count': 19,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      { ?instancestatement ps:P31 wd:Q10742 } UNION
+      { ?instancestatement ps:P31 wd:Q16532593 } 
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P300 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="Spain"]["admin_level"="2"];
+rel(area)[admin_level="4"][boundary="administrative"];
+out tags;''',
+                    'id_property': 'P300',
+                    'id_tag': 'ISO3166-2',
+                    'id_transform': False,
+                    },
+                6: {'label': 'province',
+                    'item': 'Q162620',
+                    'count': 50,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+          ?item p:P31 ?instancestatement.
+          ?instancestatement ps:P31 wd:Q162620 .
+          MINUS { ?instancestatement pq:P582 [] } .
+          MINUS { ?item wdt:P576 [] } .  
+          OPTIONAL { ?item wdt:P402 ?osmrelation } .
+          OPTIONAL { ?item wdt:P373 ?commonscategory } .
+          OPTIONAL { ?item wdt:P300 ?id } .
+          }''',
+                    'overpass': '''[timeout:600][out:json];
+    area["name:en"="Spain"]["admin_level"="2"];
+    rel(area)[admin_level="6"][boundary="administrative"];
+    out tags;''',
+                    'id_property': 'P300',
+                    'id_tag': 'ISO3166-2',
+                    'id_transform': False,
+                    },
+                7: {'label': 'comarca',
+                    'item': 'Q1345234',
+                    'count': 83,  # Not sure?
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+          ?item p:P31 ?instancestatement.
+          ?instancestatement ps:P31/wdt:P279* wd:Q1345234 .
+          MINUS { ?instancestatement pq:P582 [] } .
+          MINUS { ?item wdt:P576 [] } .  
+          OPTIONAL { ?item wdt:P402 ?osmrelation } .
+          OPTIONAL { ?item wdt:P373 ?commonscategory } .
+          OPTIONAL { ?item wdt:P772 ?id } .
+          }''',
+                    'overpass': '''[timeout:600][out:json];
+    area["name:en"="Spain"]["admin_level"="2"];
+    rel(area)[admin_level="7"][boundary="administrative"];
+    out tags;''',
+                    'id_property': False,
+                    'id_tag': False,
+                    'id_transform': False,
+                    },
+                8: {'label': 'municipality',
+                    'item': 'Q2074737',
+                    'count': 8131,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+          ?item p:P31 ?instancestatement.
+          ?instancestatement ps:P31/wdt:P279* wd:Q2074737 .
+          MINUS { ?instancestatement pq:P582 [] } .
+          MINUS { ?item wdt:P576 [] } .  
+          OPTIONAL { ?item p:P402 ?osmstatement . 
+            { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q2074737 }          
+            }   
+          OPTIONAL { ?item wdt:P373 ?commonscategory } .
+          OPTIONAL { ?item wdt:P772 ?id } .
+          }''',
+                    'overpass': '''[timeout:600][out:json];
+    area["name:en"="Spain"]["admin_level"="2"];
+    rel(area)[admin_level="8"][boundary="administrative"];
+    out tags;''',
+                    'id_property': 'P772',
+                    'id_tag': 'ine:municipio',
                     'id_transform': False,
                     },
             },
@@ -422,13 +558,16 @@ out tags;''',
                     'id_property': 'P3423',
                     'id_tag': 'ref:INSEE',
                     'id_transform': False,
+                    'no_commons_category': True,
                     },
                 8: {'label': 'commune',
                     'item': 'Q484170',
                     'count': 34965,
                     'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
       ?item p:P31 ?instancestatement.
-      ?instancestatement ps:P31 wd:Q484170.
+      { ?instancestatement ps:P31 wd:Q484170 } UNION
+      { ?instancestatement ps:P31 wd:Q84669937 } UNION
+      { ?instancestatement ps:P31 wd:Q84598477 } 
       MINUS { ?instancestatement pq:P582 [] } .
       MINUS { ?item wdt:P576 [] } .  
       OPTIONAL { ?item p:P402 ?osmstatement . 
@@ -446,7 +585,63 @@ out tags;''',
                     'id_tag': 'ref:INSEE',
                     'id_transform': False,
                     },
-            },
+                9: {'label': 'municipal arrondissement',
+                    'item': 'Q702842',
+                    'count': 45,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q702842 .
+      MINUS { ?instancestatement pq:P582 [] } .
+      MINUS { ?item wdt:P576 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } . 
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P374 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="France"]["admin_level"="2"];
+rel(area)[admin_level="9"][boundary="administrative"]["admin_type:FR"="arrondissement municipal"];
+out tags;''',
+                    'id_property': 'P374',
+                    'id_tag': 'ref:INSEE',
+                    'id_transform': False,
+                    },
+                19: {'label': 'delegated commune',  # FIXME: Change into list
+                    'item': 'Q21869758',
+                    'count': 2245,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q21869758 .
+      MINUS { ?instancestatement pq:P582 [] } .
+      OPTIONAL { ?item wdt:P402 ?osmrelation } . 
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P374 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="France"]["admin_level"="2"];
+rel(area)[admin_level="9"][boundary="administrative"]["admin_type:FR"="commune déléguée"];
+out tags;''',
+                    'id_property': 'P374',
+                    'id_tag': 'ref:INSEE',
+                    'id_transform': False,
+                    },
+                10: {'label': 'administrative quarter',
+                     'item': 'Q22575704',
+                     'count': 194,  # Not sure
+                     'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item wdt:P31/wdt:P279 wd:Q22575704 ;
+            wdt:P17 wd:Q142 .
+      OPTIONAL { ?item wdt:P402 ?osmrelation } . 
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      }''',
+                     'overpass': '''[timeout:600][out:json];
+area["name:en"="France"]["admin_level"="2"];
+rel(area)[admin_level="10"][boundary="administrative"]["admin_type:FR"="quartier administratif"]; 
+out tags;''',  #
+                     'id_property': False,
+                     'id_tag': False,
+                     'id_transform': False,
+                     },
+            },  # It's possible to add admin level 11 too
         },
         'gb-eng': {
             'report_page': 'Commons:Reverse geocoding/Reports/England',
@@ -622,7 +817,7 @@ out tags;''',
         out tags;''',
                     'id_property': 'P382',
                     'id_tag': 'ref:gemeentecode',
-                    'id_transform': False,
+                    'id_transform': '%04d',
                     },
                 10: {'label': 'cadastral populated place',
                      'item': 'Q1852859',
