@@ -399,6 +399,31 @@ out tags;''',
                     },
             },
         },
+        'de': {
+            'report_page': 'Commons:Reverse geocoding/Reports/Germany',
+            'country_item': 'Q183',
+            'admin_levels': {
+                8: {'label': 'municipality',
+                    'item': 'Q262166',
+                    'count': 10773,
+                    'sparql': '''SELECT DISTINCT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31/wdt:P279* wd:Q262166.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P439 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+        area[name="Deutschland"];
+        rel(area)[admin_level="8"][boundary="administrative"];
+        out tags;''',
+                    'id_property': 'P439',
+                    'id_tag': 'de:amtlicher_gemeindeschluessel',
+                    'id_transform': False,
+                    },
+            },
+        },
         'es': {
             'report_page': 'Commons:Reverse geocoding/Reports/Spain',
             'region_item': 'Q29',
@@ -731,6 +756,31 @@ out tags;''',
                     },
             }
         },
+        'ie': {
+            'report_page': 'Commons:Reverse geocoding/Reports/Ireland',
+            'country_item': 'Q27',
+            'admin_levels': {
+                6: {'label': 'county',
+                    'item': 'Q179872',
+                    'count': 24,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q179872.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P300 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+        area["name:en"="Ireland"];
+        rel(area)[admin_level="6"][boundary="administrative"]["ISO3166-2"];
+        out tags;''',
+                    'id_property': 'P300',
+                    'id_tag': 'ISO3166-2',
+                    'id_transform': False,
+                    },
+            },
+        },
         'lu': {
             'report_page': 'Commons:Reverse geocoding/Reports/Luxembourg',
             'country_item': 'Q32',
@@ -825,7 +875,8 @@ out tags;''',
                      'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
   ?item wdt:P981 ?id ;
         p:P31 ?instancestatement.
-  ?instancestatement ps:P31 wd:Q1852859.  
+  ?instancestatement ps:P31 wd:Q1852859. 
+  MINUS { ?instancestatement pq:P582 [] } .
   OPTIONAL { ?item wdt:P373 ?commonscategory } .
   OPTIONAL { ?item p:P402 ?osmstatement . 
             { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
