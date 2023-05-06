@@ -68,6 +68,7 @@ class ItemMissingCommonsCategoryBot:
 
             if not commons_category.namespace() == 14:
                 pywikibot.output('Linked page is not a category, skipping')
+                continue
 
             new_claim = pywikibot.Claim(self.repo, 'P373')
             new_claim.setTarget(commons_category.title(underscore=False, with_ns=False))
