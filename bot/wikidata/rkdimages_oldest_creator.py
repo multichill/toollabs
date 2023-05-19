@@ -72,9 +72,15 @@ class OldestRKDimagesCreator:
                     image_info['id'] = '%s' % (rkdimage_id,)
                     image_info['url'] = 'https://rkd.nl/explore/images/%s' % (rkdimage_id,)
                     if rkdimage.get('benaming_kunstwerk') and rkdimage.get('benaming_kunstwerk')[0]:
-                        image_info['title_nl'] = rkdimage.get('benaming_kunstwerk')[0]
+                        nl_title = rkdimage.get('benaming_kunstwerk')[0]
+                        if len(nl_title) > 220:
+                            nl_title = nl_title[0:200]
+                        image_info['title_nl'] = nl_title
                     if rkdimage.get('titel_engels'):
-                        image_info['title_en'] = rkdimage.get('titel_engels')
+                        en_title = rkdimage.get('titel_engels')
+                        if len(en_title) > 220:
+                            en_title = en_title[0:200]
+                        image_info['title_en'] = en_title
                     count += 1
                     yield image_info
                 if count >= self.amount:
