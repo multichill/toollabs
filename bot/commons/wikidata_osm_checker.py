@@ -316,6 +316,89 @@ def main(*args):
             do_edits = True
 
     regions = {
+        'at': {
+            'report_page': 'Commons:Reverse geocoding/Reports/Austria',
+            'country_item': 'Q40',
+            'admin_levels': {
+                4: {'label': 'state',
+                    'item': 'Q261543',
+                    'count': 9,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q261543 
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P300 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+                area["name:en"="Austria"][admin_level="2"];
+                rel(area)[admin_level="4"][boundary="administrative"]["ISO3166-2"];
+                out tags;''',
+                    'id_property': 'P300',
+                    'id_tag': 'ISO3166-2',
+                    'id_transform': False,
+                    },
+                6: {'label': 'district',
+                    'item': 'Q871419',
+                    'count': 94,  # Have to handle and clean up the  statutory city of Austria (Q262882)
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+          ?item p:P31 ?instancestatement.
+          ?instancestatement ps:P31 wd:Q871419 
+          MINUS { ?instancestatement pq:P582 [] } .  
+          OPTIONAL { ?item wdt:P402 ?osmrelation } .
+          OPTIONAL { ?item wdt:P373 ?commonscategory } .
+          }''',
+                    'overpass': '''[timeout:600][out:json];
+                    area["name:en"="Austria"][admin_level="2"];
+                    rel(area)[admin_level="6"][boundary="administrative"];
+                    out tags;''',
+                    'id_property': False,
+                    'id_tag': False,  # ref:at:gkz doesn't match with Wikidata
+                    'id_transform': False,
+                    },
+                8: {'label': 'municipality',
+                    'item': 'Q667509',
+                    'count': 2095,  # Have to handle and clean up the  statutory city of Austria (Q262882)
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+          ?item p:P31 ?instancestatement.
+          ?instancestatement ps:P31 wd:Q667509 
+          MINUS { ?instancestatement pq:P582 [] } .  
+          OPTIONAL { ?item wdt:P402 ?osmrelation } .
+          OPTIONAL { ?item wdt:P373 ?commonscategory } .
+          OPTIONAL { ?item wdt:P964 ?id } .
+          }''',
+                    'overpass': '''[timeout:600][out:json];
+                    area["name:en"="Austria"][admin_level="2"];
+                    rel(area)[admin_level="8"][boundary="administrative"];
+                    out tags;''',
+                    'id_property': 'P964',
+                    'id_tag': 'ref:at:gkz',
+                    'id_transform': False,
+                    },
+                9: {'label': 'city district',
+                    'item': 'Q4286337',
+                    'count': 40,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+          ?item p:P31 ?instancestatement.
+          { ?instancestatement ps:P31 wd:Q261023 } UNION
+          { ?instancestatement ps:P31 wd:Q1852119 }
+          MINUS { ?instancestatement pq:P582 [] } .  
+          OPTIONAL { ?item wdt:P402 ?osmrelation } .
+          OPTIONAL { ?item wdt:P373 ?commonscategory } .
+          OPTIONAL { ?item wdt:P964 ?id } .
+          }''',
+                    'overpass': '''[timeout:600][out:json];
+                    area["name:en"="Austria"][admin_level="2"];
+                    rel(area)[admin_level="9"][boundary="administrative"];
+                    out tags;''',
+                    'id_property': False,
+                    'id_tag': False,
+                    'id_transform': False,
+                    },
+                # Admin_level 10 is cadastral municipality of Austria, missing in OSM
+            },
+        },
         'be': {
             'report_page': 'Commons:Reverse geocoding/Reports/Belgium',
             'region_item': 'Q31',
@@ -779,6 +862,26 @@ out tags;''',
                     'id_tag': 'ISO3166-2',
                     'id_transform': False,
                     },
+                8: {'label': 'civil parish ',  # Not really admin_level 8
+                    'item': 'Q3910694',
+                    'count': 2508,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q3910694.
+      ?item wdt:P17 wd:Q27.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P5097 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+        area["name:en"="Ireland"][admin_level="2"];
+        rel(area)[type="boundary"][boundary="civil_parish"];
+        out tags;''',
+                    'id_property': 'P5097',
+                    'id_tag': 'logainm:ref',
+                    'id_transform': False,
+                    },
             },
         },
         'lu': {
@@ -873,12 +976,13 @@ out tags;''',
                      'item': 'Q1852859',
                      'count': 2501,
                      'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
-  ?item wdt:P981 ?id ;
-        p:P31 ?instancestatement.
+  ?item p:P31 ?instancestatement.
   ?instancestatement ps:P31 wd:Q1852859. 
   MINUS { ?instancestatement pq:P582 [] } .
   OPTIONAL { ?item wdt:P373 ?commonscategory } .
-  OPTIONAL { ?item p:P402 ?osmstatement . 
+  OPTIONAL { ?item p:P981 [ps:P981 ?id ; pq:P518 ?part]; p:P402 [ps:P402 ?osmrelation; pq:P518 ?part] } 
+  OPTIONAL { ?item wdt:P981 ?id ;
+                   p:P402 ?osmstatement . 
             { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
             { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q1852859 }          
             }  
