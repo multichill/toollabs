@@ -265,8 +265,12 @@ class RKDImagesExpanderGenerator():
         if nl_title or en_title:
             metadata['title'] = {}
             if nl_title:
+                if len(nl_title) > 220:
+                    nl_title = nl_title[0:200]
                 metadata['title']['nl'] = nl_title
             if en_title:
+                if len(en_title) > 220:
+                    en_title = en_title[0:200]
                 metadata['title']['en'] = en_title
 
         return metadata
@@ -350,6 +354,8 @@ class RKDImagesExpanderGenerator():
                     object_type = input_metadata.get('instanceofnames').get(lang)
                     connector_word = input_metadata.get('creatorqualifiernames').get(lang)
                     metadata['description'][lang] = '%s %s %s' % (object_type, connector_word, creatorname)
+        # TODO: Handle anonymous paintings here
+
         return metadata
 
     def get_medium(self, rkdimages_docs):
@@ -529,16 +535,16 @@ class RKDImagesExpanderGenerator():
         metadata = {}
         if rkdimages_docs.get('onderdeel_van') and len(rkdimages_docs.get('onderdeel_van')) == 1:
             onderdeel_van = rkdimages_docs.get('onderdeel_van')[0]
-            if onderdeel_van.get('onderdeel_van_verband') == 'pendant':
-                if onderdeel_van.get('object_onderdeel_van') and len(onderdeel_van.get('object_onderdeel_van')) == 1:
+            if onderdeel_van.get('object_onderdeel_van') and len(onderdeel_van.get('object_onderdeel_van')) == 1:
+                if onderdeel_van.get('onderdeel_van_verband') == 'pendant':
+                        onderdeel_van_rkdimages_id = onderdeel_van.get('object_onderdeel_van')[0].get('priref')
+                        if onderdeel_van_rkdimages_id in self.rkd_images:
+                            metadata['pendantqid'] = self.rkd_images.get(onderdeel_van_rkdimages_id)
+                elif rkdimages_docs.get('fysiek_verband') and len(rkdimages_docs.get('fysiek_verband')) == 1 \
+                        and rkdimages_docs.get('fysiek_verband')[0] == 'part of a series':
                     onderdeel_van_rkdimages_id = onderdeel_van.get('object_onderdeel_van')[0].get('priref')
                     if onderdeel_van_rkdimages_id in self.rkd_images:
-                        metadata['pendantqid'] = self.rkd_images.get(onderdeel_van_rkdimages_id)
-            elif rkdimages_docs.get('fysiek_verband') and len(rkdimages_docs.get('fysiek_verband')) == 1 \
-                    and rkdimages_docs.get('fysiek_verband')[0] == 'part of a series':
-                onderdeel_van_rkdimages_id = onderdeel_van.get('object_onderdeel_van')[0].get('priref')
-                if onderdeel_van_rkdimages_id in self.rkd_images:
-                    metadata['partofseriesqid'] = self.rkd_images.get(onderdeel_van_rkdimages_id)
+                        metadata['partofseriesqid'] = self.rkd_images.get(onderdeel_van_rkdimages_id)
 
         return metadata
 
