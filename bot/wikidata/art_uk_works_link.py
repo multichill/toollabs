@@ -59,7 +59,7 @@ def getArtUKWorkGenerator(collectionVenueId, artukcache):
             if not artukid in artukcache:
                 url = u'http://artuk.org/discover/artworks/%s' % (artukid,)
                 itempage = requests.get(url)
-                invregex = u'\<li\>[\s\t\r\n]+\<h5\>Accession number\<\/h5\>[\s\t\r\n]+\<p\>([^\<]+)\<\/p\>[\s\t\r\n]+\<\/li\>'
+                invregex = u'[\s\t\r\n]+\<h5\>Accession number\<\/h5\>[\s\t\r\n]+\<p\>([^\<]+)\<\/p\>[\s\t\r\n]+'
                 invmatch = re.search(invregex, itempage.text)
                 if invmatch:
                     invid = invmatch.group(1).strip()
