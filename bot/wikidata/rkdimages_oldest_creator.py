@@ -11,7 +11,7 @@ import pywikibot.data.sparql
 
 
 class OldestRKDimagesCreator:
-    def __init__(self, amount=20):
+    def __init__(self, amount=100):
         """
         Build the lookup table and get the generator
         """
