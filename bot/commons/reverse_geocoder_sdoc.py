@@ -64,10 +64,16 @@ class ReverseGeocodingBot:
         if 'P1071' in statements:
             return
 
-        if 'P1259' not in statements:
+        coordinates = None
+
+        if 'P1259' in statements:
+            coordinates = statements.get('P1259')[0].getTarget()
+        elif 'P9149' in statements:
+            coordinates = statements.get('P9149')[0].getTarget()
+
+        if not coordinates:
             return
 
-        coordinates = statements.get('P1259')[0].getTarget()
         location_of_creation = self.lookup_location(coordinates.lat, coordinates.lon)
 
         if not location_of_creation:
