@@ -58,7 +58,11 @@ class ReverseGeocodingBot:
         if not mediainfo:
             return
 
-        statements = mediainfo.statements
+        try:
+            statements = mediainfo.statements
+        except KeyError:
+            # Bug in Pywikibot, no statements
+            return
 
         # Check if we already have location of creation
         if 'P1071' in statements:
