@@ -60,7 +60,7 @@ class ReverseGeocodingBot:
 
         try:
             statements = mediainfo.statements
-        except KeyError:
+        except Exception:
             # Bug in Pywikibot, no statements
             return
 
