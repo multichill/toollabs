@@ -43,24 +43,28 @@ def get_art_uk_generator():
     art_uk_collections = get_lookup_table('P1751')
     art_uk_venues = get_lookup_table('P1602')
 
+    # FIXME: Add start_search_page option
     i = 1
     load_more = True
-    base_search_url = u'http://artuk.org/discover/artworks/search/work_type:painting/page/%s?_ajax=1'
+    base_search_url = u'http://artuk.org/discover/artworks/search/work_type:painting/page/%s/sort_by/date_earliest/order/asc?_ajax=1'
     while load_more:
         search_url = base_search_url % (i, )
-        pywikibot.output(search_url)
+        pywikibot.output('WORKING ON SEARCH PAGE %s with url %s' % (i, search_url))
         search_page = requests.get(search_url, headers={'X-Requested-With': 'XMLHttpRequest',} )
         search_json = search_page.json()
         load_more = search_json.get('load_more')
         i += 1
         search_text = search_json.get('html')
-        #print (search_text)
 
-        id_regex = '\"https\:\/\/artuk\.org\/discover\/artworks\/([^\/]+)/search\/.+/page/\d+\"'
+        ids = set()
+        id_regex = '\"https\:\/\/artuk\.org\/discover\/artworks\/([^\/]+)/([^\"]+)?search([^\"]+)\"'
         for match in re.finditer(id_regex, search_text):
+            art_uk_id = match.group(1)
+            ids.add(art_uk_id)
+
+        for art_uk_id in ids:
             metadata = {}
 
-            art_uk_id = match.group(1)
             url = u'http://artuk.org/discover/artworks/%s' % (art_uk_id,)
             metadata['artworkidpid'] = 'P1679'
             metadata['artworkid'] = art_uk_id
@@ -92,7 +96,6 @@ def get_art_uk_generator():
             artist_id = None
             if creator_match:
                 artist_id = html.unescape(creator_match.group(1))
-                print(artist_id)
                 if artist_id in art_uk_artists:
                     metadata['creatorqid'] = art_uk_artists.get(artist_id)
                 name = html.unescape(creator_match.group(2)).replace('\t', '').replace('\n', '').strip()
@@ -105,9 +108,6 @@ def get_art_uk_generator():
             if venue_match:
                 venue_type = html.unescape(venue_match.group(1))
                 venue_id = html.unescape(venue_match.group(2))
-
-                print(venue_type)
-                print(venue_id)
 
                 if venue_type == 'collection':
                     if venue_id in art_uk_collections:
@@ -136,6 +136,7 @@ def get_art_uk_generator():
                     metadata['acquisitiondate'] = acquisition_date_match.group(1)
 
             # Only years at the moment. Is more info available?
+            # FIXME: Add a lot more cases
             date_regex = '<h5>Date</h5>[\s\t\r\n]+<p>\s*(\d\d\d\d)\s*</p>'
             date_match = re.search(date_regex, item_page.text)
             if date_match:
@@ -151,7 +152,6 @@ def get_art_uk_generator():
             if dimensions_match:
                 metadata['heightcm'] = dimensions_match.group('height')
                 metadata['widthcm'] = dimensions_match.group('width')
-
 
             yield metadata
 
@@ -169,7 +169,7 @@ def main(*args):
 
     if dryrun:
         for painting in painting_generator:
-            print (painting)
+            print(painting)
     else:
         artDataBot = artdatabot.ArtDataIdentifierBot(painting_generator, id_property='P1679', create=create)
         artDataBot.run()
