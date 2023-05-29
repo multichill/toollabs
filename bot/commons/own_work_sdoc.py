@@ -434,7 +434,7 @@ class OwnWorkBot:
             """
         # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M52611909
         # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M10038
-        request = self.site.simple_request(action='wbgetentities',ids=mediaid)
+        request = self.site.simple_request(action='wbgetentities', ids=mediaid)
         data = request.submit()
         if data.get(u'entities').get(mediaid).get(u'pageid'):
             return data.get(u'entities').get(mediaid)
@@ -917,6 +917,9 @@ class OwnWorkBot:
         except AssertionError:
             # This will break at some point in the future
             return False
+        except pywikibot.exceptions.APIError:
+            # The API did not like it at all
+            return False
         postvalue = data.get(u'results')[0].get('value')
 
         toclaim = {'mainsnak': { 'snaktype':'value',
@@ -970,6 +973,9 @@ class OwnWorkBot:
                 data = request.submit()
             except AssertionError:
                 # This will break at some point in the future
+                return False
+            except pywikibot.exceptions.APIError:
+                # The API did not like it at all
                 return False
             # Not sure if this works or that I get an exception.
             if data.get('error'):
@@ -1039,6 +1045,9 @@ class OwnWorkBot:
                 data = request.submit()
             except AssertionError:
                 # This will break at some point in the future
+                return False
+            except pywikibot.exceptions.APIError:
+                # The API did not like it at all
                 return False
             # Not sure if this works or that I get an exception.
             if data.get('error'):
