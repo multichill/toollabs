@@ -34,7 +34,7 @@ def get_lookup_table(pid):
     return result
 
 
-def get_art_uk_generator():
+def get_art_uk_generator(start_search_page):
     """
     The generator to get the art uk works
     :return:
@@ -43,8 +43,7 @@ def get_art_uk_generator():
     art_uk_collections = get_lookup_table('P1751')
     art_uk_venues = get_lookup_table('P1602')
 
-    # FIXME: Add start_search_page option
-    i = 1
+    i = start_search_page
     load_more = True
     base_search_url = u'http://artuk.org/discover/artworks/search/work_type:painting/page/%s/sort_by/date_earliest/order/asc?_ajax=1'
     while load_more:
@@ -135,12 +134,47 @@ def get_art_uk_generator():
                 if acquisition_date_match:
                     metadata['acquisitiondate'] = acquisition_date_match.group(1)
 
-            # Only years at the moment. Is more info available?
-            # FIXME: Add a lot more cases
-            date_regex = '<h5>Date</h5>[\s\t\r\n]+<p>\s*(\d\d\d\d)\s*</p>'
+            date_regex = '<h5>Date</h5>[\s\t\r\n]+<p>\s*([^<]+)\s*</p>'
             date_match = re.search(date_regex, item_page.text)
             if date_match:
-                metadata['inception'] = int(date_match.group(1))
+                date = html.unescape(date_match.group(1)).strip()
+
+                year_regex = '^(\d\d\d\d)$'
+                date_circa_regex = '^(about|[cC]\.)\s*(\d\d\d\d)$'
+                period_regex = '^(\d\d\d\d)\s*[–--\/]\s*(\d\d\d\d)$'
+                circa_period_regex = '^(about|[cC]\.)\s*(\d\d\d\d)\s*[–--\/]\s*(\d\d\d\d)$'
+                short_period_regex = '^(\d\d)(\d\d)[–--\/](\d\d)$'
+                circa_short_period_regex = '^(about|[cC]\.)\s*(\d\d)(\d\d)[–-–/](\d\d)$'
+
+                year_match = re.match(year_regex, date)
+                date_circa_match = re.match(date_circa_regex, date)
+                period_match = re.match(period_regex, date)
+                circa_period_match = re.match(circa_period_regex, date)
+                short_period_match = re.match(short_period_regex, date)
+                circa_short_period_match = re.match(circa_short_period_regex, date)
+
+                if year_match:
+                    # Don't worry about cleaning up here.
+                    metadata['inception'] = int(year_match.group(1))
+                elif date_circa_match:
+                    metadata['inception'] = int(date_circa_match.group(2))
+                    metadata['inceptioncirca'] = True
+                elif period_match:
+                    metadata['inceptionstart'] = int(period_match.group(1),)
+                    metadata['inceptionend'] = int(period_match.group(2),)
+                elif circa_period_match:
+                    metadata['inceptionstart'] = int(circa_period_match.group(2),)
+                    metadata['inceptionend'] = int(circa_period_match.group(3),)
+                    metadata['inceptioncirca'] = True
+                elif short_period_match:
+                    metadata['inceptionstart'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(2), ))
+                    metadata['inceptionend'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(3), ))
+                elif circa_short_period_match:
+                    metadata['inceptionstart'] = int('%s%s' % (circa_short_period_match.group(2), circa_short_period_match.group(3), ))
+                    metadata['inceptionend'] = int('%s%s' % (circa_short_period_match.group(2), circa_short_period_match.group(4), ))
+                    metadata['inceptioncirca'] = True
+                else:
+                    print('Could not parse date: "%s"' % (date,))
 
             medium_regex = '<h5>Medium</h5>[\s\t\r\n]+<p>([^\<]+)</p>'
             medium_match = re.search(medium_regex, item_page.text)
@@ -157,15 +191,23 @@ def get_art_uk_generator():
 
 
 def main(*args):
-    painting_generator = get_art_uk_generator()
     dryrun = False
     create = False
+    start_search_page = 1
 
     for arg in pywikibot.handle_args(args):
         if arg.startswith('-dry'):
             dryrun = True
         elif arg.startswith('-create'):
             create = True
+        elif arg.startswith('-startsearchpage:'):
+            if len(arg) == len('-startsearchpage:'):
+                start_search_page = int(pywikibot.input(
+                    'Please enter the start search page you want to work on:'))
+            else:
+                start_search_page = int(arg[len('-startsearchpage:'):])
+
+    painting_generator = get_art_uk_generator(start_search_page)
 
     if dryrun:
         for painting in painting_generator:
