@@ -141,10 +141,10 @@ def get_art_uk_generator(start_search_page):
 
                 year_regex = '^(\d\d\d\d)$'
                 date_circa_regex = '^(about|[cC]\.)\s*(\d\d\d\d)$'
-                period_regex = '^(\d\d\d\d)\s*[–--\/]\s*(\d\d\d\d)$'
-                circa_period_regex = '^(about|[cC]\.)\s*(\d\d\d\d)\s*[–--\/]\s*(\d\d\d\d)$'
-                short_period_regex = '^(\d\d)(\d\d)[–--\/](\d\d)$'
-                circa_short_period_regex = '^(about|[cC]\.)\s*(\d\d)(\d\d)[–-–/](\d\d)$'
+                period_regex = '^(\d\d\d\d)\s*[–\--\/]\s*(\d\d\d\d)$'
+                circa_period_regex = '^(about|[cC]\.)\s*(\d\d\d\d)\s*[–\--\/]\s*(\d\d\d\d)$'
+                short_period_regex = '^(\d\d)(\d\d)[–\--\/](\d\d)$'
+                circa_short_period_regex = '^(about|[cC]\.)\s*(\d\d)(\d\d)[–\-–/](\d\d)$'
 
                 year_match = re.match(year_regex, date)
                 date_circa_match = re.match(date_circa_regex, date)
