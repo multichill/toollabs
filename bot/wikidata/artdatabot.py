@@ -643,7 +643,7 @@ class ArtDataBot:
         if 'P195' in claims:
             for collectionclaim in claims.get('P195'):
                 # Would like to use collectionclaim.has_qualifier(u'P580')
-                if collectionclaim.getTarget().title() == metadata.get('collectionqid'):
+                if collectionclaim.getTarget() and collectionclaim.getTarget().title() == metadata.get('collectionqid'):
                     if acquisitiondate and not collectionclaim.qualifiers.get('P580'):
                         colqualifier = pywikibot.Claim(self.repo, 'P580')
                         colqualifier.setTarget(acquisitiondate)
