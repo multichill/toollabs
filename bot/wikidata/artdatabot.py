@@ -702,10 +702,10 @@ class ArtDataBot:
                 #if metadata.get('extraid'):
                 #    self.addExtraId(item, metadata.get('extraid'), metadata.get('extracollectionqid'), metadata)
 
-        if metadata.get('collectionqid'):
-            self.addCollection(item, metadata.get('collectionqid'), metadata)
-            if metadata.get('id'):
-                self.addExtraId(item, metadata.get('id'), metadata.get('collectionqid'), metadata)
+        #if metadata.get('collectionqid'):
+        #    self.addCollection(item, metadata.get('collectionqid'), metadata)
+        #    if metadata.get('id'):
+        #        self.addExtraId(item, metadata.get('id'), metadata.get('collectionqid'), metadata)
 
         if metadata.get('extracollectionqid'):
             self.addCollection(item, metadata.get('extracollectionqid'), metadata)
@@ -1490,6 +1490,12 @@ class ArtDataIdentifierBot(ArtDataBot):
 
         # Add to self.artworkIds so that we don't create dupes
         self.artwork_ids[metadata['artworkid']] = artwork_item_title
+
+        # Only add the collection and inventory number at creation to prevent messy data
+        if metadata.get('collectionqid'):
+            self.addCollection(artwork_item, metadata.get('collectionqid'), metadata)
+            if metadata.get('id'):
+                self.addExtraId(artwork_item, metadata.get('id'), metadata.get('collectionqid'), metadata)
 
         return artwork_item
 
