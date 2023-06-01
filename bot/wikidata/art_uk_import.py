@@ -43,9 +43,15 @@ def get_art_uk_generator(start_search_page):
     art_uk_collections = get_lookup_table('P1751')
     art_uk_venues = get_lookup_table('P1602')
 
+    # FIXME: Max 500 search pages so need to split up the search
+
     i = start_search_page
     load_more = True
-    base_search_url = u'http://artuk.org/discover/artworks/search/work_type:painting/page/%s/sort_by/date_earliest/order/asc?_ajax=1'
+
+    # FIXME: Make year buckets so I don't go over 500 pages
+
+    base_search_url = 'https://artuk.org/discover/artworks/search/work_type:painting/page/%s/sort_by/date_earliest/order/asc?_ajax=1'
+    # base_search_url = 'https://artuk.org/discover/artworks/search/date-from:1700--date-to:1750--work_type:painting/sort_by/date_earliest/order/asc/page/%s?_ajax=1'
     while load_more:
         search_url = base_search_url % (i, )
         pywikibot.output('WORKING ON SEARCH PAGE %s with url %s' % (i, search_url))
@@ -67,7 +73,6 @@ def get_art_uk_generator(start_search_page):
             url = u'http://artuk.org/discover/artworks/%s' % (art_uk_id,)
             metadata['artworkidpid'] = 'P1679'
             metadata['artworkid'] = art_uk_id
-            metadata['instanceofqid'] = 'Q3305213'
 
             item_page = requests.get(url)
             pywikibot.output(url)
@@ -75,6 +80,21 @@ def get_art_uk_generator(start_search_page):
 
             # Sends ISO-8859-1, but is actually utf-8
             item_page.encoding = item_page.apparent_encoding
+
+            work_typeregex = '<h5>Work type</h5>[\s\t\r\n]+<p>\s*([^<]+)\s*</p>'
+            work_type_match = re.search(work_typeregex, item_page.text)
+
+            if not work_type_match:
+                # Just skip it
+                continue
+            work_type = html.unescape(work_type_match.group(1)).strip().lower()
+
+            work_types = {'painting': 'Q3305213',
+                          }
+            if work_type in work_types:
+                metadata['instanceofqid'] = work_types.get(work_type)
+            else:
+                continue
 
             title_regex = '<h1 class="artwork-title">([^<]+)</h1>'
             title_match = re.search(title_regex, item_page.text)
@@ -95,8 +115,11 @@ def get_art_uk_generator(start_search_page):
             artist_id = None
             if creator_match:
                 artist_id = html.unescape(creator_match.group(1))
+                # TODO: How to deal with different types of attributions? Just sort out later?
+                # maybe add object named as as qualifier/reference?
                 if artist_id in art_uk_artists:
                     metadata['creatorqid'] = art_uk_artists.get(artist_id)
+                # Make a static list of anonymous like english school
                 name = html.unescape(creator_match.group(2)).replace('\t', '').replace('\n', '').strip()
                 metadata['creatorname'] = name
 
@@ -113,6 +136,7 @@ def get_art_uk_generator(start_search_page):
                         metadata['collectionqid'] = art_uk_collections.get(venue_id)
                 elif venue_type == 'venues':
                     if venue_id in art_uk_venues:
+                        # FIXME: Adding too many collections now
                         metadata['collectionqid'] = art_uk_venues.get(venue_id)
                         metadata['locationqid'] = art_uk_venues.get(venue_id)
 
