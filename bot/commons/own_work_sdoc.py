@@ -617,7 +617,11 @@ class OwnWorkBot:
                     if field.lower().startswith(u'author'):
                         match = re.match(authorRegex, field)
                         if match:
-                            authorPage = pywikibot.User(self.site, match.group(1))
+                            try:
+                                authorPage = pywikibot.User(self.site, match.group(1))
+                            except pywikibot.exceptions.InvalidTitleError:
+                                # Sometimes weird junk in the field. Just skip it
+                                return False
                             authorName = match.group(2).strip()
                             return (authorPage, authorName)
                         # The author regex didn't match. Let's get the uploader in the log to compare
