@@ -232,6 +232,12 @@ class ArtDataBot:
         # Add instance of (P31) to the item.
         self.addItemStatement(artworkItem, u'P31', metadata.get(u'instanceofqid'), metadata.get(u'refurl'), queue=True)
 
+        # Add collection (P195) to the item (if it doesn't already have that statement).
+        self.addItemStatement(artworkItem, 'P195', metadata.get(u'collectionqid'), metadata.get(u'refurl'), queue=True)
+
+        # Add inventory number (P217) to the item (if it doesn't already have that statement).
+        self.add_inventory_number(artworkItem, metadata, queue=True)
+
         # Add location (P276) to the item.
         self.addItemStatement(artworkItem, u'P276', metadata.get(u'locationqid'), metadata.get(u'refurl'), queue=True)
 
@@ -354,14 +360,21 @@ class ArtDataBot:
                 except pywikibot.exceptions.OtherPageSaveError: # pywikibot.exceptions.APIError:
                     # We got ourselves a duplicate label and description, let's correct that by adding collection and the id
                     descriptions = copy.deepcopy(item.get().get('descriptions'))
-                    pywikibot.output(u'Oops, already had that label/description combination. Trying again')
-                    if metadata.get('collectionshort'):
+                    disambiguation_text = None
+                    if metadata.get('collectionshort') and metadata.get('id'):
+                        disambiguation_text = '%s %s' % (metadata['collectionshort'], metadata['id'],)
+                    elif metadata.get('artworkid'):
+                        disambiguation_text = metadata['artworkid']
+                    if disambiguation_text:
+                        pywikibot.output(u'Oops, already had that label/description combination. Trying again')
                         for lang, description in metadata['description'].items():
                             if lang not in descriptions:
-                                descriptions[lang] = u'%s (%s %s)' % (description,
-                                                                      metadata['collectionshort'],
-                                                                      metadata['id'],)
-                        item.editDescriptions(descriptions, summary=summary)
+                                descriptions[lang] = '%s (%s)' % (description, disambiguation_text,)
+                        try:
+                            item.editDescriptions(descriptions, summary=summary)
+                        except pywikibot.exceptions.OtherPageSaveError:
+                            pywikibot.output('Disambiguation (%s) did not work, skipping' % (disambiguation_text,))
+
 
     def add_creator(self, item, metadata, queue=False):
         """
@@ -448,6 +461,43 @@ class ArtDataBot:
         else:
             self.addReference(item, newclaim, metadata.get('refurl'))
 
+    def add_inventory_number(self, item, metadata, queue=False):
+        """
+        Add the inventory number (P217) if item doesn't have one yet
+        :param item: The artwork item to work on
+        :param metadata: All the metadata about this artwork, should contain the title field as a dict
+        :param queue:
+        :return:
+        """
+        claims = item.get().get('claims')
+
+        if 'P217' in claims:
+            # Already has an inventory number. Just skip.
+            return
+        if metadata.get('idpid') == 'P217' and metadata.get('id') and metadata.get('collectionqid'):
+            newclaim = pywikibot.Claim(self.repo, 'P217')
+            newclaim.setTarget(metadata.get('id'))
+
+            if not queue:
+                pywikibot.output('Adding inventory number claim to %s' % item)
+                item.addClaim(newclaim)
+
+            newqualifier = pywikibot.Claim(self.repo, 'P195')
+            newqualifier.setTarget(pywikibot.ItemPage(self.repo, metadata.get('collectionqid')))
+            if queue:
+                self.queue_qualifier(newclaim, newqualifier)
+            else:
+                pywikibot.output('Adding new collection qualifier claim to %s' % item)
+                newclaim.addQualifier(newqualifier)
+
+            if queue:
+                self.addReference(item, newclaim, metadata['refurl'], queue=True)
+                self.statements_queue.append(newclaim.toJSON())
+            else:
+                self.addReference(item, newclaim, metadata[u'refurl'])
+
+
+            return
     def addTitle(self, item, metadata, queue=False):
         """
         Add the title (P1476) to the item. For now just skip items that already have a title
@@ -1491,11 +1541,12 @@ class ArtDataIdentifierBot(ArtDataBot):
         # Add to self.artworkIds so that we don't create dupes
         self.artwork_ids[metadata['artworkid']] = artwork_item_title
 
-        # Only add the collection and inventory number at creation to prevent messy data
-        if metadata.get('collectionqid'):
-            self.addCollection(artwork_item, metadata.get('collectionqid'), metadata)
-            if metadata.get('id'):
-                self.addExtraId(artwork_item, metadata.get('id'), metadata.get('collectionqid'), metadata)
+        # Moved to the generic bot
+        ## Only add the collection and inventory number at creation to prevent messy data
+        #if metadata.get('collectionqid'):
+        #    self.addCollection(artwork_item, metadata.get('collectionqid'), metadata)
+        #    if metadata.get('id'):
+        #        self.addExtraId(artwork_item, metadata.get('id'), metadata.get('collectionqid'), metadata)
 
         return artwork_item
 
