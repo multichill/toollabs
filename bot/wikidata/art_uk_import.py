@@ -128,18 +128,21 @@ def get_search_page_generator(start_year, start_search_page, venue=None, collect
             i += 1
             yield search_page
 
-def get_all_generator(base_search_url, all_list):
+def get_all_generator(filter_type, all_list):
     for target in all_list:
-        for id in get_art_uk_ids(base_search_url, target):
+        for id in get_art_uk_ids(filter_type, target):
             yield id
 
 
-def get_art_uk_ids(base_search_url, target):
+def get_art_uk_ids(filter_type, target):
+    base_search_url = 'https://artuk.org/discover/artworks/search/work_type:painting--%s:%s/page/%s?_ajax=1'
+    postdata = { 'work_type': 'Painting', filter_type: target}
     load_more = True
     i = 1
+    requests.post('https://artuk.org/discover/artworks/search/work_type:painting', data=postdata)
     while load_more:
-        search_url = base_search_url % (target, i, )
-        pywikibot.output('WORKING ON TARGET %s SEARCH PAGE %s with url %s' % (target, i, search_url))
+        search_url = base_search_url % (filter_type, target, i, )
+        pywikibot.output('WORKING ON %s TARGET %s SEARCH PAGE %s with url %s' % (filter_type, target, i, search_url))
         search_page = requests.get(search_url, headers={'X-Requested-With': 'XMLHttpRequest', })
         search_json = search_page.json()
         load_more = search_json.get('load_more')
@@ -165,7 +168,6 @@ def get_incomplete_item_generator(pid):
   ?item wdt:P1679 ?id ;
         wdt:P31 wd:Q3305213 .
   MINUS { ?item wdt:%s [] }
-  MINUS { ?item schema:description  ?description.   FILTER(LANG(?description)="en") }  
   }""" % (pid, )
     sq = pywikibot.data.sparql.SparqlQuery()
     queryresult = sq.select(query)
@@ -209,23 +211,17 @@ def get_art_uk_generator(generator_type, target=None, only_new=None):
     generator = None
 
     if generator_type == 'all_artists':
-        base_search_url = 'https://artuk.org/discover/artworks/search/work_type:painting--actor:%s/page/%s?_ajax=1'
-        generator = get_all_generator(base_search_url, art_uk_artists)
+        generator = get_all_generator('actor', art_uk_artists)
     elif generator_type == 'all_collections':
-        base_search_url = 'https://artuk.org/discover/artworks/search/work_type:painting--collection:%s/page/%s?_ajax=1'
-        generator = get_all_generator(base_search_url, art_uk_collections)
+        generator = get_all_generator('collection', art_uk_collections)
     elif generator_type == 'all_venues':
-        base_search_url = 'https://artuk.org/discover/artworks/search/work_type:painting--venue:%s/page/%s?_ajax=1'
-        generator = get_all_generator(base_search_url, art_uk_venues)
-    elif generator_type == 'artist' and target:
-        base_search_url = 'https://artuk.org/discover/artworks/search/work_type:painting--actor:%s/page/%s?_ajax=1'
-        generator = get_art_uk_ids(base_search_url, target)
+        generator = get_all_generator('venue', art_uk_venues)
+    elif generator_type == 'actor' and target:
+        generator = get_art_uk_ids('artist', target)
     elif generator_type == 'collection' and target:
-        base_search_url = 'https://artuk.org/discover/artworks/search/work_type:painting--collection:%s/page/%s?_ajax=1'
-        generator = get_art_uk_ids(base_search_url, target)
+        generator = get_art_uk_ids('collection', target)
     elif generator_type == 'venue' and target:
-        base_search_url = 'https://artuk.org/discover/artworks/search/work_type:painting--venue:%s/page/%s?_ajax=1'
-        generator = get_art_uk_ids(base_search_url, target)
+        generator = get_art_uk_ids('venue', target)
     elif generator_type == 'incomplete' and target:
         generator = get_incomplete_item_generator(target)
     else:
@@ -354,6 +350,10 @@ def get_art_uk_generator(generator_type, target=None, only_new=None):
             circa_period_regex = '^(about|[cC]\.)\s*(\d\d\d\d)\s*[–\--\/]\s*(\d\d\d\d)$'
             short_period_regex = '^(\d\d)(\d\d)[–\--\/](\d\d)$'
             circa_short_period_regex = '^(about|[cC]\.)\s*(\d\d)(\d\d)[–\-–/](\d\d)$'
+            century_regex = '^(\d\d)th C$'
+            in_century_regex = '^(early |mid-|late )(\d\d)th C$'
+            decade_regex = '^(\d\d\d\d)s$'
+            in_decade_regex = '^([cC]\.|early |mid-|late )(\d\d\d\d)s$'
 
             year_match = re.match(year_regex, date)
             date_circa_match = re.match(date_circa_regex, date)
@@ -361,6 +361,10 @@ def get_art_uk_generator(generator_type, target=None, only_new=None):
             circa_period_match = re.match(circa_period_regex, date)
             short_period_match = re.match(short_period_regex, date)
             circa_short_period_match = re.match(circa_short_period_regex, date)
+            century_match = re.match(century_regex, date)
+            in_century_match = re.match(in_century_regex, date)
+            decade_match = re.match(decade_regex, date)
+            in_decade_match = re.match(in_decade_regex, date)
 
             if year_match:
                 # Don't worry about cleaning up here.
@@ -382,7 +386,28 @@ def get_art_uk_generator(generator_type, target=None, only_new=None):
                 metadata['inceptionstart'] = int('%s%s' % (circa_short_period_match.group(2), circa_short_period_match.group(3), ))
                 metadata['inceptionend'] = int('%s%s' % (circa_short_period_match.group(2), circa_short_period_match.group(4), ))
                 metadata['inceptioncirca'] = True
+            elif century_match:
+                metadata['inception'] = int('%s00' % (century_match.group(1),)) - 50  # Put it in the middle
+                metadata['inceptionprecision'] = 'century'
+                print(date)
+                print(date)
+                print(date)
+                print(metadata['inception'])
+                print(metadata['inception'])
+                print(metadata['inception'])
+            elif decade_match:
+                metadata['inception'] = int(decade_match.group(1),) + 5  # Put it in the middle
+                metadata['inceptionprecision'] = 'decade'
+                print(date)
+                print(date)
+                print(date)
+                print(metadata['inception'])
+                print(metadata['inception'])
+                print(metadata['inception'])
             else:
+                print('Could not parse date: "%s"' % (date,))
+                print('Could not parse date: "%s"' % (date,))
+                print('Could not parse date: "%s"' % (date,))
                 print('Could not parse date: "%s"' % (date,))
 
         medium_regex = '<h5>Medium</h5>[\s\t\r\n]+<p>([^\<]+)</p>'
