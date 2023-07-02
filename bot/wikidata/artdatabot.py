@@ -248,7 +248,7 @@ class ArtDataBot:
         self.add_creator(artworkItem, metadata, queue=True)
 
         # Add inception (P571) to the item.
-        self.addInception(artworkItem, metadata, queue=True)
+        self.add_inception(artworkItem, metadata, queue=True)
 
         # Add location of creation (P1071) to the item.
         self.addItemStatement(artworkItem, u'P1071', metadata.get(u'madeinqid'), metadata.get(u'refurl'), queue=True)
@@ -532,39 +532,66 @@ class ArtDataBot:
                             pywikibot.output(u'The title was malformed, skipping it')
                             pass
 
-    def addInception(self, item, metadata, queue=False):
+    def add_inception(self, item, metadata, queue=False):
         """
         Add the inception to the item.
 
         :param item: The artwork item to work on
-        :param metadata: All the metadata about this artwork, should contain the imageurl field
+        :param metadata: All the metadata about this artwork, should contain the inception field
         :return:
         """
         claims = item.get().get('claims')
 
-        if u'P571' in claims:
-            # Already has inception
+        if 'P571' in claims:
+            # Already has inception. Could add logic for sourcing
             return
 
-        if metadata.get(u'inception'):
-            if type(metadata[u'inception']) is int or (len(metadata[u'inception'])==4 and \
-                                                               metadata[u'inception'].isnumeric()): # It's a year
-                #FIXME: Xqt broke this. Need to make sure it's an int
-                newdate = pywikibot.WbTime(year=metadata[u'inception'])
-                newclaim = pywikibot.Claim(self.repo, u'P571')
+        if metadata.get('inception'):
+            if type(metadata['inception']) is int or (len(metadata['inception'])==4 and \
+                                                               metadata['inception'].isnumeric()):  # It's a year
+                if metadata.get('inceptionprecision'):
+                    if metadata.get('inceptionprecision') == 'decade':
+                        precision = 8  # decade
+                    elif metadata.get('inceptionprecision') == 'century':
+                        precision = 7  # century
+                    else:
+                        pywikibot.output('Invalid precision "%s", skipping' % (metadata.get('inceptionprecision'),))
+                        return
+                    newdate = pywikibot.WbTime(year=int(metadata['inception']), precision=precision)
+                else:
+                    newdate = pywikibot.WbTime(year=int(metadata['inception']))
+                newclaim = pywikibot.Claim(self.repo, 'P571')
                 newclaim.setTarget(newdate)
                 if not queue:
                     pywikibot.output('Adding date of creation claim to %s' % item)
                     item.addClaim(newclaim)
 
                 # Handle circa dates
-                if metadata.get(u'inceptioncirca'):
-                    newqualifier = pywikibot.Claim(self.repo, u'P1480')
-                    newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q5727902'))
+                if metadata.get('inceptioncirca'):
+                    newqualifier = pywikibot.Claim(self.repo, 'P1480')
+                    newqualifier.setTarget(pywikibot.ItemPage(self.repo, 'Q5727902'))
                     if queue:
                         self.queue_qualifier(newclaim, newqualifier)
                     else:
                         pywikibot.output('Adding new circa qualifier claim to %s' % item)
+                        newclaim.addQualifier(newqualifier)
+
+                # Handle refine dates
+                if metadata.get('inceptionrefine'):
+                    refine_dates = {'beginning of': 'Q40719727',
+                                    'middle of': 'Q40719748',
+                                    'end of': 'Q40719766',
+                                    }
+                    if metadata.get('inceptionrefine') not in refine_dates:
+                        pywikibot.output('Invalid refine date "%s", skipping' % (metadata.get('inceptionrefine'),))
+                        return
+                    refine_date = refine_dates.get(metadata.get('inceptionrefine'))
+                    newqualifier = pywikibot.Claim(self.repo, 'P4241')
+                    newqualifier.setTarget(pywikibot.ItemPage(self.repo, refine_date))
+                    if queue:
+                        self.queue_qualifier(newclaim, newqualifier)
+                    else:
+                        pywikibot.output('Adding new refine date qualifier claim to %s' % item)
                         newclaim.addQualifier(newqualifier)
 
                 if queue:
