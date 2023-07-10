@@ -97,7 +97,7 @@ class DepictsMonumentsBot:
         :param mediaid: The entity ID (like M1234, pageid prefixed with M)
         :return: json
             """
-        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
+        request = self.site.simple_request(action='wbgetentities',ids=mediaid)
         data = request.submit()
         if data.get(u'entities').get(mediaid).get(u'pageid'):
             return data.get(u'entities').get(mediaid)
@@ -186,7 +186,7 @@ class DepictsMonumentsBot:
                 # This only works when the entity has been created
                 postdata['baserevid'] = currentdata.get('lastrevid')
 
-            request = self.site._simple_request(**postdata)
+            request = self.site.simple_request(**postdata)
             try:
                 data = request.submit()
                 # Always touch the page to flush it
@@ -282,7 +282,7 @@ def main(*args):
                         u'Please enter the property you want to work on:')
             else:
                 monumentproperty = arg[18:]
-        elif genFactory.handleArg(arg):
+        elif genFactory.handle_arg(arg):
             continue
 
     config = getDepictsMonumentsConfig()
