@@ -134,6 +134,7 @@ def get_balat_generator(balat_search_string, collectionid=None):
 
             if collectionid:
                 metadata['collectionqid'] = collectionid
+                metadata['locationqid'] = collectionid
 
             # Institution place
             place_regex = '<strong>Institution place</strong>:\s*</div><div class=\'three-fifth last\'><a class=\'lite1\' href=\'results\.php\?[^\']+\'>([^<]+)</a>'
@@ -142,18 +143,32 @@ def get_balat_generator(balat_search_string, collectionid=None):
                 metadata['location_name'] = html.unescape(place_match.group(1)).strip()
 
             # Institution
-            # TODO: Also handle case where we have repository and that other thing
             # https://balat.kikirpa.be/object/153627
             institution_regex = '<strong>Institution</strong>:\s*</div><div class=\'three-fifth last\'><a class=\'lite1\' href=\'results\.php\?[^\']+\'>([^<]+)</a>'
+            instiution_repository_regex = '<strong>Institution \(repository\)</strong>:\s*</div><div class=\'three-fifth last\'><a class=\'lite1\' href=\'results\.php\?[^\']+\'>([^<]+)</a>'
+            instiution_owner_regex = '<strong>Institution \(owner\)</strong>:\s*</div><div class=\'three-fifth last\'>([^<]+)</div'
             institution_match = re.search(institution_regex, item_page.text)
+            instiution_repository_match = re.search(instiution_repository_regex, item_page.text)
+            instiution_owner_match = re.search(instiution_owner_regex, item_page.text)
             if institution_match:
                 metadata['collection_name'] = html.unescape(institution_match.group(1)).strip()
+            elif instiution_repository_match and instiution_owner_match:
+                instiution_repository = html.unescape(instiution_repository_match.group(1)).strip()
+                instiution_owner = html.unescape(instiution_owner_match.group(1)).strip()
+                metadata['collection_name'] = '%s / %s' % (instiution_repository, instiution_owner)
+            elif instiution_repository_match:
+                metadata['collection_name'] = html.unescape(instiution_repository_match.group(1)).strip()
 
             # Creator
             # TODO: Handle attribution
             # TODO: Do something with multiple creators?
             creator_date_regex = '<strong>Creator</strong>:\s*</div><div class=\'three-fifth last\'><a class="lite1" href="results\.php\?[^"]+">([^<]+)</a>\s*\([^\)]+\)\s*<a href="people\.php\?[^"]+" title="People & institutions">\s*<i class="icon-user-1"></i></a><br/>Date:\s*([^<]+)</div>'
+            #creator_date_regex = '<strong>Creator</strong>:\s*</div><div class=\'three-fifth last\'><a class="lite1" href="results\.php\?[^"]+">([^<]+)</a>\s*\(schilder\)\s*<a href="people\.php\?[^"]+" title="People & institutions">\s*<i class="icon-user-1"></i></a><br/>Date:\s*([^<]+)</div>'
+            uncertain_creator_date_regex = '<strong>Creator</strong>:\s*</div><div class=\'three-fifth last\'><a class="lite1" href="results\.php\?[^"]+">([^<]+)</a>\s*\([^\)]+\)\s*\(([^\)]+)\)\s*<a href="people\.php\?[^"]+" title="People & institutions">\s*<i class="icon-user-1"></i></a><br/>Date:\s*([^<]+)</div>'
+            #uncertain_creator_date_regex = '<strong>Creator</strong>:\s*</div><div class=\'three-fifth last\'><a class="lite1" href="results\.php\?[^"]+">([^<]+)</a>\s*\(schilder\)\s*\(([^\)]+)\)\s*<a href="people\.php\?[^"]+" title="People & institutions">\s*<i class="icon-user-1"></i></a><br/>Date:\s*([^<]+)</div>'
             creator_date_match = re.search(creator_date_regex, item_page.text)
+            uncertain_creator_date_match = re.search(uncertain_creator_date_regex, item_page.text)
+            date = None
             if creator_date_match:
                 creatorname = html.unescape(creator_date_match.group(1)).strip()
                 metadata['creatorname_raw'] = creatorname
@@ -181,7 +196,26 @@ def get_balat_generator(balat_search_string, collectionid=None):
                                                                        metadata.get('creatorname'),
                                                                        metadata.get('collection_name'),),
                                                }
+            elif uncertain_creator_date_match:
+                creatorname = html.unescape(uncertain_creator_date_match.group(1)).strip()
+                creatorrole = html.unescape(uncertain_creator_date_match.group(2)).strip()
+                date = html.unescape(uncertain_creator_date_match.group(3)).strip()
 
+                metadata['creatorname_raw'] = '%s (%s)' % (creatorname, creatorrole)
+                metadata['date_raw'] = date
+
+                creator_regex = '^([^,]+), ([^,]+)$'
+                creator_match = re.match(creator_regex, creatorname)
+                if creator_match:
+                    creatorname = '%s %s' % (creator_match.group(2), creator_match.group(1))
+                metadata['creatorname'] = '%s (%s)' % (creatorname, creatorrole)
+                if metadata.get('collection_name'):
+                    metadata['description'] = {'nl': '%s van %s, %s' % ('schilderij',
+                                                                        metadata.get('creatorname'),
+                                                                        metadata.get('collection_name')),
+                                               }
+
+            if date:
                 # TODO: Implement date logic
                 year_regex = '^(\d\d\d\d) - (\d\d\d\d)$'
                 year_circa_regex = '^(\d\d\d\d) \(ca\) - (\d\d\d\d) \(ca\)$'
@@ -208,137 +242,44 @@ def get_balat_generator(balat_search_string, collectionid=None):
                     print('Could not parse date: "%s"' % (date,))
                     print('Could not parse date: "%s"' % (date,))
             # Materal
+            found_materials = set()
+            material_regex = '<a class="lite1" href="results.php\?linkthrough\=MA&linkval=[^"]+">([^<]+)</a>'
+            for material_match in re.finditer(material_regex, item_page.text):
+                material = html.unescape(material_match.group(1)).strip()
+                found_materials.add(material)
+
+            if found_materials:
+                if found_materials == {'olieverf', 'schilderdoek'}:
+                    metadata['medium'] = 'oil on canvas'
+                elif found_materials == {"peinture à l'huile", 'toile à peindre'}:
+                    metadata['medium'] = 'oil on canvas'
+                elif found_materials == {'verf', 'schilderdoek'}:
+                    metadata['medium'] = 'paint on canvas'
+                elif found_materials == {'olieverf', 'paneel[drager]'}:
+                    metadata['medium'] = 'oil on panel'
+                elif found_materials == {"peinture à l'huile", 'bois'}:
+                    metadata['medium'] = 'oil on panel'
+                elif found_materials == {'paneel[drager]', 'eik', 'olieverf'}:
+                    metadata['medium'] = 'oil on oak panel'
+                else:
+                    print(found_materials)
+                    print(found_materials)
+                    print(found_materials)
+                    print(found_materials)
+
+            # Movement
+            # See https://balat.kikirpa.be/object/20024607
 
             # Technique
 
             # Dimensions
-
-            yield metadata
-            continue
-
-            # Sends ISO-8859-1, but is actually utf-8
-            #item_page.encoding = item_page.apparent_encoding
-
-            work_typeregex = '<h5>Work type</h5>[\s\t\r\n]+<p>\s*([^<]+)\s*</p>'
-            work_type_match = re.search(work_typeregex, item_page.text)
-
-
-
-            title_regex = '<h1 class="artwork-title">([^<]+)</h1>'
-            title_match = re.search(title_regex, item_page.text)
-
-            if title_match:
-                title = html.unescape(title_match.group(1)).strip()
-
-                # Chop chop, might have long titles
-                if len(title) > 220:
-                    title = title[0:200]
-                title = title.replace('\t', '').replace('\n', '').strip()
-                metadata['title'] = {'en': title, }
-
-            creator_regex = '<h2 class="artist">[\s\t\r\n]+<a href="https://artuk.org/discover/artists/([^"]+\d+)">[\s\t\r\n]+([^<]+)[\s\t\r\n]+</a>'
-            creator_match = re.search(creator_regex, item_page.text)
-
-            name = None
-            artist_id = None
-            if creator_match:
-                artist_id = html.unescape(creator_match.group(1))
-                # TODO: How to deal with different types of attributions? Just sort out later?
-                # maybe add object named as as qualifier/reference?
-                if artist_id in art_uk_artists:
-                    metadata['creatorqid'] = art_uk_artists.get(artist_id)
-                # Make a static list of anonymous like english school
-                name = html.unescape(creator_match.group(2)).replace('\t', '').replace('\n', '').strip()
-                metadata['creatorname'] = name
-
-            venue_regex = '<h3 class="venue">[\s\t\r\n]+<a href="https://artuk.org/visit/(collection|venues)/([^"]+\d+)">[\s\t\r\n]+([^<]+)[\s\t\r\n]+</a>'
-            venue_match = re.search(venue_regex, item_page.text)
-
-            venue = None
-            if venue_match:
-                venue_type = html.unescape(venue_match.group(1))
-                venue_id = html.unescape(venue_match.group(2))
-
-                if venue_type == 'collection':
-                    if venue_id in art_uk_collections:
-                        metadata['collectionqid'] = art_uk_collections.get(venue_id)
-                elif venue_type == 'venues':
-                    if venue_id in art_uk_venues:
-                        # FIXME: Adding too many collections now
-                        metadata['collectionqid'] = art_uk_venues.get(venue_id)
-                        metadata['locationqid'] = art_uk_venues.get(venue_id)
-
-
-                venue = html.unescape(venue_match.group(3)).replace('\t', '').replace('\n', '').strip()
-                metadata['collectionshort'] = venue
-
-            if name and venue:
-                metadata['description'] = {'en': 'painting by %s, %s' % (name, venue,), }
-
-            if metadata.get('collectionqid'):
-                inv_regex = '<h5>Accession number</h5>[\s\t\r\n]+<p>([^\<]+)</p>'
-                inv_match = re.search(inv_regex, item_page.text)
-                if inv_match:
-                    metadata['idpid'] = 'P217'
-                    metadata['id'] = html.unescape(inv_match.group(1)).strip()
-                acquisition_date_regex = '<h5>Acquisition method</h5>[\s\t\r\n]+<p>[^\<]+, (\d\d\d\d)</p>'
-                acquisition_date_match = re.search(acquisition_date_regex, item_page.text)
-                if acquisition_date_match:
-                    metadata['acquisitiondate'] = acquisition_date_match.group(1)
-
-            date_regex = '<h5>Date</h5>[\s\t\r\n]+<p>\s*([^<]+)\s*</p>'
-            date_match = re.search(date_regex, item_page.text)
-            if date_match:
-                date = html.unescape(date_match.group(1)).strip()
-
-                year_regex = '^(\d\d\d\d)$'
-                date_circa_regex = '^(about|[cC]\.)\s*(\d\d\d\d)$'
-                period_regex = '^(\d\d\d\d)\s*[–\--\/]\s*(\d\d\d\d)$'
-                circa_period_regex = '^(about|[cC]\.)\s*(\d\d\d\d)\s*[–\--\/]\s*(\d\d\d\d)$'
-                short_period_regex = '^(\d\d)(\d\d)[–\--\/](\d\d)$'
-                circa_short_period_regex = '^(about|[cC]\.)\s*(\d\d)(\d\d)[–\-–/](\d\d)$'
-
-                year_match = re.match(year_regex, date)
-                date_circa_match = re.match(date_circa_regex, date)
-                period_match = re.match(period_regex, date)
-                circa_period_match = re.match(circa_period_regex, date)
-                short_period_match = re.match(short_period_regex, date)
-                circa_short_period_match = re.match(circa_short_period_regex, date)
-
-                if year_match:
-                    # Don't worry about cleaning up here.
-                    metadata['inception'] = int(year_match.group(1))
-                elif date_circa_match:
-                    metadata['inception'] = int(date_circa_match.group(2))
-                    metadata['inceptioncirca'] = True
-                elif period_match:
-                    metadata['inceptionstart'] = int(period_match.group(1),)
-                    metadata['inceptionend'] = int(period_match.group(2),)
-                elif circa_period_match:
-                    metadata['inceptionstart'] = int(circa_period_match.group(2),)
-                    metadata['inceptionend'] = int(circa_period_match.group(3),)
-                    metadata['inceptioncirca'] = True
-                elif short_period_match:
-                    metadata['inceptionstart'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(2), ))
-                    metadata['inceptionend'] = int('%s%s' % (short_period_match.group(1), short_period_match.group(3), ))
-                elif circa_short_period_match:
-                    metadata['inceptionstart'] = int('%s%s' % (circa_short_period_match.group(2), circa_short_period_match.group(3), ))
-                    metadata['inceptionend'] = int('%s%s' % (circa_short_period_match.group(2), circa_short_period_match.group(4), ))
-                    metadata['inceptioncirca'] = True
-                else:
-                    print('Could not parse date: "%s"' % (date,))
-
-            medium_regex = '<h5>Medium</h5>[\s\t\r\n]+<p>([^\<]+)</p>'
-            medium_match = re.search(medium_regex, item_page.text)
-            if medium_match:
-                metadata['medium'] = html.unescape(medium_match.group(1)).strip().lower()
-
-            dimensions_regex = '<h5>Measurements</h5>[\s\t\r\n]+<p>H\s*(?P<height>\d+(\.\d+)?)\s*x\s*W\s*(?P<width>\d+(\.\d+)?)\s*cm</p>'
+            #dimensions_regex = '<strong>Creator</strong>:\s*</div><div class=\'three-fifth last\'><a class="lite1" href="results\.php\?[^"]+">([^<]+)</a>\s*\([^\)]+\)\s*<a href="people\.php\?[^"]+" title="People & institutions">\s*<i class="icon-user-1"></i></a><br/>Date:\s*([^<]+)</div>'
+            dimensions_regex = '<strong>Dimensions</strong>:\s*<br/>\s*</div><div class\=\'three-fifth last\'><i>hoogte</i>:\s*(?P<height>\d+(\.\d+)?)\s*cm<br/>\s*<i>breedte</i>:\s*(?P<width>\d+(\.\d+)?)\s*cm</div><div class="clear">'
+            #dimensions_regex = '<h5>Measurements</h5>[\s\t\r\n]+<p>H\s*(?P<height>\d+(\.\d+)?)\s*x\s*W\s*(?P<width>\d+(\.\d+)?)\s*cm</p>'
             dimensions_match = re.search(dimensions_regex, item_page.text)
             if dimensions_match:
                 metadata['heightcm'] = dimensions_match.group('height')
                 metadata['widthcm'] = dimensions_match.group('width')
-
             yield metadata
 
 
@@ -368,6 +309,10 @@ def main(*args):
                    'Q938154': 'Sint-Baafskathedraal[Gent]',  # Saint Bavo Cathedral (Q938154)
                    'Q2662909': 'Rockoxhuis',  # Museum Nicolaas Rockox - Het Rockoxhuis (Q2662909)
                    'Q49425918': 'Groot+Seminarie[Mechelen]',  # Grand Seminary Mechelen (Q49425918)
+                   'Q3044768': 'Musée+du+Louvre',  # Department of Paintings of the Louvre (Q3044768)
+                   'Q2628596': 'Musée+des+Beaux-Arts[Lille%2C+FR]',  # Palais des Beaux-Arts de Lille (Q2628596)
+                   'Q2536986': 'Koninklijke+Verzameling+België',  # Royal Collection of Belgium (Q2536986)
+                   'Q595802': 'Museum+Plantin-Moretus%2FPrentenkabinet',  # Museum Plantin-Moretus (Q595802)
                    }
 
     for arg in pywikibot.handle_args(args):
