@@ -34,7 +34,7 @@ class FriedlanderMatcher:
             self.friedlander_artists[friedlander_artist].append(artwork)
 
             if artwork.get('location').strip():
-                friedlander_location = artwork.get('location')
+                friedlander_location = artwork.get('location').strip()
                 if friedlander_location not in self.friedlander_locations:
                     self.friedlander_locations[friedlander_location] = []
                 self.friedlander_locations[friedlander_location].append(artwork)
@@ -81,22 +81,107 @@ class FriedlanderMatcher:
                         'Petrus Christus': 'Q312616',
                         'Rogier van der Weyden': 'Q68631',
                         }
-        self.locations = {'Alte Pinakothek': 'Q154568',
+        self.bad_artists = ['Albrecht Bouts, Dirk Bouts',
+                            'Anonymous',
+                            'Horenbout',
+                            'Master of the Gold Brocade, Rogier van der Weyden',
+                            ]
+        self.locations = {'Aartsbisschoppelijk Museum': 'Q43655709',
+                          'Accademia Carrara': 'Q338367',
+                          'Alte Pinakothek': 'Q154568',
+                          'Anhaltische Gemäldegalerie': 'Q76638284',
+                          'Bob Jones University Museum and gallery': 'Q5481539',
+                          'Bowes Museum': 'Q895434',
+                          'Buckingham Palace': 'Q42182',
+                          'Clark Art Institute': 'Q1465805',
+                          'Courtauld Institute of Art': 'Q734266',
+                          'Fitzwilliam Museum': 'Q1421440',
+                          'Galleria Sabauda': 'Q2245152',
+                          'Galleria degli Uffizi': 'Q51252',
+                          'Germanisches Nationalmuseum': 'Q478695',
                           'Groeninge Museum': 'Q1948674',
+                          'Gruuthusemuseum': 'Q1108949',
+                          'Hamburger Kunsthalle': 'Q169542',
+                          'Harvard Art Museums': 'Q3783572',
+                          'Indianapolis Museum of Art': 'Q1117704',
+                          'J. Paul Getty Museum': 'Q731126',
+                          'Kelvingrove Art Gallery and Museum': 'Q1061094',
                           'Kunsthistorisches Museum': 'Q95569',
+                          'Los Angeles County Museum of Art (LACMA)': 'Q1641836',
+                          'M Museum': 'Q2362660',
+                          'Mauritshuis': 'Q221092',
                           'Metropolitan Museum of Art': 'Q160236',
+                          'Morgan Library and Museum': 'Q1478423',
+                          'Museo Correr': 'Q1470912',
+                          'Museo Lázaro Galdiano': 'Q386570',
+                          'Museo Nacional Thyssen-Bornemisza': 'Q176251',
                           'Museo Nacional del Prado': 'Q160112',
+                          'Museo Nazionale del Bargello': 'Q388448',
+                          'Museo de Bellas Artes de Bilbao': 'Q127064',
+                          'Museu Nacional d\'Art de Catalunya': 'Q861252',
                           'Museum Boijmans Van Beuningen': 'Q679527',
+                          'Museum Catharijneconvent': 'Q1954426',
                           'Museum Mayer van den Bergh': 'Q1699233',
-                          'Musée du Louvre': 'Q19675',
+                          'Musée Condé': 'Q1236032',
+                          'Musée Jacquemart-André': 'Q1165526',
+                          'Musée de Picardie': 'Q3107709',
+                          'Musée de la Chartreuse': 'Q30524595',
+                          'Musée du Louvre': 'Q3044768',  # Department of Paintings of the Louvre (Q3044768)/Q19675
+                          'Musée du Louvre, Département des Arts graphiques': 'Q3044753',
                           'National Gallery': 'Q180788',
+                          'National Gallery of Art': 'Q214867',  # ???
+                          'National Gallery of Denmark': 'Q671384',
+                          'National Gallery of Ireland': 'Q2018379',
+                          'National Gallery of Scotland': 'Q2051997',
+                          'National Gallery of Victoria': 'Q1464509',
+                          'National Museum of Ancient Art': 'Q212459',
+                          'National Museum of Western Art': 'Q1362629',
+                          'Nelson-Atkins Museum of Art': 'Q1976985',
                           'Philadelphia Museum of Art': 'Q510324',
+                          'Princeton University Art Museum': 'Q2603905',
                           'Rijksmuseum': 'Q190804',
+                          'Rijksmuseum Twenthe': 'Q1505892',
+                          'Royal Monastery of San Lorenzo': 'Q28471',
                           'Royal Museums of Fine Arts of Belgium': 'Q377500',
+                          'Saint John\'s Hospital': 'Q2432540',
+                          'San Diego Museum of Art': 'Q1368166',
+                          'Staatliche Kunstsammlungen, Gemäldegalerie Alte Meister': 'Q653002',
                           'Staatliche Museen zu Berlin, Gemäldegalerie': 'Q165631',
+                          'Staatliche Museen zu Berlin, Kupferstichkabinett': 'Q555946',
+                          'State Hermitage Museum': 'Q132783',
                           'Städel Museum': 'Q163804',
                           'Suermondt Ludwig Museum': 'Q468169',
+                          'The Pushkin State Museum of Fine Arts': 'Q4872',
+                          'Upton House': 'Q2188329',
+                          'Virginia Museum of Fine Arts': 'Q4013975',
+                          'Wallraf-Richartz-Museum': 'Q700959',
+                          'Walters Art Gallery': 'Q210081',
+                          'Wildenstein gallery': 'Q10288082',
+                          'Worcester Art Museum': 'Q847508',
                           }
+        self.bad_locations = ['Art Institute',
+                              'Capilla Real',
+                              'Cathedral',
+                              'Christie\'s auction',
+                              'Drouot auction',
+                              'Fischer gallery',  # https://www.wikidata.org/wiki/Q107622082 ?
+                              'Fiévez auction',
+                              'Giroux gallery',
+                              'Institute of Arts',
+                              'Lempertz auction',
+                              'Lepke auction',
+                              'Museum of Art',
+                              'Museum of Fine Arts',
+                              'Musée des Beaux-Arts',
+                              'National Museum',
+                              'Palais des Beaux-Arts',
+                              'Private collection',
+                              'Robert Finck gallery',
+                              'Royal Museum of Fine Arts',
+                              'Sotheby\'s auction',
+                              'Staatsgalerie',
+                              'Whereabouts unknown',
+                              ]
 
     def artist_unmatched_on_wikidata(self, artist_qid):
         """
@@ -192,19 +277,21 @@ class FriedlanderMatcher:
         """
         report_page = 'Wikidata:WikiProject sum of all paintings/Friedlander to match'
 
-        text = 'This page gives an overview of Friedlander images to match'
+        text = 'This page gives an overview of Friedlander images to match. '
         text += 'You can help by connecting these.\n'
 
         locations_text = ''
+        works_other_locations = 0
 
         for location in sorted(self.friedlander_locations.keys()):
             works = len(self.friedlander_locations.get(location))
-            if works > 3:
-                print('* %s %s' % (location, works))
-            if works > 19:
+            if location not in self.bad_locations and works > 9:
                 locations_text += '* [[/%s|%s]] - %s\n' % (location, location, len(self.friedlander_locations.get(location)))
                 if location in self.locations:
                     self.process_location(location)
+            else:
+                works_other_locations += works
+        locations_text += '%s works in other locations' % (works_other_locations,)
 
         artists_text = ''
         local_text = self.get_table_header()
@@ -214,7 +301,7 @@ class FriedlanderMatcher:
         for artist in sorted(self.friedlander_artists.keys()):
             works = len(self.friedlander_artists.get(artist))
             total_works += works
-            if works > 7:
+            if artist not in self.bad_artists and works > 7:
                 artists_text += '* [[/%s|%s]] - %s\n' % (artist, artist, len(self.friedlander_artists.get(artist)))
                 if artist in self.artists:
                     self.process_artist(artist)
@@ -223,7 +310,12 @@ class FriedlanderMatcher:
                     local_text += self.get_table_row(artwork)
         local_text += '|}\n'
 
-        text += 'Found %s artworks of which %s have been matched.\n' % (total_works, len(self.friedlander_on_wikidata))
+        matched_works = len(self.friedlander_on_wikidata)
+        matched_percentage = round(matched_works / total_works * 100, 1)
+
+        text += 'Found %s artworks of which %s (%s%%) have been matched.\n' % (total_works,
+                                                                               matched_works,
+                                                                               matched_percentage)
 
         text += '__TOC__\n'
         text += '== Popular artists ==\n'
@@ -234,10 +326,93 @@ class FriedlanderMatcher:
         text += local_text
         text += '\n[[Category:WikiProject sum of all paintings Friedlander to match| ]]'
         page = pywikibot.Page(self.repo, title=report_page)
+        summary = 'Updating Friedlander overview page: %s out of %s (%s%%) matched' % (matched_works,
+                                                                                       total_works,
+                                                                                       matched_percentage)
+        page.put(text, summary)
+
+    def process_artist(self, artist):
+        report_page = 'Wikidata:WikiProject sum of all paintings/Friedlander to match/%s' % (artist, )
+        artist_qid = self.artists.get(artist)
+
+        text = 'This page gives an overview of Friedlander images to match for the {{Q|%s}} (%s) group. \n' % (artist_qid, artist)
+
+        header = self.get_table_header()
+        rows = ''
+        for artwork in self.friedlander_artists.get(artist):
+            rows += self.get_table_row(artwork)
+
+        if rows:
+            text += 'You can help by connecting these.\n'
+            text += '== To match ==\n'
+            text += header
+            text += rows
+            text += '|}\n'
+            text += '\n== On Wikidata ==\n'
+            text += '{| class=\'wikitable sortable\' style=\'width:100%\'\n'
+            text += '! Item\n'
+            text += '! Title\n'
+            text += '! Description\n'
+            text += '! Collection\n'
+
+            for artwork in self.artist_unmatched_on_wikidata(artist_qid):
+                text += '|-\n'
+                text += '| {{Q|%s}} \n' % (artwork.get('qid'), )
+                text += '| %s \n' % (artwork.get('itemLabel'), )
+                text += '| %s \n' % (artwork.get('itemDescription'), )
+                if artwork.get('collection'):
+                    text += '| {{Q|%s}} \n' % (artwork.get('collection'), )
+                else:
+                    text += '| \n'
+            text += '|}\n'
+            text += '\n[[Category:WikiProject sum of all paintings Friedlander to match|%s]]' % (artist, )
+        else:
+            text += 'All done matching, see [[Wikidata:WikiProject sum of all paintings/Friedlander to match]].\n'
+            text += '\n[[Category:WikiProject sum of all paintings Friedlander completely matched|%s]]' % (artist, )
+        page = pywikibot.Page(self.repo, title=report_page)
         summary = 'Updating Friedlander overview page'
         page.put(text, summary)
 
+    def process_location(self, location):
+        report_page = 'Wikidata:WikiProject sum of all paintings/Friedlander to match/%s' % (location, )
+        location_qid = self.locations.get(location)
 
+        text = 'This page gives an overview of Friedlander images to match for {{Q|%s}} (%s) location or collection. \n' % (location_qid, location)
+
+        header = self.get_table_header()
+        rows = ''
+        for artwork in self.friedlander_locations.get(location):
+            rows += self.get_table_row(artwork)
+        if rows:
+            text += 'You can help by connecting these.\n'
+            text += '== To match ==\n'
+            text += header
+            text += rows
+            text += '|}\n'
+            text += '\n== On Wikidata ==\n'
+            text += '{| class=\'wikitable sortable\' style=\'width:100%\'\n'
+            text += '! Item\n'
+            text += '! Title\n'
+            text += '! Description\n'
+            text += '! Artist\n'
+
+            for artwork in self.collection_unmatched_on_wikidata(location_qid):
+                text += '|-\n'
+                text += '| {{Q|%s}} \n' % (artwork.get('qid'), )
+                text += '| %s \n' % (artwork.get('itemLabel'), )
+                text += '| %s \n' % (artwork.get('itemDescription'), )
+                if artwork.get('artist'):
+                    text += '| {{Q|%s}} \n' % (artwork.get('artist'), )
+                else:
+                    text += '| \n'
+            text += '|}\n'
+            text += '\n[[Category:WikiProject sum of all paintings Friedlander to match|%s]]' % (location, )
+        else:
+            text += 'All done matching, see [[Wikidata:WikiProject sum of all paintings/Friedlander to match]].\n'
+            text += '\n[[Category:WikiProject sum of all paintings Friedlander completely matched|%s]]' % (location, )
+        page = pywikibot.Page(self.repo, title=report_page)
+        summary = 'Updating Friedlander overview page'
+        page.put(text, summary)
     def get_table_header(self):
         text = '{| class=\'wikitable sortable\' style=\'width:100%\'\n'
         text += '! ID\n'
@@ -260,7 +435,7 @@ class FriedlanderMatcher:
         if friedlander_id in self.friedlander_on_wikidata:
             return ''
         friedlander_data = self.get_friedlander_by_id(friedlander_id).get('data')
-        balat_regex = '^https?://balat\.kikirpa\.be/object/(?P<id>\d+)\s*$'
+        balat_regex = '^https?://balat\.kikirpa\.be/(object/|photo\.php\?path=[^&]+&objnr=)(?P<id>\d+)\s*$'
         rkd_regex = '^https?://(explore\.)?rkd\.nl/(en/|nl/)?explore/images/(?P<id>\d+)\s*$'
         balat_link = ''
         rkd_link = ''
@@ -336,75 +511,7 @@ class FriedlanderMatcher:
                 jsonfile.write(json.dumps(jsondata, indent=4))
                 return jsondata
 
-    def process_artist(self, artist):
-        report_page = 'Wikidata:WikiProject sum of all paintings/Friedlander to match/%s' % (artist, )
-        artist_qid = self.artists.get(artist)
 
-        text = 'This page gives an overview of Friedlander images to match for the {{Q|%s}} (%s) group. \n' % (artist_qid, artist)
-        text += 'You can help by connecting these.\n'
-        text += '== To match ==\n'
-
-        text += self.get_table_header()
-        for artwork in self.friedlander_artists.get(artist):
-            text += self.get_table_row(artwork)
-        text += '|}\n'
-        text += '\n== On Wikidata ==\n'
-        text += '{| class=\'wikitable sortable\' style=\'width:100%\'\n'
-        text += '! Item\n'
-        text += '! Title\n'
-        text += '! Description\n'
-        text += '! Collection\n'
-
-        for artwork in self.artist_unmatched_on_wikidata(artist_qid):
-            text += '|-\n'
-            text += '| {{Q|%s}} \n' % (artwork.get('qid'), )
-            text += '| %s \n' % (artwork.get('itemLabel'), )
-            text += '| %s \n' % (artwork.get('itemDescription'), )
-            if artwork.get('collection'):
-                text += '| {{Q|%s}} \n' % (artwork.get('collection'), )
-            else:
-                text += '| \n'
-        text += '|}\n'
-
-        text += '\n[[Category:WikiProject sum of all paintings Friedlander to match|%s]]' % (artist, )
-        page = pywikibot.Page(self.repo, title=report_page)
-        summary = 'Updating Friedlander overview page'
-        page.put(text, summary)
-
-    def process_location(self, location):
-        report_page = 'Wikidata:WikiProject sum of all paintings/Friedlander to match/%s' % (location, )
-        location_qid = self.locations.get(location)
-
-        text = 'This page gives an overview of Friedlander images to match for {{Q|%s}} (%s) location or collection. \n' % (location_qid, location)
-        text += 'You can help by connecting these.\n'
-        text += '== To match ==\n'
-
-        text += self.get_table_header()
-        for artwork in self.friedlander_locations.get(location):
-            text += self.get_table_row(artwork)
-        text += '|}\n'
-        text += '\n== On Wikidata ==\n'
-        text += '{| class=\'wikitable sortable\' style=\'width:100%\'\n'
-        text += '! Item\n'
-        text += '! Title\n'
-        text += '! Description\n'
-        text += '! Artist\n'
-
-        for artwork in self.collection_unmatched_on_wikidata(location_qid):
-            text += '|-\n'
-            text += '| {{Q|%s}} \n' % (artwork.get('qid'), )
-            text += '| %s \n' % (artwork.get('itemLabel'), )
-            text += '| %s \n' % (artwork.get('itemDescription'), )
-            if artwork.get('artist'):
-                text += '| {{Q|%s}} \n' % (artwork.get('artist'), )
-            else:
-                text += '| \n'
-        text += '|}\n'
-
-        text += '\n[[Category:WikiProject sum of all paintings Friedlander to match|%s]]' % (location, )
-        page = pywikibot.Page(self.repo, title=report_page)
-        summary = 'Updating Friedlander overview page'
-        page.put(text, summary)
 
 
 def main(*args):
