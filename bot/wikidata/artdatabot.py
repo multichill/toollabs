@@ -256,6 +256,9 @@ class ArtDataBot:
         # Add title (P1476) to the item.
         self.addTitle(artworkItem, metadata, queue=True)
 
+        # Add movement (P135) to the item
+        self.addItemStatement(artworkItem, 'P135', metadata.get('movementqid'), metadata.get('refurl'), queue=True)
+
         # Add genre (P136) to the item
         self.addItemStatement(artworkItem, 'P136', metadata.get('genreqid'), metadata.get('refurl'), queue=True)
 
