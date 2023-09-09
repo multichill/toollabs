@@ -122,7 +122,7 @@ def get_balat_generator(balat_search_string, collectionid=None):
                 print(work_type)
                 #continue
 
-            if work_type == 'portret[schildering]':
+            if work_type == 'portret[schildering]' or work_type == 'portrait[peinture]':
                 metadata['genreqid'] = 'Q134307'  # portrait (Q134307)
 
             # Inventory number
@@ -238,9 +238,6 @@ def get_balat_generator(balat_search_string, collectionid=None):
                     metadata['inceptioncirca'] = True
                 else:
                     print('Could not parse date: "%s"' % (date,))
-                    print('Could not parse date: "%s"' % (date,))
-                    print('Could not parse date: "%s"' % (date,))
-                    print('Could not parse date: "%s"' % (date,))
             # Materal
             found_materials = set()
             material_regex = '<a class="lite1" href="results.php\?linkthrough\=MA&linkval=[^"]+">([^<]+)</a>'
@@ -257,20 +254,48 @@ def get_balat_generator(balat_search_string, collectionid=None):
                     metadata['medium'] = 'paint on canvas'
                 elif found_materials == {'olieverf', 'paneel[drager]'}:
                     metadata['medium'] = 'oil on panel'
+                elif found_materials == {"peinture à l'huile", 'panneau[support]'}:
+                    metadata['medium'] = 'oil on panel'
                 elif found_materials == {"peinture à l'huile", 'bois'}:
                     metadata['medium'] = 'oil on panel'
                 elif found_materials == {'paneel[drager]', 'eik', 'olieverf'}:
                     metadata['medium'] = 'oil on oak panel'
                 else:
-                    print(found_materials)
-                    print(found_materials)
-                    print(found_materials)
-                    print(found_materials)
+                    print('Could not parse materials: "%s"' % (found_materials,))
 
             # Movement
+            movements = {'Vlaamse primitieven': 'Q443153',
+                         'Primitifs flamands': 'Q443153',
+                         }
             # See https://balat.kikirpa.be/object/20024607
+            movement_regex = '<strong>Style/School/Ethnic group</strong>:\s*</div><div class=\'three-fifth last\'>([^<]+)</div'
+            movement_match = re.search(movement_regex, item_page.text)
+            if movement_match:
+                movement = movement_match.group(1)
+                if movement in movements:
+                    metadata['movementqid'] = movements.get(movement)
+                else:
+                    print('Could not parse movement: "%s"' % (movement,))
 
-            # Technique
+            # Place of production: Zuidelijke Nederlanden
+            creation_locations = {'Antwerpen': 'Q12892',
+                                  'Brugge': 'Q12994',
+                                  'Gent': 'Q1296',
+                                  'Mechelen[deelgemeente]': 'Q162022',
+                                  'Vlaanderen': 'Q234',
+                                  'Zuidelijke Nederlanden': 'Q6581823',
+                                  'Pays-Bas méridionaux': 'Q6581823',
+                                  }
+            creation_location_regex = '<strong>Place of production</strong>:\s*</div><div class=\'three-fifth last\'>([^<]+)</div'
+            creation_location_match = re.search(creation_location_regex, item_page.text)
+            if creation_location_match:
+                creation_location = creation_location_match.group(1)
+                if creation_location in creation_locations:
+                    metadata['madeinqid'] = creation_locations.get(creation_location)
+                else:
+                    print('Could not parse Place of production: "%s"' % (creation_location,))
+
+            # Technique. Probably not?
 
             # Dimensions
             #dimensions_regex = '<strong>Creator</strong>:\s*</div><div class=\'three-fifth last\'><a class="lite1" href="results\.php\?[^"]+">([^<]+)</a>\s*\([^\)]+\)\s*<a href="people\.php\?[^"]+" title="People & institutions">\s*<i class="icon-user-1"></i></a><br/>Date:\s*([^<]+)</div>'
@@ -322,6 +347,8 @@ def main(*args):
             createjson = True
         elif arg.startswith('-create'):
             create = True
+        elif arg.startswith('-earlyned'):
+            balat_search_string = 'typesearch=advanced&schoolstyle=Vlaamse+primitieven'
         elif arg.startswith('-startsearchpage:'):
             if len(arg) == len('-startsearchpage:'):
                 start_search_page = int(pywikibot.input(
