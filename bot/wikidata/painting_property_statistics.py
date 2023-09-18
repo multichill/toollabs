@@ -20,7 +20,7 @@ class PaintingPropertyStatistics:
         Set what to work on and other variables here.
         """
         self.repo = pywikibot.Site().data_repository()
-        self.collection_threshold = 50
+        self.collection_threshold = 60
         self.property_threshold = 10
         self.targetPageTitle = u'Wikidata:WikiProject sum of all paintings/Property statistics'
         self.properties = collections.OrderedDict()
@@ -46,8 +46,8 @@ class PaintingPropertyStatistics:
         :return: Tuple of two (ordered) dictionaries: First with counts, second with country codes
         """
         query = """SELECT ?item ?countrycode  (COUNT(?item) as ?count) WHERE {
-  ?painting wdt:P31 wd:Q3305213 .
-  ?painting wdt:P195 ?item .
+  ?painting wdt:P31 wd:Q3305213 ;
+            wdt:P195 ?item .
   OPTIONAL { ?item wdt:P17/wdt:P298 ?countrycode }.
 } GROUP BY ?item ?countrycode
 HAVING (?count > %s)
@@ -68,13 +68,15 @@ LIMIT 1000""" % (self.collection_threshold,)
         """
         Get the usage counts for a property in the collections
 
+        FIXME: This one times out with DISTINCT, now gives slightly incorrect data
+
         :param prop: Wikidata Pid of the property
         :return: (Ordered) dictionary with the counts per collection
         """
         query = """SELECT ?item (COUNT(?item) as ?count) WHERE {
-  ?painting wdt:P31 wd:Q3305213 .  
-  ?painting wdt:P195 ?item .
-  FILTER EXISTS { ?painting p:%s [] } .
+  ?painting wdt:P31 wd:Q3305213 ;
+            wdt:P195 ?item ;
+            p:%s [] .
 } GROUP BY ?item
 HAVING (?count > %s)
 ORDER BY DESC(?count) 
@@ -140,9 +142,9 @@ ORDER BY DESC(?count)"""
         :return: number of paintings found
         """
         if prop:
-            query = """SELECT (COUNT(?item) as ?count) WHERE {
-  ?item wdt:P31 wd:Q3305213 .
-  FILTER EXISTS { ?item p:%s [] } .
+            query = """SELECT (COUNT(DISTINCT(?item)) as ?count) WHERE {
+  ?item wdt:P31 wd:Q3305213 ;
+        p:%s [] .
 }""" % (prop,)
         elif counts and counts=='statements':
             query = """SELECT (ROUND(AVG(?statements)) as ?count) WHERE {
