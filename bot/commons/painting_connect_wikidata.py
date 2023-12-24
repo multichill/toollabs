@@ -54,16 +54,18 @@ class PaintingsMatchBot:
         """
         result = {}
         query = u"""SELECT ?item ?image WHERE {
-        ?item wdt:P31 wd:Q3305213 .
-        ?item wdt:P18 ?image .
+        ?item wdt:P31 wd:Q3305213 ;
+              wdt:P18 ?image .
 }"""
         sq = pywikibot.data.sparql.SparqlQuery()
         queryresult = sq.select(query)
 
         for resultitem in queryresult:
             item = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
-            image = pywikibot.FilePage(pywikibot.Site('commons', 'commons'),resultitem.get('image').replace(u'http://commons.wikimedia.org/wiki/Special:FilePath/', u'')).title(underscore=True, with_ns=False)
-            result[image] = item
+            if 'http://commons.wikimedia.org/wiki/Special:FilePath/' in resultitem.get('image'):
+                # No value or unknown value trips up the bot
+                image = pywikibot.FilePage(pywikibot.Site('commons', 'commons'), resultitem.get('image').replace('http://commons.wikimedia.org/wiki/Special:FilePath/', '')).title(underscore=True, with_ns=False)
+                result[image] = item
         return result
 
     def addMissingCommonsWikidataLink(self, filename, wikidata_item):
