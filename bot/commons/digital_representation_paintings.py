@@ -106,7 +106,7 @@ LIMIT 200000"""
         :param mediaid: The entity ID (like M1234, pageid prefixed with M)
         :return: True if it exists, otherwise False
         """
-        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
+        request = self.site.simple_request(action='wbgetentities',ids=mediaid)
         data = request.submit()
         if data.get(u'entities').get(mediaid).get(u'pageid'):
             return True

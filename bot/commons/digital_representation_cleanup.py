@@ -131,7 +131,7 @@ class DigitalRepresentationCleaanupBot:
             """
         # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M52611909
         # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M10038
-        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
+        request = self.site.simple_request(action='wbgetentities',ids=mediaid)
         data = request.submit()
         if data.get(u'entities').get(mediaid).get(u'pageid'):
             return data.get(u'entities').get(mediaid)
@@ -234,7 +234,7 @@ class DigitalRepresentationCleaanupBot:
         #    # This only works when the entity has been created
         #    postdata['baserevid'] = currentdata.get('lastrevid')
 
-        request = self.site._simple_request(**postdata)
+        request = self.site.simple_request(**postdata)
         try:
             data = request.submit()
             # Always touch the page to flush it
@@ -309,7 +309,7 @@ class DigitalRepresentationCleaanupBot:
                 # This only works when the entity has been created
                 postdata['baserevid'] = currentdata.get('lastrevid')
 
-            request = self.site._simple_request(**postdata)
+            request = self.site.simple_request(**postdata)
             try:
                 data = request.submit()
                 # Always touch the page to flush it
@@ -384,7 +384,7 @@ class DigitalRepresentationCleaanupBot:
                 #    # This only works when the entity has been created
                 #    postdata['baserevid'] = currentdata.get('lastrevid')
 
-                request = self.site._simple_request(**postdata)
+                request = self.site.simple_request(**postdata)
                 try:
                     data = request.submit()
                     # Always touch the page to flush it
@@ -747,7 +747,7 @@ class DigitalRepresentationCleaanupBot:
         if not dateString:
             return False
 
-        request = self.site._simple_request(action='wbparsevalue', datatype='time', values=dateString)
+        request = self.site.simple_request(action='wbparsevalue', datatype='time', values=dateString)
         try:
             data = request.submit()
         except AssertionError:
@@ -801,7 +801,7 @@ class DigitalRepresentationCleaanupBot:
                 heading = exifcameramatch.group(10)
 
         if coordinateText:
-            request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
+            request = self.site.simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
             try:
                 data = request.submit()
             except AssertionError:
@@ -870,7 +870,7 @@ class DigitalRepresentationCleaanupBot:
                 if headingmatch:
                     heading = headingmatch.group('heading')
 
-            request = self.site._simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
+            request = self.site.simple_request(action='wbparsevalue', datatype='globe-coordinate', values=coordinateText)
             try:
                 data = request.submit()
             except AssertionError:
