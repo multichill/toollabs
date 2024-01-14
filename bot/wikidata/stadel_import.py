@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Bot to import paintings from the Städel Museum to Wikidata.
+Bot to import paintings from the Städel Museum to Wikidata. Currently broken, needs to be updated for the new website
 
 Just loop over pages like https://sammlung.staedelmuseum.de/en/search/2?q=term(48:object)&scope=all
 
@@ -37,6 +37,7 @@ def getStadelGenerator():
 
     stadelArtists = getStadelArtistsOnWikidata()
     basesearchurl = 'https://sammlung.staedelmuseum.de/en/search/%s?q=term(48:object)&scope=all'
+    # basesearchurl = 'https://sammlung.staedelmuseum.de/en/search?f=+object:term(48)&flags=allScopes&p=%s'
     htmlparser = HTMLParser()
 
     for i in range(1, 15):
@@ -253,7 +254,12 @@ def getStadelGenerator():
             #    print (downloadpage.json())
             # This does contain the download url in the json, but the website will throw an error at you
 
-
+            iconclass_regex = '<a class="dsTerm" href="/en/search\?scope=all&amp;q=term\(\d+:iconclass\)">([^<]+)</a>'
+            iconclass_matches = re.finditer(iconclass_regex, itempage.text)
+            if iconclass_matches:
+                metadata['depictsiconclass'] = []
+                for iconclass_match in iconclass_matches:
+                    metadata['depictsiconclass'].append(htmlparser.unescape(iconclass_match.group(1)).strip())
             yield metadata
 
 
