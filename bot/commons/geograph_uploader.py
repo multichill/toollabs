@@ -828,6 +828,8 @@ def getGeographTags():
                 newsubject = '* https://www.geograph.org.uk/tagged/subject:%s - <to do %s hits>' % (tag.replace(' ', '+'), subject.get('images'))
                 newsubjects.append(newsubject)
                 pywikibot.debug(newsubject, 'bot')
+    return result
+    # FIXME: Disabled this part. Needs to move to Geograph
 
     topurl = 'https://multichill.toolforge.org/queries/commons/tag_stat_top.tsv'
     topmin = 499
