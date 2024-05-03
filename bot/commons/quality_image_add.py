@@ -66,7 +66,7 @@ class QualityImageBot:
             """
         # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M52611909
         # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M10038
-        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
+        request = self.site.simple_request(action='wbgetentities', ids=mediaid)
         data = request.submit()
         if data.get(u'entities').get(mediaid).get(u'pageid'):
             return data.get(u'entities').get(mediaid)
@@ -125,7 +125,7 @@ class QualityImageBot:
                     u'bot' : True,
                     }
 
-        request = self.site._simple_request(**postdata)
+        request = self.site.simple_request(**postdata)
         try:
             data = request.submit()
             filepage.touch()
