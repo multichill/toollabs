@@ -409,17 +409,17 @@ def main(*args):
                     'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
       ?item p:P31 ?instancestatement.
       ?instancestatement ps:P31 wd:Q83116.
-      MINUS { ?instancestatement pq:P582 [] } .  
+      MINUS { ?instancestatement pq:P582 [] } .       
       OPTIONAL { ?item wdt:P402 ?osmrelation } .
       OPTIONAL { ?item wdt:P373 ?commonscategory } .
-      OPTIONAL { ?item wdt:P300 ?id } .
+      OPTIONAL { ?item wdt:P1567 ?id } .
       }''',
                     'overpass': '''[timeout:600][out:json];
 area["name:en"="Belgium"]["admin_level"="2"];
-rel(area)[admin_level="6"][boundary="administrative"];
+rel(area)[admin_level="6"][boundary="administrative"]["ref:INS"];
 out tags;''',
-                    'id_property': 'P300',
-                    'id_tag': 'ISO3166-2',
+                    'id_property': 'P1567',
+                    'id_tag': 'ref:INS',
                     'id_transform': False,
                     },
                 7: {'label': 'arrondissement',
@@ -431,14 +431,14 @@ out tags;''',
           MINUS { ?instancestatement pq:P582 [] } .  
           OPTIONAL { ?item wdt:P402 ?osmrelation } .
           OPTIONAL { ?item wdt:P373 ?commonscategory } .
-          OPTIONAL { ?item wdt:P605 ?id } .
+          OPTIONAL { ?item wdt:P1567 ?id } .
           }''',
                     'overpass': '''[timeout:600][out:json];
     area["name:en"="Belgium"]["admin_level"="2"];
-    rel(area)[admin_level="7"][boundary="administrative"];
+    rel(area)[admin_level="7"][boundary="administrative"]["ref:INS"];
     out tags;''',
-                    'id_property': 'P605',
-                    'id_tag': 'ref:nuts',
+                    'id_property': 'P1567',
+                    'id_tag': 'ref:INS',
                     'id_transform': False,
                     'no_commons_category': True,
                 },
@@ -449,13 +449,14 @@ out tags;''',
           ?item p:P31 ?instancestatement.
           ?instancestatement ps:P31 wd:Q493522.
           MINUS { ?instancestatement pq:P582 [] } .  
+          MINUS { ?instancestatement wikibase:rank wikibase:DeprecatedRank } .          
           OPTIONAL { ?item wdt:P402 ?osmrelation } .
           OPTIONAL { ?item wdt:P373 ?commonscategory } .
           OPTIONAL { ?item wdt:P1567 ?id } .
           }''',
                     'overpass': '''[timeout:600][out:json];
     area["name:en"="Belgium"]["admin_level"="2"];
-    rel(area)[admin_level="8"][boundary="administrative"];
+    rel(area)[admin_level="8"][boundary="administrative"]["ref:INS"];
     out tags;''',
                     'id_property': 'P1567',
                     'id_tag': 'ref:INS',
@@ -491,7 +492,8 @@ out tags;''',
                     'count': 10773,
                     'sparql': '''SELECT DISTINCT ?item ?osmrelation ?commonscategory ?id WHERE {
       ?item p:P31 ?instancestatement.
-      ?instancestatement ps:P31/wdt:P279* wd:Q262166.
+      { ?instancestatement ps:P31/wdt:P279* wd:Q262166 } UNION
+      { ?instancestatement ps:P31 wd:Q15974311 }.
       MINUS { ?instancestatement pq:P582 [] } .  
       OPTIONAL { ?item wdt:P402 ?osmrelation } .
       OPTIONAL { ?item wdt:P373 ?commonscategory } .
@@ -504,6 +506,83 @@ out tags;''',
                     'id_property': 'P439',
                     'id_tag': 'de:amtlicher_gemeindeschluessel',
                     'id_transform': False,
+                    },
+            },
+        },
+        'ee': {
+            'report_page': 'Commons:Reverse geocoding/Reports/Estonia',
+            'region_item': 'Q191',
+            'admin_levels': {
+                6: {'label': 'county',
+                    'item': 'Q189672',
+                    'count': 15,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q189672.
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item p:P402 ?osmstatement . 
+            { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q6465 }          
+            }   
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P300 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="Estonia"]["admin_level"="2"];
+rel(area)[admin_level="6"][boundary="administrative"];
+out tags;''',
+                    'id_property': 'P300',
+                    'id_tag': 'ISO3166-2',
+                    'id_transform': False,
+                    },
+                7: {'label': 'municipality',
+                    'item': 'Q612229',
+                    'count': 79,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31/wdt:P279 wd:Q612229.
+      MINUS { ?item wdt:P31 wd:Q26742250 }.
+      MINUS { ?instancestatement pq:P582 [] } .
+      MINUS { ?item wdt:P576 [] } .  
+      OPTIONAL { ?item p:P402 ?osmstatement . 
+            { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q194203 }          
+            }   
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P1140 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="Estonia"]["admin_level"="2"];
+rel(area)[admin_level="7"][boundary="administrative"];
+out tags;''',
+                    'id_property': 'P1140',
+                    'id_tag': 'EHAK:code',
+                    'id_transform': False,
+                    'no_commons_category': True,
+                    },
+                9: {'label': 'settlement',
+                    'item': 'Q618299',
+                    #'count': 79,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31/wdt:P279 wd:Q618299.
+      MINUS { ?instancestatement pq:P582 [] } .
+      MINUS { ?item wdt:P576 [] } .  
+      OPTIONAL { ?item p:P402 ?osmstatement . 
+            { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q194203 }          
+            }   
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P1140 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+area["name:en"="Estonia"]["admin_level"="2"];
+rel(area)[admin_level="9"][boundary="administrative"];
+out tags;''',
+                    'id_property': 'P1140',
+                    'id_tag': 'EHAK:code',
+                    'id_transform': False,
+                    'no_commons_category': True,
                     },
             },
         },
@@ -783,7 +862,7 @@ out tags;''',
       MINUS { ?instancestatement pq:P582 [] } .  
       OPTIONAL { ?item wdt:P402 ?osmrelation } .
       OPTIONAL { ?item wdt:P373 ?commonscategory } .
-      OPTIONAL { ?item wdt:P836 ?id } .
+      ?item wdt:P836 ?id .
       }''',
                      'overpass': '''[timeout:600][out:json];
 area["name"="England"]["admin_level"="4"];
@@ -837,7 +916,32 @@ out tags;''',
                     'id_tag': 'ref:gss',
                     'id_transform': False,
                     },
-            }
+            },
+        },
+        'gr': {
+            'report_page': 'Commons:Reverse geocoding/Reports/Greece',
+            'country_item': 'Q41',
+            'admin_levels': {
+                4: {'label': 'decentralized administration',
+                    'item': 'Q3559207',
+                    'count': 7,
+                    'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
+      ?item p:P31 ?instancestatement.
+      ?instancestatement ps:P31 wd:Q3559207 
+      MINUS { ?instancestatement pq:P582 [] } .  
+      OPTIONAL { ?item wdt:P402 ?osmrelation } .
+      OPTIONAL { ?item wdt:P373 ?commonscategory } .
+      OPTIONAL { ?item wdt:P300 ?id } .
+      }''',
+                    'overpass': '''[timeout:600][out:json];
+                area["name:en"="Greece"][admin_level="2"];
+                rel(area)[admin_level="4"][boundary="administrative"];
+                out tags;''',
+                    'id_property': False,
+                    'id_tag': False,
+                    'id_transform': False,
+                    },
+            },
         },
         'ie': {
             'report_page': 'Commons:Reverse geocoding/Reports/Ireland',
@@ -952,16 +1056,18 @@ out tags;''',
                     },
                 8: {'label': 'municipality',
                     'item': 'Q2039348',
-                    'count': 342,
+                    'count': 345,  # 342 municipalities and 3 public bodies
                     'sparql': '''SELECT ?item ?osmrelation ?commonscategory ?id WHERE {
   ?item wdt:P382 ?id ;
         p:P31 ?instancestatement.
-  ?instancestatement ps:P31 wd:Q2039348.
+  { ?instancestatement ps:P31 wd:Q2039348 } UNION
+  { ?instancestatement ps:P31 wd:Q3648563 } 
   MINUS { ?instancestatement pq:P582 [] } .
   OPTIONAL { ?item wdt:P373 ?commonscategory } .  
   OPTIONAL { ?item p:P402 ?osmstatement . 
             { ?osmstatement ps:P402 ?osmrelation MINUS { ?osmstatement pq:P2868 [] } } UNION
-            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q2039348 }          
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q2039348 } UNION
+            { ?osmstatement ps:P402 ?osmrelation; pq:P2868 wd:Q3648563 } 
             } 
 }''',
                     'overpass': '''[timeout:600][out:json];
