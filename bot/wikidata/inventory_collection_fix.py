@@ -36,26 +36,30 @@ class FixInventoryCollectionBot:
 
             # Do some checks so we are sure we found exactly one inventory number and one collection
             if u'P217' not in claims:
-                pywikibot.output(u'No inventory number found, skipping')
+                pywikibot.output('No inventory number found, skipping')
                 continue                
-            if len(claims[u'P217'])!=1:
-                pywikibot.output(u'Found multiple inventory numbers, skipping')
+            if len(claims[u'P217']) != 1:
+                pywikibot.output('Found multiple inventory numbers, skipping')
                 continue
             if u'P195' not in claims:
-                pywikibot.output(u'No collection found, skipping')
+                pywikibot.output('No collection found, skipping')
                 continue                
-            if len(claims[u'P195'])!=1:
-                pywikibot.output(u'Found multiple collections, skipping')
+            if len(claims[u'P195']) != 1:
+                pywikibot.output('Found multiple collections, skipping')
                 continue
 
             #Get the collection so we can add it later
             collection = claims.get('P195')[0].getTarget()
-            summary = u'Adding [[%s]] as a qualifier to the inventory number' % collection.title()
+            if not collection:
+                pywikibot.output('No collection found, skipping')
+                continue
+
+            summary = 'Adding [[%s]] as a qualifier to the inventory number' % collection.title()
 
             # Get the claim and make sure the qualifier is missing
             claim = claims.get('P217')[0]
-            if not u'P195' in claim.qualifiers:
-                newqualifier = pywikibot.Claim(self.repo, u'P195')
+            if not 'P195' in claim.qualifiers:
+                newqualifier = pywikibot.Claim(self.repo, 'P195')
                 newqualifier.setTarget(collection)
                 pywikibot.output('Adding new qualifier claim to %s' % itempage)
                 pywikibot.output(summary)
