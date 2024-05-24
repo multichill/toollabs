@@ -61,7 +61,7 @@ class ValuedImageBot:
                         'cmstartsortkeyprefix' : cmstartsortkeyprefix,
                         }
 
-            request = self.site._simple_request(**postdata)
+            request = self.site.simple_request(**postdata)
             data = request.submit()
             if data.get('query-continue') and data.get('query-continue').get('categorymembers') \
                     and data.get('query-continue').get('categorymembers').get('cmcontinue'):
@@ -104,7 +104,7 @@ class ValuedImageBot:
             """
         # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M52611909
         # https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&ids=M10038
-        request = self.site._simple_request(action='wbgetentities',ids=mediaid)
+        request = self.site.simple_request(action='wbgetentities',ids=mediaid)
         data = request.submit()
         if data.get(u'entities').get(mediaid).get(u'pageid'):
             return data.get(u'entities').get(mediaid)
@@ -127,7 +127,7 @@ class ValuedImageBot:
                     return True
 
         # Use the API to format the date
-        request = self.site._simple_request(action='wbparsevalue', datatype='time', values=starttime)
+        request = self.site.simple_request(action='wbparsevalue', datatype='time', values=starttime)
         try:
             data = request.submit()
         except AssertionError:
@@ -172,7 +172,7 @@ class ValuedImageBot:
                     u'bot' : True,
                     }
 
-        request = self.site._simple_request(**postdata)
+        request = self.site.simple_request(**postdata)
         try:
             data = request.submit()
             filepage.touch()
