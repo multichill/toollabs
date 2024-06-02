@@ -48,6 +48,10 @@ class ImagePointInTimeBot:
                     continue
 
                 file_page = image_claim.getTarget()
+                if not file_page:
+                    pywikibot.output('Image does not exist or novalue, skipping')
+                    continue
+
                 media_info = file_page.data_item()
                 media_data = media_info.get()
                 claims = media_data.get('statements')
