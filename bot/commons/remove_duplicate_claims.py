@@ -10,6 +10,7 @@ import pywikibot
 import hashlib
 import time
 import json
+import gzip
 from pywikibot import pagegenerators
 
 
@@ -74,6 +75,8 @@ class DuplicateClaimsBot:
         :param currentdata: The current data on the file
         :return: None, edit in place
         """
+        if not currentdata.get('statements'):
+            return
         to_remove = []
         for wb_property in currentdata.get('statements'):
             statement_hashes = []
@@ -135,20 +138,113 @@ class DuplicateClaimsBot:
                 self. site.tokens.load_tokens(['csrf'])
 
 
+class DuplicateClaimsDumpsBot(DuplicateClaimsBot):
+    """
+    Bot to remove structured data statements on Commons
+    """
+    def __init__(self, dump_file, always_touch):
+        """
+        Grab generator based on search to work on.
+        """
+        self.site = pywikibot.Site('commons', 'commons')
+        self.site.login()
+        self.site.get_tokens('csrf')
+        self.repo = self.site.data_repository()
+        self.full_generator = self.get_generator_from_dump(dump_file)
+        self.filtered_generator = self.get_duplicates_generator(self.full_generator)
+        self.always_touch = always_touch
+
+    def get_generator_from_dump(self, dump_file):
+        """
+        Try to open the dump file and crash if that doesn't work
+
+        This loads the json line by line to not load everything in memory
+
+        :param dump_file: Name of the dump file
+        :return: Generator with mediainfo
+        """
+        file = gzip.open(dump_file, 'rt')
+        for line in file:
+            if line.startswith('{'):
+                json_data = json.loads(line.strip().rstrip(','))
+                yield json_data
+
+    def get_duplicates_generator(self, full_generator):
+        """
+        Do filter for entities that have duplicate statements in the dump
+        :param full_generator:
+        :return:
+        """
+        for entity_data in full_generator:
+            if self.entity_has_duplicate_claims(entity_data):
+                yield entity_data
+
+    def entity_has_duplicate_claims(self, entity_data):
+        """
+        Check if an entity has duplicate claims
+        :param entity_data: Data for one entity
+        :return: True if duplicates, False if not
+        """
+        if not entity_data.get('statements'):
+            return False
+        for wb_property in entity_data.get('statements'):
+            statement_hashes = []
+            for property_statement in entity_data.get('statements').get(wb_property):
+                del property_statement['id']
+                statement_json = json.dumps(property_statement, sort_keys=True).encode('utf8')
+                statement_hash = hash(statement_json)  # Should be faster than SHA512
+                if statement_hash in statement_hashes:
+                    return True
+                else:
+                    statement_hashes.append(statement_hash)
+        return False
+
+    def run(self):
+        """
+        Run on the items
+        """
+        for entity in self.filtered_generator:
+            filepage = pywikibot.FilePage(self.site, title=entity.get('title'))
+
+            if not filepage.exists():
+                continue
+            # Probably want to get this all in a preloading generator to make it faster
+            mediaid = u'M%s' % (filepage.pageid,)
+            currentdata = self.get_current_mediainfo(mediaid)
+
+            pywikibot.output('Working on %s' % (filepage.title(),))
+
+            if not filepage.exists():
+                continue
+
+            if not filepage.has_permission():
+                # Picture might be protected
+                continue
+
+            self.remove_duplicate_claims(filepage, mediaid, currentdata)
+
 def main(*args):
     always_touch = False
     gen = None
+    use_dumps = False
+    dump_file = '/public/dumps/public/commonswiki/entities/latest-mediainfo.json.gz'
     gen_factory = pagegenerators.GeneratorFactory()
 
     for arg in pywikibot.handle_args(args):
         if arg == '-alwaystouch':
             always_touch = True
+        elif arg == '-usedumps':
+            use_dumps = True
         elif gen_factory.handle_arg(arg):
             continue
-    gen = pagegenerators.PageClassGenerator(gen_factory.getCombinedGenerator(gen, preload=True))
+    if use_dumps:
+        duplicate_claims_bot = DuplicateClaimsDumpsBot(dump_file, always_touch)
+        duplicate_claims_bot.run()
+    else:
+        gen = pagegenerators.PageClassGenerator(gen_factory.getCombinedGenerator(gen, preload=True))
 
-    duplicate_claims_bot = DuplicateClaimsBot(gen, always_touch)
-    duplicate_claims_bot.run()
+        duplicate_claims_bot = DuplicateClaimsBot(gen, always_touch)
+        duplicate_claims_bot.run()
 
 
 if __name__ == "__main__":
