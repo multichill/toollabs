@@ -49,7 +49,12 @@ class DuplicateClaimsBot:
                 # Picture might be protected
                 continue
 
-            self.remove_duplicate_claims(filepage, mediaid, currentdata)
+            try:
+                self.remove_duplicate_claims(filepage, mediaid, currentdata)
+            except pywikibot.exceptions.Error:
+                # Just sleep for 5 minutes and continue
+                pywikibot.output('Got an error while working on %s' % (mediaid,) )
+                time.sleep(300)
 
     def get_current_mediainfo(self, mediaid):
         """
