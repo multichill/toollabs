@@ -38,18 +38,18 @@ class DuplicateClaimsBot:
                 continue
             # Probably want to get this all in a preloading generator to make it faster
             mediaid = u'M%s' % (filepage.pageid,)
-            currentdata = self.get_current_mediainfo(mediaid)
-
-            pywikibot.output(u'Working on %s' % (filepage.title(),))
-
-            if not filepage.exists():
-                continue
-
-            if not filepage.has_permission():
-                # Picture might be protected
-                continue
-
             try:
+                currentdata = self.get_current_mediainfo(mediaid)
+
+                pywikibot.output(u'Working on %s' % (filepage.title(),))
+
+                if not filepage.exists():
+                    continue
+
+                if not filepage.has_permission():
+                    # Picture might be protected
+                    continue
+
                 self.remove_duplicate_claims(filepage, mediaid, currentdata)
             except pywikibot.exceptions.Error:
                 # Just sleep for 5 minutes and continue
