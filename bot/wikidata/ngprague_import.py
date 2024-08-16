@@ -164,6 +164,24 @@ def get_national_gallery_prague_generator():
             if inv_match:
                 metadata['id'] = html.unescape(inv_match.group(1).replace('&nbsp;', ' ')).strip()
 
+            can_upload_image = True
+
+            if metadata.get('inception') and metadata.get('inception') > 1920:
+                can_upload_image = False
+            elif metadata.get('inceptionend') and metadata.get('inceptionend') > 1920:
+                can_upload_image = False
+
+            og_image_regex = '<meta property="og:image" content="([^"]+)" />'
+            og_image_match = re.search(og_image_regex, item_page.text)
+
+            copyrighted_regex = 'Due to rights restrictions, this image cannot be downloaded'
+            copyrighted_match = re.search(copyrighted_regex, item_page.text)
+
+            if can_upload_image and og_image_match and not copyrighted_match:
+                metadata['imageurl'] = og_image_match.group(1)
+                metadata['imageurlformat'] = u'Q2195' #JPEG
+                metadata['imageoperatedby'] = 'Q1419555'
+
             yield metadata
 
 
