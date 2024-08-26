@@ -360,6 +360,8 @@ class OwnWorkBot:
                    'wiki loves earth 2020': 'Q97331615',
                    'wiki loves earth 2021': 'Q105954660',
                    'wiki loves earth 2022': 'Q111498696',
+                   'wiki loves earth 2023': 'Q117447474',
+                   'wiki loves earth 2024': 'Q124666252',
                    'wiki loves monuments 2010': 'Q20890568',
                    'wiki loves monuments 2011': 'Q8168264',
                    'wiki loves monuments 2012': 'Q13390164',
@@ -373,6 +375,8 @@ class OwnWorkBot:
                    'wiki loves monuments 2020': 'Q66975112',
                    'wiki loves monuments 2021': 'Q106533232',
                    'wiki loves monuments 2022': 'Q111382293',
+                   'wiki loves monuments 2023': 'Q119978762',
+                   'wiki loves monuments 2024': 'Q124255587',
                    }
         return result
 
