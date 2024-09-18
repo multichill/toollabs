@@ -250,6 +250,18 @@ class GeographUploaderBot:
                    'rank': 'normal',
                    }
         claims.append(toclaim)
+        #  geograph.org.uk image ID (P7384)
+        toclaim = {'mainsnak': { 'snaktype': 'value',
+                                 'property': 'P7384',
+                                 'datavalue': { 'value': metadata.get('id'),
+                                                'type' : 'string',
+                                                },
+
+                                 },
+                   'type': 'statement',
+                   'rank': 'normal',
+                   }
+        claims.append(toclaim)
         toclaim = self.getLicense(metadata)
         if toclaim:
             claims.append(toclaim)
