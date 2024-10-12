@@ -23,8 +23,11 @@ def getRijksmuseumGenerator():
     apikey=u'NJwVKOnk' # Should generate a new on and put it in my configuration file. This one is all over github
 
     basesearchurl = u'https://www.rijksmuseum.nl/api/nl/collection?key=%s&format=json&type=schilderij&ps=%s&p=%s'
+    #basesearchurl = u'https://www.rijksmuseum.nl/api/nl/collection?key=%s&format=json&type=miniatuur (schildering)&ps=%s&p=%s'
     appendurl = u'?key=%s&format=json'
     limit = 100
+
+    provenance = [] # List of provenance data to use later on
 
     for i in range(1,69):
         searchurl = basesearchurl % (apikey, limit, i,)
@@ -59,11 +62,10 @@ def getRijksmuseumGenerator():
             metadata['idpid'] = u'P217'
 
             if record.get('title'):
+                title = record.get('title').replace('\n', ' ').replace('  ', ' ')
                 # Chop chop, several very long titles
-                if len(record.get('title')) > 220:
-                    title = record.get('title')[0:200]
-                else:
-                    title = record.get('title')
+                if len(title) > 220:
+                    title = title[0:200]
                 metadata['title'] = { u'nl' : title,
                                     }
                 enurl = itemurl.replace(u'https://www.rijksmuseum.nl/api/nl/collection/', u'https://www.rijksmuseum.nl/api/en/collection/')
@@ -71,10 +73,9 @@ def getRijksmuseumGenerator():
                 if itemurl!=enurl:
                     enrecord = requests.get(enurl).json().get('artObject')
                     if enrecord.get('title'):
-                        if len(enrecord.get('title')) > 220:
-                            entitle = enrecord.get('title')[0:200]
-                        else:
-                            entitle = enrecord.get('title')
+                        entitle = enrecord.get('title').replace('\n', ' ').replace('  ', ' ')
+                        if len(entitle) > 220:
+                            entitle = entitle[0:200]
                         metadata['title'][u'en'] = entitle
 
             print (itemurl)
@@ -172,6 +173,17 @@ def getRijksmuseumGenerator():
                     if record.get('acquisition').get('creditLine')==u'Bruikleen van de gemeente Amsterdam (legaat A. van der Hoop)':
                         metadata['extracollectionqid'] = u'Q19750488'
 
+                # Update the provenance list
+                prov_data = {'inv' : metadata.get('id'),
+                             'url' : metadata.get('url'),
+                             'title' : metadata.get('title').get('nl'),
+                             'creator': metadata.get('creatorname'),
+                             'method': record.get('acquisition').get('method'),
+                             'date': record.get('acquisition').get('date'),
+                             'creditline': record.get('acquisition').get('creditLine'),
+                             }
+                provenance.append(prov_data)
+
             # Made in. Only add it if one location is given
             if record.get('productionPlaces') and len(record.get('productionPlaces'))==1:
                 productionPlace = record.get('productionPlaces')[0]
@@ -238,6 +250,11 @@ def getRijksmuseumGenerator():
                 # Add the list of iconclass classifications
                 metadata['depictsiconclass'] = record.get('classification').get('iconClassIdentifier')
             yield metadata
+    print('{| class=\'wikitable sortable\'')
+    print('! Inv. !! title !! creator !! method !! date !! credit line !! url')
+    for prov in provenance:
+        print(f'|-\n| {prov["inv"]} || {prov["title"]} || {prov["creator"]} || {prov["method"]} || {prov["date"]} || {prov["creditline"]} || [{prov["url"]}]')
+    print('|}')
     return
     
 def main(*args):
