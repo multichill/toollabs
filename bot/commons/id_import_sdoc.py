@@ -17,9 +17,16 @@ class IdImportBot:
         """
         Grab generator based on search to work on.
         """
-        self.id_templates = {'Template:ID-USMil': {
-            'regex': '\{\{ID-USMil\s*\|\s*(1\=)?\s*(?P<id>([0-9]{2})(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])-(F|A|G|D|H|S|P|M|Z|N|O|X)-(\d{4}[A-Z]|[A-Z]{2}\d{3})-\d{3,4})\s*(\||\})',
-            'property': 'P12967'},
+        self.id_templates = {
+            'Template:ID-USMil': {
+                'regex': '\{\{ID-USMil\s*\|\s*(1\=)?\s*(?P<id>([0-9]{2})(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])-(F|A|G|D|H|S|P|M|Z|N|O|X)-(\d{4}[A-Z]|[A-Z]{2}\d{3})-\d{3,4})\s*(\||\})',
+                'property': 'P12967'},
+            'Template:Milim': {
+                'regex': '\|\s*virin\s*\=\s*(?P<id>([0-9]{2})(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])-(F|A|G|D|H|S|P|M|Z|N|O|X)-(\d{4}[A-Z]|[A-Z]{2}\d{3})-\d{3,4})[\s\n\r]+\|',
+                'property': 'P12967'},
+            'Template:Geograph': {
+                'regex': '\{\{[gG]eograph\s*\|\s*(1\=)?\s*(?P<id>\d+)\|',
+                'property': 'P7384'},
                              }
 
         self.site = pywikibot.Site('commons', 'commons')
@@ -95,7 +102,8 @@ class IdImportBot:
 
         data = {'claims': [new_claim.toJSON(), ]}
         try:
-            response = self.site.editEntity(mediainfo, data, summary=summary)
+            # FIXME: Switch to mediainfo.editEntity() https://phabricator.wikimedia.org/T376955
+            response = self.site.editEntity(mediainfo, data, summary=summary, tags='BotSDC')
             filepage.touch()
         except pywikibot.exceptions.APIError as e:
             print(e)
