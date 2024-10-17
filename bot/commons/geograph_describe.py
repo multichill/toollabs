@@ -62,14 +62,6 @@ class GeographDescribeBot:
             pywikibot.output('Working on %s' % (filepage.title(),))
             self.describe_file(filepage)
 
-        for filepage in self.generator:
-            if not filepage.exists():
-                continue
-            # Probably want to get this all in a preloading generator to make it faster
-            mediaid = u'M%s' % (filepage.pageid,)
-            currentdata = self.getCurrentMediaInfo(mediaid)
-            self.describeGeographFile(filepage, mediaid, currentdata)
-
     def describe_file(self, filepage):
         """
         Describe a single file
@@ -92,11 +84,6 @@ class GeographDescribeBot:
             return
         geograph_id = statements.get('P7384')[0].getTarget()
 
-        #if currentdata.get('statements'):
-        #    if currentdata.get('statements').get('P180') and currentdata.get('statements').get('P1071'):
-        #        # Already done
-        #        return
-
         try:
             metadata = self.get_geograph_metadata(geograph_id)
         except json.decoder.JSONDecodeError:
@@ -106,191 +93,17 @@ class GeographDescribeBot:
 
         if not metadata:
             return
-        #print(json.dumps(metadata))
 
         data = {'claims': []}
 
-        # TODO: Add label
+        # TODO: Switch to simpelere version, see https://phabricator.wikimedia.org/T376955
         if 'en' not in labels:
             data['labels'] = {'en' : { 'language' : 'en',
                                        'value' : metadata.get('title').strip(),
                                        }
                               }
 
-        new_claims = {}
-
-        # Instance of -> photograph
-        if 'P31' not in statements:
-            new_claim = pywikibot.Claim(self.repo, 'P31')
-            new_item = pywikibot.ItemPage(self.repo, 'Q125191')
-            new_claim.setTarget(new_item)
-            new_claims['instance'] = [new_claim.toJSON(), ]
-
-        # Copyright status -> copyrighted
-        if 'P6216' not in statements:
-            new_claim = pywikibot.Claim(self.repo, 'P6216')
-            new_item = pywikibot.ItemPage(self.repo, 'Q50423863')
-            new_claim.setTarget(new_item)
-            new_claims['copyright'] = [new_claim.toJSON(), ]
-
-        # License -> cc-by-2.0
-        if 'P275' not in statements:
-            new_claim = pywikibot.Claim(self.repo, 'P275')
-            new_item = pywikibot.ItemPage(self.repo, 'Q19068220')
-            new_claim.setTarget(new_item)
-
-            title_qualifier = pywikibot.Claim(self.repo, 'P1476')
-            title_text = pywikibot.WbMonolingualText(text=metadata.get('title').strip(), language='en')
-            title_qualifier.setTarget(title_text)
-            title_qualifier.isQualifier = True
-
-            author_qualifier = pywikibot.Claim(self.repo, 'P2093')
-            author_qualifier.setTarget(metadata.get('realname').strip())
-            author_qualifier.isQualifier = True
-
-            new_claim.qualifiers['P1476'] = [title_qualifier]
-            new_claim.qualifiers['P2093'] = [author_qualifier]
-            new_claims['license'] = [new_claim.toJSON(), ]
-        else:
-            # It already has a license
-            license_claim = statements.get('P275')[0]
-            if license_claim.getTarget().title() == 'Q19068220':
-                # It's the right license (cc-by-2.0)
-                if 'P1476' not in license_claim.qualifiers or 'P2093' not in license_claim.qualifiers:
-                    # One or both of the qualifiers are missing
-                    if 'P1476' not in license_claim.qualifiers:
-                        title_qualifier = pywikibot.Claim(self.repo, 'P1476')
-                        title_text = pywikibot.WbMonolingualText(text=metadata.get('title').strip(), language='en')
-                        title_qualifier.setTarget(title_text)
-                        title_qualifier.isQualifier = True
-                        license_claim.qualifiers['P1476'] = [title_qualifier]
-                    if 'P2093' not in license_claim.qualifiers:
-                        author_qualifier = pywikibot.Claim(self.repo, 'P2093')
-                        author_qualifier.setTarget(metadata.get('realname').strip())
-                        author_qualifier.isQualifier = True
-                        license_claim.qualifiers['P2093'] = [author_qualifier]
-                    new_claims['license'] = [license_claim.toJSON(), ]
-
-        # Source
-        if 'P7482' not in statements:
-            new_claim = pywikibot.Claim(self.repo, 'P7482')
-            new_item = pywikibot.ItemPage(self.repo, 'Q74228490')
-            new_claim.setTarget(new_item)
-
-            operator_qualifier = pywikibot.Claim(self.repo, 'P137')
-            operator_item = pywikibot.ItemPage(self.repo, 'Q1503119')
-            operator_qualifier.setTarget(operator_item)
-            operator_qualifier.isQualifier = True
-
-            geograph_id_qualifier = pywikibot.Claim(self.repo, 'P7384')
-            geograph_id_qualifier.setTarget(metadata.get('id'))
-            geograph_id_qualifier.isQualifier = True
-
-            url_qualifier = pywikibot.Claim(self.repo, 'P973')
-            url_qualifier.setTarget(metadata.get('sourceurl'))
-            url_qualifier.isQualifier = True
-
-            new_claim.qualifiers['P137'] = [operator_qualifier]
-            new_claim.qualifiers['P7384'] = [geograph_id_qualifier]
-            new_claim.qualifiers['P973'] = [url_qualifier]
-            new_claims['source'] = [new_claim.toJSON(), ]
-        else:
-            # It already has a source
-            source_claim = statements.get('P7482')[0]
-            if source_claim.getTarget().title() == 'Q74228490':
-                # It's file available on the internet (Q74228490)
-                if 'P137' not in source_claim.qualifiers or 'P7384' not in source_claim.qualifiers \
-                        or 'P973' not in source_claim.qualifiers:
-                    # One or more of the qualifiers are missing
-                    if 'P137' not in source_claim.qualifiers:
-                        operator_qualifier = pywikibot.Claim(self.repo, 'P137')
-                        operator_item = pywikibot.ItemPage(self.repo, 'Q1503119')
-                        operator_qualifier.setTarget(operator_item)
-                        operator_qualifier.isQualifier = True
-                        source_claim.qualifiers['P137'] = [operator_qualifier]
-                    if 'P7384' not in source_claim.qualifiers.qualifiers:
-                        geograph_id_qualifier = pywikibot.Claim(self.repo, 'P7384')
-                        geograph_id_qualifier.setTarget(metadata.get('id'))
-                        geograph_id_qualifier.isQualifier = True
-                        source_claim.qualifiers['P7384'] = [geograph_id_qualifier]
-                    if 'P973' not in source_claim.qualifiers.qualifiers:
-                        url_qualifier = pywikibot.Claim(self.repo, 'P973')
-                        url_qualifier.setTarget(metadata.get('sourceurl'))
-                        url_qualifier.isQualifier = True
-                        source_claim.qualifiers['P973'] = [url_qualifier]
-                    new_claims['source'] = [license_claim.toJSON(), ]
-
-        # creator
-        if 'P170' not in statements:
-            new_claim = pywikibot.Claim(self.repo, 'P170')
-            new_claim.setSnakType('somevalue')
-
-            #  object of statement has role (P3831) -> photographer (Q33231)
-            photographer_qualifier = pywikibot.Claim(self.repo, 'P3831')
-            photographer_item = pywikibot.ItemPage(self.repo, 'Q33231')
-            photographer_qualifier.setTarget(photographer_item)
-            photographer_qualifier.isQualifier = True
-
-            author_qualifier = pywikibot.Claim(self.repo, 'P2093')
-            author_qualifier.setTarget(metadata.get('realname').strip())
-            author_qualifier.isQualifier = True
-
-            author_url = 'https://www.geograph.org.uk/profile/%s' % (metadata.get('user_id'))
-            url_qualifier = pywikibot.Claim(self.repo, 'P2699')
-            url_qualifier.setTarget(author_url)
-            url_qualifier.isQualifier = True
-
-            new_claim.qualifiers['P3831'] = [photographer_qualifier]
-            new_claim.qualifiers['P2093'] = [author_qualifier]
-            new_claim.qualifiers['P2699'] = [url_qualifier]
-            new_claims['creator'] = [new_claim.toJSON(), ]
-
-        if 'P571' not in statements:
-            date = self.getDate(metadata)
-            if date:
-                new_claims['date'] = [date, ]
-
-        if 'P1259' not in statements:
-            coordinates = self.getPhotographerCoordinates(metadata)
-            if coordinates:
-                new_claims['coordinates'] = [coordinates, ]
-
-        if 'P9149' not in statements:
-            object_coordinates = self.getObjectCoordinates(metadata)
-            if object_coordinates:
-                new_claims['object coordinates'] = [object_coordinates, ]
-
-        # MIME type
-        if 'P1163' not in statements:
-            new_claim = pywikibot.Claim(self.repo, 'P1163')
-            new_claim.setTarget('image/jpeg')
-            new_claims['MIME'] = [new_claim.toJSON(), ]
-
-        # Do the reverse lookup
-        if 'P180' not in statements or 'P1071' not in statements:
-            if metadata.get('photographer_lat') and metadata.get('photographer_lon'):
-                location_qid = self.reverse_geocode(metadata.get('photographer_lat'), metadata.get('photographer_lon'))
-                if location_qid:
-                    metadata['locationqid'] = location_qid
-
-            if metadata.get('object_lat') and metadata.get('object_lon'):
-                object_qid = self.reverse_geocode(metadata.get('object_lat'), metadata.get('object_lon'), )
-                if object_qid:
-                    if not metadata.get('locationqid'):
-                        metadata['locationqid'] = object_qid
-                    metadata['depictsqids'].append(object_qid)
-
-            if 'P180' not in statements:
-                new_claims['depicts'] = self.get_depicts(metadata)
-
-            if 'P1071' not in statements and metadata.get('locationqid'):
-                new_claim = pywikibot.Claim(self.repo, 'P1071')
-                new_item = pywikibot.ItemPage(self.repo, metadata.get('locationqid'))
-                new_claim.setTarget(new_item)
-                new_claims['location'] = [new_claim.toJSON(), ]
-
-
-
+        new_claims = self.get_claims(metadata, statements)
         added_claims = []
 
         for new_claim in new_claims:
@@ -317,13 +130,12 @@ class GeographDescribeBot:
 
             try:
                 # FIXME: Switch to mediainfo.editEntity() https://phabricator.wikimedia.org/T376955
-                print(data)
                 response = self.site.editEntity(mediainfo, data, summary=summary, tags='BotSDC')
                 filepage.touch()
             except pywikibot.exceptions.APIError as e:
                 print(e)
 
-    def get_geograph_metadata(self, geograph_id):
+    def get_geograph_metadata(self, geograph_id) -> dict:
         """
         Get the metadata for a single geograph file from the source
         :param geograph_id: The id of the file
@@ -339,7 +151,7 @@ class GeographDescribeBot:
         if searchpage.json().get('rows'):
             row = searchpage.json().get('rows')[0]
         else:
-            return False
+            return {}
         metadata = row
 
         metadata['imageurl'] = 'https://www.geograph.org.uk/reuse.php?id=%s&download=%s&size=largest' % (row.get('id'), row.get('hash'))
@@ -413,7 +225,238 @@ class GeographDescribeBot:
 
         return metadata
 
-    def getDate(self, metadata):
+    def get_claims(self, metadata, statements) -> dict:
+        """
+        Get all the claims that need to be added or updated
+
+        :param metadata: Metadata from geograph
+        :param statements: Current statements
+        :return: Dict with the different claims
+        """
+        new_claims = {}
+
+        # Instance of -> photograph
+        if 'P31' not in statements:
+            new_claim = pywikibot.Claim(self.repo, 'P31')
+            new_item = pywikibot.ItemPage(self.repo, 'Q125191')
+            new_claim.setTarget(new_item)
+            new_claims['instance'] = [new_claim.toJSON(), ]
+
+        # Copyright status -> copyrighted
+        if 'P6216' not in statements:
+            new_claim = pywikibot.Claim(self.repo, 'P6216')
+            new_item = pywikibot.ItemPage(self.repo, 'Q50423863')
+            new_claim.setTarget(new_item)
+            new_claims['copyright'] = [new_claim.toJSON(), ]
+
+        # License -> cc-by-2.0
+        if 'P275' not in statements:
+            new_claims['license'] = [self.get_license(metadata), ]
+        else:
+            license_claim = self.update_license(metadata, statements)
+            if license_claim:
+                new_claims['license'] = [license_claim, ]
+
+        # Source
+        if 'P7482' not in statements:
+            new_claims['source'] = [self.get_source(metadata), ]
+        else:
+            source_claim = self.update_source(metadata, statements)
+            if source_claim:
+                new_claims['source'] = [source_claim, ]
+
+        # Creator
+        if 'P170' not in statements:
+            new_claims['creator'] = [self.get_photographer(metadata), ]
+
+        # Inception
+        if 'P571' not in statements:
+            date = self.get_date(metadata)
+            if date:
+                new_claims['date'] = [date, ]
+
+        # Coordinates of the point of view
+        if 'P1259' not in statements:
+            coordinates = self.get_photographer_coordinates(metadata)
+            if coordinates:
+                new_claims['coordinates'] = [coordinates, ]
+
+        # Coordinates of depicted place
+        if 'P9149' not in statements:
+            object_coordinates = self.get_object_coordinates(metadata)
+            if object_coordinates:
+                new_claims['object coordinates'] = [object_coordinates, ]
+
+        # MIME type
+        if 'P1163' not in statements:
+            new_claim = pywikibot.Claim(self.repo, 'P1163')
+            new_claim.setTarget('image/jpeg')
+            new_claims['MIME'] = [new_claim.toJSON(), ]
+
+        # Do the reverse lookup only if depicts or location of creation is missing
+        if 'P180' not in statements or 'P1071' not in statements:
+            if metadata.get('photographer_lat') and metadata.get('photographer_lon'):
+                location_qid = self.reverse_geocode(metadata.get('photographer_lat'), metadata.get('photographer_lon'))
+                if location_qid:
+                    metadata['locationqid'] = location_qid
+
+            if metadata.get('object_lat') and metadata.get('object_lon'):
+                object_qid = self.reverse_geocode(metadata.get('object_lat'), metadata.get('object_lon'), )
+                if object_qid:
+                    if not metadata.get('locationqid'):
+                        metadata['locationqid'] = object_qid
+                    metadata['depictsqids'].append(object_qid)
+
+            if 'P180' not in statements:
+                new_claims['depicts'] = self.get_depicts(metadata)
+
+            if 'P1071' not in statements and metadata.get('locationqid'):
+                new_claim = pywikibot.Claim(self.repo, 'P1071')
+                new_item = pywikibot.ItemPage(self.repo, metadata.get('locationqid'))
+                new_claim.setTarget(new_item)
+                new_claims['location'] = [new_claim.toJSON(), ]
+        return new_claims
+
+    def get_license(self, metadata) -> dict:
+        """
+        Get the license for a file based on metadata
+
+        :param metadata: Metadata from geograph
+        :return: New claim as json dict
+        """
+        new_claim = pywikibot.Claim(self.repo, 'P275')
+        new_item = pywikibot.ItemPage(self.repo, 'Q19068220')
+        new_claim.setTarget(new_item)
+
+        title_qualifier = pywikibot.Claim(self.repo, 'P1476')
+        title_text = pywikibot.WbMonolingualText(text=metadata.get('title').strip(), language='en')
+        title_qualifier.setTarget(title_text)
+        title_qualifier.isQualifier = True
+
+        author_qualifier = pywikibot.Claim(self.repo, 'P2093')
+        author_qualifier.setTarget(metadata.get('realname').strip())
+        author_qualifier.isQualifier = True
+
+        new_claim.qualifiers['P1476'] = [title_qualifier]
+        new_claim.qualifiers['P2093'] = [author_qualifier]
+        return new_claim.toJSON()
+
+    def update_license(self, metadata, statements) -> dict:
+        """
+        Update the license for a file based on metadata
+        :param metadata: Metadata from geograph
+        :param statements: Current statements
+        :return: New claim as json dict
+        """
+        license_claim = statements.get('P275')[0]
+        if license_claim.getTarget().title() == 'Q19068220':
+            # It's the right license (cc-by-2.0)
+            if 'P1476' not in license_claim.qualifiers or 'P2093' not in license_claim.qualifiers:
+                # One or both of the qualifiers are missing
+                if 'P1476' not in license_claim.qualifiers:
+                    title_qualifier = pywikibot.Claim(self.repo, 'P1476')
+                    title_text = pywikibot.WbMonolingualText(text=metadata.get('title').strip(), language='en')
+                    title_qualifier.setTarget(title_text)
+                    title_qualifier.isQualifier = True
+                    license_claim.qualifiers['P1476'] = [title_qualifier]
+                if 'P2093' not in license_claim.qualifiers:
+                    author_qualifier = pywikibot.Claim(self.repo, 'P2093')
+                    author_qualifier.setTarget(metadata.get('realname').strip())
+                    author_qualifier.isQualifier = True
+                    license_claim.qualifiers['P2093'] = [author_qualifier]
+                return license_claim.toJSON()
+
+    def get_source(self, metadata) -> dict:
+        """
+        Get the source for a file based on metadata
+
+        :param metadata: Metadata from geograph
+        :return: New claim as json dict
+        """
+        new_claim = pywikibot.Claim(self.repo, 'P7482')
+        new_item = pywikibot.ItemPage(self.repo, 'Q74228490')
+        new_claim.setTarget(new_item)
+
+        operator_qualifier = pywikibot.Claim(self.repo, 'P137')
+        operator_item = pywikibot.ItemPage(self.repo, 'Q1503119')
+        operator_qualifier.setTarget(operator_item)
+        operator_qualifier.isQualifier = True
+
+        geograph_id_qualifier = pywikibot.Claim(self.repo, 'P7384')
+        geograph_id_qualifier.setTarget(metadata.get('id'))
+        geograph_id_qualifier.isQualifier = True
+
+        url_qualifier = pywikibot.Claim(self.repo, 'P973')
+        url_qualifier.setTarget(metadata.get('sourceurl'))
+        url_qualifier.isQualifier = True
+
+        new_claim.qualifiers['P137'] = [operator_qualifier]
+        new_claim.qualifiers['P7384'] = [geograph_id_qualifier]
+        new_claim.qualifiers['P973'] = [url_qualifier]
+        return new_claim.toJSON()
+
+    def update_source(self, metadata, statements) -> dict:
+        """
+        Update the source for a file based on metadata
+        :param metadata: Metadata from geograph
+        :param statements: Current statements
+        :return: New claim as json dict
+        """
+        source_claim = statements.get('P7482')[0]
+        if source_claim.getTarget().title() == 'Q74228490':
+            # It's file available on the internet (Q74228490)
+            if 'P137' not in source_claim.qualifiers or 'P7384' not in source_claim.qualifiers \
+                    or 'P973' not in source_claim.qualifiers:
+                # One or more of the qualifiers are missing
+                if 'P137' not in source_claim.qualifiers:
+                    operator_qualifier = pywikibot.Claim(self.repo, 'P137')
+                    operator_item = pywikibot.ItemPage(self.repo, 'Q1503119')
+                    operator_qualifier.setTarget(operator_item)
+                    operator_qualifier.isQualifier = True
+                    source_claim.qualifiers['P137'] = [operator_qualifier]
+                if 'P7384' not in source_claim.qualifiers.qualifiers:
+                    geograph_id_qualifier = pywikibot.Claim(self.repo, 'P7384')
+                    geograph_id_qualifier.setTarget(metadata.get('id'))
+                    geograph_id_qualifier.isQualifier = True
+                    source_claim.qualifiers['P7384'] = [geograph_id_qualifier]
+                if 'P973' not in source_claim.qualifiers.qualifiers:
+                    url_qualifier = pywikibot.Claim(self.repo, 'P973')
+                    url_qualifier.setTarget(metadata.get('sourceurl'))
+                    url_qualifier.isQualifier = True
+                    source_claim.qualifiers['P973'] = [url_qualifier]
+                return source_claim.toJSON()
+
+    def get_photographer(self, metadata) -> dict:
+        """
+        Get the photographer based on metadata
+
+        :param metadata: Metadata from geograph
+        :return: New claim as json dict
+        """
+        new_claim = pywikibot.Claim(self.repo, 'P170')
+        new_claim.setSnakType('somevalue')
+
+        #  object of statement has role (P3831) -> photographer (Q33231)
+        photographer_qualifier = pywikibot.Claim(self.repo, 'P3831')
+        photographer_item = pywikibot.ItemPage(self.repo, 'Q33231')
+        photographer_qualifier.setTarget(photographer_item)
+        photographer_qualifier.isQualifier = True
+
+        author_qualifier = pywikibot.Claim(self.repo, 'P2093')
+        author_qualifier.setTarget(metadata.get('realname').strip())
+        author_qualifier.isQualifier = True
+
+        author_url = 'https://www.geograph.org.uk/profile/%s' % (metadata.get('user_id'))
+        url_qualifier = pywikibot.Claim(self.repo, 'P2699')
+        url_qualifier.setTarget(author_url)
+        url_qualifier.isQualifier = True
+
+        new_claim.qualifiers['P3831'] = [photographer_qualifier]
+        new_claim.qualifiers['P2093'] = [author_qualifier]
+        new_claim.qualifiers['P2699'] = [url_qualifier]
+        return new_claim.toJSON()
+
+    def get_date(self, metadata) -> dict:
         """
 
         :param metadata:
@@ -429,12 +472,15 @@ class GeographDescribeBot:
         else:
             date = metadata.get('date')
 
+        # FIXME: Switch to site.parsevalue, see https://phabricator.wikimedia.org/T112140
         request = self.site.simple_request(action='wbparsevalue', datatype='time', values=date)
         data = request.submit()
         # Not sure if this works or that I get an exception.
         if data.get('error'):
             return False
         postvalue = data.get(u'results')[0].get('value')
+
+        # TODO: Switch to normal claim
 
         toclaim = {'mainsnak': { 'snaktype':'value',
                                  'property': 'P571',
@@ -448,7 +494,7 @@ class GeographDescribeBot:
                    }
         return toclaim
 
-    def getPhotographerCoordinates(self, metadata):
+    def get_photographer_coordinates(self, metadata) -> dict:
         """
 
         :param metadata:
@@ -456,6 +502,8 @@ class GeographDescribeBot:
         """
         if not metadata.get('photographer_lat') or not metadata.get('photographer_lon') or not metadata.get('photographer_precision'):
             return False
+
+        # TODO: Switch to normal claim
 
         toclaim = {'mainsnak': { 'snaktype':'value',
                                  'property': 'P1259',
@@ -484,7 +532,7 @@ class GeographDescribeBot:
                                      }
         return toclaim
 
-    def getObjectCoordinates(self, metadata):
+    def get_object_coordinates(self, metadata) -> dict:
         """
 
         :param metadata:
@@ -492,6 +540,8 @@ class GeographDescribeBot:
         """
         if not metadata.get('object_lat') or not metadata.get('object_lon') or not metadata.get('object_precision'):
             return False
+
+        # TODO: Switch to normal claim
 
         toclaim = {'mainsnak': { 'snaktype':'value',
                                  'property': 'P9149',
