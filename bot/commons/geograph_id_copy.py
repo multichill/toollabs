@@ -74,7 +74,8 @@ class GeographIdCopyBot:
 
         data = {'claims': [new_claim.toJSON(), ]}
         try:
-            response = self.site.editEntity(mediainfo, data, summary=summary)
+            # FIXME: Switch to mediainfo.editEntity() https://phabricator.wikimedia.org/T376955
+            response = self.site.editEntity(mediainfo, data, summary=summary, tags='BotSDC')
             filepage.touch()
         except pywikibot.exceptions.APIError as e:
             print(e)
