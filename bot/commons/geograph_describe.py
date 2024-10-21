@@ -157,7 +157,7 @@ class GeographDescribeBot:
         metadata['imageurl'] = 'https://www.geograph.org.uk/reuse.php?id=%s&download=%s&size=largest' % (row.get('id'), row.get('hash'))
         metadata['sourceurl'] = 'https://www.geograph.org.uk/photo/%s' % (row.get('id'), )
 
-        if row.get('takenday'):
+        if row.get('takenday') and row.get('takenday') != '00000000':
             dateregex = '^(\d\d\d\d)(\d\d)(\d\d)$'
             datematch = re.match(dateregex, row.get('takenday'))
             if datematch:
@@ -458,41 +458,30 @@ class GeographDescribeBot:
 
     def get_date(self, metadata) -> dict:
         """
+        Get the date based on metadata
 
-        :param metadata:
-        :return:
+        :param metadata: Metadata from geograph
+        :return: New claim as json dict
         """
         if not metadata.get('date'):
             return False
 
-        dateregex = '(\d\d\d\d-\d\d-\d\d)'
-        datematch = re.search(dateregex, metadata.get('date'))
-        if datematch:
-            date = datematch.group(1)
+        date_regex = '(\d\d\d\d-\d\d-\d\d)'
+        date_match = re.search(date_regex, metadata.get('date'))
+        if date_match:
+            date = date_match.group(1)
         else:
             date = metadata.get('date')
 
-        # FIXME: Switch to site.parsevalue, see https://phabricator.wikimedia.org/T112140
-        request = self.site.simple_request(action='wbparsevalue', datatype='time', values=date)
-        data = request.submit()
-        # Not sure if this works or that I get an exception.
-        if data.get('error'):
-            return False
-        postvalue = data.get(u'results')[0].get('value')
-
-        # TODO: Switch to normal claim
-
-        toclaim = {'mainsnak': { 'snaktype':'value',
-                                 'property': 'P571',
-                                 'datavalue': { 'value': postvalue,
-                                                'type' : 'time',
-                                                }
-
-                                 },
-                   'type': 'statement',
-                   'rank': 'normal',
-                   }
-        return toclaim
+        try:
+            parsed_values = self.site.parsevalue(datatype='time', values=date)
+        except ValueError as e:
+            print(e)
+            return {}
+        new_claim = pywikibot.Claim(self.repo, 'P571')
+        new_date = pywikibot.WbTime.fromWikibase(parsed_values[0], self.repo)
+        new_claim.setTarget(new_date)
+        return new_claim.toJSON()
 
     def get_photographer_coordinates(self, metadata) -> dict:
         """
