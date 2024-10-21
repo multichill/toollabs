@@ -27,7 +27,10 @@ class IdImportBot:
             'Template:Geograph': {
                 'regex': '\{\{[gG]eograph\s*\|\s*(1\=)?\s*(?P<id>\d+)\|',
                 'property': 'P7384'},
-                             }
+            'Template:Also geograph': {
+                'regex': '\{\{[aA]lso[ _]geograph\s*\|\s*(1\=)?\s*(?P<id>\d+)\}',
+                'property': 'P7384'},
+            }
 
         self.site = pywikibot.Site('commons', 'commons')
         self.site.login()
