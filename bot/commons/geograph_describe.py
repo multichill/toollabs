@@ -414,12 +414,12 @@ class GeographDescribeBot:
                     operator_qualifier.setTarget(operator_item)
                     operator_qualifier.isQualifier = True
                     source_claim.qualifiers['P137'] = [operator_qualifier]
-                if 'P7384' not in source_claim.qualifiers.qualifiers:
+                if 'P7384' not in source_claim.qualifiers:
                     geograph_id_qualifier = pywikibot.Claim(self.repo, 'P7384')
                     geograph_id_qualifier.setTarget(metadata.get('id'))
                     geograph_id_qualifier.isQualifier = True
                     source_claim.qualifiers['P7384'] = [geograph_id_qualifier]
-                if 'P973' not in source_claim.qualifiers.qualifiers:
+                if 'P973' not in source_claim.qualifiers:
                     url_qualifier = pywikibot.Claim(self.repo, 'P973')
                     url_qualifier.setTarget(metadata.get('sourceurl'))
                     url_qualifier.isQualifier = True
@@ -625,8 +625,8 @@ def main(*args):
 
     gen = pagegenerators.PageClassGenerator(gen_factory.getCombinedGenerator(gen, preload=True))
 
-    geographDescribeBot = GeographDescribeBot(gen)
-    geographDescribeBot.run()
+    geograph_describe_bot = GeographDescribeBot(gen)
+    geograph_describe_bot.run()
 
 
 if __name__ == "__main__":
