@@ -298,6 +298,13 @@ def main(*args):
                                'collectionshort': 'Voerman',
                                'locationqid': 'Q1967125',
                                },
+                   'Q17605261': {'filter': 'search_s_spectrum_collection_name:schilderijen',
+                                'participant': 'Kasteel Huis Bergh',
+                                'prefix': 'huisbergh',
+                                'collectionqid': 'Q17605261',
+                                'collectionshort': 'Huis Bergh',
+                                'locationqid': 'Q17605261',
+                                },
                    }
     # TODO: Add more from https://www.collectiegelderland.nl/zoeken?term=&page=1&filter=search_s_objectcategorie-schilderijen
     # TODO: Add more from https://www.collectiegelderland.nl/zoeken?term=&page=1&filter=search_s_object_name-schilderij
