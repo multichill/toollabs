@@ -8,7 +8,7 @@ import pywikibot
 from pywikibot import pagegenerators
 import re
 
-class PaintingBot:
+class PaintingCreatorBot:
     """
     A bot to add streets on Wikidata
     """
@@ -21,121 +21,112 @@ class PaintingBot:
         self.generator = generator
         self.repo = pywikibot.Site().data_repository()
         self.change = change
-        anonymous = pywikibot.ItemPage(self.repo, u'Q4233718')
-        self.creators = {u'unknown painter' : anonymous,
-                         u'anonymous' : anonymous,
-                         u'Unidentified' : anonymous,
-                         u'tuntematon' : anonymous,
-                         u'American 19th Century' : anonymous,
-                         u'Unknown' : anonymous,
-                         u'Unidentified artist' : anonymous,
-                         u'Unidentified Artist' : anonymous,
-                         u'Anonymous' : anonymous,
-                         u'Anoniem' : anonymous,
-                         u'Chinese' : anonymous,
-                         u'French Painter' : anonymous,
-                         u'Unidentified artist, American, mid-19th century' : anonymous,
-                         u'American 18th Century' : anonymous,
-                         u'Artist unknown' : anonymous,
-                         u'Tibet' : anonymous,
-                         u'Company school' : anonymous,
-                         u'Russian Painter' : anonymous,
-                         u'Unidentified Puerto Rican Artist' : anonymous,
-                         u'India' : anonymous,
-                         u'Unidentified artist, American, 19th century' : anonymous,
-                         u'Netherlandish Painter' : anonymous,
-                         u'American' : anonymous,
-                         u'Antwerp' : anonymous,
-                         u'Belgium' : anonymous,
-                         u'British' : anonymous,
-                         u'China' : anonymous,
-                         u'Dutch' : anonymous,
-                         u'England' : anonymous,
-                         u'English' : anonymous,
-                         u'Flanders' : anonymous,
-                         u'France' : anonymous,
-                         u'French' : anonymous,
-                         u'German' : anonymous,
-                         u'Iran' : anonymous,
-                         u'Italy' : anonymous,
-                         u'Japan' : anonymous,
-                         u'Mongolia' : anonymous,
-                         u'Nepal' : anonymous,
-                         u'Persia' : anonymous,
-                         u'Russia' : anonymous,
-                         u'Southern Netherlands' : anonymous,
-                         u'Spain' : anonymous,
-                         u'Spanish' : anonymous,
-                         u'Yao people' : anonymous,
-                         u'Rajasthan, India' : anonymous,
-                         u'pupil of Joseph Mallord William Turner' : anonymous,
-                         u'Jaipur, Rajasthan, India' : anonymous,
-                         u'Pierre Henri de Valenciennes or Circle' : anonymous,
-                         u'French 19th Century' : anonymous,
-                         u'Bikaner, Rajasthan, India' : anonymous,
-                         u'Puri, Orissa, India' : anonymous,
-                         u'North India, India' : anonymous,
-                         u'German Painter' : anonymous,
-                         u'French 18th Century' : anonymous,
-                         u'Workshop of Peter Paul Rubens' : anonymous,
-                         u'Unknown Designer' : anonymous,
-                         u'British Painter' : anonymous,
-                         u'Rembrandts skole' : anonymous,
-                         u'Kalighat school' : anonymous,
-                         u'Unknown artist' : anonymous,
-                         u'Unknown Artist' : anonymous,
-                         u'Unidentified artist, American, early 19th century' : anonymous,
-                         u'American 20th Century' : anonymous,
-                         u'Unidentified artist, French, 18th century' : anonymous,
-                         u'Jurriaan toegeschreven aan aan Andriessen' : anonymous,
-                         u'Unidentified artist, French, 19th century' : anonymous,
-                         u'Central Tibet' : anonymous,
-                         u'British 18th Century' : anonymous,
-                         u'Italian (Florentine) Painter' : anonymous,
-                         u'Anonymous Artist, Titian' : anonymous,
-                         u'Northern French Painter' : anonymous,
-                         u'Netherlandish' : anonymous,
-                         u'Spanish (Catalan) Painter' : anonymous,
-                         u'Italian' : anonymous,
-                         u'North Netherlandish' : anonymous,
-                         u'Central India, India' : anonymous,
-                         u'Antwerp 16th Century' : anonymous,
-                         u'Unidentified artist, American, 18th century' : anonymous,
-                         u'Workshop of Rogier van der Weyden' : anonymous,
-                         u'French 15th Century' : anonymous,
-                         u'Workshop of Giovanni Battista Tiepolo' : anonymous,
-                         u'Workshop of Simone Martini' : anonymous,
-                         u'Northern Italy' : anonymous,
-                         u'Paris, France' : anonymous,
-                         u'Siena' : anonymous,
-                         u'South German' : anonymous,
-                         u'Unbekannter Künstler' : anonymous,
-                         u'Indian' : anonymous,
-                         u'Japanese' : anonymous,
-                         u'Tibetan' : anonymous,
-                         u'Mughal' : anonymous,
-                         u'unknown artist' : anonymous,
-                         u'American School, painter' : anonymous,
-                         u'N/A' : anonymous,
-                         u'English School' : anonymous,
-                         u'Dutch School' : anonymous,
-                         u'British School 18th century' : anonymous,
-                         u'French School, painter' : anonymous,
-                         u'Netherlandish School' : anonymous,
-                         u'Unknown Anglo-Netherlandish artist' : anonymous,
-                         u'Unknown English artist' : anonymous,
-                         u'onbekend' : anonymous,
-                         u'an unknown artist' : anonymous,
-                         u'anonymous painter' : anonymous,
-                         u'Unknown Italian artist' : anonymous,
-                         u'Anonymous Artist' : anonymous,
-                         u'Unknown German artist' : anonymous,
-                         u'Islamic' : anonymous,
-                         u'Unknown artist of the venetian school' : anonymous,
-                         u'French painter' : anonymous,
-                         u'Okänd' : anonymous,
-                         u'unidentified artist' : anonymous,
-                         u'Anonyme' : anonymous,
+        anonymous = pywikibot.ItemPage(self.repo, 'Q4233718')
+        self.creators = {'unknown painter' : anonymous,
+                         'anonymous' : anonymous,
+                         'Unidentified' : anonymous,
+                         'tuntematon' : anonymous,
+                         'American 19th Century' : anonymous,
+                         'Unknown' : anonymous,
+                         'Unidentified artist' : anonymous,
+                         'Unidentified Artist' : anonymous,
+                         'Anonymous' : anonymous,
+                         'Anoniem' : anonymous,
+                         'Chinese' : anonymous,
+                         'French Painter' : anonymous,
+                         'Unidentified artist, American, mid-19th century' : anonymous,
+                         'American 18th Century' : anonymous,
+                         'Artist unknown' : anonymous,
+                         'Tibet' : anonymous,
+                         'Company school' : anonymous,
+                         'Russian Painter' : anonymous,
+                         'Unidentified Puerto Rican Artist' : anonymous,
+                         'India' : anonymous,
+                         'Unidentified artist, American, 19th century' : anonymous,
+                         'Netherlandish Painter' : anonymous,
+                         'American' : anonymous,
+                         'Antwerp' : anonymous,
+                         'Belgium' : anonymous,
+                         'British' : anonymous,
+                         'China' : anonymous,
+                         'Dutch' : anonymous,
+                         'England' : anonymous,
+                         'English' : anonymous,
+                         'Flanders' : anonymous,
+                         'France' : anonymous,
+                         'French' : anonymous,
+                         'German' : anonymous,
+                         'Iran' : anonymous,
+                         'Italy' : anonymous,
+                         'Japan' : anonymous,
+                         'Mongolia' : anonymous,
+                         'Nepal' : anonymous,
+                         'Persia' : anonymous,
+                         'Russia' : anonymous,
+                         'Southern Netherlands' : anonymous,
+                         'Spain' : anonymous,
+                         'Spanish' : anonymous,
+                         'Yao people' : anonymous,
+                         'Rajasthan, India' : anonymous,
+                         'Jaipur, Rajasthan, India' : anonymous,
+                         'French 19th Century' : anonymous,
+                         'Bikaner, Rajasthan, India' : anonymous,
+                         'Puri, Orissa, India' : anonymous,
+                         'North India, India' : anonymous,
+                         'German Painter' : anonymous,
+                         'French 18th Century' : anonymous,
+                         'Unknown Designer' : anonymous,
+                         'British Painter' : anonymous,
+                         'Kalighat school' : anonymous,
+                         'Unknown artist' : anonymous,
+                         'Unknown Artist' : anonymous,
+                         'Unidentified artist, American, early 19th century' : anonymous,
+                         'American 20th Century' : anonymous,
+                         'Unidentified artist, French, 18th century' : anonymous,
+                         'Unidentified artist, French, 19th century' : anonymous,
+                         'Central Tibet' : anonymous,
+                         'British 18th Century' : anonymous,
+                         'Italian (Florentine) Painter' : anonymous,
+                         'Northern French Painter' : anonymous,
+                         'Netherlandish' : anonymous,
+                         'Spanish (Catalan) Painter' : anonymous,
+                         'Italian' : anonymous,
+                         'North Netherlandish' : anonymous,
+                         'Central India, India' : anonymous,
+                         'Antwerp 16th Century' : anonymous,
+                         'Unidentified artist, American, 18th century' : anonymous,
+                         'French 15th Century' : anonymous,
+                         'Northern Italy' : anonymous,
+                         'Paris, France' : anonymous,
+                         'Siena' : anonymous,
+                         'South German' : anonymous,
+                         'Unbekannter Künstler' : anonymous,
+                         'Indian' : anonymous,
+                         'Japanese' : anonymous,
+                         'Tibetan' : anonymous,
+                         'Mughal' : anonymous,
+                         'unknown artist' : anonymous,
+                         'American School, painter' : anonymous,
+                         'N/A' : anonymous,
+                         'English School' : anonymous,
+                         'Dutch School' : anonymous,
+                         'British School 18th century' : anonymous,
+                         'French School, painter' : anonymous,
+                         'Netherlandish School' : anonymous,
+                         'Unknown Anglo-Netherlandish artist' : anonymous,
+                         'Unknown English artist' : anonymous,
+                         'onbekend' : anonymous,
+                         'an unknown artist' : anonymous,
+                         'anonymous painter' : anonymous,
+                         'Unknown Italian artist' : anonymous,
+                         'Anonymous Artist' : anonymous,
+                         'Unknown German artist' : anonymous,
+                         'Islamic' : anonymous,
+                         'Unknown artist of the venetian school' : anonymous,
+                         'French painter' : anonymous,
+                         'Okänd' : anonymous,
+                         'unidentified artist' : anonymous,
+                         'Anonyme' : anonymous,
                          #u'' : anonymous,
                         }
         self.replaceableCreators = { u'Q19595156' : True, # Not the right Gerhard Richter
@@ -145,96 +136,112 @@ class PaintingBot:
         """
         Starts the robot.
         """
-        regex = u'^painting by ([^\(]+)(\s\([^\)]+\))?$'
-        attributed_regex = u'^painting [aA]ttributed to ([^\(]+)(\s\([^\)]+\))?$'
-        #regex = u'^anonymous painting$'
-        #regex = u'^peinture de (.+)$'
+
         for item in self.generator:
-            pywikibot.output(u'Working on %s' % (item.title(),))
-            
             if item.exists() and not item.isRedirectPage():
-                data = item.get()
+                pywikibot.output(u'Working on %s' % (item.title(),))
+                self.process_painting_item(item)
 
-                # If we don't want to change this, we might as well bail out now
-                if data.get('claims').get('P170') and not self.change:
-                    pywikibot.output('Item already has creator (P170) claim and change is set to False')
-                    continue
+    def process_painting_item(self, item):
+        """
+        Process a single painting item
+        :param item:
+        :return:
+        """
+        regex = '^painting by ([^\(]+)(\s\([^\)]+\))?$'
+        attributed_regex = '^painting [aA]ttributed to ([^\(]+)(\s\([^\)]+\))?$'
+        data = item.get()
 
-                # We need an English description
-                if not (data.get('descriptions') and data.get('descriptions').get(u'en')):
-                    pywikibot.output('No English description I can use')
-                    continue
+        # If we don't want to change this, we might as well bail out now
+        if data.get('claims').get('P170') and not self.change:
+            pywikibot.output('Item already has creator (P170) claim and change is set to False')
+            return
 
-                if data.get('descriptions').get(u'en').lower()=='painting':
-                    pywikibot.output('Unable to extract a name from the English description "painting"')
-                    continue
+        # We need an English description
+        if not (data.get('descriptions') and data.get('descriptions').get('en')):
+            pywikibot.output('No English description I can use')
+            return
 
-                # And this description should match our regex
-                match = re.match(regex, data.get('descriptions').get(u'en'))
-                attributed_match = re.match(attributed_regex, data.get('descriptions').get(u'en'))
-                if not match and not attributed_match:
-                    pywikibot.output('Regexes didn\'t match on "%s"' % (data.get('descriptions').get(u'en'),))
-                    continue
+        # Just painting is just not enough
+        if data.get('descriptions').get('en').lower()=='painting':
+            pywikibot.output('Unable to extract a name from the English description "painting"')
+            return
 
-                # Let's see if we can find a victim
-                if match:
-                    creator = match.group(1).strip()
-                    attributed = False
-                elif attributed_match:
-                    creator = attributed_match.group(1).strip()
-                    attributed = True
+        # And this description should match our regex
+        match = re.match(regex, data.get('descriptions').get('en'))
+        attributed_match = re.match(attributed_regex, data.get('descriptions').get('en'))
+        if not match and not attributed_match:
+            pywikibot.output('Regexes didn\'t match on "%s"' % (data.get('descriptions').get('en'),))
+            return
 
-                # The search generator in getCreator() sometimes times out
-                try:
-                    creatorItem = self.getCreator(creator)
+        # Let's see if we can find a victim
+        if match:
+            creator = match.group(1).strip()
+            attributed = False
+        elif attributed_match:
+            creator = attributed_match.group(1).strip()
+            attributed = True
+        else:
+            return
 
-                    if not creatorItem:
-                        pywikibot.output(u'No creator found for "%s"' % (creator,))
+        # Try to extract the year of creation
+        if data.get('claims').get('P571'):
+            inception_claim = data.get('claims').get('P571')[0]
+            inception = inception_claim.getTarget().year
+        else:
+            inception = None
 
-                        # The name is maybe like "surname, firstname"
-                        if u',' not in creator:
-                            # Just continue
-                            continue
-                        else:
-                            (surname, sep, firstname) = creator.partition(u',')
-                            creator = u'%s %s' % (firstname.strip(), surname.strip(),)
-                            creatorItem = self.getCreator(creator)
-                            if not creatorItem:
-                                pywikibot.output(u'No creator found for "%s" either' % (creator,))
-                                continue
-                except pywikibot.exceptions.TimeoutError:
-                    pywikibot.output(u'Looks like the search timed out while looking for %s' % (creator,))
-                    continue
+        # The search generator in get_creator() sometimes times out
+        try:
+            creator_item = self.get_creator(creator, inception=inception)
 
-                # No creator set yet
-                if not data.get('claims').get('P170'):
-                    newclaim = pywikibot.Claim(self.repo, u'P170')
-                    newclaim.setTarget(creatorItem)
-                    summary = 'Adding creator [[%s]] based on "%s"' % (creatorItem.title(), data.get('descriptions').get(u'en'))
-                    pywikibot.output(summary)
-                    item.addClaim(newclaim, summary=summary)
-                    if attributed:
-                        newqualifier = pywikibot.Claim(self.repo, 'P5102')
-                        newqualifier.setTarget(pywikibot.ItemPage(self.repo, 'Q230768'))
-                        newclaim.addQualifier(newqualifier)
-                # We do have a creator, let's see if we can replace it
+            if not creator_item:
+                pywikibot.output('No creator found for "%s"' % (creator,))
+
+                # The name is maybe like "surname, firstname"
+                if ',' not in creator:
+                    # Just continue to the next painting
+                    return
                 else:
-                    creators = data.get('claims').get('P170')
-                    if len(creators)>1:
-                        pywikibot.output(u'More than one creator, I\'m not handling that!')
-                        continue
-                    else:
-                        creatorclaim = creators[0]
-                        if self.replaceableCreator(creatorclaim.getTarget()):
-                            summary = 'Changing creator [[%s]] to the painter [[%s]]' % (creatorclaim.getTarget().title(), creatorItem.title())
-                            pywikibot.output(summary)
-                            creatorclaim.changeTarget(creatorItem, summary=summary)
-                            if attributed:
-                                newqualifier = pywikibot.Claim(self.repo, 'P5102')
-                                newqualifier.setTarget(pywikibot.ItemPage(self.repo, 'Q230768'))
-                                creatorclaim.addQualifier(newqualifier)
+                    (surname, sep, firstname) = creator.partition(',')
+                    creator = '%s %s' % (firstname.strip(), surname.strip(),)
+                    creator_item = self.get_creator(creator)
+                    if not creator_item:
+                        pywikibot.output('No creator found for "%s" either' % (creator,))
+                        return
+        except pywikibot.exceptions.TimeoutError:
+            pywikibot.output('Looks like the search timed out while looking for %s' % (creator,))
+            return
 
-    def getCreator(self, creator):
+        # We found a creator and no creator set yet
+        if not data.get('claims').get('P170'):
+            new_claim = pywikibot.Claim(self.repo, u'P170')
+            new_claim.setTarget(creator_item)
+            summary = 'Adding creator [[%s]] based on "%s"' % (creator_item.title(), data.get('descriptions').get('en'))
+            pywikibot.output(summary)
+            item.addClaim(new_claim, summary=summary)
+            if attributed:
+                new_qualifier = pywikibot.Claim(self.repo, 'P5102')
+                new_qualifier.setTarget(pywikibot.ItemPage(self.repo, 'Q230768'))
+                new_claim.addQualifier(new_qualifier)
+        # We do have a creator, let's see if we can replace it
+        else:
+            creators = data.get('claims').get('P170')
+            if len(creators)>1:
+                pywikibot.output('More than one creator, I\'m not handling that!')
+                return
+            else:
+                creator_claim = creators[0]
+                if self.replaceableCreator(creator_claim.getTarget()):
+                    summary = 'Changing creator [[%s]] to the painter [[%s]]' % (creator_claim.getTarget().title(), creator_item.title())
+                    pywikibot.output(summary)
+                    creator_claim.changeTarget(creator_item, summary=summary)
+                    if attributed:
+                        new_qualifier = pywikibot.Claim(self.repo, 'P5102')
+                        new_qualifier.setTarget(pywikibot.ItemPage(self.repo, 'Q230768'))
+                        creator_claim.addQualifier(new_qualifier)
+
+    def get_creator(self, creator, inception=None):
         """
         Find the painter with the name in creator
 
@@ -245,30 +252,62 @@ class PaintingBot:
 
         # First use the cache
         if creator in self.creators:
-            return self.creators[creator]
+            return self.creators.get(creator)
 
-        # Search Wikidata for a suitable candidate, tell the search to only return humans
-        searchstring = u'%s haswbstatement:P31=Q5' % (creator,)
-        creategen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, total=50, namespaces=[0], site=self.repo)))
+        # Search Wikidata for a suitable candidate, tell the search to only return humans that are painters
+        searchstring = 'inlabel:"%s" haswbstatement:P31=Q5 haswbstatement:P106=Q1028181' % (creator,)
+        creator_gen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, total=50, namespaces=[0], site=self.repo)))
 
-        for creatoritem in creategen:
-            if creatoritem.isRedirectPage():
-                creatoritem = creatoritem.getRedirectTarget()
+        found_creators = []
+
+        for creator_item in creator_gen:
+            if creator_item.isRedirectPage():
+                creator_item = creator_item.getRedirectTarget()
             # See if the label or one of the aliases of the creatoritem matches the string we have. Only label is case insensitive.
-            if (creatoritem.get().get('labels').get('en') and creatoritem.get().get('labels').get('en').lower() == creator.lower()) or (creatoritem.get().get('aliases').get('en') and creator in creatoritem.get().get('aliases').get('en')):
-                if u'P106' in creatoritem.get().get('claims'):
-                    existing_claims = creatoritem.get().get('claims').get('P106')
+            if (creator_item.get().get('labels').get('en') and creator_item.get().get('labels').get('en').lower() == creator.lower()) or (creator_item.get().get('aliases').get('en') and creator in creator_item.get().get('aliases').get('en')):
+                if 'P106' in creator_item.get().get('claims'):
+                    existing_claims = creator_item.get().get('claims').get('P106')
                     for existing_claim in existing_claims:
-                        if existing_claim.target_equals(u'Q1028181'):
-                            self.creators[creator] = creatoritem
-                            return creatoritem
+                        if existing_claim.target_equals('Q1028181'):
+                            self.creators[creator] = creator_item
+                            found_creators.append(creator_item)
 
-        # Regex that should match all the anonymous work stuff that isn't covered by the list
-        anonymousRegex = '^(Workshop of|Follower of|Circle of|Manner of|Forgery after|School of|After|Unidentified Artist|School of)\s.*$'
-        anonymousMatch = re.match(anonymousRegex, creator, flags=re.I)
-        if anonymousMatch:
-            self.creators[creator] = self.creators.get('anonymous')
-            return self.creators.get('anonymous')
+        if not found_creators:
+            return None
+        if not inception and len(found_creators) == 1:
+            return found_creators[0]
+        if not inception and len(found_creators) > 1:
+            return None
+        if inception:
+            for found_creator in found_creators:
+                creator_data = found_creator.get()
+
+                if not creator_data.get('claims').get('P569'):
+                    pywikibot.output('Date of birth missing for %s / %s' % (creator, found_creator,))
+                    return None
+                elif len(creator_data.get('claims').get('P569')) == 1:
+                    dob = creator_data.get('claims').get('P569')[0].getTarget().year
+                else:
+                    dob = creator_data.get('claims').get('P569')[0].getTarget().year
+                    for dob_claim in creator_data.get('claims').get('P569'):
+                        if dob != dob_claim.getTarget().year and dob_claim.rank != 'deprecated':
+                            pywikibot.output('Different date of birth years found for %s / %s' % (creator, found_creator,))
+                            return None
+
+                if creator_data.get('claims').get('P570') and len(creator_data.get('claims').get('P570')) == 1:
+                    dod = creator_data.get('claims').get('P570')[0].getTarget().year
+                else:
+                    dod = dob + 100
+                # And check if the inception makes sense
+                if dob < inception <= dod:
+                    return found_creator
+
+        ## Regex that should match all the anonymous work stuff that isn't covered by the list
+        #anonymousRegex = '^(Workshop of|Follower of|Circle of|Manner of|Forgery after|School of|After|Unidentified Artist|School of)\s.*$'
+        #anonymousMatch = re.match(anonymousRegex, creator, flags=re.I)
+        #if anonymousMatch:
+        #    self.creators[creator] = self.creators.get('anonymous')
+        #    return self.creators.get('anonymous')
                         
         # We don't want to do the same search over and over again
         self.creators[creator] = None
@@ -336,10 +375,9 @@ def main(*args):
     :param args:
     :return:
     """
-
     # The queries for paintings without a creator, all or a specific collection
-    query = u'SELECT ?item WHERE { ?item wdt:P31 wd:Q3305213 . MINUS { ?item wdt:P170 [] } }'
-    querycollection = u"""SELECT ?item WHERE { ?item wdt:P31 wd:Q3305213 .
+    query = 'SELECT ?item WHERE { ?item wdt:P31 wd:Q3305213 . MINUS { ?item wdt:P170 [] } }'
+    query_collection = """SELECT ?item WHERE { ?item wdt:P31 wd:Q3305213 .
                                  ?item wdt:P195 wd:%s .
                                  MINUS { ?item wdt:P170 [] }
                            }"""
@@ -347,17 +385,17 @@ def main(*args):
     for arg in pywikibot.handle_args(args):
         if arg.startswith('-collectionid'):
             if len(arg) == 13:
-                collectionid = pywikibot.input(
+                collection_id = pywikibot.input(
                         u'Please enter the collectionid you want to work on:')
             else:
-                collectionid = arg[14:]
-            query = querycollection % (collectionid,)
+                collection_id = arg[14:]
+            query = query_collection % (collection_id,)
 
     repo = pywikibot.Site().data_repository()
     generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=repo))
 
-    paintingBot = PaintingBot(generator, change=False)
-    paintingBot.run()
+    painting_creator_bot = PaintingCreatorBot(generator, change=False)
+    painting_creator_bot.run()
 
 if __name__ == "__main__":
     main()
