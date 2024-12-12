@@ -300,7 +300,8 @@ class PaintingCreatorBot:
                             pywikibot.output('Different date of birth years found for %s / %s' % (creator, found_creator,))
                             return None
 
-                if creator_data.get('claims').get('P570') and len(creator_data.get('claims').get('P570')) == 1:
+                if creator_data.get('claims').get('P570') and len(creator_data.get('claims').get('P570')) == 1 and \
+                        creator_data.get('claims').get('P570')[0].getTarget():
                     dod = creator_data.get('claims').get('P570')[0].getTarget().year
                 else:
                     dod = dob + 100
