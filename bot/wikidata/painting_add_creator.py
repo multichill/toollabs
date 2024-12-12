@@ -286,9 +286,15 @@ class PaintingCreatorBot:
                     pywikibot.output('Date of birth missing for %s / %s' % (creator, found_creator,))
                     return None
                 elif len(creator_data.get('claims').get('P569')) == 1:
-                    dob = creator_data.get('claims').get('P569')[0].getTarget().year
+                    if creator_data.get('claims').get('P569')[0].getTarget():
+                        dob = creator_data.get('claims').get('P569')[0].getTarget().year
+                    else:
+                        return
                 else:
-                    dob = creator_data.get('claims').get('P569')[0].getTarget().year
+                    if creator_data.get('claims').get('P569')[0].getTarget():
+                        dob = creator_data.get('claims').get('P569')[0].getTarget().year
+                    else:
+                        return
                     for dob_claim in creator_data.get('claims').get('P569'):
                         if dob != dob_claim.getTarget().year and dob_claim.rank != 'deprecated':
                             pywikibot.output('Different date of birth years found for %s / %s' % (creator, found_creator,))
