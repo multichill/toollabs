@@ -26,7 +26,7 @@ def getAmsterdamGenerator():
     baseitemurl = u'http://amdata.adlibsoft.com/wwwopac.ashx?database=AMcollect&search=priref=%s&output=json'
     baseurl = u'http://am.adlibhosting.com/amonline/details/collect/%s'
 
-    for i in range(0,30):
+    for i in range(0,32):
         searchurl = basesearchurl % (limit, limit * i,)
         print (searchurl)
         searchPage = requests.get(searchurl)
@@ -39,6 +39,10 @@ def getAmsterdamGenerator():
             url =  baseurl % (priref,)
 
             metadata['url'] = url
+
+            # Extract the identifier from the URL
+            metadata['artworkidpid'] = 'P8922'  # Amsterdam Museum artwork ID (P8922)
+            metadata['artworkid'] = '%s' % (priref,)
 
             print (itemurl)
             itempage = requests.get(itemurl)
@@ -55,7 +59,9 @@ def getAmsterdamGenerator():
 
             #acquisitiondate
             if record.get('acquisition.date'):
-                metadata['acquisitiondate'] = record.get('acquisition.date')[0]
+                acquisition_date = record.get('acquisition.date')[0]
+                if acquisition_date != '0000':
+                    metadata['acquisitiondate'] = record.get('acquisition.date')[0]
 
             #No need to check, I'm actually searching for paintings.
             metadata['instanceofqid'] = u'Q3305213'
@@ -63,6 +69,11 @@ def getAmsterdamGenerator():
             # Get the ID. This needs to burn if it's not available
             metadata['id'] = record['object_number'][0]
             metadata['idpid'] = u'P217'
+
+            if record.get('persistent_ID'):
+                handle = record.get('persistent_ID')[0].replace('http://hdl.handle.net/', '')
+                metadata['artworkidpid2'] = 'P1184'  # Handle ID (P1184)
+                metadata['artworkid2'] = handle
 
             if record.get('title'):
                 metadata['title'] = { u'nl' : record.get('title')[0].strip(),
@@ -121,13 +132,16 @@ def getAmsterdamGenerator():
 
             # Set the inception only if start only start or if start and end are the same
             if record.get('production.date.start'):
-                if not record.get('production.date.end'):
-                    metadata['inception'] = int(record.get('production.date.start')[0])
-                elif record.get('production.date.start')[0] == record.get('production.date.end')[0]:
-                    metadata['inception'] = int(record.get('production.date.start')[0])
-                elif record.get('production.date.start')[0] != record.get('production.date.end')[0]:
-                    metadata['inceptionstart'] = int(record.get('production.date.start')[0])
-                    metadata['inceptionend'] = int(record.get('production.date.end')[0])
+                try:
+                    if not record.get('production.date.end'):
+                        metadata['inception'] = int(record.get('production.date.start')[0])
+                    elif record.get('production.date.start')[0] == record.get('production.date.end')[0]:
+                        metadata['inception'] = int(record.get('production.date.start')[0])
+                    elif record.get('production.date.start')[0] != record.get('production.date.end')[0]:
+                        metadata['inceptionstart'] = int(record.get('production.date.start')[0])
+                        metadata['inceptionend'] = int(record.get('production.date.end')[0])
+                except ValueError:
+                    print('Found incorrect date')
 
             # They provide the different genres in the api
             genres = { u'bijbelse voorstelling' : u'Q2864737',
@@ -145,10 +159,11 @@ def getAmsterdamGenerator():
 
             if record.get('content.motif.general'):
                 for motif in record.get('content.motif.general'):
-                    term = motif.get('term')[0]
-                    if term in genres:
-                        metadata[u'genreqid'] = genres.get(term)
-                        break
+                    if type(motif) is dict:
+                        term = motif.get('term')[0]
+                        if term in genres:
+                            metadata[u'genreqid'] = genres.get(term)
+                            break
 
             # Get the image!
             if record.get('copyright') and record.get('copyright')[0]==u'Public Domain':
@@ -166,14 +181,24 @@ def getAmsterdamGenerator():
 
     return
 
-def main():
+def main(*args):
+
+    dry_run = False
+    create = False
+
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dry_run = True
+        elif arg.startswith('-create'):
+            create = True
     dictGen = getAmsterdamGenerator()
 
-    #for painting in dictGen:
-    #     print (painting)
-
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dry_run:
+        for painting in dictGen:
+             print (painting)
+    else:
+        artDataBot = artdatabot.ArtDataBot(dictGen, create=create)
+        artDataBot.run()
 
 if __name__ == "__main__":
     main()
