@@ -23,18 +23,14 @@ def get_kunsthaus_generator():
     session = requests.Session()
     start_page = session.get(start_url)
     number_found = start_page.json().get('response').get('numFound')
-    print(number_found)
 
     step = 10
 
     for i in range(0, number_found + step, step):
         search_url = base_search_url % (step, i,)
 
-        print(search_url)
+        pywikibot.output(search_url)
         search_page = session.get(search_url)
-
-        work_url_regex = '<a href="/Details/collect/(\d+)">'
-        matches = re.finditer(work_url_regex, search_page.text)
 
         for object_docs in search_page.json().get('response').get('docs'):
             metadata = {}
@@ -120,7 +116,7 @@ def get_kunsthaus_generator():
                     metadata['inceptionend'] = int('%s%s' % (circa_short_period_match.group(1), circa_short_period_match.group(3), ))
                     metadata['inceptioncirca'] = True
                 else:
-                    print('Could not parse date: "%s"' % (date,))
+                    pywikibot.output('Could not parse date: "%s"' % (date,))
 
             # acquisition year
             acquisition_year = item_json.get('ObjAcquisitionYearTxt')
@@ -150,6 +146,7 @@ def get_kunsthaus_generator():
 
             if credit_line and credit_line == 'Emil Bührle Collection, on long term loan at Kunsthaus Zürich':
                 metadata['extracollectionqid'] = 'Q666331'
+                metadata['ownerqid'] = 'Q666331'
 
             yield metadata
 
