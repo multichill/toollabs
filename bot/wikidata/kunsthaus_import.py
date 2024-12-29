@@ -63,7 +63,7 @@ def get_kunsthaus_generator():
             metadata['collectionshort'] = 'Kunsthaus'
             metadata['locationqid'] = 'Q685038'
 
-            title = item_json.get('ObjTitleTxt')
+            title = item_json.get('ObjTitleTxt').strip()
 
             # Chop chop, might have long titles
             if len(title) > 220:
