@@ -21,6 +21,52 @@ def get_entarte_generator():
     #urllib3.disable_warnings()
     #htmlparser = HTMLParser()
 
+    # Inventory can be found at https://www.vam.ac.uk/articles/explore-entartete-kunst-the-nazis-inventory-of-degenerate-art
+    # This also lists the number of works per collection
+    # https://www.geschkult.fu-berlin.de/en/e/db_entart_kunst/datenbank/aktueller_stand/index.html
+
+
+    """
+    Berlin, National Galerie / Crown Prince’s Palace (October 2010)
+    Dresden, City Museum (January 2011)
+    Düsseldorf, Kunstsammlungen der Stadt (sculptures, June 2013)
+    Erfurt, Angermuseum (November 2010) <--- also ge
+    Essen, Museum Folkwang (excluding prints, July 2010)
+    Frankfurt/Main, Städel Art Institute and Municipal Gallery (paintings and sculptures, December 2010)
+    Freiburg im Breisgau, Municipial Art Collections (March 2016)
+    Halle/Salle, Museum for Arts and Crafts (April 2010)
+    Hamm, Gustav Lübcke Museum (January 2012)
+    Jena, Kunstverein (January 2011)
+    Munich, Bavarian State Painting Collections (November 2010)
+    Oldenburg, Landesmuseum (November 2010)
+    Rostock, Municipal Museum (April 2010)
+    Schwerin, Staatliches Museum Schwerin (April 2010)
+    Stuttgart, State Gallery (March 2016)
+    Ulm, Municipial Museum (March 2016)
+    """
+    collections = { 'Berlin, Nationalgalerie (Kronprinzen-Palais)': 'Q162111',
+                    'Dresden, Stadtmuseum': 'Q2327655',
+                    'Düsseldorf, Kunstsammlungen der Stadt': 'Q131748853',
+                    'Erfurt, Angermuseum': 'Q538183',
+                    # Erfurt, Museen der Stadt (Museum für Kunst und Heimatgeschichte) ?????
+                    'Essen, Museum Folkwang': 'Q125634',
+                    'Frankfurt/M, Städelsches Kunstinstitut und Städtische Galerie': 'Q163804',
+                    # Freiburg im Breisgau, Städtische Sammlungen
+                    # Halle/Salle, Museum for Arts and Crafts (April 2010)
+                    'Hamm, Städtisches Gustav-Lübke-Museum': 'Q59926017',
+                    'Hamburg, Kunsthalle' : 'Q169542',
+                    'Jena, Kunstverein' : 'Q1686807',
+                    'Karlsruhe, Staatliche Kunsthalle' : 'Q658725',
+                    'Köln, Wallraf-Richartz-Museum' : 'Q700959',
+                    'München, Bayerische Staatsgemäldesammlungen' : 'Q812285',
+                    'München, Bayerische Staatsgemäldesammlungen – Pinakothek der Moderne' : 'Q812285',
+                    'München, Bayerische Staatsgemälde-Sammlung' : 'Q812285',
+                    'Oldenburg, Landesmuseum': 'Q1988652',
+                    'Schwerin, Staatliches Museum': 'Q2324618',
+                    'Stuttgart, Württembergische Staatsgalerie': 'Q14917275',
+                    'Ulm, Stadtmuseum': 'Q2475379',
+                    }
+
     session = requests.Session()
 
     # 109589 is the first one giving content
@@ -83,19 +129,6 @@ def get_entarte_generator():
                                         'nl' : '%s van %s' % ('schilderij', metadata.get('creatorname'),),
                                         'en' : '%s by %s' % ('painting', metadata.get('creatorname'),),
                                         }
-
-        # Inventory can be found at https://www.vam.ac.uk/articles/explore-entartete-kunst-the-nazis-inventory-of-degenerate-art
-        # This also lists the number of works per collection
-        collections = { 'Berlin, Nationalgalerie (Kronprinzen-Palais)' : 'Q162111',
-                        'Essen, Museum Folkwang' : 'Q125634',
-                        'Hamburg, Kunsthalle' : 'Q169542',
-                        'Jena, Kunstverein' : 'Q1686807',
-                        'Karlsruhe, Staatliche Kunsthalle' : 'Q658725',
-                        'Köln, Wallraf-Richartz-Museum' : 'Q700959',
-                        'München, Bayerische Staatsgemäldesammlungen' : 'Q812285',
-                        'München, Bayerische Staatsgemäldesammlungen – Pinakothek der Moderne' : 'Q812285',
-                        'München, Bayerische Staatsgemälde-Sammlung' : 'Q812285',
-                        }
 
         # This is for the collection where it got stolen from
         origin_regex = '\<li class\=\"herkunftsort\"\>\<span class\=\"tspPrefix\"\>Museum of Origin\:\<\/span\>\<span class\=\"tspValue\"\>([^\<]+)\<'
