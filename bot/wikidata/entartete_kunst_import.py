@@ -67,6 +67,8 @@ def get_entarte_generator():
                     'Ulm, Stadtmuseum': 'Q2475379',
                     }
 
+    unknown_collections = {}
+
     session = requests.Session()
 
     # 109589 is the first one giving content
@@ -146,6 +148,9 @@ def get_entarte_generator():
                         metadata['extraid'] = origin_inv
             else:
                 print ('Collection %s not found' % (origin,))
+                if origin not in unknown_collections:
+                    unknown_collections[origin] = 0
+                unknown_collections[origin] += 1
 
         # This is for the collection where it currently is
         location_regex = '\<li class\=\"standort\"\>\<span class\=\"tspPrefix\"\>Location\:\<\/span\>\<span class\=\"tspValue\"\>([^\<]+)\<'
@@ -157,6 +162,9 @@ def get_entarte_generator():
                 metadata['extracollectionqid2'] = collections.get(location)
             else:
                 print ('Collection %s not found' % (location,))
+                if location not in unknown_collections:
+                    unknown_collections[location] = 0
+                unknown_collections[location] += 1
 
         date_field_regex = '\<li class\=\"datierung\"\>\<span class\=\"tspPrefix\"\>Date\:\<\/span\>\<span class\=\"tspValue\"\>([^\<]+)\<'
         date_field_match = re.search(date_field_regex, item_page.text)
@@ -221,6 +229,8 @@ def get_entarte_generator():
                 metadata['widthcm'] = match_2d.group('width')
 
         yield metadata
+        # TODO: Do some sort of pretty print
+        print(unknown_collections)
 
 
 def main(*args):
