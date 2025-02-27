@@ -81,8 +81,17 @@ def get_sprengel_generator():
                 metadata['title']['en'] = en_title
 
             # Add the artist
-            if item_data.get('roles') and len(item_data.get('roles')) == 1:
-                name = item_data.get('roles')[0].get('person').get('name')
+            name = None
+            if item_data.get('roles'):
+                if len(item_data.get('roles')) == 1:
+                    name = item_data.get('roles')[0].get('person').get('name')
+                elif len(item_data.get('roles')) == 2:
+                    if item_data.get('roles')[0].get('functionOfPerson') == 'Hauptkuenstler' and item_data.get('roles')[1].get('functionOfPerson') == 'Dargestellte/r':
+                        name = item_data.get('roles')[0].get('person').get('name')
+                    elif item_data.get('roles')[0].get('functionOfPerson') == 'Dargestellte/r' and \
+                            item_data.get('roles')[1].get('functionOfPerson') == 'Hauptkuenstler':
+                        name = item_data.get('roles')[1].get('person').get('name')
+            if name:
                 if ',' in name:
                     (surname, sep, firstname) = name.partition(',')
                     name = '%s %s' % (firstname.strip(), surname.strip(),)
@@ -92,6 +101,9 @@ def get_sprengel_generator():
                                             'fr': '%s de %s' % ('peinture', name, ),
                                             }
                 metadata['creatorname'] = name
+            else:
+                print('Unable to extract name from these roles')
+                print(item_data.get('roles'))
 
             if item_data.get('date') and item_data.get('datestart') and item_data.get('dateend'):
                 period_date_slash = '%s/%s' % (item_data.get('datestart'), item_data.get('dateend'))
