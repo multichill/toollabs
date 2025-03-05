@@ -12,56 +12,57 @@ import artdatabot
 import pywikibot
 import requests
 import re
-import time
-from html.parser import HTMLParser
+import html
 
-def getToledoMuseumGenerator():
+def get_toledo_generator():
     """
     Generator to return Toledo Museum of Art paintings
     """
-    basesearchurl = u'http://emuseum.toledomuseum.org/advancedsearch/objects/classifications%%3APaintings/images?page=%s'
-    htmlparser = HTMLParser()
+    basesearchurl = u'https://emuseum.toledomuseum.org/advancedsearch/objects/classifications%%3APaintings/images?page=%s'
+    session = requests.session()
 
     # 671 hits, 12 per page
 
-    for i in range(1, 57):
+    for i in range(1, 70):
         searchurl = basesearchurl % (i,)
 
         print (searchurl)
-        searchPage = requests.get(searchurl)
+        searchPage = session.get(searchurl)
         #print (searchPage.text)
 
-        workidregex = u'\<h3 class\=\"[^\"]*\"\>\<a title\=\"[^\"]*\" href\=\"\/objects\/(\d+)\/'
-        matches = re.finditer(workidregex, searchPage.text)
+        #workidregex = u'\<h3 class\=\"[^\"]*\"\>\<a title\=\"[^\"]*\" href\=\"\/objects\/(\d+)\/'
+        url_regex = 'data-a2a-url="(https://emuseum\.toledomuseum\.org/objects/\d+)/[^"]+"'
+
+        matches = re.finditer(url_regex, searchPage.text)
 
         for match in matches:
-            url = u'http://emuseum.toledomuseum.org/objects/%s/' % (match.group(1),)
+            url = match.group(1)
             print (url)
             metadata = {}
 
-            itempage = requests.get(url)
+            itempage = session.get(url)
             pywikibot.output(url)
 
-            # Get url with slug
-            urlregex = u'\<meta content\=\"([^\"]+)\;[^\"]+\" name\=\"og\:url\"\>'
-            urlmatch = re.search(urlregex, itempage.text)
+            ## Get url with slug
+            #urlregex = u'\<meta content\=\"([^\"]+)\;[^\"]+\" name\=\"og\:url\"\>'
+            #urlmatch = re.search(urlregex, itempage.text)
 
-            if not urlmatch:
-                print(u'Something went wrong. No url found. Sleeping and trying again')
-                time.sleep(300)
-                itempage = requests.get(url)
-                urlmatch = re.search(urlregex, itempage.text)
+            #if not urlmatch:
+            #    print(u'Something went wrong. No url found. Sleeping and trying again')
+            #    time.sleep(300)
+            #    itempage = requests.get(url)
+            #    urlmatch = re.search(urlregex, itempage.text)
 
-            # LOL, port 8080, no https?
-            ogurl = urlmatch.group(1).replace(u'http://emuseum.toledomuseum.org:8080/objects/', u'http://emuseum.toledomuseum.org/objects/')
-            if ogurl.startswith(url):
-                metadata['url'] = ogurl
-            else:
-                metadata['url'] = url
+            ## LOL, port 8080, no https?
+            #ogurl = urlmatch.group(1).replace(u'http://emuseum.toledomuseum.org:8080/objects/', u'http://emuseum.toledomuseum.org/objects/')
+            #if ogurl.startswith(url):
+            #    metadata['url'] = ogurl
+            #else:
+            metadata['url'] = url
 
-            metadata['collectionqid'] = u'Q1743116'
-            metadata['collectionshort'] = u'Toledo'
-            metadata['locationqid'] = u'Q1743116'
+            metadata['collectionqid'] = 'Q1743116'
+            metadata['collectionshort'] = 'Toledo'
+            metadata['locationqid'] = 'Q1743116'
 
             #No need to check, I'm actually searching for paintings.
             metadata['instanceofqid'] = u'Q3305213'
@@ -69,15 +70,15 @@ def getToledoMuseumGenerator():
             metadata['idpid'] = u'P217'
 
             #invregex = u'\<div class\=\"detailField invnoField\"\>\<span class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>\<\/div\>'
-            invregex = u'\<div class\=\"detailField invnoField\"\>\<span class\=\"detailFieldLabel\"\>Object number\<\/span\>\<span class\=\"detailFieldValue\"\>([^\<]+)\<\/span\>\<\/div\>'
-            invmatch = re.search(invregex, itempage.text)
+            inv_regex = '<div class="detailField"><div class="detailFieldLabel"><span>Object number</span></div><span class="detailFieldValue">([^\<]+)\<\/span\>\<\/div\>'
+            inv_match = re.search(inv_regex, itempage.text)
             # Not sure if I need to replace space here
-            metadata['id'] = htmlparser.unescape(invmatch.group(1).replace(u'&nbsp;', u' ')).strip()
+            metadata['id'] = html.unescape(inv_match.group(1).replace('&nbsp;', ' ')).strip()
 
-            titleregex = u'\<meta content\=\"([^\"]+)\" name\=\"og\:title\"\>'
+            titleregex = u'\<meta content\=\"([^\"]+)\" property\=\"og\:title\"\>'
             titlematch = re.search(titleregex, itempage.text)
 
-            title = htmlparser.unescape(titlematch.group(1)).strip()
+            title = html.unescape(titlematch.group(1)).strip()
 
             # Chop chop, several very long titles
             if len(title) > 220:
@@ -86,11 +87,12 @@ def getToledoMuseumGenerator():
                                   }
 
             creatoregex = u'\<meta content\=\"([^\"]+)\" property\=\"schema\:creator\" itemprop\=\"creator\"\>'
-            creatormatch = re.search(creatoregex, itempage.text)
+            creator_regex = '<div class="detailField peopleField"><span class="detailFieldLabel">Artist</span><span class="detailFieldValue"><a property="name" itemprop="name" href="[^"]+"><span lang="en">([^\<]+)\<\/span\>'
+            creator_match = re.search(creator_regex, itempage.text)
 
             # Rare cases without a match
-            if creatormatch:
-                creatorname = htmlparser.unescape(creatormatch.group(1)).strip()
+            if creator_match:
+                creatorname = html.unescape(creator_match.group(1)).strip()
 
                 metadata['creatorname'] = creatorname
 
@@ -192,14 +194,24 @@ def getToledoMuseumGenerator():
             yield metadata
 
 
-def main():
-    dictGen = getToledoMuseumGenerator()
+def main(*args):
+    dict_gen = get_toledo_generator()
+    dry_run = False
+    create = False
 
-    #for painting in dictGen:
-    #    print (painting)
+    for arg in pywikibot.handle_args(args):
+        if arg.startswith('-dry'):
+            dry_run = True
+        elif arg.startswith('-create'):
+            create = True
 
-    artDataBot = artdatabot.ArtDataBot(dictGen, create=True)
-    artDataBot.run()
+    if dry_run:
+        for painting in dict_gen:
+            print (painting)
+    else:
+        art_data_bot = artdatabot.ArtDataBot(dict_gen, create=create)
+        art_data_bot.run()
+
 
 if __name__ == "__main__":
     main()
