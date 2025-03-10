@@ -274,6 +274,9 @@ class ArtDataBot:
         # Add part of the series (P179)
         self.addItemStatement(artworkItem, 'P179', metadata.get('partofseriesqid'), metadata.get('refurl'), queue=True)
 
+        # Add owned by (P127)
+        self.addItemStatement(artworkItem, 'P127', metadata.get('ownerqid'), metadata.get('refurl'), queue=True)
+
         # TODO: Add has part (P527) which is a list
 
         # Add the material used (P186) based on the medium to the item.
@@ -1287,6 +1290,27 @@ class ArtDataBot:
                 else:
                     pywikibot.output('Adding artwork id claim to %s' % item)
                     item.addClaim(newclaim)
+
+            # Add an additional artwork ID 2
+            if metadata.get('artworkidpid2') and metadata.get('artworkidpid2') not in claims:
+                newclaim = pywikibot.Claim(self.repo, metadata.get('artworkidpid2') )
+                newclaim.setTarget(metadata['artworkid2'])
+                if queue:
+                    self.statements_queue.append(newclaim.toJSON())
+                else:
+                    pywikibot.output('Adding artwork id2 claim to %s' % item)
+                    item.addClaim(newclaim)
+
+            # Add an additional artwork ID 3
+            if metadata.get('artworkidpid3') and metadata.get('artworkidpid3') not in claims:
+                newclaim = pywikibot.Claim(self.repo, metadata.get('artworkidpid3') )
+                newclaim.setTarget(metadata['artworkid3'])
+                if queue:
+                    self.statements_queue.append(newclaim.toJSON())
+                else:
+                    pywikibot.output('Adding artwork id2 claim to %s' % item)
+                    item.addClaim(newclaim)
+
         # Described at url
         elif metadata.get(u'describedbyurl'):
             if u'P973' not in claims:
@@ -1580,6 +1604,147 @@ class ArtDataIdentifierBot(ArtDataBot):
 
         return artwork_item
 
+
+class ArtDataCatelogBot(ArtDataBot):
+    """
+    Art data bot version that uses catalog properties instead of combination of inventory number and collection
+    """
+    def __init__(self, generator, create=False):
+        """
+        Arguments:
+            * generator    - A generator that yields Dict objects.
+            * create       - Boolean to say if you want to create new items or just update existing
+
+        """
+        firstrecord = next(generator)
+        self.generator = itertools.chain([firstrecord], generator)
+        self.repo = pywikibot.Site().data_repository()
+        self.wayback_session = requests.Session()
+        self.create = create
+
+        self.idProperty = 'P528'
+        self.catalogqid = firstrecord.get('catalog')
+        self.catalogitem = pywikibot.ItemPage(self.repo, self.catalogqid)
+        self.artwork_ids = self.fillCache(self.catalogqid, self.idProperty)
+
+    def fillCache(self, catalogqid, idProperty):
+        """
+        Build an ID cache so we can quickly look up the id's for property
+        """
+        result = {}
+        sq = pywikibot.data.sparql.SparqlQuery()
+
+        # FIXME: Do something with the collection qualifier
+        query = u"""SELECT ?item ?id WHERE {
+        ?item p:P528 ?idstatement .
+        ?idstatement pq:P972 wd:%s .
+        ?idstatement ps:P528 ?id
+        MINUS { ?idstatement wikibase:rank wikibase:DeprecatedRank }
+        }""" % (catalogqid,)
+        sq = pywikibot.data.sparql.SparqlQuery()
+        queryresult = sq.select(query)
+
+        for resultitem in queryresult:
+            qid = resultitem.get('item').replace(u'http://www.wikidata.org/entity/', u'')
+            result[resultitem.get('id')] = qid
+        pywikibot.output(u'The query "%s" returned %s items' % (query, len(result)))
+        return result
+
+    def run(self):
+        """
+        Starts the robot.
+        """
+
+        # FIXME: Add inventory / collection somewhere if it's available
+
+        for metadata in self.generator:
+            metadata = super().enrichMetadata(metadata)
+
+            artwork_item = None
+            if metadata['catalog_code'] in self.artwork_ids:
+                artwork_item_title = self.artwork_ids.get(metadata['catalog_code'])
+                print(artwork_item_title)
+                artwork_item = pywikibot.ItemPage(self.repo, title=artwork_item_title)
+
+            elif self.create:
+                artwork_item = self.create_artwork_item(metadata)
+
+            if artwork_item and artwork_item.exists():
+                if artwork_item.isRedirectPage():
+                    artwork_item = artwork_item.getRedirectTarget()
+                metadata['wikidata'] = artwork_item.title()
+                super().updateArtworkItem(artwork_item, metadata)
+
+    def create_artwork_item(self, metadata):
+        """
+        Create a new artwork item based on the metadata
+
+        :param metadata: All the metadata for this new artwork.
+        :return: The newly created artworkItem
+        """
+        data = {'labels': {},
+                'descriptions': {},
+                'claims': [],
+                }
+
+        # loop over stuff
+        if metadata.get('labels'):
+            for lang, label in metadata.get('labels').items():
+                data['labels'][lang] = {'language': lang, 'value': label}
+
+        if metadata.get('description'):
+            for lang, description in metadata['description'].items():
+                data['descriptions'][lang] = {'language': lang, 'value': description}
+
+        # Add the catalog code to the item so we can get back to it later
+        newclaim = pywikibot.Claim(self.repo, 'P528')
+        newclaim.setTarget(metadata['catalog_code'])
+
+        newqualifier = pywikibot.Claim(self.repo, 'P972')
+        newqualifier.setTarget(self.catalogitem)
+        self.queue_qualifier(newclaim, newqualifier)
+        self.addReference(None, newclaim, metadata['refurl'], queue=True)
+        data['claims'].append(newclaim.toJSON())
+
+        identification = {}
+        summary = 'Creating new item with data from %s ' % (metadata['url'],)
+        pywikibot.output(summary)
+        try:
+            result = self.repo.editEntity(identification, data, summary=summary)
+        except pywikibot.exceptions.APIError:
+            # TODO: Check if this is pywikibot.exceptions.OtherPageSaveError too
+            # We got ourselves a duplicate label and description, just add the identifier to the description
+            pywikibot.output('Oops, already had that one. Trying again with the catalog code added')
+            for lang, description in metadata['description'].items():
+                data['descriptions'][lang] = {'language': lang, 'value': u'%s (%s)' % (description, metadata['catalog_code'], )}
+            try:
+                result = self.repo.editEntity(identification, data, summary=summary)
+            except pywikibot.exceptions.APIError:
+                pywikibot.output(u'Oops, retry also failed. Skipping this one.')
+                # Just skip this one
+                return
+
+        artwork_item_title = result.get(u'entity').get('id')
+
+        # Make a backup to the Wayback Machine when we have to wait anyway
+        self.doWaybackup(metadata)
+
+        # Wikidata is sometimes lagging. Wait for additional 5 seconds before trying to actually use the item
+        time.sleep(5)
+
+        artwork_item = pywikibot.ItemPage(self.repo, title=artwork_item_title)
+
+        # Add to self.artworkIds so that we don't create dupes
+        self.artwork_ids[metadata['catalog_code']] = artwork_item_title
+
+        # Moved to the generic bot
+        ## Only add the collection and inventory number at creation to prevent messy data
+        #if metadata.get('collectionqid'):
+        #    self.addCollection(artwork_item, metadata.get('collectionqid'), metadata)
+        #    if metadata.get('id'):
+        #        self.addExtraId(artwork_item, metadata.get('id'), metadata.get('collectionqid'), metadata)
+
+        return artwork_item
 
 def main():
     print('Dude, write your own bot')
