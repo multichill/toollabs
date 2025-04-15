@@ -22,7 +22,7 @@ class PortraitPaintingsBot:
         """
         self.repo = pywikibot.Site().data_repository()
         self.langlabelpairs = self.getConfiguration()
-        self.generator = self.getGenerator()
+        self.generator = self.getGeneratorSearch()
 
     def getConfiguration(self):
         """
@@ -39,7 +39,7 @@ class PortraitPaintingsBot:
             result.append(langlabelpair)
         return result
 
-    def getGenerator(self):
+    def getGeneratorSparql(self):
         """
         Build a SPARQL query based on the langlabelpairs of items to work on
         :return: A generator that yields items
@@ -57,6 +57,17 @@ class PortraitPaintingsBot:
             query = query + """(LANG(?label)="%s" && REGEX(STR(?label), "^%s.*$"))""" % (lang, labelstart)
         query = query + """)\n} LIMIT 5000"""
         return pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
+
+    def getGeneratorSearch(self):
+        """
+        Do searches and return the results
+        :return: A generator that yields items
+        """
+        for (lang, labelstart) in self.langlabelpairs:
+            search = f'inlabel:"{labelstart}"@{lang} haswbstatement:P31=Q3305213 -haswbstatement:P136'
+            gen = pagegenerators.PreloadingEntityGenerator(pagegenerators.SearchPageGenerator(search, site=self.repo))
+            for item in gen:
+                yield item
 
     def run(self):
         """
