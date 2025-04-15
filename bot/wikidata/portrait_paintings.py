@@ -109,7 +109,7 @@ class PortraitPaintingsBot:
         for (itemlang, itemlabel) in labels.items():
             for (lang, labelstart) in self.langlabelpairs:
                 if itemlang==lang:
-                    if itemlabel.startswith(labelstart):
+                    if itemlabel.lower().startswith(labelstart.lower()):
                         gotmatch = (lang, labelstart)
                         return gotmatch
         return None
