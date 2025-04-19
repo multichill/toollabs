@@ -32,6 +32,15 @@ class ArtUKPublicDomain():
         """
         Starts the robot.
         """
+        session = requests.Session()
+        # Seems to do some user-agent blocking.
+        headers = { 'Accept' : "*/*",
+                    'origin' : 'https://artuk.org/',
+                    'User-Agent' : 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:66.0) Gecko/20100101 Firefox/66.0',
+                    'referer' :'https://artuk.org/',
+                    'connection' : 'keep-alive'}
+        session.headers.update(headers)
+
         for itempage in self.generator:
             pywikibot.output(u'Working on %s' % (itempage.title(),))
             if not itempage.exists():
@@ -65,7 +74,7 @@ class ArtUKPublicDomain():
             artukid = claims.get(u'P1679')[0].getTarget()
             artukidurl = 'https://artuk.org/discover/artworks/%s' % (artukid,)
 
-            imagePage = requests.get(artukidurl) #, verify=False)
+            imagePage = session.get(artukidurl) #, verify=False)
             # They are sending the wrong headers so I got ISO-8859-1 instead of utf-8
             imagePage.encoding = imagePage.apparent_encoding
 
