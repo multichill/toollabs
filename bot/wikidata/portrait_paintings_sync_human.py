@@ -121,6 +121,8 @@ class PortraitPaintingsSyncHumanBot:
 
         for claim in claims:
             check_item = claim.getTarget()
+            if check_item.isRedirectPage():
+                check_item = check_item.getRedirectTarget()
             data = check_item.get()
             item_claims = data.get('claims')
             if item_claims.get('P31') and len(item_claims.get('P31')) == 1 and \
