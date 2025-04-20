@@ -36,7 +36,7 @@ class PortraitPaintingsSyncHumanBot:
   ?item wdt:P180 ?human .
   ?human wdt:P31 wd:Q5 ;
          wdt:P569 ?dob ;
-  FILTER(YEAR(?dob) > 1000 && YEAR(?dob) < 1850)
+  FILTER(YEAR(?dob) > 1000 && YEAR(?dob) < 2050)
   FILTER NOT EXISTS { ?human wdt:P31 wd:Q20643955 }
   FILTER NOT EXISTS { ?human wdt:P411 [] } 
   } ORDER BY DESC(?sitelinks) LIMIT 5000""",
@@ -48,7 +48,7 @@ class PortraitPaintingsSyncHumanBot:
   ?item wdt:P921 ?human .
   ?human wdt:P31 wd:Q5 ;
          wdt:P569 ?dob ;
-  FILTER(YEAR(?dob) > 1000 && YEAR(?dob) < 1850)
+  FILTER(YEAR(?dob) > 1000 && YEAR(?dob) < 2050)
   FILTER NOT EXISTS { ?human wdt:P31 wd:Q20643955 }
   FILTER NOT EXISTS { ?human wdt:P411 [] } 
   } ORDER BY DESC(?sitelinks) LIMIT 500"""
