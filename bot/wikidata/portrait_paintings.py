@@ -65,7 +65,6 @@ class PortraitPaintingsBot:
         """
         for (lang, labelstart) in self.langlabelpairs:
             search = f'inlabel:"{labelstart}" haswbstatement:P31=Q3305213 -haswbstatement:P136'
-            print(search)
             gen = pagegenerators.PreloadingEntityGenerator(pagegenerators.SearchPageGenerator(search, site=self.repo))
             for item in gen:
                 yield item
