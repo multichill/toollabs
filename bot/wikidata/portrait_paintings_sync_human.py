@@ -18,6 +18,7 @@ class PortraitPaintingsSyncHumanBot:
         """
         self.repo = pywikibot.Site().data_repository()
         self.portrait = pywikibot.ItemPage(self.repo, 'Q134307')
+        self.human = pywikibot.ItemPage(self.repo, 'Q5')
         self.generator = self.get_generator_sparql()
 
     def get_generator_sparql(self):
@@ -92,19 +93,46 @@ class PortraitPaintingsSyncHumanBot:
         elif 'P180' in claims and 'P921' not in claims:
             # Working on depicts to main subject
             if len(claims.get('P180')) != 1:
-                pywikibot.output('Multiple depicts statement founds, skipping.')
-                return
-            human_item = claims.get('P180')[0].getTarget()
+                human_item = self.get_single_human(claims.get('P180'))
+                if not human_item:
+                    pywikibot.output('Multiple depicts statement founds and not able to extract single, skipping.')
+                    return
+            else:
+                human_item = claims.get('P180')[0].getTarget()
             self.add_human(item, human_item, 'P180', 'P921')
 
         elif 'P921' in claims and 'P180' not in claims:
             # Working on main subject to depicts
             if len(claims.get('P921')) != 1:
-                pywikibot.output('Multiple depicts statement founds, skipping.')
+                pywikibot.output('Multiple main subject statement founds, skipping.')
                 return
             human_item = claims.get('P921')[0].getTarget()
             self.add_human(item, human_item, 'P921', 'P180')
 
+    def get_single_human(self, claims):
+        """
+        Try to extra single human from a list of claims
+
+        :param claims: List of claims to extract it from
+        :return: ItemPage or False
+        """
+        human_item = None
+        humans_found = 0
+
+        for claim in claims:
+            check_item = claim.getTarget()
+            data = check_item.get()
+            item_claims = data.get('claims')
+            if item_claims.get('P31') and len(item_claims.get('P31')) == 1 and \
+                    item_claims.get('P31')[0].getTarget() == self.human:
+                human_item = check_item
+                humans_found +=1
+
+        if human_item and humans_found == 1:
+            return human_item
+        else:
+            pywikibot.output(f'Multiple ({humans_found}) human depicts statement founds, skipping.')
+            return False
 
     def add_human(self, painting_item, human_item, source_property, target_property):
         """
