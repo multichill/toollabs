@@ -64,7 +64,8 @@ class PortraitPaintingsBot:
         :return: A generator that yields items
         """
         for (lang, labelstart) in self.langlabelpairs:
-            search = f'inlabel:"{labelstart}"@{lang} haswbstatement:P31=Q3305213 -haswbstatement:P136'
+            search = f'inlabel:"{labelstart}" haswbstatement:P31=Q3305213 -haswbstatement:P136'
+            print(search)
             gen = pagegenerators.PreloadingEntityGenerator(pagegenerators.SearchPageGenerator(search, site=self.repo))
             for item in gen:
                 yield item
