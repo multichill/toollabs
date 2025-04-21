@@ -45,14 +45,16 @@ class PortraitPaintingsBot:
         Build a SPARQL query to get interesting items to work on
         :return: A generator that yields items
         """
-        firstfilter = True
         query = """SELECT DISTINCT ?item ?itemlabel WHERE {
-  ?item wdt:P31 wd:Q3305213 .
+  ?item wdt:P31 wd:Q3305213 ;
+        wdt:P136 wd:Q134307 ;
+        schema:dateModified ?date .
   MINUS { ?item wdt:P921 [] } .
-  { MINUS { ?item wdt:P136 [] } } UNION { ?item wdt:P136 wd:Q134307 }
+  MINUS { ?item wdt:P180 [] } .
+  MINUS { ?item wdt:P136 ?genre. FILTER(?genre!=wd:Q134307) } 
   ?item rdfs:label ?itemlabel .
-  FILTER(LANG(?itemlabel)="en" && REGEX(STR(?itemlabel), "^.+\\\\(\\\\d\\\\d\\\\d\\\\d-\\\\d\\\\d\\\\d\\\\d\\\\).*$"))
-} LIMIT 5000"""
+  FILTER(LANG(?itemlabel)="en" && REGEX(STR(?itemlabel), "^.+\\\\(\\\\d\\\\d\\\\d\\\\d[-–]\\\\d\\\\d\\\\d\\\\d\\\\).*$"))
+} LIMIT 25000"""
         return pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query, site=self.repo))
 
     def run(self):
@@ -70,17 +72,19 @@ class PortraitPaintingsBot:
         claims = data.get('claims')
         labels = item.get().get('labels')
 
-        if u'P921' in claims:
-            # Already done
+        pywikibot.output('Working on %s' % (item.title(),))
+
+        if 'P921' in claims:
+            pywikibot.output('Already has a main subject, done')
             return
 
-        if u'P136' in claims:
+        if 'P136' in claims:
             # Check if it's a portrait
-            if not claims.get(u'P136')[0].target_equals(u'Q134307'):
+            if not claims.get(u'P136')[0].target_equals('Q134307'):
                 # Found another genre, don't continue
                 return
 
-        labelregex = u'^(Portrait of )?(?P<name>.+)\s*\((?P<yob>\d\d\d\d)-(?P<yod>\d\d\d\d)\)(?P<labelend>.*)$'
+        labelregex = u'^(Portrait of )?(?P<name>.+)\s*\((?P<yob>\d\d\d\d)[-–](?P<yod>\d\d\d\d)\)(?P<labelend>.*)$'
         labelmatch = re.match(labelregex, labels.get(u'en'))
 
         if not labelmatch:
@@ -142,7 +146,9 @@ class PortraitPaintingsBot:
         """
         # Search Wikidata for a suitable candidate, tell the search to only return humans
         searchstring = u'"%s" haswbstatement:P31=Q5' % (name,)
-        persongen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, step=None, total=50, namespaces=[0], site=self.repo)))
+
+        pywikibot.output(f'Search for "{name}" ({yob}-{yod})')
+        persongen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikibaseItemGenerator(pagegenerators.SearchPageGenerator(searchstring, total=50, namespaces=[0], site=self.repo)))
 
         foundperson = False
 
