@@ -111,34 +111,35 @@ class ArtUKPublicDomain():
 
             newclaim = pywikibot.Claim(self.repo, u'P4765')
             newclaim.setTarget(imageurl)
-            pywikibot.output('Adding commons compatible image available at URL claim to %s' % (itempage.title(),))
-            itempage.addClaim(newclaim)
 
             # JPEG
-            newqualifier = pywikibot.Claim(self.repo, u'P2701')
-            newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q2195'))
-            newclaim.addQualifier(newqualifier)
+            newqualifier = pywikibot.Claim(self.repo, 'P2701', is_qualifier=True)
+            newqualifier.setTarget(pywikibot.ItemPage(self.repo, 'Q2195'))
+            newclaim.qualifiers['P2701'] = [newqualifier]
 
             # Source link
-            newqualifier = pywikibot.Claim(self.repo, u'P2699')
+            newqualifier = pywikibot.Claim(self.repo, 'P2699', is_qualifier=True)
             newqualifier.setTarget(artukidurl)
-            newclaim.addQualifier(newqualifier)
+            newclaim.qualifiers['P2699'] = [newqualifier]
 
             # Operated by link
-            newqualifier = pywikibot.Claim(self.repo, u'P137')
-            newqualifier.setTarget(pywikibot.ItemPage(self.repo, u'Q7257339'))
-            newclaim.addQualifier(newqualifier)
+            newqualifier = pywikibot.Claim(self.repo, 'P137', is_qualifier=True)
+            newqualifier.setTarget(pywikibot.ItemPage(self.repo, 'Q7257339'))
+            newclaim.qualifiers['P137'] = [newqualifier]
 
             # Title qualifier
-            entitle = pywikibot.WbMonolingualText(title, u'en')
-            newqualifier = pywikibot.Claim(self.repo, u'P1476')
+            entitle = pywikibot.WbMonolingualText(title, 'en')
+            newqualifier = pywikibot.Claim(self.repo, 'P1476', is_qualifier=True)
             newqualifier.setTarget(entitle)
-            newclaim.addQualifier(newqualifier)
+            newclaim.qualifiers['P1476'] = [newqualifier]
 
             # Author name string qualifier
-            newqualifier = pywikibot.Claim(self.repo, u'P2093')
+            newqualifier = pywikibot.Claim(self.repo, 'P2093', is_qualifier=True)
             newqualifier.setTarget(creator)
-            newclaim.addQualifier(newqualifier)
+            newclaim.qualifiers['P2093'] = [newqualifier]
+
+            pywikibot.output('Adding commons compatible image available at URL claim to %s' % (itempage.title(),))
+            itempage.addClaim(newclaim)
 
 
 def main(*args):
