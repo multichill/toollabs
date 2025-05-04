@@ -122,6 +122,8 @@ ORDER BY DESC (?count)""" % (self.religiousart, threshold,)
                 pywikibot.output('Not working on item %s because I don\'t have genre to add' % (suggestion.get('item'),) )
                 continue
             item =  pywikibot.ItemPage(self.repo, suggestion.get('item'))
+            if item.isRedirectPage():
+                item = item.getRedirectTarget()
             claims = item.get().get('claims')
             if addmainsubject and not suggestion.get('mainsubject') and not 'P921' in claims:
                 summary = 'based on label "%(label)s" (%(lang)s) on %(count)s items, example [[%(example)s]]' % labelinfo
@@ -139,7 +141,7 @@ ORDER BY DESC (?count)""" % (self.religiousart, threshold,)
     def getItemLabelSuggestions(self, labelinfo):
         """
         Do query for items to process based on the label info
-        :param labeinfo:
+        :param labelinfo:
         :return:
         """
         query = """SELECT ?item ?mainsubject ?genre WHERE {
