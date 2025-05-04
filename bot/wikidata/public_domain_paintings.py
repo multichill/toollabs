@@ -117,9 +117,12 @@ class PublicDomainPaintingsBot:
         year_of_death = False
         for claim in claims.get('P570'):
             if not claim:
-                # Unknown value
+                # Novalue? Not sure
                 return False
             dod = claim.getTarget()
+            if not dod:
+                # Unknown value
+                return False
             if dod.precision < 9:
                 # Precision is worst than a year, can probably change that to century later
                 return False
