@@ -72,21 +72,22 @@ def main(*args):
     Main function. Grab a generator and pass it to the bot to work on
     """
     correctlocation = False
-    query = u"""SELECT ?item ?collection  WHERE {
-  ?item wdt:P31 wd:Q3305213 .
-  ?item wdt:P195 ?collection .
+    query = """SELECT ?item ?collection  WHERE {
+  ?item wdt:P31 wd:Q3305213 ;
+        wdt:P195 ?collection .
   MINUS { ?item wdt:P276 [] } .
   ?collection wdt:P625 [] .
-} ORDER BY ?collection"""
+} LIMIT 5000"""
 
     for arg in pywikibot.handle_args(args):
         if arg.startswith('-correctlocation'):
             correctlocation = True
             query = """SELECT ?item ?collection ?location WHERE {
-  ?item wdt:P31 wd:Q3305213 .
-  ?item wdt:P276 ?location .
-  ?item wdt:P195 ?collection . ?collection wdt:P131+ ?location ;
-                                           wdt:P625 [] .
+  ?item wdt:P31 wd:Q3305213 ;
+        wdt:P276 ?location ;
+        wdt:P195 ?collection . 
+  ?collection wdt:P131+ ?location ;
+              wdt:P625 [] .
   } ORDER BY ?collection
 LIMIT 5000"""
 
