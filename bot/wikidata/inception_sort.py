@@ -39,7 +39,7 @@ class InceptionSortBot(WikidataBot):
         p:P571 [ ps:P571 ?inception ; pq:P1319 ?earliestinception ; pq:P1326 ?latestinception ].
   FILTER(YEAR(?inception) > 1200 && (!(?earliestinception <= ?inception && ?inception  <= ?latestinception )) && ?earliestinception < ?latestinception) .  
   } 
-  LIMIT 1000"""
+  LIMIT 2000"""
         generator = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
                                                                                                       site=self.repo))
         return generator
