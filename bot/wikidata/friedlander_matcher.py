@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Tool to match Friendlander with Wikidata
+Tool to match Friedlander with Wikidata
 """
 import pywikibot
 import requests
@@ -17,18 +17,19 @@ class FriedlanderMatcher:
     """
     Program to do the matching of Friedlander with Wikidata
     """
-    def __init__(self, frienlander_json):
+    def __init__(self, friedlander_json):
         """
         Setup the bot
         """
         self.friedlander_ids = {}
         self.friedlander_artists = {}
         self.friedlander_locations = {}
-        for artwork in frienlander_json:
+        self.friedlander_volumes = {}
+        for artwork in friedlander_json:
             friedlander_id = artwork.get('friedlanderId')
             self.friedlander_ids[friedlander_id] = artwork
 
-            friedlander_artist = artwork.get('artist').encode('cp1252').decode('utf8')
+            friedlander_artist = artwork.get('artist')  # .encode('cp1252').decode('utf8') solved?
             if friedlander_artist not in self.friedlander_artists:
                 self.friedlander_artists[friedlander_artist] = []
             self.friedlander_artists[friedlander_artist].append(artwork)
@@ -38,6 +39,12 @@ class FriedlanderMatcher:
                 if friedlander_location not in self.friedlander_locations:
                     self.friedlander_locations[friedlander_location] = []
                 self.friedlander_locations[friedlander_location].append(artwork)
+            #if artwork.get('reference details') and artwork.get('reference details').get('volume'):
+            if artwork.get('reference'):
+                friedlander_volume = artwork.get('reference')[0:2].lstrip('0')
+                if friedlander_volume not in self.friedlander_volumes:
+                    self.friedlander_volumes[friedlander_volume] = []
+                self.friedlander_volumes[friedlander_volume].append(artwork)
 
         self.repo = pywikibot.Site().data_repository()
         self.friedlander_on_wikidata = self.get_usage_on_wikidata('P11918')  # self.get_friedlander_on_wikidata()
@@ -182,6 +189,23 @@ class FriedlanderMatcher:
                               'Staatsgalerie',
                               'Whereabouts unknown',
                               ]
+        self.volumes = {'1': 'Q113667108',
+                        '2': 'Q116872369',
+                        '3': 'Q121298068',
+                        '4': 'Q121298096',
+                        '5': 'Q117360131',
+                        '6': 'Q67277194',
+                        '7': 'Q121298122',
+                        '8': 'Q121298137',
+                        '9': 'Q121298155',
+                        '10': 'Q121298167',
+                        '11': 'Q121298188',
+                        '12': 'Q67275272',
+                        '13': 'Q121298233',
+                        '14': 'Q118868327',
+                        '99': 'Q121501917',  # The online additions in the extended data
+                        'VX': 'Q121501917',  # The online additions in the basic data
+                        }
 
     def artist_unmatched_on_wikidata(self, artist_qid):
         """
@@ -215,10 +239,11 @@ class FriedlanderMatcher:
         result = []
 
         query = """SELECT DISTINCT ?item ?itemLabel ?itemDescription ?relation ?artist WHERE {
-  ?item p:P195/ps:P195 wd:%s;
-  p:P170 [ ?relation ?artist] . 
-  ?artist wdt:P135 wd:Q443153  .
+  ?item p:P195/ps:P195 wd:%s.
   MINUS { ?item wdt:P11918 [] } .
+  { ?item wdt:P135 wd:Q443153 } UNION
+  { ?item p:P170 [ ?relation ?artist] . 
+  ?artist wdt:P135 wd:Q443153 }.  
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,nl,fr". }
   } LIMIT 1000""" % (collection_qid, )
 
@@ -277,10 +302,11 @@ class FriedlanderMatcher:
         """
         report_page = 'Wikidata:WikiProject sum of all paintings/Friedlander to match'
 
-        text = 'This page gives an overview of Friedlander images to match. '
+        text = 'This page gives an overview of Friedlander images to match with {{P|P11918}}. '
         text += 'You can help by connecting these.\n'
 
         locations_text = ''
+        volumes_text = ''
         works_other_locations = 0
 
         for location in sorted(self.friedlander_locations.keys()):
@@ -292,6 +318,15 @@ class FriedlanderMatcher:
             else:
                 works_other_locations += works
         locations_text += '%s works in other locations' % (works_other_locations,)
+
+        for volume in sorted(self.friedlander_volumes.keys()):
+            works = len(self.friedlander_volumes.get(volume))
+            if volume in self.volumes and volume != 'XV':
+                volumes_text += '* [[/ENP vol. %s|%s]] - %s\n' % (volume, volume, len(self.friedlander_volumes.get(volume)))
+                if volume in self.volumes:
+                    self.process_volume(volume)
+            else:
+                works_other_locations += works
 
         artists_text = ''
         local_text = self.get_table_header()
@@ -320,8 +355,10 @@ class FriedlanderMatcher:
         text += '__TOC__\n'
         text += '== Popular artists ==\n'
         text += artists_text
-        text += '== Locations ==\n'
+        text += '\n== Locations ==\n'
         text += locations_text
+        text += '\n== Volumes ==\n'
+        text += volumes_text
         text += '\n== Other artists ==\n'
         text += local_text
         text += '\n[[Category:WikiProject sum of all paintings Friedlander to match| ]]'
@@ -335,7 +372,8 @@ class FriedlanderMatcher:
         report_page = 'Wikidata:WikiProject sum of all paintings/Friedlander to match/%s' % (artist, )
         artist_qid = self.artists.get(artist)
 
-        text = 'This page gives an overview of Friedlander images to match for the {{Q|%s}} (%s) group. \n' % (artist_qid, artist)
+        text = 'This page gives an overview of Friedlander images to match with {{P|P11918}} '
+        text += 'for the {{Q|%s}} (%s) group. \n' % (artist_qid, artist)
 
         header = self.get_table_header()
         rows = ''
@@ -377,7 +415,8 @@ class FriedlanderMatcher:
         report_page = 'Wikidata:WikiProject sum of all paintings/Friedlander to match/%s' % (location, )
         location_qid = self.locations.get(location)
 
-        text = 'This page gives an overview of Friedlander images to match for {{Q|%s}} (%s) location or collection. \n' % (location_qid, location)
+        text = 'This page gives an overview of Friedlander images to match with {{P|P11918}} '
+        text += 'for {{Q|%s}} (%s) location or collection. \n' % (location_qid, location)
 
         header = self.get_table_header()
         rows = ''
@@ -410,6 +449,32 @@ class FriedlanderMatcher:
         else:
             text += 'All done matching, see [[Wikidata:WikiProject sum of all paintings/Friedlander to match]].\n'
             text += '\n[[Category:WikiProject sum of all paintings Friedlander completely matched|%s]]' % (location, )
+        page = pywikibot.Page(self.repo, title=report_page)
+        summary = 'Updating Friedlander overview page'
+        page.put(text, summary)
+
+    def process_volume(self, volume):
+        report_page = 'Wikidata:WikiProject sum of all paintings/Friedlander to match/ENP vol. %s' % (volume, )
+        volume_qid = self.volumes.get(volume)
+
+        text = 'This page gives an overview of Friedlander images to match with {{P|P11918}} '
+        text += 'for {{Q|%s}} (ENP vol. %s) location or collection. \n' % (volume_qid, volume)
+
+        header = self.get_table_header()
+        rows = ''
+        for artwork in self.friedlander_volumes.get(volume):
+            rows += self.get_table_row(artwork)
+        if rows:
+            text += 'You can help by connecting these.\n'
+            text += '== To match ==\n'
+            text += header
+            text += rows
+            text += '|}\n'
+
+            text += '\n[[Category:WikiProject sum of all paintings Friedlander to match|ENP vol. %s]]' % (volume, )
+        else:
+            text += 'All done matching, see [[Wikidata:WikiProject sum of all paintings/Friedlander to match]].\n'
+            text += '\n[[Category:WikiProject sum of all paintings Friedlander completely matched|{{SUBPAGENAME}}]]'
         page = pywikibot.Page(self.repo, title=report_page)
         summary = 'Updating Friedlander overview page'
         page.put(text, summary)
@@ -468,11 +533,11 @@ class FriedlanderMatcher:
         text += '| [https://www.kikirpa.be/friedlaender/%s %s] \n' % (artwork.get('friedlanderId'),
                                                                       artwork.get('friedlanderId'))
         text += '| %s \n' % (artwork.get('title'), )
-        artist = artwork.get('artist').encode('cp1252').decode('utf8')
+        artist = artwork.get('artist')  # .encode('cp1252').decode('utf8') solved?
         if artist in self.artists:
             text += '| {{Q|%s}} \n' % (self.artists.get(artist), )
         else:
-            text += '| %s \n' % (artwork.get('artist').encode('cp1252').decode('utf8'), )
+            text += '| %s \n' % (artwork.get('artist'), )  # .encode('cp1252').decode('utf8'), ) solved?
         if artwork.get('location') in self.locations:
             text += '| {{Q|%s}} (%s) \n' % (self.locations.get(artwork.get('location')), artwork.get('location'), )
         else:
