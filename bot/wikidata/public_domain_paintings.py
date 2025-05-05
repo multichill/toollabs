@@ -108,6 +108,9 @@ class PublicDomainPaintingsBot:
 
         :return: boolean
         """
+        if not creator:
+            # We might have encountered an item with unknown value (changed after query)
+            return False
         data = creator.get()
         claims = data.get('claims')
         if 'P570' not in claims:
