@@ -63,6 +63,7 @@ class MonumentsImageBot:
             data = item.get()
             claims = data.get('claims')
 
+            heritageid = None
             if self.wdproperty in claims:
                 heritageid = claims.get(self.wdproperty)[0].getTarget()
 
@@ -70,23 +71,24 @@ class MonumentsImageBot:
             if u'P18' not in claims and heritageid in self.monumentImages:
                 imagename = self.monumentImages.get(heritageid).get('image')
                 sourceurl = self.monumentImages.get(heritageid).get('source')
-                
-                print u'no image found'
+
                 # Construct
                 newclaim = pywikibot.Claim(self.repo, u'P18')
                 commonssite = pywikibot.Site("commons", "commons")
-                imagelink = pywikibot.Link(imagename, source=commonssite, defaultNamespace=6)
-                image = pywikibot.ImagePage(imagelink)
+                imagelink = pywikibot.Link(imagename, source=commonssite, default_namespace=6)
+                image = pywikibot.FilePage(imagelink)
                 if image.isRedirectPage():
-                    image = pywikibot.ImagePage(image.getRedirectTarget())
+                    image = pywikibot.FilePage(image.getRedirectTarget())
                 if not image.exists():
                     pywikibot.output('[[%s]] doesn\'t exist so I can\'t link to it' % (image.title(),))
                 else:
                     newclaim.setTarget(image)
                     pywikibot.output('Adding %s --> %s based on %s' % (newclaim.getID(), newclaim.getTarget(), sourceurl))
                     summary = 'based on usage in list https%s' % (sourceurl,)
-                    item.addClaim(newclaim, summary=summary)
-
+                    try:
+                        item.addClaim(newclaim, summary=summary)
+                    except pywikibot.exceptions.Error:
+                        pywikibot.output('Got an error while saving, skipping')
 
                 
 def main():
@@ -96,7 +98,7 @@ def main():
     jsondata = u'[' + jsondata
     configjson = json.loads(jsondata)
     for workitem in configjson:
-        print workitem
+        print (workitem)
     
         query = u"""SELECT ?item WHERE {
   ?item wdt:P1435 wd:%s .
