@@ -122,6 +122,9 @@ class PublicDomainPaintingsBot:
             if not claim:
                 # Novalue? Not sure
                 return False
+            if claim.getRank() == 'deprecated':
+                # skip the deprecated values
+                continue
             dod = claim.getTarget()
             if not dod:
                 # Unknown value
@@ -132,6 +135,9 @@ class PublicDomainPaintingsBot:
             if dod.year >= self.cutoff_year:
                 return False
             # Looks good, let's get the date
+            if claim.getRank() == 'preferred':
+                # Assuming it has one preferred date of death so returning that
+                return dod.year
             if not year_of_death:
                 year_of_death = dod.year
             elif year_of_death == dod.year:
