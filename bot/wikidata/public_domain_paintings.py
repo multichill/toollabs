@@ -74,11 +74,21 @@ class PublicDomainPaintingsBot:
             return
 
         creator = claims.get('P170')[0].getTarget()
-        year_of_death = self.get_year_of_death_for_creator(creator)
+        time_of_death = self.get_year_of_death_for_creator(creator)
 
-        if not year_of_death:
-            pywikibot.output('Unable to get a valid year of death from %s, skipping' % (creator.title(),))
-            return
+        if time_of_death:
+            summary = 'based on [[Property:P170]] → [[%s]] (died %s)' % (creator.title(), time_of_death)
+        else:
+            pywikibot.output('Unable to get a valid year of death from %s, trying century' % (creator.title(),))
+            # Try to extract the century when the painter died
+            time_of_death = self.get_century_of_death_for_creator(creator)
+            if time_of_death:
+                summary = 'based on [[Property:P170]] → [[%s]] (died %s)' % (creator.title(), time_of_death)
+            else:
+                #pywikibot.output('Unable to get a valid century of death from %s, trying inception' % (creator.title(),))
+                # Try to get the date it was made
+                pywikibot.output('Unable to get a valid century of death from %s, skipping' % (creator.title(),))
+                return
 
         new_claim = pywikibot.Claim(self.repo, 'P6216')
         new_claim.setTarget(self.public_domain)
@@ -93,7 +103,7 @@ class PublicDomainPaintingsBot:
         new_qualifier.setTarget(self.countries_pma)
         new_claim.qualifiers['P1001'] = [new_qualifier]
 
-        summary = 'based on [[Property:P170]] → [[%s]] (died %s)' % (creator.title(), year_of_death)
+        #summary = 'based on [[Property:P170]] → [[%s]] (died %s)' % (creator.title(), time_of_death)
         pywikibot.output('Adding copyright claim to %s %s' % (item.title(), summary))
         item.addClaim(new_claim, summary=summary)
 
@@ -104,9 +114,7 @@ class PublicDomainPaintingsBot:
 
         Return the year of death.
 
-        #TODO: Expand later to also be able to handle century
-
-        :return: boolean
+        :return: integer
         """
         if not creator:
             # We might have encountered an item with unknown value (changed after query)
@@ -150,6 +158,84 @@ class PublicDomainPaintingsBot:
         # Return the year of death we found
         return year_of_death
 
+    def get_century_of_death_for_creator(self, creator):
+        """
+        Check if the creator died before 1900 so we know it's public domain
+        If multiple dates exist: Check all
+
+        Return the century of death.
+
+        :return: boolean
+        """
+        if not creator:
+            # We might have encountered an item with unknown value (changed after query)
+            return False
+        data = creator.get()
+        claims = data.get('claims')
+        if 'P570' not in claims:
+            return False
+
+        # Check if all the dates are good
+        century_of_death = False
+        for claim in claims.get('P570'):
+            if not claim:
+                # Novalue? Not sure
+                return False
+            if claim.getRank() == 'deprecated':
+                # skip the deprecated values
+                continue
+            dod = claim.getTarget()
+            if not dod:
+                # Unknown value
+                return False
+            if dod.precision < 7:
+                # Precision is worst than a century
+                return False
+            if 0 < dod.year >= self.cutoff_year:
+                return False
+            # Looks good, let's get the date
+            if claim.getRank() == 'preferred':
+                # Assuming it has one preferred date of death so returning that
+                return self.get_century(dod.year)
+            if not century_of_death:
+                century_of_death = self.get_century(dod.year)
+            elif century_of_death == self.get_century(dod.year):
+                # Found the same year of death in the other statement
+                pass
+            else:
+                # It's different so skipping this one
+                return False
+
+        # Return the year of death we found
+        return century_of_death
+
+    def get_century(self, year):
+        """
+
+        :param year:
+        :return:
+        """
+        if 901 <= year <= 1000:
+            return '10th century'
+        elif 1001 <= year <= 1100:
+            return '11th century'
+        elif 1101 <= year <= 1200:
+            return '12th century'
+        elif 1201 <= year <= 1300:
+            return '13th century'
+        elif 1301 <= year <= 1400:
+            return '14th century'
+        elif 1401 <= year <= 1500:
+            return '15th century'
+        elif 1501 <= year <= 1600:
+            return '16th century'
+        elif 1601 <= year <= 1700:
+            return '17th century'
+        elif 1701 <= year <= 1800:
+            return '18th century'
+        elif 1801 <= year <= 1900:
+            return '19th century'
+        return None
 
 def main():
     """
