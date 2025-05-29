@@ -17,7 +17,9 @@ class PublicDomainPaintingsBot:
             * generator    - A generator that yields Wikidata items objects.
 
         """
-        self.cutoff_year = 1900
+        self.cutoff_year = 1920
+        self.cutoff_century_year = self.cutoff_year - 70
+        self.cutoff_inception_year = self.cutoff_year - 120
         self.repo = pywikibot.Site().data_repository()
         self.generator = self.get_generator()
         self.public_domain = pywikibot.ItemPage(self.repo, 'Q19652')
@@ -26,18 +28,31 @@ class PublicDomainPaintingsBot:
 
     def get_generator(self):
         """
-        Get items that creator who died before 1900 and no copyright status
+        Do queries to get items to work on:
+        * Items with creator having year of death before cutoff year 1920
+        * Items with creator and inception before cutoff year 1800
         :return:
         """
-        query = """SELECT DISTINCT ?item WHERE {
+        query_dod = """SELECT DISTINCT ?item WHERE {
   ?item wdt:P31 wd:Q3305213 ;
         wdt:P170 ?creator .
   MINUS { ?item wdt:P6216 [] } .
   ?creator wdt:P570 ?dod .
   FILTER(YEAR(?dod) < %s) . 
 }""" % (self.cutoff_year, )
-        return pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
-                                                                                                   site=self.repo))
+        query_inception = """SELECT DISTINCT ?item WHERE {
+  ?item wdt:P31 wd:Q3305213 ;
+        wdt:P170 ?creator ;
+        wdt:P571 ?inception .
+  MINUS { ?item wdt:P6216 [] } .
+  FILTER(YEAR(?inception) <  %s) . 
+}""" % (self.cutoff_inception_year, )
+
+        for query in [query_dod, query_inception]:
+            gen = pagegenerators.PreloadingEntityGenerator(pagegenerators.WikidataSPARQLPageGenerator(query,
+                                                                                                      site=self.repo))
+            for item in gen:
+                yield item
 
     def run(self):
         """
@@ -70,24 +85,33 @@ class PublicDomainPaintingsBot:
 
         rank = claims.get('P170')[0].getRank()
         if rank != 'normal':
-            pywikibot.output('Statement has rank %s, expected normal, skipping' % (rank,) )
+            pywikibot.output('Creator statement has rank %s, expected normal, skipping' % (rank,) )
             return
 
         creator = claims.get('P170')[0].getTarget()
+        # Can be unknown value or redirect item
+
         time_of_death = self.get_year_of_death_for_creator(creator)
 
         if time_of_death:
             summary = 'based on [[Property:P170]] → [[%s]] (died %s)' % (creator.title(), time_of_death)
         else:
-            pywikibot.output('Unable to get a valid year of death from %s, trying century' % (creator.title(),))
+            pywikibot.output('Unable to get a valid year of death, trying century')
             # Try to extract the century when the painter died
             time_of_death = self.get_century_of_death_for_creator(creator)
             if time_of_death:
                 summary = 'based on [[Property:P170]] → [[%s]] (died %s)' % (creator.title(), time_of_death)
+            elif 'P571' in claims:
+                inception_century = self.get_inception_century(claims.get('P571'))
+                if inception_century:
+                    summary = 'based on [[Property:P571]] → %s' % (inception_century, )
+                else:
+                    pywikibot.output('Unable to get a valid century for inception, skipping')
+                    return
             else:
                 #pywikibot.output('Unable to get a valid century of death from %s, trying inception' % (creator.title(),))
                 # Try to get the date it was made
-                pywikibot.output('Unable to get a valid century of death from %s, skipping' % (creator.title(),))
+                pywikibot.output('Unable to get a valid century of death, skipping')
                 return
 
         new_claim = pywikibot.Claim(self.repo, 'P6216')
@@ -191,7 +215,7 @@ class PublicDomainPaintingsBot:
             if dod.precision < 7:
                 # Precision is worst than a century
                 return False
-            if 0 < dod.year >= self.cutoff_year:
+            if 0 < dod.year >= self.cutoff_century_year:
                 return False
             # Looks good, let's get the date
             if claim.getRank() == 'preferred':
@@ -200,7 +224,7 @@ class PublicDomainPaintingsBot:
             if not century_of_death:
                 century_of_death = self.get_century(dod.year)
             elif century_of_death == self.get_century(dod.year):
-                # Found the same year of death in the other statement
+                # Found the same century of death in the other statement
                 pass
             else:
                 # It's different so skipping this one
@@ -208,6 +232,47 @@ class PublicDomainPaintingsBot:
 
         # Return the year of death we found
         return century_of_death
+
+    def get_inception_century(self, inception_claims):
+        """
+        Get the inception century for when a work was made
+
+        :param inception_claims:
+        :return:
+        """
+        # Check if all the dates are good
+        inception_century = False
+        for claim in inception_claims:
+            if not claim:
+                # Novalue? Not sure
+                return False
+            if claim.getRank() == 'deprecated':
+                # skip the deprecated values
+                continue
+            inception = claim.getTarget()
+            if not inception:
+                # Unknown value
+                return False
+            if inception.precision < 7:
+                # Precision is worst than a century
+                return False
+            if 0 < inception.year >= self.cutoff_inception_year:
+                return False
+            # Looks good, let's get the date
+            if claim.getRank() == 'preferred':
+                # Assuming it has one preferred date of death so returning that
+                return self.get_century(inception.year)
+            if not inception_century:
+                inception_century = self.get_century(inception.year)
+            elif inception_century == self.get_century(inception.year):
+                # Found the same inception century in the other statement
+                pass
+            else:
+                # It's different so skipping this one
+                return False
+
+        # Return the year of death we found
+        return inception_century
 
     def get_century(self, year):
         """
