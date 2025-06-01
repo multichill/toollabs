@@ -89,7 +89,6 @@ class PublicDomainPaintingsBot:
             return
 
         creator = claims.get('P170')[0].getTarget()
-        # Can be unknown value or redirect item
 
         time_of_death = self.get_year_of_death_for_creator(creator)
 
@@ -143,6 +142,9 @@ class PublicDomainPaintingsBot:
         if not creator:
             # We might have encountered an item with unknown value (changed after query)
             return False
+        # Resolve redirect. Seem to encounter quite a few of them
+        if creator.isRedirectPage():
+            creator = creator.getRedirectTarget()
         data = creator.get()
         claims = data.get('claims')
         if 'P570' not in claims:
@@ -194,6 +196,9 @@ class PublicDomainPaintingsBot:
         if not creator:
             # We might have encountered an item with unknown value (changed after query)
             return False
+        # Resolve redirect. Seem to encounter quite a few of them
+        if creator.isRedirectPage():
+            creator = creator.getRedirectTarget()
         data = creator.get()
         claims = data.get('claims')
         if 'P570' not in claims:
