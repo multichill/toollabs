@@ -242,6 +242,10 @@ def get_art_uk_generator(generator_type, target=None, only_new=None):
             ids.add(art_uk_id)
     
     """
+    # Really? You're throwing a 403 at me?
+    headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:66.0) Gecko/20100101 Firefox/66.0'}
+    session = requests.Session()
+    session.headers.update(headers)
 
     for art_uk_id in generator:
 
@@ -253,7 +257,7 @@ def get_art_uk_generator(generator_type, target=None, only_new=None):
         metadata['artworkidpid'] = 'P1679'
         metadata['artworkid'] = art_uk_id
 
-        item_page = requests.get(url)
+        item_page = session.get(url)
         pywikibot.output(url)
         metadata['url'] = url
 
