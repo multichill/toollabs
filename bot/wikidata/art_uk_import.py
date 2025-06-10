@@ -399,6 +399,18 @@ def get_art_uk_generator(generator_type, target=None, only_new=None):
                 print(metadata['inception'])
                 print(metadata['inception'])
                 print(metadata['inception'])
+            elif in_century_match:
+                metadata['inception'] = int('%s00' % (in_century_match.group(2),)) - 50  # Put it in the middle
+                metadata['inceptionprecision'] = 'century'
+                if in_century_match.group(1).strip() == 'early':
+                    metadata['inceptionrefine'] = 'beginning of'
+                elif in_century_match.group(1).strip() == 'mid-':
+                    metadata['inceptionrefine'] = 'middle of'
+                elif in_century_match.group(1).strip() == 'late':
+                    metadata['inceptionrefine'] = 'end of'
+                else:
+                    print(date)
+                    metadata['inceptionrefine'] = 'invalid refine date'
             elif decade_match:
                 metadata['inception'] = int(decade_match.group(1),) + 5  # Put it in the middle
                 metadata['inceptionprecision'] = 'decade'
@@ -408,6 +420,18 @@ def get_art_uk_generator(generator_type, target=None, only_new=None):
                 print(metadata['inception'])
                 print(metadata['inception'])
                 print(metadata['inception'])
+            elif in_decade_match:
+                metadata['inception'] = int(in_decade_match.group(2),) + 5  # Put it in the middle
+                metadata['inceptionprecision'] = 'decade'
+                if in_decade_match.group(1).strip() == 'early':
+                    metadata['inceptionrefine'] = 'beginning of'
+                elif in_decade_match.group(1).strip() == 'mid-':
+                    metadata['inceptionrefine'] = 'middle of'
+                elif in_decade_match.group(1).strip() == 'late':
+                    metadata['inceptionrefine'] = 'end of'
+                else:
+                    print(date)
+                    metadata['inceptionrefine'] = 'invalid refine date'
             else:
                 print('Could not parse date: "%s"' % (date,))
                 print('Could not parse date: "%s"' % (date,))
