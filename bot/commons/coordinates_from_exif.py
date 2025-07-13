@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Bot to find files with coordinates only in exif, tag these files and import the data
-
 """
 
 import re
@@ -18,8 +17,6 @@ class ExifCoordinatesBot:
         Grab generator based on search to work on.
         """
         self.site = pywikibot.Site('commons', 'commons')
-        #self.site.login()
-        #self.site.get_tokens('csrf')
         self.repo = self.site.data_repository()
         self.generator = generator
         self.only_tag = only_tag
@@ -34,8 +31,6 @@ class ExifCoordinatesBot:
             if self.only_tag:
                 self.tag_file_page(file_page)
 
-            #self.extract_identifiers(filepage)
-
     def tag_file_page(self, file_page):
         """
         Tag a single file page for EXIF
@@ -44,6 +39,13 @@ class ExifCoordinatesBot:
         """
         text = file_page.get()
         if 'GPS EXIF' in text:
+            return
+        # Filter out
+        # Template:Location
+        # Category:Location_not_applicable
+        # Category:Ambiguous location in EXIF
+        # Might give some false positives
+        if 'location' in text.lower():
             return
         #print(text)
         new_text = re.sub('(\}\})([\n\r\s]+==\s*\{\{int:license-header\}\}\s*==)', ('\\1{{GPS EXIF}}\\2'), text)
@@ -54,72 +56,7 @@ class ExifCoordinatesBot:
         summary = 'Found GPS coordinates in EXIF'
         file_page.put(new_text, summary)
 
-    def extract_identifiers(self, filepage):
-        """
-
-        :param filepage:
-        :return:
-        """
-        mediainfo = filepage.data_item()
-        if not mediainfo:
-            return
-
-        try:
-            statements = mediainfo.statements
-        except Exception:
-            # Bug in Pywikibot, no statements
-            return
-        for id_template, id_info in self.id_templates.items():
-            self.extract_identifier(filepage, mediainfo, id_template, id_info.get('property'), id_info.get('regex'))
-
-    def extract_identifier(self, filepage, mediainfo, id_template, id_property, regex):
-        """
-        Find and copy the identifier from the wikitext to a statement on the filepage
-
-        :param filepage: File to work on
-        :param id_template: Template to look for
-        :param id_property: The property to add
-        :param regex: Regex to use to extract the data
-        :return:
-        """
-
-        # Check if we already have the property
-        if id_property in mediainfo.statements:
-            pywikibot.output(f'{id_property} found')
-            return
-
-        template_found = False
-        for template in filepage.itertemplates():
-            if template.title() == id_template:
-                template_found = True
-                break
-
-        if not template_found:
-            pywikibot.output(f'{id_template} not found')
-            return False
-
-        match = re.search(regex, filepage.text)
-        if not match:
-            pywikibot.output(f'{regex} did not match')
-            return
-
-        found_id = match.group('id')
-
-        summary = f'Extracted [[d:Special:EntityPage/{id_property}]] {found_id} from [[{id_template}]]'
-        pywikibot.output(summary)
-
-        new_claim = pywikibot.Claim(self.repo, id_property)
-        new_claim.setTarget(found_id)
-
-        data = {'claims': [new_claim.toJSON(), ]}
-        try:
-            # FIXME: Switch to mediainfo.editEntity() https://phabricator.wikimedia.org/T376955
-            response = self.site.editEntity(mediainfo, data, summary=summary, tags='BotSDC')
-            filepage.touch()
-        except pywikibot.exceptions.APIError as e:
-            print(e)
-
-def get_recent_changes_canditates_generator():
+def get_recent_changes_candidates_generator():
     """
 
     :return:
@@ -138,10 +75,8 @@ def get_recent_changes_canditates_generator():
     }
     gen = pywikibot.data.api.QueryGenerator(site=site, parameters=parameters)
     for gen_result in gen:
-        #print(gen_result)
         if 'pageprops' in gen_result:
             if 'kartographer_links' in gen_result.get('pageprops'):
-                #print('Already has kartographer_links')
                 continue
         if 'templates' in gen_result:
             continue
@@ -159,6 +94,29 @@ def get_recent_changes_canditates_generator():
                             page = pywikibot.FilePage(site, gen_result['title'])
                             yield page
 
+def get_mysql_exif_generator():
+    """
+    Do a mysql query on the Commons database to get the candidates
+    :return:
+    """
+    site = pywikibot.Site('commons', 'commons')
+    query = """SELECT page_namespace, page_title FROM filerevision
+JOIN file on fr_id=file_latest
+AND fr_file=file_id
+JOIN page on page_title=file_name
+AND page_namespace=6
+LEFT JOIN templatelinks ON page_id=tl_from
+AND tl_from_namespace=6
+AND (tl_target_id=204 /* Template:Location */
+OR tl_target_id=402219 /* Template:GPS_EXIF */
+OR tl_target_id=119006506) /* Template:GPS_EXIF_ambiguous */
+WHERE fr_metadata LIKE '%GPSLatitude%'
+AND tl_from IS NULL
+LIMIT 25000"""
+    generator=pagegenerators.MySQLPageGenerator(query, site=site)
+    for page in generator:
+        file_page = pywikibot.FilePage(page)
+        yield file_page
 
 def main(*args):
     """
@@ -173,17 +131,15 @@ def main(*args):
 
     for arg in pywikibot.handle_args(args):
         if arg == '-recentchangesexif':
-            gen = get_recent_changes_canditates_generator()
+            gen = get_recent_changes_candidates_generator()
+        if arg == '-mysqlexif':
+            gen = get_mysql_exif_generator()
         elif arg == '-onlytag':
             only_tag = True
         elif gen_factory.handle_arg(arg):
             continue
 
-
     gen = pagegenerators.PageClassGenerator(gen_factory.getCombinedGenerator(gen, preload=True))
-    #for bla in gen:
-    #    print(bla)
-    #    pass
     exif_coordinates_bot = ExifCoordinatesBot(gen, only_tag=only_tag)
     exif_coordinates_bot.run()
 
