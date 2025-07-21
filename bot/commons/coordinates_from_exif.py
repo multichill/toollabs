@@ -26,10 +26,14 @@ class ExifCoordinatesBot:
         Run on the items
         """
         for file_page in self.generator:
-            if file_page.isRedirectPage():
-                file_page = file_page.getRedirectTarget()
-            if self.only_tag:
-                self.tag_file_page(file_page)
+            try:
+                if file_page.isRedirectPage():
+                    file_page = file_page.getRedirectTarget()
+                if self.only_tag:
+                    self.tag_file_page(file_page)
+            except pywikibot.exceptions.NoPageError:
+                # Page got deleted, nothing left to do
+                pass
 
     def tag_file_page(self, file_page):
         """
