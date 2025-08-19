@@ -20,6 +20,8 @@ import json
 import math
 import csv
 from contextlib import closing
+from datetime import datetime
+from datetime import timedelta
 from html.parser import HTMLParser
 #from pyproj import Proj, transform
 
@@ -716,6 +718,8 @@ def getGeographGenerator(startid, endid):
     tags = getGeographTags()
     pywikibot.debug(tags, 'bot')
     limit = 100
+    delay_days = 31
+    latest_date = int((datetime.now() + timedelta(days=-delay_days)).timestamp())
 
     for i in range(startid, endid, limit):
         searchurl = 'http://api.geograph.org.uk/api-facetql.php?select=*&limit=%s&where=id+between+%s+and+%s&utf=2' % (limit, i, min(i+limit,endid))
@@ -796,6 +800,9 @@ def getGeographGenerator(startid, endid):
                             if depictsqid not in metadata.get('depictsqids'):
                                 metadata['depictsqids'].append(depictsqid)
             yield row
+            if row.get('submitted') and int(row.get('submitted')) > latest_date:
+                pywikibot.output(f'Photo {metadata["sourceurl"]} recently submitted (less than {delay_days} days), last upload.')
+                return
     return
 
 def getGeographTags():
