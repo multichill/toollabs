@@ -580,10 +580,13 @@ def getFilteredGeographGenerator(startid, endid):
     :param endid: Integer to end with
     :return: Yields metadata
     """
+    commons_deleted_generator = get_commons_geograph_deleted_id_generator()
     commonsgenerator = getCommonsGeographIdGenerator(startid, endid)
     geographgenerator = getGeographGenerator(startid, endid)
 
     toskiplist = []
+    for toskip in commons_deleted_generator:
+        toskiplist.append(toskip)
     for toskip in commonsgenerator:
         toskiplist.append(toskip)
 
@@ -709,6 +712,22 @@ def getCommonsGeographIdGenerator(startid, endid):
         # Break out when identifier is higher than what we're looking for
         if identifier > endid:
             return
+
+def get_commons_geograph_deleted_id_generator():
+    """
+    Get the list of deleted id's based on:
+     https://commons.wikimedia.org/wiki/Commons:Geograph_Britain_and_Ireland/Deleted_files
+    This is the basis of the skip list and prevents re-uploads
+    :return: List of integers
+    """
+    site = pywikibot.Site('commons', 'commons')
+    page = pywikibot.Page(site, title='Commons:Geograph Britain and Ireland/Deleted files')
+    id_regex = u'^File\:.+ - geograph\.org\.uk - (\d+)\.jpg$'
+    for linked_file in page.linkedPages(namespaces=6):
+        title_match = re.match(id_regex, linked_file.title())
+        if title_match:
+            identifier = int(title_match.group(1))
+            yield identifier
 
 def getGeographGenerator(startid, endid):
     """
