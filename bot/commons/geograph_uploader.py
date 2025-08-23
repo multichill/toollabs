@@ -688,7 +688,11 @@ def getCommonsGeographIdGenerator(startid, endid):
     startprefix = ' %s' % (str(startid).zfill(8),)
     idregex = u'^File\:.+ - geograph\.org\.uk - (\d+)\.jpg$'
     sloppyidregex =u'^File:[^\d]*(\d+)[^\d]*\.jpg'
+    previous_identifier = 0
+    identifier = 0
     for filepage in category.articles(content=False, namespaces=6, startprefix=startprefix):
+        if identifier < endid:
+            previous_identifier = identifier
         titlematch = re.match(idregex, filepage.title())
         sloppytitlematch = re.match(sloppyidregex, filepage.title())
         if titlematch:
@@ -711,7 +715,11 @@ def getCommonsGeographIdGenerator(startid, endid):
 
         # Break out when identifier is higher than what we're looking for
         if identifier > endid:
-            return
+            if not previous_identifier:
+                return
+            elif previous_identifier and not identifier > previous_identifier + 5000:
+                # To prevent files with higher id's in the filename to cause an incorrect end
+                return
 
 def get_commons_geograph_deleted_id_generator():
     """
