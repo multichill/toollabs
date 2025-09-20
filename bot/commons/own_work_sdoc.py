@@ -362,6 +362,7 @@ class OwnWorkBot:
                    'wiki loves earth 2022': 'Q111498696',
                    'wiki loves earth 2023': 'Q117447474',
                    'wiki loves earth 2024': 'Q124666252',
+                   'wiki loves earth 2025': 'Q132532301',
                    'wiki loves monuments 2010': 'Q20890568',
                    'wiki loves monuments 2011': 'Q8168264',
                    'wiki loves monuments 2012': 'Q13390164',
@@ -377,6 +378,8 @@ class OwnWorkBot:
                    'wiki loves monuments 2022': 'Q111382293',
                    'wiki loves monuments 2023': 'Q119978762',
                    'wiki loves monuments 2024': 'Q124255587',
+                   'wiki loves monuments 2025': 'Q131411758',
+                   'wiki loves monuments 2026': 'Q136339403',
                    }
         return result
 
