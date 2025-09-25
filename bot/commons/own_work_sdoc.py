@@ -899,6 +899,7 @@ class OwnWorkBot:
             return False
 
         dateRegex = u'^\s*[dD]ate\s*\=\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
+        date_dtz_regex = '^\s*[dD]ate\s*\=\s*\{\{DTZ\|(?P<date>\d\d\d\d-\d\d-\d\d)T\d\d:\d\d.*$'
         takenRegex = u'^\s*date\s*\=\s*\{\{taken on\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\|\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\}\}(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*$'
         exifRegex = u'^\s*date\s*\=\s*\{\{According to Exif(\s*data)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\|\s*(?P<date>\d\d\d\d-\d\d-\d\d)(\s*\d\d\:\d\d(\:\d\d(\.\d\d)?)?)?\s*(\|\s*location\s*\=\s*[^\|]*)?\s*\}\}\s*$'
 
@@ -910,10 +911,13 @@ class OwnWorkBot:
                 for field in parameters:
                     if field.lower().startswith(u'date'):
                         datematch = re.match(dateRegex, field, flags=re.IGNORECASE)
+                        date_dtz_match = re.match(date_dtz_regex, field, flags=re.IGNORECASE)
                         takenmatch = re.match(takenRegex, field, flags=re.IGNORECASE)
                         exifmatch = re.match(exifRegex, field, flags=re.IGNORECASE)
                         if datematch:
                             dateString = datematch.group('date').strip()
+                        elif date_dtz_match:
+                            dateString = date_dtz_match.group('date').strip()
                         elif takenmatch:
                             dateString = takenmatch.group('date').strip()
                         elif exifmatch:
