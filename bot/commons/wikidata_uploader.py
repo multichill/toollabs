@@ -14,19 +14,17 @@ That should be a safe enough margin.
 
 """
 
-import pywikibot
 import re
-import pywikibot.data.sparql
-from pywikibot.comms import http
 import datetime
 import hashlib
-import io
 import base64
 import tempfile
-import os
 import time
-import requests
 import json
+import requests
+import pywikibot
+import pywikibot.data.sparql
+from pywikibot.comms import http
 
 class WikidataUploaderBot:
     """
@@ -290,8 +288,10 @@ SELECT ?item ?itemdate ?inv ?downloadurl ?format ?sourceurl ?title ?creatorname 
         except requests.exceptions.RequestException:
             pywikibot.output('ERROR: Got a requests error for Wikidata item [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
             return False
-
-        if response.status_code == 200:
+        if response.status_code == 404:
+            pywikibot.output('ERROR 404: File not found for [[:d:%(item)s]] with url %(downloadurl)s' % metadata)
+            return False
+        elif response.status_code == 200:
             hashObject = hashlib.sha1()
             hashObject.update(response.content)
             sha1base64 = base64.b16encode(hashObject.digest())
