@@ -200,7 +200,11 @@ SELECT DISTINCT ?item ?id WHERE {
 
         output += '== Wikidata former RCE ==\nShould be deprecated\n'
         for rm_id in sorted(wikidata_former_rce):
-            output += '* %s - {{Q|%s}}\n' % (rm_id, self.rijksmonumenten_wikidata.get(rm_id))
+            output += '* %s - {{Q|%s}} / %s%s\n' % (rm_id,
+                                                    self.rijksmonumenten_wikidata.get(rm_id),
+                                                    self.rce_entity_url,
+                                                    self.former_rijksmonumenten_rce.get(rm_id),
+                                                    )
 
         output += '== Wikidata not RCE ==\nShould be figured out\n'
         for rm_id in sorted(wikidata_all_not_rce):
