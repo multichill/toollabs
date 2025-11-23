@@ -86,7 +86,7 @@ class RijksmonumentenCompareBot:
     SELECT DISTINCT ?item ?id WHERE {
       ?item a ceo:Rijksmonument ;
             ceo:rijksmonumentnummer ?id 
-      MINUS {?item ceo:heeftJuridischeStatus <https://data.cultureelerfgoed.nl/term/id/rn/3e79bb7c-b459-4998-a9ed-78d91d069227>}
+      MINUS {?item ceo:heeftJuridischeStatus <https://data.cultureelerfgoed.nl/term/id/rn/2/3e79bb7c-b459-4998-a9ed-78d91d069227>}
     } LIMIT %s
     OFFSET %s""" % (step, i)
             sq = pywikibot.data.sparql.SparqlQuery(self.rce_endpoint, self.rce_entity_url)
@@ -112,7 +112,7 @@ PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 SELECT DISTINCT ?item ?id WHERE {
   ?item ceo:rijksmonumentnummer ?id .
-  ?item ceo:heeftJuridischeStatus <https://data.cultureelerfgoed.nl/term/id/rn/3e79bb7c-b459-4998-a9ed-78d91d069227> #}
+  ?item ceo:heeftJuridischeStatus <https://data.cultureelerfgoed.nl/term/id/rn/2/3e79bb7c-b459-4998-a9ed-78d91d069227> #}
 } LIMIT 10000"""
         sq = pywikibot.data.sparql.SparqlQuery(self.rce_endpoint, self.rce_entity_url)
         queryresult = sq.select(query)
@@ -151,7 +151,7 @@ PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 SELECT DISTINCT ?item ?id WHERE {
       ?item a ceo:Complex ;
             ceo:complexnummer ?id 
-      MINUS {?item ceo:heeftHoofdobject/ceo:heeftJuridischeStatus <https://data.cultureelerfgoed.nl/term/id/rn/3e79bb7c-b459-4998-a9ed-78d91d069227>}
+      MINUS {?item ceo:heeftHoofdobject/ceo:heeftJuridischeStatus <https://data.cultureelerfgoed.nl/term/id/rn/2/3e79bb7c-b459-4998-a9ed-78d91d069227>}
     } LIMIT 10000"""
         sq = pywikibot.data.sparql.SparqlQuery(endpoint=self.rce_endpoint, entity_url=self.rce_entity_url)
         queryresult = sq.select(query)
